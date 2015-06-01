@@ -1,0 +1,4 @@
+hack-pygit2
+===========
+
+Learn some pygit2 interface
