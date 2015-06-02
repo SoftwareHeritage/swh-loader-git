@@ -4,7 +4,7 @@
 
 The Software Heritage Git Loader is a tool and a library to walk a local Git repository and inject into the SWH dataset all contained files that weren't known before.
 
-* Licensing
+* License
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,14 +25,15 @@ along with this program.
 - python3-psycopg2
 - python3-pygit2
 
-* Functional requirements
+* Requirements
+** Functional
 
 - input: a Git bare repository available locally, on the filesystem
 - input (optional): a table mapping SHA256 of individual files to path on the filesystem that contain the corresponding content (AKA, the file cache)
 - input (optional): a set of SHA1 of Git commits that have already been seen in the past (AKA, the Git commit cache)
 - output: an augmented SWH dataset, where all files present in all blobs referenced by any Git object, have been added
 
-** algo
+*** algo
 
 Sketch of the (naive) algorithm that the Git loader should execute
 
@@ -49,26 +50,21 @@ for each ref in the repo
                     add the file to the file cache, pointing to the file path on the filesystem
 #+end_src
 
-* Non-functional requirements
+** Non-functional
 
 - implementation language, Python3
 - coding guidelines: conform to PEP8
 - Git access: via libgit2/pygit
 - cache: implemented as Postgres tables
 
-* File-system storage
+** File-system storage
 
 Given a file with SHA256 of b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c
 it will be stored at STORAGE_ROOT/b5/bb/9d/80/14a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c
 
 * Configuration
 
-#+begin_src sh
-export PYTHONPATH=$PYTHONPATH:`pwd`
-#+end_src
-
-
-Create a configuration file in ~/.cache/sgloader.ini:
+Create a configuration file in *~/.cache/sgloader.ini*:
 
 #+begin_src ini
 [main]
@@ -76,4 +72,18 @@ dataset_dir = dataset
 log_dir = log
 # see http://docs.sqlalchemy.org/en/latest/core/engines.html#database-urls
 db_url = postgres:///swhgitloader
+#+end_src
+
+* Run
+
+** Parse a repository
+
+#+begin_src sh
+PYTHONPATH=$PYTHONPATH:`pwd` ./bin/sgloader --repo-path /path/to/repo createdb
+#+end_src
+
+** Clean data
+
+#+begin_src sh
+PYTHONPATH=$PYTHONPATH:`pwd` ./bin/sgloader --repo-path /path/to/repo dropdb
 #+end_src
