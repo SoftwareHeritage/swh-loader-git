@@ -39,3 +39,24 @@ for each ref in the repo
 
 Given a file with SHA256 of b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c
 it will be stored at STORAGE_ROOT/b5/bb/9d/80/14a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c
+
+* Configuration
+
+Create a configuration file in ~/.cache/sgloader.ini:
+
+#+begin_src ini
+[cache-objects]
+# see http://docs.sqlalchemy.org/en/latest/core/engines.html#database-urls
+db_url = postgres:///swhgitloader-objects
+cache_dir = cache
+log_dir = log
+username = swhgitloader
+password =
+
+[cache-files]
+db_url = postgres:///swhgitloader-files
+cache_dir = cache
+log_dir = log
+username = swhgitloader
+password =
+#+end_src
