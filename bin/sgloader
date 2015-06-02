@@ -10,11 +10,12 @@ import logging
 import os
 import sys
 
+import pygit2
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from sgloader import loader #, models
-# from sgloader.db_utils import session_scope
+from sgloader import loader, models
+from sgloader.db_utils import session_scope
 
 
 # Default configuration file
@@ -22,19 +23,33 @@ DEFAULT_CONF_FILE = '~/.config/sgloader.ini'
 
 # default configuration (can be overriden by the DEFAULT_CONF_FILE)
 DEFAULT_CONF = {
-    'cache_dir': './cache',
-    'log_dir': './log'
+    'dataset_dir': './dataset',
+    'log_dir': './log',
+    'db_url': 'postgres:///swhgitloader'
 }
+
+def db_connect(db_url):
+    engine = create_engine(db_url)
+    Session = sessionmaker(bind=engine)
+
+    return (engine, Session)
 
 def parse_args():
     cli = argparse.ArgumentParser(description='Parse git repositories objects and load them into a DB.')
-    cli.add_argument('--verbose', '-v', action='store_true', help='be verbose')
+    # cli.add_argument('--verbose', '-v', action='store_true', help='be verbose')
     cli.add_argument('--repo-path', '-r', dest='repo_path', help='Provide the git repository\'s path to read objects from.')
+
+    subcli = cli.add_subparsers(dest='action')
+    subcli.add_parser('createdb', help='initialize DB')
+    subcli.add_parser('dropdb', help='destroy DB')
 
     args = cli.parse_args()
 
-    if not args.repo_path:
-        cli.error('no repository given')
+    # if not args.repo_path:
+    #     cli.error('no repository given')
+
+    # if not args.action:
+    #     cli.error('no action given')
 
     return args
 
@@ -50,36 +65,81 @@ def read_conf(args):
     config = configparser.ConfigParser(defaults=DEFAULT_CONF)
     config.read(os.path.expanduser(DEFAULT_CONF_FILE))
 
-    conf_cache_objects = config._sections['cache-objects']
-    conf_cache_files = config._sections['cache-files']
-
-    return {
-           'repo_path': args.repo_path,
-           'cache_objects': conf_cache_objects,
-           'cache_files': conf_cache_files
-       }
+    conf = config._sections['main']
+    conf ['repo_path'] = args.repo_path
+    
+    return conf
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)  # XXX
+    logging.basicConfig(level=logging.INFO)
 
     args = parse_args()
     conf = read_conf(args)
 
+    db_engine, mk_session = db_connect(conf['db_url'])
+
+    if args.action == 'createdb':
+        models.SQLBase.metadata.create_all(db_engine)
+    elif args.action == 'dropdb':
+        models.SQLBase.metadata.drop_all(db_engine)
+
     repo_path = conf['repo_path']
-
     repo = loader.load_repo(repo_path)
-
     all_refs = repo.listall_references()
 
-    # for each ref in the repo
-    for ref_name in all_refs: 
-        ref = repo.lookup_reference(ref_name)
-        head_commit = ref.get_object()
-        # for each commit referenced by the commit graph starting at that ref
-        for commit in loader.commits_from(repo, head_commit):
-            # if we have a git commit cache and the commit is in there: 
-            if loader.in_cache_commits(commit):
-                break # stop treating the current commit sub-graph
-            else:
-                print (commit.hex + ': ' + commit.message)
+    with session_scope(mk_session) as db_session:
+        
+        # for each ref in the repo
+        for ref_name in all_refs:
+            ref = repo.lookup_reference(ref_name)
+            head_commit = ref.peel()
+            # for each commit referenced by the commit graph starting at that ref
+            for commit in loader.commits_from(repo, head_commit):
+                # if we have a git commit cache and the commit is in there: 
+                if loader.in_cache_commits(db_session, commit):
+                    break # stop treating the current commit sub-graph
+                else:
+                    # for each tree referenced by the commit
+                    for treeEntry in commit.tree:
+                        blob = repo[treeEntry.id]
+                        
+                        # keep only the blobs
+                        if not isinstance(blob, pygit2.Blob):
+                            break;
+    
+                        # lookup the checksum in the file cache
+                        if not loader.in_cache_files(db_session, blob): # if it is not there
+                            # add the file to the dataset on the filesystem
+                            loader.add_file_in_dataset(db_session, blob)
+                        else:
+                            # add the file to the file cache, pointing to the file path on the filesystem
+                            loader.add_file_in_cache(db_session, blob)
+                            
+                loader.add_commit_in_cache(db_session, commit)
+
+                
+    # db_engine, mk_session = db_connect(conf['db_url'])
+
+    # if args.action == 'createdb':
+    #     models.SQLBase.metadata.create_all(db_engine)
+    # elif args.action == 'dropdb':
+    #     models.SQLBase.metadata.drop_all(db_engine)
+    # elif args.action == 'list':
+    #     lister.fetch(conf,
+    #                  mk_session,
+    #                  min_id=args.interval[0],
+    #                  max_id=args.interval[1])
+    # elif args.action == 'catchup':
+    #     with session_scope(mk_session) as db_session:
+    #         last_known_id = lister.last_repo_id(db_session)
+    #         if last_known_id is not None:
+    #             logging.info('catching up from last known repo id: %d' %
+    #                          last_known_id)
+    #             lister.fetch(conf,
+    #                          mk_session,
+    #                          min_id=last_known_id + 1,
+    #                          max_id=None)
+    #         else:
+    #             logging.error('Cannot catchup: no last known id found. Abort.')
+    #             sys.exit(2)

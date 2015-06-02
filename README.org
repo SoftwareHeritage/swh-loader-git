@@ -45,7 +45,7 @@ for each ref in the repo
                 compute the SHA256 checksum of the blob
                 lookup the checksum in the file cache
                 if it is not there
-                    add the file to the dataset on the filesystem
+                  >  add the file to the dataset on the filesystem
                     add the file to the file cache, pointing to the file path on the filesystem
 #+end_src
 
@@ -71,18 +71,9 @@ export PYTHONPATH=$PYTHONPATH:`pwd`
 Create a configuration file in ~/.cache/sgloader.ini:
 
 #+begin_src ini
-[cache-objects]
+[main]
+dataset_dir = dataset
+log_dir = log
 # see http://docs.sqlalchemy.org/en/latest/core/engines.html#database-urls
-db_url = postgres:///swhgitloader-objects
-cache_dir = cache
-log_dir = log
-username = swhgitloader
-password =
-
-[cache-files]
-db_url = postgres:///swhgitloader-files
-cache_dir = cache
-log_dir = log
-username = swhgitloader
-password =
+db_url = postgres:///swhgitloader
 #+end_src
