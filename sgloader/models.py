@@ -18,7 +18,7 @@ class FileCache(SQLBase):
 
     __tablename__ = 'file_cache'
 
-    sha256    = Column(String(41), primary_key = True)
+    sha256    = Column(String(65), primary_key = True)
     path      = Column(String    , nullable    = False)
     last_seen = Column(DateTime  , nullable    = False)
 

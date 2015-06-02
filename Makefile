@@ -4,7 +4,8 @@ prepare:
 	mkdir -p log dataset
 
 run: prepare
-	PYTHONPATH=`pwd` ./bin/sgloader --repo-path $(REPO_PATH) createdb
+	PYTHONPATH=`pwd` PYTHONLOG=DEBUG ./bin/sgloader --repo-path $(REPO_PATH) createdb
 
 clean:
+	rm -rf ./dataset/
 	PYTHONPATH=`pwd` ./bin/sgloader dropdb

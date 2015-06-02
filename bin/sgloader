@@ -75,18 +75,20 @@ def read_conf(args):
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-
+    
     args = parse_args()
     conf = read_conf(args)
 
     db_engine, mk_session = db_connect(conf['db_url'])
 
-    
     if args.action == 'dropdb':
         models.SQLBase.metadata.drop_all(db_engine)
     else:
         if args.action == 'createdb':
             models.SQLBase.metadata.create_all(db_engine)
+
+        log_dir = conf['log_dir']
+        logging.basicConfig(filename=os.path.join(log_dir, 'sgloader.log'),level=logging.DEBUG)
 
         dataset_dir = conf['dataset_dir']
 
@@ -117,10 +119,9 @@ if __name__ == '__main__':
                             # lookup the checksum in the file cache
                             if not loader.in_cache_files(db_session, blob): # if it is not there
                                 # add the file to the dataset on the filesystem
-                                loader.add_file_in_dataset(db_session, dataset_dir, blob)
-                            else:
+                                filepath = loader.add_file_in_dataset(db_session, dataset_dir, blob)
                                 # add the file to the file cache, pointing to the file path on the filesystem
-                                loader.add_file_in_cache(db_session, blob)
+                                loader.add_file_in_cache(db_session, blob, filepath)
 
                     loader.add_commit_in_cache(db_session, commit)
 

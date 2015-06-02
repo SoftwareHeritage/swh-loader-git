@@ -32,43 +32,66 @@ def commits_from(repo, commit):
     return repo.walk(commit.id, pygit2.GIT_SORT_TIME)
 
 
-def hashkey(data):
+def _hashkey(data):
     """Given some data, compute the sha256 of such data.
     """
     sha256 = hashlib.sha256();
     sha256.update(data)
-    return str(sha256.digest())
+    return sha256.hexdigest()
     
 
-def in_cache_files(db_session, blob, key = None):
+def in_cache_files(db_session, blob, hashkey = None):
     """Determine if a file is in the file cache.
     """
-    key = hashkey(blob.data) if key is None else key
+    hashkey = _hashkey(blob.data) if hashkey is None else hashkey
     return db_session.query(CommitCache) \
-                     .filter(FileCache.sha256 == key) \
+                     .filter(FileCache.sha256 == hashkey) \
                      .first()
 
 
 def add_file_in_cache(db_session, blob, filepath):
     """Add file in cache.
     """
-    key = hashkey(blob.data)
-    logging.debug('injecting file \'%s\' with \'%s\' (sha256: \'%s\')' % blob.hex % filepath % sha256)
+    hashkey = _hashkey(blob.data)
+    logging.debug('injecting file \'%s\' with \'%s\' (sha256: \'%s\')', blob.hex, filepath, hashkey)
     
-    if in_cache_files(db_session, blob, key):
+    if in_cache_files(db_session, blob, hashkey):
         logging.info('not injecting already present blob \'%d\'' % blob.hex)
         return
     
-    kwargs = {'sha256': key, 'path': filepath}
+    kwargs = {'sha256': hashkey, 'path': filepath}
     sql_repo = FileCache(**kwargs)
     db_session.add(sql_repo)
 
 
-def add_file_in_dataset(db_session, dataset_dir, blob, filepath):
-    """Add file in the dataset on disk.
+def _compute_folder(dataset_dir, hashkey):
+    """Compute the folder prefix from a hash key.
     """
-    print ("Add the file to the dataset")
-    return False
+    return (dataset_dir, hashkey[0:2], hashkey[2:4], hashkey[4:6], hashkey[6:8])
+
+    
+def add_file_in_dataset(db_session, dataset_dir, blob):
+    """Add file in the dataset (on disk).
+
+TODO: split maybe in file module manipulation?
+    """
+    hashkey = _hashkey(blob.data)
+    folder_list = _compute_folder(dataset_dir, hashkey)
+    folder_in_dataset = "/".join(folder_list)
+    
+    try:
+        os.makedirs(folder_in_dataset)
+    except OSError:
+        logging.warn("Skipping creation of '%s' because it exists already." % folder_in_dataset)
+    
+    filepath = os.path.join(folder_in_dataset, hashkey)
+    logging.debug("injecting file '%s' with hash in dataset." % filepath)
+
+    f = open(filepath, 'w')
+    f.write(str(blob.size))
+    f.close()
+    
+    return filepath
 
 
 def in_cache_commits(db_session, commit):
