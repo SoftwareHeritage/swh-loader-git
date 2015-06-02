@@ -87,3 +87,11 @@ PYTHONPATH=$PYTHONPATH:`pwd` ./bin/sgloader --repo-path /path/to/repo createdb
 #+begin_src sh
 PYTHONPATH=$PYTHONPATH:`pwd` ./bin/sgloader --repo-path /path/to/repo dropdb
 #+end_src
+
+* TODO Improvments
+- [ ] Improve the model (for the moment, bound to one repository... not really scalable, just add a column repository...)
+- [ ] Push on remote git repository
+- [ ] Serialize blob's data and not blob's size.
+- [ ] Improve modularization (a file module? a hash computation module?)
+- [ ] Of course, add unit tests!
+- [ ] Logging in python? How to see the log?
