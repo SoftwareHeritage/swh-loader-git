@@ -16,6 +16,7 @@ let
       python34Packages.psycopg2
       python34Packages.requests
     ];
+    PYTHONPATH=./.;
     shellHook = ''
       echo -e "\nLoading nix-shell with python3 deps..."
     '';
