@@ -13,7 +13,7 @@ import sys
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-# from sgloader import loader, models
+from sgloader import loader #, models
 # from sgloader.db_utils import session_scope
 
 
@@ -66,5 +66,7 @@ if __name__ == '__main__':
     args = parse_args()
     conf = read_conf(args)
 
-    print (conf)
+    repo_path = conf['repo_path']
 
+    repo = loader.load_repo(repo_path)
+    print (repo)
