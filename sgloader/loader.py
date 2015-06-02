@@ -73,7 +73,7 @@ def _compute_folder(dataset_dir, hashkey):
 def add_file_in_dataset(db_session, dataset_dir, blob):
     """Add file in the dataset (on disk).
 
-TODO: split maybe in file module manipulation?
+TODO: split in another module, file manipulation maybe?
     """
     hashkey = _hashkey(blob.data)
     folder_list = _compute_folder(dataset_dir, hashkey)
@@ -88,7 +88,7 @@ TODO: split maybe in file module manipulation?
     logging.debug("injecting file '%s' with hash in dataset." % filepath)
 
     f = open(filepath, 'w')
-    f.write(str(blob.size))
+    f.write(str(blob.size)) # FIXME: Store the blob's data and not its size
     f.close()
     
     return filepath
