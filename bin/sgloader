@@ -1,0 +1,70 @@
+#!/usr/bin/python3
+
+# Copyright (C) 2015  Stefano Zacchiroli <zack@upsilon.cc>, Antoine R. Dumont <antoine.romain.dumont@gmail.com>
+# License: GNU General Public License version 3, or any later version
+# See top-level LICENSE file for more information
+
+import argparse
+import configparser
+import logging
+import os
+import sys
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+# from sgloader import loader, models
+# from sgloader.db_utils import session_scope
+
+
+# Default configuration file
+DEFAULT_CONF_FILE = '~/.config/sgloader.ini'
+
+# default configuration (can be overriden by the DEFAULT_CONF_FILE)
+DEFAULT_CONF = {
+    'cache_dir': './cache',
+    'log_dir': './log'
+}
+
+def parse_args():
+    cli = argparse.ArgumentParser(description='Parse git repositories objects and load them into a DB.')
+    cli.add_argument('--verbose', '-v', action='store_true', help='be verbose')
+    cli.add_argument('--repo-path', '-r', dest='repo_path', help='Provide the git repository\'s path to read objects from.')
+
+    args = cli.parse_args()
+
+    if not args.repo_path:
+        cli.error('no repository given')
+
+    return args
+
+
+def read_conf(args):
+    """Read the user's configuration file.
+
+    args contains the repo to parse.
+    Transmit to the result.
+
+    (No cli override.)
+    """
+    config = configparser.ConfigParser(defaults=DEFAULT_CONF)
+    config.read(os.path.expanduser(DEFAULT_CONF_FILE))
+
+    conf_cache_objects = config._sections['cache-objects']
+    conf_cache_files = config._sections['cache-files']
+
+    return {
+           'repo_path': args.repo_path,
+           'cache_objects': conf_cache_objects,
+           'cache_files': conf_cache_files
+       }
+
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)  # XXX
+
+    args = parse_args()
+    conf = read_conf(args)
+
+    print (conf)
+
