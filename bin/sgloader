@@ -29,27 +29,29 @@ DEFAULT_CONF = {
 }
 
 def db_connect(db_url):
+    """Given the db_url, return the couple (engine, session).
+    """
     engine = create_engine(db_url)
     Session = sessionmaker(bind=engine)
 
     return (engine, Session)
 
+
 def parse_args():
+    """ Parse the configuration for the cli.
+    """
     cli = argparse.ArgumentParser(description='Parse git repositories objects and load them into a DB.')
     # cli.add_argument('--verbose', '-v', action='store_true', help='be verbose')
     cli.add_argument('--repo-path', '-r', dest='repo_path', help='Provide the git repository\'s path to read objects from.')
 
     subcli = cli.add_subparsers(dest='action')
-    subcli.add_parser('createdb', help='initialize DB')
-    subcli.add_parser('dropdb', help='destroy DB')
+    subcli.add_parser('createdb', help='initialize DB data')
+    subcli.add_parser('dropdb', help='destroy DB data')
 
     args = cli.parse_args()
 
-    # if not args.repo_path:
-    #     cli.error('no repository given')
-
-    # if not args.action:
-    #     cli.error('no action given')
+    if not args.repo_path and not args.action == 'dropdb':
+        cli.error('no repository given')
 
     return args
 
@@ -79,67 +81,71 @@ if __name__ == '__main__':
 
     db_engine, mk_session = db_connect(conf['db_url'])
 
-    if args.action == 'createdb':
-        models.SQLBase.metadata.create_all(db_engine)
-    elif args.action == 'dropdb':
-        models.SQLBase.metadata.drop_all(db_engine)
-
-    repo_path = conf['repo_path']
-    repo = loader.load_repo(repo_path)
-    all_refs = repo.listall_references()
-
-    with session_scope(mk_session) as db_session:
-        
-        # for each ref in the repo
-        for ref_name in all_refs:
-            ref = repo.lookup_reference(ref_name)
-            head_commit = ref.peel()
-            # for each commit referenced by the commit graph starting at that ref
-            for commit in loader.commits_from(repo, head_commit):
-                # if we have a git commit cache and the commit is in there: 
-                if loader.in_cache_commits(db_session, commit):
-                    break # stop treating the current commit sub-graph
-                else:
-                    # for each tree referenced by the commit
-                    for treeEntry in commit.tree:
-                        blob = repo[treeEntry.id]
-                        
-                        # keep only the blobs
-                        if not isinstance(blob, pygit2.Blob):
-                            break;
     
-                        # lookup the checksum in the file cache
-                        if not loader.in_cache_files(db_session, blob): # if it is not there
-                            # add the file to the dataset on the filesystem
-                            loader.add_file_in_dataset(db_session, blob)
-                        else:
-                            # add the file to the file cache, pointing to the file path on the filesystem
-                            loader.add_file_in_cache(db_session, blob)
-                            
-                loader.add_commit_in_cache(db_session, commit)
+    if args.action == 'dropdb':
+        models.SQLBase.metadata.drop_all(db_engine)
+    else:
+        if args.action == 'createdb':
+            models.SQLBase.metadata.create_all(db_engine)
 
-                
-    # db_engine, mk_session = db_connect(conf['db_url'])
+        dataset_dir = conf['dataset_dir']
 
-    # if args.action == 'createdb':
-    #     models.SQLBase.metadata.create_all(db_engine)
-    # elif args.action == 'dropdb':
-    #     models.SQLBase.metadata.drop_all(db_engine)
-    # elif args.action == 'list':
-    #     lister.fetch(conf,
-    #                  mk_session,
-    #                  min_id=args.interval[0],
-    #                  max_id=args.interval[1])
-    # elif args.action == 'catchup':
-    #     with session_scope(mk_session) as db_session:
-    #         last_known_id = lister.last_repo_id(db_session)
-    #         if last_known_id is not None:
-    #             logging.info('catching up from last known repo id: %d' %
-    #                          last_known_id)
-    #             lister.fetch(conf,
-    #                          mk_session,
-    #                          min_id=last_known_id + 1,
-    #                          max_id=None)
-    #         else:
-    #             logging.error('Cannot catchup: no last known id found. Abort.')
-    #             sys.exit(2)
+        repo_path = conf['repo_path']
+        repo = loader.load_repo(repo_path)
+        all_refs = repo.listall_references()
+
+        with session_scope(mk_session) as db_session:
+
+            # for each ref in the repo
+            for ref_name in all_refs:
+                ref = repo.lookup_reference(ref_name)
+                head_commit = ref.peel()
+                # for each commit referenced by the commit graph starting at that ref
+                for commit in loader.commits_from(repo, head_commit):
+                    # if we have a git commit cache and the commit is in there: 
+                    if loader.in_cache_commits(db_session, commit):
+                        break # stop treating the current commit sub-graph
+                    else:
+                        # for each tree referenced by the commit
+                        for treeEntry in commit.tree:
+                            blob = repo[treeEntry.id]
+
+                            # keep only the blobs
+                            if not isinstance(blob, pygit2.Blob):
+                                break;
+
+                            # lookup the checksum in the file cache
+                            if not loader.in_cache_files(db_session, blob): # if it is not there
+                                # add the file to the dataset on the filesystem
+                                loader.add_file_in_dataset(db_session, dataset_dir, blob)
+                            else:
+                                # add the file to the file cache, pointing to the file path on the filesystem
+                                loader.add_file_in_cache(db_session, blob)
+
+                    loader.add_commit_in_cache(db_session, commit)
+
+
+        # db_engine, mk_session = db_connect(conf['db_url'])
+
+        # if args.action == 'createdb':
+        #     models.SQLBase.metadata.create_all(db_engine)
+        # elif args.action == 'dropdb':
+        #     models.SQLBase.metadata.drop_all(db_engine)
+        # elif args.action == 'list':
+        #     lister.fetch(conf,
+        #                  mk_session,
+        #                  min_id=args.interval[0],
+        #                  max_id=args.interval[1])
+        # elif args.action == 'catchup':
+        #     with session_scope(mk_session) as db_session:
+        #         last_known_id = lister.last_repo_id(db_session)
+        #         if last_known_id is not None:
+        #             logging.info('catching up from last known repo id: %d' %
+        #                          last_known_id)
+        #             lister.fetch(conf,
+        #                          mk_session,
+        #                          min_id=last_known_id + 1,
+        #                          max_id=None)
+        #         else:
+        #             logging.error('Cannot catchup: no last known id found. Abort.')
+        #             sys.exit(2)

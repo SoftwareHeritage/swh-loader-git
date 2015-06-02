@@ -64,8 +64,8 @@ def add_file_in_cache(db_session, blob, filepath):
     db_session.add(sql_repo)
 
 
-def add_file_in_dataset(db_session, blob):
-    """Add file in dataset.
+def add_file_in_dataset(db_session, dataset_dir, blob, filepath):
+    """Add file in the dataset on disk.
     """
     print ("Add the file to the dataset")
     return False
