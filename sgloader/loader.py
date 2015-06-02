@@ -43,6 +43,7 @@ def inject_repo(db_session, repo):
     sql_repo = Repository(**kwargs)
     db_session.add(sql_repo)
 
+
 def load_repo(parent_repo_path):
     """Load the repository path.
     """
@@ -50,3 +51,12 @@ def load_repo(parent_repo_path):
 
     return pygit2.Repository(repo_path) # return the repo's python representation
 
+
+def commits_from(repo, commit):
+    """Return the lists of commits from a given commit."""
+    return repo.walk(commit.id, pygit2.GIT_SORT_TIME)
+
+
+def in_cache_commits(commit):
+    """ Determine if a commit is in the cache."""
+    return False;
