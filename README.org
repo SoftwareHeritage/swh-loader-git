@@ -1,4 +1,41 @@
-hack-pygit2
-===========
+#+title: swh-git-loader - Specification (draft)
+#+author: swh team
+#+source: https://intranet.softwareheritage.org/index.php/Swh_git_loader
 
-Learn some pygit2 interface
+The Software Heritage Git Loader is a tool and a library to walk a local Git repository and inject into the SWH dataset all contained files that weren't known before.
+
+* Functional requirements
+
+- input: a Git bare repository available locally, on the filesystem
+- input (optional): a table mapping SHA256 of individual files to path on the filesystem that contain the corresponding content (AKA, the file cache)
+- input (optional): a set of SHA1 of Git commits that have already been seen in the past (AKA, the Git commit cache)
+- output: an augmented SWH dataset, where all files present in all blobs referenced by any Git object, have been added
+
+** algo
+
+Sketch of the (naive) algorithm that the Git loader should execute
+
+#+begin_src pseudo
+for each ref in the repo
+    for each commit referenced by the commit graph starting at that ref
+        if we have a git commit cache and the commit is in there: stop treating the current commit sub-graph
+        for each tree referenced by the commit
+            for each blob referenced by the tree
+                compute the SHA256 checksum of the blob
+                lookup the checksum in the file cache
+                if it is not there
+                    add the file to the dataset on the filesystem
+                    add the file to the file cache, pointing to the file path on the filesystem
+#+end_src
+
+* Non-functional requirements
+
+- implementation language, Python3
+- coding guidelines: conform to PEP8
+- Git access: via libgit2/pygit
+- cache: implemented as Postgres tables
+
+* File-system storage
+
+Given a file with SHA256 of b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c
+it will be stored at STORAGE_ROOT/b5/bb/9d/80/14a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c
