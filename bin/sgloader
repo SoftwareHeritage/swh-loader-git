@@ -87,6 +87,7 @@ if __name__ == '__main__':
         if args.action == 'createdb':
             models.SQLBase.metadata.create_all(db_engine)
 
+        # FIXME: need to understand why the loggine does not work yet!
         log_dir = conf['log_dir']
         logging.basicConfig(filename=os.path.join(log_dir, 'sgloader.log'),level=logging.DEBUG)
 
