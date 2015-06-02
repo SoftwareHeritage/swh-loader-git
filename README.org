@@ -4,6 +4,27 @@
 
 The Software Heritage Git Loader is a tool and a library to walk a local Git repository and inject into the SWH dataset all contained files that weren't known before.
 
+* Licensing
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+See top-level LICENSE file for the full text of the GNU General Public License
+along with this program.
+
+* Dependency
+
+- python3
+- python3-sqlalchemy
+- python3-psycopg2
+- python3-pygit2
+
 * Functional requirements
 
 - input: a Git bare repository available locally, on the filesystem
@@ -41,6 +62,11 @@ Given a file with SHA256 of b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f485
 it will be stored at STORAGE_ROOT/b5/bb/9d/80/14a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c
 
 * Configuration
+
+#+begin_src sh
+export PYTHONPATH=$PYTHONPATH:`pwd`
+#+end_src
+
 
 Create a configuration file in ~/.cache/sgloader.ini:
 
