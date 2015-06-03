@@ -1,2 +1,3 @@
 /sgloader/__pycache__/
 /dataset/
+*.pyc
