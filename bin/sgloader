@@ -123,15 +123,19 @@ if __name__ == '__main__':
     conf = read_conf(args)
 
     log_filename = os.path.join(conf['log_dir'], 'sgloader.log')
-    logging.basicConfig(filename = log_filename, level = logging.DEBUG)
+    logging.basicConfig(filename = log_filename, level = logging.INFO)
 
     db_engine, mk_session = db_connect(conf['db_url'])
 
     if args.action == 'cleandb':
+        logging.info("Database cleanup!")
         models.SQLBase.metadata.drop_all(db_engine)
     else:
         if args.action == 'initdb':
+            logging.info("Database initialization!")
             models.SQLBase.metadata.create_all(db_engine)
 
         with session_scope(mk_session) as db_session:
-            parse_git_repo(db_session, conf['repo_path'], conf['dataset_dir'])
+            repo_path = conf['repo_path']
+            logging.info("Parsing git repository \'%s\'" % repo_path)
+            parse_git_repo(db_session, repo_path, conf['dataset_dir'])
