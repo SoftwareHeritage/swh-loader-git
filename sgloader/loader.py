@@ -71,6 +71,27 @@ def _compute_folder(dataset_dir, hashkey):
     return (dataset_dir, hashkey[0:2], hashkey[2:4], hashkey[4:6], hashkey[6:8])
 
 
+def write_blob_on_disk(blob, filepath):
+    """Write blob on disk.
+    """
+    data = blob.data
+
+    # if isinstance(data, bytes):
+    #     print("bytes")
+    try:
+        data_to_store = data.decode("utf-8")
+    except UnicodeDecodeError: # sometimes if fails with cryptic error `UnicodeDecodeError: 'utf-8' codec can't decode byte 0x9d in position 10: invalid start byte`... what to do?
+        print("Problem... Skip!") # Fixme: wtf?
+        return
+    # else:
+    #     print("string: ", data)
+    #     data_to_store = data.decode("utf-8")
+
+    f = open(filepath, 'w')
+    f.write(data_to_store)
+    f.close()
+
+
 def add_file_in_dataset(db_session, dataset_dir, blob):
     """Add file in the dataset (on disk).
 
@@ -88,9 +109,7 @@ TODO: split in another module, file manipulation maybe?
     filepath = os.path.join(folder_in_dataset, hashkey)
     logging.debug("injecting file '%s' with hash in dataset." % filepath)
 
-    f = open(filepath, 'w')
-    f.write(str(blob.size)) # FIXME: Store the blob's data and not its size
-    f.close()
+    write_blob_on_disk(blob, filepath)
 
     return filepath
 
