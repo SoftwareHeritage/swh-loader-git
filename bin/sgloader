@@ -115,7 +115,7 @@ if __name__ == '__main__':
     args = parse_args()
     conf = read_conf(args)
 
-    log_filename = os.path.join(conf['log_dir'], 'sgloader.log'),
+    log_filename = os.path.join(conf['log_dir'], 'sgloader.log')
     # FIXME: need to understand why the logging does not work yet!
     logging.basicConfig(filename = log_filename, level = logging.DEBUG)
 
