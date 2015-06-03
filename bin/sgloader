@@ -79,22 +79,24 @@ def read_conf(args):
 def parse_git_repo(db_session, repo_path, dataset_dir):
     """Parse git repository `repo_path` and flush files on disk in `dataset_dir`.
     """
-    def _blobs_from_tree(blob_set, tree_ref, repo):
-        """Given a tree, walk the tree and compute the blobs set (not already present in cache)."""
+    def _store_blobs_from_tree(tree_ref, repo):
+        """Given a tree, walk the tree and store the blobs in dataset (if not present in dataset/cache)."""
 
         for tree_entry in tree_ref:
             object_entry_ref = repo[tree_entry.id]
             if isinstance(object_entry_ref, pygit2.Tag): # not sure the commit part is possible...
+                logging.debug("Tag \'%s\' -> skip!" % object_entry_ref.hex)
                 break
+            elif isinstance(object_entry_ref, pygit2.Tree):
+                logging.debug("Tree \'%s\' -> walk!" % object_entry_ref.hex)
+                _store_blobs_from_tree(object_entry_ref, repo)
             elif isinstance(object_entry_ref, pygit2.Blob):
-                # print ("blob ... store in set!")
-                blob_set.add(object_entry_ref) # store the sha1 (pb with the object blob's hash which creates collisions in db)
-            else:
-                # print ("tree ... walk!")
-                blob_set.union(_blobs_from_tree(blob_set, object_entry_ref, repo))
-
-        # print (blob_set)
-        return blob_set
+                logging.debug("Blob \'%s\'  -> store!" % object_entry_ref.hex)
+                if not loader.in_cache_files(db_session, object_entry_ref):
+                    # add the file to the dataset on the filesystem
+                    filepath = loader.add_file_in_dataset(db_session, dataset_dir, object_entry_ref)
+                    # add the file to the file cache, pointing to the file path on the filesystemFilemode
+                    loader.add_file_in_cache(db_session, object_entry_ref, filepath)
 
     repo = loader.load_repo(repo_path)
     all_refs = repo.listall_references()
@@ -110,16 +112,10 @@ def parse_git_repo(db_session, repo_path, dataset_dir):
                 break # stop treating the current commit sub-graph
             else:
                 tree_start_ref = commit.tree
-                for blob_ref in _blobs_from_tree(set(), tree_start_ref, repo):
-                    print(blob_ref)
-                    # blob_ref = repo[blob_id]
-                    if not loader.in_cache_files(db_session, blob_ref):
-                        # add the file to the dataset on the filesystem
-                        filepath = loader.add_file_in_dataset(db_session, dataset_dir, blob_ref)
-                        # add the file to the file cache, pointing to the file path on the filesystemFilemode
-                        loader.add_file_in_cache(db_session, blob_ref, filepath)
+                _store_blobs_from_tree(tree_start_ref, repo)
 
             loader.add_commit_in_cache(db_session, commit)
+            db_session.commit()
 
 
 if __name__ == '__main__':
@@ -127,7 +123,6 @@ if __name__ == '__main__':
     conf = read_conf(args)
 
     log_filename = os.path.join(conf['log_dir'], 'sgloader.log')
-    # FIXME: need to understand why the logging does not work yet!
     logging.basicConfig(filename = log_filename, level = logging.DEBUG)
 
     db_engine, mk_session = db_connect(conf['db_url'])

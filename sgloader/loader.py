@@ -52,10 +52,11 @@ def in_cache_commits(db_session, commit):
 def add_commit_in_cache(db_session, commit):
     """Add commit in cache.
     """
-    logging.debug('injecting commit \'%s\'' % commit.hex)
     if in_cache_commits(db_session, commit):
-        logging.info('not injecting already present commit \'%d\'' % commit.hex)
+        logging.info('Commit \'%s\' already present... skip' % commit.hex)
         return
+
+    logging.debug('Injecting commit \'%s\' in cache' % commit.hex)
 
     kwargs = {'sha1': commit.hex}
     sql_repo = CommitCache(**kwargs)
@@ -75,11 +76,12 @@ def add_file_in_cache(db_session, blob, filepath):
     """Add file in cache.
     """
     hashkey = _hashkey(blob.data)
-    logging.debug('injecting file \'%s\' with \'%s\' (sha256: \'%s\')', blob.hex, filepath, hashkey)
 
     if in_cache_files(db_session, blob, hashkey):
-        logging.info('not injecting already present blob \'%d\'' % blob.hex)
+        logging.info('Blob \'%s\' already present. skip' % blob.hex)
         return
+
+    logging.debug('Injecting file \'%s\' with \'%s\' (sha256: \'%s\')', blob.hex, filepath, hashkey)
 
     kwargs = {'sha256': hashkey, 'path': filepath}
     sql_repo = FileCache(**kwargs)
@@ -97,16 +99,11 @@ def write_blob_on_disk(blob, filepath):
     """
     data = blob.data
 
-    # if isinstance(data, bytes):
-    #     print("bytes")
     try:
         data_to_store = data.decode("utf-8")
     except UnicodeDecodeError: # sometimes if fails with cryptic error `UnicodeDecodeError: 'utf-8' codec can't decode byte 0x9d in position 10: invalid start byte`... what to do?
-        print("Problem... Skip!") # Fixme: wtf?
+        logging.warn("Problem during conversion... Skip!") # Fixme: wtf?
         return
-    # else:
-    #     print("string: ", data)
-    #     data_to_store = data.decode("utf-8")
 
     f = open(filepath, 'w')
     f.write(data_to_store)
@@ -128,7 +125,7 @@ TODO: split in another module, file manipulation maybe?
         logging.warn("Skipping creation of '%s' because it exists already." % folder_in_dataset)
 
     filepath = os.path.join(folder_in_dataset, hashkey)
-    logging.debug("injecting file '%s' with hash in dataset." % filepath)
+    logging.debug("Injecting file '%s' with hash in dataset." % filepath)
 
     write_blob_on_disk(blob, filepath)
 
