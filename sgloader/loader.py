@@ -45,7 +45,7 @@ def in_cache_files(db_session, blob, hashkey = None):
     """Determine if a file is in the file cache.
     """
     hashkey = _hashkey(blob.data) if hashkey is None else hashkey
-    return db_session.query(CommitCache) \
+    return db_session.query(FileCache) \
                      .filter(FileCache.sha256 == hashkey) \
                      .first()
 
