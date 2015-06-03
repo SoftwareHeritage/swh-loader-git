@@ -61,6 +61,7 @@ def add_commit_in_cache(db_session, commit):
     kwargs = {'sha1': commit.hex}
     sql_repo = CommitCache(**kwargs)
     db_session.add(sql_repo)
+    db_session.commit()
 
 
 def in_cache_files(db_session, blob, hashkey = None):
@@ -86,6 +87,7 @@ def add_file_in_cache(db_session, blob, filepath):
     kwargs = {'sha256': hashkey, 'path': filepath}
     sql_repo = FileCache(**kwargs)
     db_session.add(sql_repo)
+    db_session.commit()
 
 
 def _compute_folder(dataset_dir, hashkey):

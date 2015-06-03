@@ -44,17 +44,17 @@ def parse_args():
     """ Parse the configuration for the cli.
     """
     cli = argparse.ArgumentParser(description='Parse git repositories objects and load them into a DB.')
-    cli.add_argument('--verbose', '-v', action='store_true', help='be verbose')
+    cli.add_argument('--verbose', '-v', action='store_true', help='Be verbose')
     cli.add_argument('--repo-path', '-r', dest='repo_path', help='Provide the git repository\'s path to read objects from.')
 
     subcli = cli.add_subparsers(dest='action')
-    subcli.add_parser('initdb', help='initialize DB data')
-    subcli.add_parser('cleandb', help='clean DB data')
+    subcli.add_parser('initdb', help='Initialize DB data')
+    subcli.add_parser('cleandb', help='Clean DB data')
 
     args = cli.parse_args()
 
     if not args.repo_path and args.action != 'cleandb':
-        cli.error('no repository given')
+        cli.error('No repository given')
 
     return args
 
@@ -91,8 +91,8 @@ def parse_git_repo(db_session, repo_path, dataset_dir):
                 logging.debug("Tree \'%s\' -> walk!" % object_entry_ref.hex)
                 _store_blobs_from_tree(object_entry_ref, repo)
             elif isinstance(object_entry_ref, pygit2.Blob):
-                logging.debug("Blob \'%s\'  -> store!" % object_entry_ref.hex)
                 if not loader.in_cache_files(db_session, object_entry_ref):
+                    logging.debug("Blob \'%s\' not stored yet -> store in dataset !" % object_entry_ref.hex)
                     # add the file to the dataset on the filesystem
                     filepath = loader.add_file_in_dataset(db_session, dataset_dir, object_entry_ref)
                     # add the file to the file cache, pointing to the file path on the filesystemFilemode
@@ -123,7 +123,7 @@ if __name__ == '__main__':
     conf = read_conf(args)
 
     log_filename = os.path.join(conf['log_dir'], 'sgloader.log')
-    logging.basicConfig(filename = log_filename, level = logging.INFO)
+    logging.basicConfig(filename = log_filename, level = logging.DEBUG if args.verbose else logging.INFO)
 
     db_engine, mk_session = db_connect(conf['db_url'])
 
