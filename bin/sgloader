@@ -41,7 +41,7 @@ def parse_args():
     """ Parse the configuration for the cli.
     """
     cli = argparse.ArgumentParser(description='Parse git repositories objects and load them into a DB.')
-    # cli.add_argument('--verbose', '-v', action='store_true', help='be verbose')
+    cli.add_argument('--verbose', '-v', action='store_true', help='be verbose')
     cli.add_argument('--repo-path', '-r', dest='repo_path', help='Provide the git repository\'s path to read objects from.')
 
     subcli = cli.add_subparsers(dest='action')
