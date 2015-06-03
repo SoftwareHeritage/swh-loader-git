@@ -72,7 +72,7 @@ def read_conf(args):
 
     conf = config._sections['main']
     conf ['repo_path'] = args.repo_path
-    
+
     return conf
 
 
@@ -118,7 +118,7 @@ if __name__ == '__main__':
     log_filename = os.path.join(conf['log_dir'], 'sgloader.log'),
     # FIXME: need to understand why the logging does not work yet!
     logging.basicConfig(filename = log_filename, level = logging.DEBUG)
-    
+
     db_engine, mk_session = db_connect(conf['db_url'])
 
     if args.action == 'cleandb':
