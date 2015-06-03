@@ -47,12 +47,12 @@ def parse_args():
     cli.add_argument('--repo-path', '-r', dest='repo_path', help='Provide the git repository\'s path to read objects from.')
 
     subcli = cli.add_subparsers(dest='action')
-    subcli.add_parser('createdb', help='initialize DB data')
-    subcli.add_parser('dropdb', help='destroy DB data')
+    subcli.add_parser('initdb', help='initialize DB data')
+    subcli.add_parser('cleandb', help='clean DB data')
 
     args = cli.parse_args()
 
-    if not args.repo_path and not args.action == 'dropdb':
+    if not args.repo_path and args.action != 'cleandb':
         cli.error('no repository given')
 
     return args
@@ -75,53 +75,55 @@ def read_conf(args):
     return conf
 
 
+def parse_git_repo(db_session, repo_path, dataset_dir):
+    """Parse git repository `repo_path` and flush files on disk in `dataset_dir`.
+    """
+
+    repo = loader.load_repo(repo_path)
+    all_refs = repo.listall_references()
+
+    # for each ref in the repo
+    for ref_name in all_refs:
+        ref = repo.lookup_reference(ref_name)
+        head_commit = ref.peel()
+        # for each commit referenced by the commit graph starting at that ref
+        for commit in loader.commits_from(repo, head_commit):
+            # if we have a git commit cache and the commit is in there:
+            if loader.in_cache_commits(db_session, commit):
+                break # stop treating the current commit sub-graph
+            else:
+                # for each tree referenced by the commit
+                for treeEntry in commit.tree:
+                    blob = repo[treeEntry.id]
+
+                    # keep only the blobs
+                    if not isinstance(blob, pygit2.Blob):
+                        break;
+
+                    # lookup the checksum in the file cache
+                    if not loader.in_cache_files(db_session, blob): # if it is not there
+                        # add the file to the dataset on the filesystem
+                        filepath = loader.add_file_in_dataset(db_session, dataset_dir, blob)
+                        # add the file to the file cache, pointing to the file path on the filesystem
+                        loader.add_file_in_cache(db_session, blob, filepath)
+
+            loader.add_commit_in_cache(db_session, commit)
+
+
 if __name__ == '__main__':
     args = parse_args()
     conf = read_conf(args)
 
+    # FIXME: need to understand why the logging does not work yet!
+    logging.basicConfig(filename = os.path.join(conf['log_dir'], 'sgloader.log'), level = logging.DEBUG)
+    
     db_engine, mk_session = db_connect(conf['db_url'])
 
-    if args.action == 'dropdb':
+    if args.action == 'cleandb':
         models.SQLBase.metadata.drop_all(db_engine)
     else:
-        if args.action == 'createdb':
+        if args.action == 'initdb':
             models.SQLBase.metadata.create_all(db_engine)
 
-        # FIXME: need to understand why the loggine does not work yet!
-        log_dir = conf['log_dir']
-        logging.basicConfig(filename=os.path.join(log_dir, 'sgloader.log'),level=logging.DEBUG)
-
-        dataset_dir = conf['dataset_dir']
-
-        repo_path = conf['repo_path']
-
         with session_scope(mk_session) as db_session:
-            repo = loader.load_repo(repo_path)
-            all_refs = repo.listall_references()
-
-            # for each ref in the repo
-            for ref_name in all_refs:
-                ref = repo.lookup_reference(ref_name)
-                head_commit = ref.peel()
-                # for each commit referenced by the commit graph starting at that ref
-                for commit in loader.commits_from(repo, head_commit):
-                    # if we have a git commit cache and the commit is in there: 
-                    if loader.in_cache_commits(db_session, commit):
-                        break # stop treating the current commit sub-graph
-                    else:
-                        # for each tree referenced by the commit
-                        for treeEntry in commit.tree:
-                            blob = repo[treeEntry.id]
-
-                            # keep only the blobs
-                            if not isinstance(blob, pygit2.Blob):
-                                break;
-
-                            # lookup the checksum in the file cache
-                            if not loader.in_cache_files(db_session, blob): # if it is not there
-                                # add the file to the dataset on the filesystem
-                                filepath = loader.add_file_in_dataset(db_session, dataset_dir, blob)
-                                # add the file to the file cache, pointing to the file path on the filesystem
-                                loader.add_file_in_cache(db_session, blob, filepath)
-
-                    loader.add_commit_in_cache(db_session, commit)
+            parse_git_repo(db_session, conf['repo_path'], conf['dataset_dir'])
