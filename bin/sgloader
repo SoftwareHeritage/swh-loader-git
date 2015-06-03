@@ -21,12 +21,14 @@ from sgloader.db_utils import session_scope
 # Default configuration file
 DEFAULT_CONF_FILE = '~/.config/sgloader.ini'
 
+
 # default configuration (can be overriden by the DEFAULT_CONF_FILE)
 DEFAULT_CONF = {
     'dataset_dir': './dataset',
     'log_dir': './log',
     'db_url': 'postgres:///swhgitloader'
 }
+
 
 def db_connect(db_url):
     """Given the db_url, return the couple (engine, session).
