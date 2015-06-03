@@ -79,6 +79,22 @@ def read_conf(args):
 def parse_git_repo(db_session, repo_path, dataset_dir):
     """Parse git repository `repo_path` and flush files on disk in `dataset_dir`.
     """
+    def _blobs_from_tree(blob_set, tree_ref, repo):
+        """Given a tree, walk the tree and compute the blobs set (not already present in cache)."""
+
+        for tree_entry in tree_ref:
+            object_entry_ref = repo[tree_entry.id]
+            if isinstance(object_entry_ref, pygit2.Tag): # not sure the commit part is possible...
+                break
+            elif isinstance(object_entry_ref, pygit2.Blob):
+                # print ("blob ... store in set!")
+                blob_set.add(object_entry_ref) # store the sha1 (pb with the object blob's hash which creates collisions in db)
+            else:
+                # print ("tree ... walk!")
+                blob_set.union(_blobs_from_tree(blob_set, object_entry_ref, repo))
+
+        # print (blob_set)
+        return blob_set
 
     repo = loader.load_repo(repo_path)
     all_refs = repo.listall_references()
@@ -93,20 +109,15 @@ def parse_git_repo(db_session, repo_path, dataset_dir):
             if loader.in_cache_commits(db_session, commit):
                 break # stop treating the current commit sub-graph
             else:
-                # for each tree referenced by the commit
-                for treeEntry in commit.tree:
-                    blob = repo[treeEntry.id]
-
-                    # keep only the blobs
-                    if not isinstance(blob, pygit2.Blob):
-                        break;
-
-                    # lookup the checksum in the file cache
-                    if not loader.in_cache_files(db_session, blob): # if it is not there
+                tree_start_ref = commit.tree
+                for blob_ref in _blobs_from_tree(set(), tree_start_ref, repo):
+                    print(blob_ref)
+                    # blob_ref = repo[blob_id]
+                    if not loader.in_cache_files(db_session, blob_ref):
                         # add the file to the dataset on the filesystem
-                        filepath = loader.add_file_in_dataset(db_session, dataset_dir, blob)
-                        # add the file to the file cache, pointing to the file path on the filesystem
-                        loader.add_file_in_cache(db_session, blob, filepath)
+                        filepath = loader.add_file_in_dataset(db_session, dataset_dir, blob_ref)
+                        # add the file to the file cache, pointing to the file path on the filesystemFilemode
+                        loader.add_file_in_cache(db_session, blob_ref, filepath)
 
             loader.add_commit_in_cache(db_session, commit)
 
