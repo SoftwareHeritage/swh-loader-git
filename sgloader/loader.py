@@ -41,6 +41,27 @@ def _hashkey(data):
     return sha256.hexdigest()
 
 
+def in_cache_commits(db_session, commit):
+    """Determine if a commit is in the cache.
+    """
+    return db_session.query(CommitCache) \
+                     .filter(CommitCache.sha1 == commit.hex) \
+                     .first()
+
+
+def add_commit_in_cache(db_session, commit):
+    """Add commit in cache.
+    """
+    logging.debug('injecting commit \'%s\'' % commit.hex)
+    if in_cache_commits(db_session, commit):
+        logging.info('not injecting already present commit \'%d\'' % commit.hex)
+        return
+
+    kwargs = {'sha1': commit.hex}
+    sql_repo = CommitCache(**kwargs)
+    db_session.add(sql_repo)
+
+
 def in_cache_files(db_session, blob, hashkey = None):
     """Determine if a file is in the file cache.
     """
@@ -112,24 +133,3 @@ TODO: split in another module, file manipulation maybe?
     write_blob_on_disk(blob, filepath)
 
     return filepath
-
-
-def in_cache_commits(db_session, commit):
-    """Determine if a commit is in the cache.
-    """
-    return db_session.query(CommitCache) \
-                     .filter(CommitCache.sha1 == commit.hex) \
-                     .first()
-
-
-def add_commit_in_cache(db_session, commit):
-    """Add commit in cache.
-    """
-    logging.debug('injecting commit \'%s\'' % commit.hex)
-    if in_cache_commits(db_session, commit):
-        logging.info('not injecting already present commit \'%d\'' % commit.hex)
-        return
-
-    kwargs = {'sha1': commit.hex}
-    sql_repo = CommitCache(**kwargs)
-    db_session.add(sql_repo)
