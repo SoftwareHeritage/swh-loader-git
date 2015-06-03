@@ -74,8 +74,6 @@ def read_conf(args):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
-    
     args = parse_args()
     conf = read_conf(args)
 
@@ -94,10 +92,10 @@ if __name__ == '__main__':
         dataset_dir = conf['dataset_dir']
 
         repo_path = conf['repo_path']
-        repo = loader.load_repo(repo_path)
-        all_refs = repo.listall_references()
 
         with session_scope(mk_session) as db_session:
+            repo = loader.load_repo(repo_path)
+            all_refs = repo.listall_references()
 
             # for each ref in the repo
             for ref_name in all_refs:
