@@ -1,4 +1,4 @@
-REPO_PATH=$(HOME)/repo/perso/dot-files
+REPO_PATH=$(HOME)/work/inria/repo/org-beamer-swh
 FLAG=
 
 prepare:
