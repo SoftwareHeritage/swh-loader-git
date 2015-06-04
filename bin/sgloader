@@ -17,6 +17,7 @@ from sqlalchemy.orm import sessionmaker
 
 from sgloader import loader, models
 from sgloader.db_utils import session_scope
+from sgloader.models import ObjectCache
 
 
 # Default configuration file
@@ -82,21 +83,32 @@ def parse_git_repo(db_session, repo_path, dataset_dir):
     def _store_blobs_from_tree(tree_ref, repo):
         """Given a tree, walk the tree and store the blobs in dataset (if not present in dataset/cache)."""
 
+        if loader.in_cache_objects(db_session, tree_ref): # already visited, skip!
+            logging.debug("Tree \'%s\' already visited, skip!" % tree_ref.hex)
+            return;
+
+        # Add the tree in cache
+        loader.add_object_in_cache(db_session, tree_ref, ObjectCache.types["Tree"])
+
+        # Now walk the tree
         for tree_entry in tree_ref:
             object_entry_ref = repo[tree_entry.id]
-            if isinstance(object_entry_ref, pygit2.Tag): # not sure the commit part is possible...
-                logging.debug("Tag \'%s\' -> skip!" % object_entry_ref.hex)
-                break
-            elif isinstance(object_entry_ref, pygit2.Tree):
+
+            # FIXME: find pythonic way to do type dispatch call to function?
+            if isinstance(object_entry_ref, pygit2.Tree):
                 logging.debug("Tree \'%s\' -> walk!" % object_entry_ref.hex)
                 _store_blobs_from_tree(object_entry_ref, repo)
             elif isinstance(object_entry_ref, pygit2.Blob):
-                if not loader.in_cache_files(db_session, object_entry_ref):
-                    logging.debug("Blob \'%s\' not stored yet -> store in dataset !" % object_entry_ref.hex)
+                if not loader.in_cache_objects(db_session, object_entry_ref):
+                    logging.debug("Blob \'%s\' -> store in dataset !" % object_entry_ref.hex)
                     # add the file to the dataset on the filesystem
                     filepath = loader.add_file_in_dataset(db_session, dataset_dir, object_entry_ref)
                     # add the file to the file cache, pointing to the file path on the filesystemFilemode
                     loader.add_file_in_cache(db_session, object_entry_ref, filepath)
+            else:
+                logging.debug("Tag \'%s\' -> skip!" % object_entry_ref.hex)
+                break;
+
 
     repo = loader.load_repo(repo_path)
     all_refs = repo.listall_references()
@@ -109,14 +121,13 @@ def parse_git_repo(db_session, repo_path, dataset_dir):
         # for each commit referenced by the commit graph starting at that ref
         for commit in loader.commits_from(repo, head_commit):
             # if we have a git commit cache and the commit is in there:
-            if loader.in_cache_commits(db_session, commit):
+            if loader.in_cache_objects(db_session, commit):
                 break # stop treating the current commit sub-graph
             else:
                 tree_start_ref = commit.tree
                 _store_blobs_from_tree(tree_start_ref, repo)
 
-            loader.add_commit_in_cache(db_session, commit)
-            db_session.commit()
+            loader.add_object_in_cache(db_session, commit, ObjectCache.types["Commit"])
 
 
 if __name__ == '__main__':

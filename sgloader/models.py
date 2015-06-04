@@ -29,15 +29,24 @@ class FileCache(SQLBase):
         self.last_seen = datetime.now()
 
 
-class CommitCache(SQLBase):
+class ObjectCache(SQLBase):
+    """Object cache"""
+    types = {"Tag": 3, "Blob": 2, "Tree": 1, "Commit": 0} # FIXME: find pythonic way to do it
 
-    """Commit cache"""
-
-    __tablename__ = 'commit_cache'
+    __tablename__ = 'object_cache'
 
     sha1      = Column(String(41), primary_key = True)
-    last_seen = Column(DateTime  , nullable    = False)
+    type      = Column(Integer, nullable       = False)
+    last_seen = Column(DateTime, nullable      = False)
 
-    def __init__(self, sha1):
+    def __init__(self, sha1, type):
         self.sha1      = sha1
+        self.type      = type
         self.last_seen = datetime.now()
+
+# FIXME: possible type proposal:
+# 0 -> Commit
+# 1 -> Tree
+# 2 -> Blob
+# 3 -> Tag
+

@@ -16,7 +16,7 @@ from pprint import pformat
 from sqlalchemy import func
 
 from sgloader.db_utils import session_scope
-from sgloader.models import CommitCache, FileCache
+from sgloader.models import ObjectCache, FileCache
 
 
 def load_repo(parent_repo_path):
@@ -41,25 +41,25 @@ def _hashkey(data):
     return sha256.hexdigest()
 
 
-def in_cache_commits(db_session, commit):
+def in_cache_objects(db_session, obj):
     """Determine if a commit is in the cache.
     """
-    return db_session.query(CommitCache) \
-                     .filter(CommitCache.sha1 == commit.hex) \
+    return db_session.query(ObjectCache) \
+                     .filter(ObjectCache.sha1 == obj.hex) \
                      .first()
 
 
-def add_commit_in_cache(db_session, commit):
-    """Add commit in cache.
+def add_object_in_cache(db_session, obj, obj_type):
+    """Add obj in cache.
     """
-    if in_cache_commits(db_session, commit):
-        logging.info('Commit \'%s\' already present... skip' % commit.hex)
+    if in_cache_objects(db_session, obj):
+        logging.info('Object \'%s\' already present... skip' % obj.hex)
         return
 
-    logging.debug('Injecting commit \'%s\' in cache' % commit.hex)
+    logging.debug('Injecting object \'%s\' in cache' % obj.hex)
 
-    kwargs = {'sha1': commit.hex}
-    sql_repo = CommitCache(**kwargs)
+    kwargs = {'sha1': obj.hex, 'type': obj_type}
+    sql_repo = ObjectCache(**kwargs)
     db_session.add(sql_repo)
     db_session.commit()
 
