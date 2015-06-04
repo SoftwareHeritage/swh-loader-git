@@ -4,9 +4,12 @@ FLAG=
 prepare:
 	mkdir -p log dataset
 
-run: prepare
-	PYTHONPATH=`pwd` ./bin/sgloader $(FLAG) --repo-path $(REPO_PATH) initdb
-
 clean:
+	rm -rf ./log
 	rm -rf ./dataset/
+
+cleandb: clean prepare
 	PYTHONPATH=`pwd` ./bin/sgloader $(FLAG) cleandb
+
+run: clean prepare
+	PYTHONPATH=`pwd` ./bin/sgloader $(FLAG) --repo-path $(REPO_PATH) initdb
