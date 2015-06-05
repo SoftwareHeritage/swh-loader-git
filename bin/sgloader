@@ -98,18 +98,16 @@ def parse_git_repo(db_conn, repo_path, dataset_dir):
                 logging.debug("Tree \'%s\' -> walk!" % object_entry_ref.hex)
                 _store_blobs_from_tree(object_entry_ref, repo)
             elif isinstance(object_entry_ref, pygit2.Blob):
-                # useless! we do not store blob in the object cache! No need to check this
-                if not loader.in_cache_objects(db_conn, object_entry_ref):
-                    logging.debug("Blob \'%s\' -> store in dataset !" %
-                                  object_entry_ref.hex)
-                    # add the file to the dataset on the filesystem
-                    filepath = loader.add_file_in_dataset(db_conn,
-                                                          dataset_dir,
-                                                          object_entry_ref)
-                    # add the file to the file cache, pointing to the file
-                    # path on the filesystem
-                    loader.add_file_in_cache(db_conn, object_entry_ref,
-                                             filepath)
+                logging.debug("Blob \'%s\' -> store in dataset !" %
+                              object_entry_ref.hex)
+                # add the file to the dataset on the filesystem
+                filepath = loader.add_file_in_dataset(db_conn,
+                                                      dataset_dir,
+                                                      object_entry_ref)
+                # add the file to the file cache, pointing to the file
+                # path on the filesystem
+                loader.add_file_in_cache(db_conn, object_entry_ref,
+                                         filepath)
             else:
                 logging.debug("Tag \'%s\' -> skip!" % object_entry_ref.hex)
                 break

@@ -119,6 +119,7 @@ swhgitloader=> select count(*) from file_cache;
   2944
 (1 row)
 #+end_src
+
 ** sqlalchemy
 
 Lost my scratch buffer
@@ -150,4 +151,16 @@ mkdir -p log dataset
 PYTHONPATH=`pwd` ./bin/sgloader -v cleandb
 PYTHONPATH=`pwd` ./bin/sgloader -v --repo-path ~/repo/perso/dot-files initdb
 make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files  39.45s user 8.02s system 50% cpu 1:34.08 total
+#+end_src
+
+With unneeded check:
+#+begin_src sh
+# tony at corellia in ~/work/inria/repo/swh-git-loader on git:psycopg2-tryout x [18:07:59]
+$ time make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files
+rm -rf ./log
+rm -rf ./dataset/
+mkdir -p log dataset
+PYTHONPATH=`pwd` ./bin/sgloader -v cleandb
+PYTHONPATH=`pwd` ./bin/sgloader -v --repo-path ~/repo/perso/dot-files initdb
+make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files  30.74s user 6.19s system 48% cpu 1:16.32 total
 #+end_src
