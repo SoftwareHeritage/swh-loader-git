@@ -97,6 +97,28 @@ PYTHONPATH=$PYTHONPATH:`pwd` ./bin/sgloader --repo-path /path/to/repo dropdb
 - [ ] Improve modularization (a file module? a hash computation module?)
 - [ ] Of course, add unit tests!
 * Implementation
+** Expected results
+
+After each run (as per comparison purposes) :
+#+begin_src sql
+swhgitloader=> select count(*) from object_cache where type = 0; -- commit
+ count
+-------
+  1731
+(1 row)
+
+swhgitloader=> select count(*) from object_cache where type = 1; -- tree
+ count
+-------
+  2819
+(1 row)
+
+swhgitloader=> select count(*) from file_cache;
+ count
+-------
+  2944
+(1 row)
+#+end_src
 ** sqlalchemy
 
 Lost my scratch buffer
