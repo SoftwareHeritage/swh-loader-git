@@ -44,7 +44,7 @@ def add_object_in_cache(db_conn, obj, obj_type):
     """Add obj in cache.
     """
     if in_cache_objects(db_conn, obj):
-        logging.info('Object \'%s\' already present... skip' % obj.hex)
+        logging.debug('Object \'%s\' already present... skip' % obj.hex)
         return
 
     logging.debug('Injecting object \'%s\' in cache' % obj.hex)
@@ -59,13 +59,13 @@ def in_cache_files(db_conn, blob, hashkey=None):
     return find_file(db_conn, hashkey) is not None
 
 
-def add_file_in_cache(db_conn, blob, filepath):
+def add_file_in_cache(db_conn, blob, filepath, status_write):
     """Add file in cache.
     """
     hashkey = _hashkey(blob.data)
 
     if in_cache_files(db_conn, blob, hashkey):
-        logging.info('Blob \'%s\' already present. skip' % blob.hex)
+        logging.debug('Blob \'%s\' already present. skip' % blob.hex)
         return
 
     logging.debug('Injecting file \'%s\' with \'%s\' (sha256: \'%s\')',
@@ -73,37 +73,54 @@ def add_file_in_cache(db_conn, blob, filepath):
                   filepath,
                   hashkey)
 
-    add_file(db_conn, hashkey, filepath)
-
-
-def _compute_folder(dataset_dir, hashkey):
-    """Compute the folder prefix from a hash key.
-    """
-    # FIXME: find some split function
-    return (dataset_dir,
-            hashkey[0:2],
-            hashkey[2:4],
-            hashkey[4:6],
-            hashkey[6:8])
+    add_file(db_conn, hashkey, filepath, status_write)
 
 
 def write_blob_on_disk(blob, filepath):
     """Write blob on disk.
     """
+    status_write = True
     data = blob.data
 
     try:
         data_to_store = data.decode("utf-8")
     except UnicodeDecodeError:
+        logging.warn("Problem during decoding blob %s's data... Skip!" %
+                     blob.hex)
+        # logging.warn("blob's data: '%s'", blob.data)
         # sometimes if fails with cryptic error `UnicodeDecodeError: 'utf-8'
         # codec can't decode byte 0x9d in position 10: invalid start byte`...
-        # what to do?
-        logging.warn("Problem during conversion... Skip!")  # Fixme: wtf?
-        return
+        status_write = False  # reference there was some issue
+        data_to_store = str(data)
 
     f = open(filepath, 'w')
     f.write(data_to_store)
     f.close()
+
+    return status_write
+
+
+def create_dir_from_hash(dataset_dir, hash):
+    """Create directory from a given hash.
+    """
+    def _compute_folder_name(dataset_dir):
+        """Compute the folder prefix from a hash key.
+        """
+        # FIXME: find some split function
+        return os.path.join(dataset_dir,
+                            hash[0:2],
+                            hash[2:4],
+                            hash[4:6],
+                            hash[6:8])
+
+    folder_in_dataset = _compute_folder_name(dataset_dir)
+
+    try:
+        os.makedirs(folder_in_dataset)
+    except OSError:
+        True  # do nothing
+
+    return folder_in_dataset
 
 
 def add_file_in_dataset(db_conn, dataset_dir, blob):
@@ -112,18 +129,11 @@ def add_file_in_dataset(db_conn, dataset_dir, blob):
 TODO: split in another module, file manipulation maybe?
     """
     hashkey = _hashkey(blob.data)
-    folder_list = _compute_folder(dataset_dir, hashkey)
-    folder_in_dataset = "/".join(folder_list)
-
-    try:
-        os.makedirs(folder_in_dataset)
-    except OSError:
-        logging.warn("Skipping creation of '%s' because it exists already." %
-                     folder_in_dataset)
+    folder_in_dataset = create_dir_from_hash(dataset_dir, hashkey)
 
     filepath = os.path.join(folder_in_dataset, hashkey)
-    logging.debug("Injecting file '%s' with hash in dataset." % filepath)
+    logging.debug("Injecting file '%s' in dataset." % filepath)
 
-    write_blob_on_disk(blob, filepath)
+    status_write = write_blob_on_disk(blob, filepath)
 
-    return filepath
+    return (filepath, status_write)

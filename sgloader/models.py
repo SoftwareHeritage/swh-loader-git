@@ -25,9 +25,11 @@ def initdb(db_conn):
     """Initialize the database.
     """
     cur = db_conn.cursor()
-    cur.execute("""create table if not exists file_cache (sha256 varchar(65) primary key,
-                                            path varchar(255),
-                                            last_seen date);""")
+    cur.execute("""create table if not exists file_cache
+         (sha256 varchar(65) primary key,
+          status_write boolean,
+          path varchar(255),
+          last_seen date);""")
     cur.execute("""create table if not exists object_cache (sha1 varchar(41) primary key,
                                               type integer,
                                               last_seen date);""")
@@ -35,13 +37,13 @@ def initdb(db_conn):
     cur.close()
 
 
-def add_file(db_conn, sha, filepath):
+def add_file(db_conn, sha, filepath, status):
     """Insert a new file
     """
     cur = db_conn.cursor()
-    cur.execute("""insert into file_cache (sha256, path, last_seen)
-                   values (%s, %s, %s);""",
-                (sha, filepath, datetime.now()))
+    cur.execute("""insert into file_cache (sha256, path, last_seen, status_write)
+                   values (%s, %s, %s, %s);""",
+                (sha, filepath, datetime.now(), status))
     db_conn.commit()
     cur.close()
 
@@ -73,7 +75,7 @@ def find_object(db_conn, sha):
     """Find an object by its hash.
     """
     cur = db_conn.cursor()
-    cur.execute("""SELECT sha1 from object_cache
+    cur.execute("""select sha1 from object_cache
                    where 1=%s and sha1 = %s;""",
                 (1, sha))
     res = cur.fetchone()
