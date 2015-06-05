@@ -2,6 +2,8 @@ FLAKE = flake8
 BINDIR = bin
 SRCDIR = sgloader
 REPO_PATH=$(HOME)/work/inria/repo/org-beamer-swh
+
+# add -v for example
 FLAG=
 
 prepare:
