@@ -115,10 +115,7 @@ def create_dir_from_hash(dataset_dir, hash):
 
     folder_in_dataset = _compute_folder_name(dataset_dir)
 
-    try:
-        os.makedirs(folder_in_dataset)
-    except OSError:
-        True  # do nothing
+    os.makedirs(folder_in_dataset, exist_ok=True)
 
     return folder_in_dataset
 
