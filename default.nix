@@ -15,6 +15,7 @@ let
       python34Packages.sqlalchemy9
       python34Packages.psycopg2
       python34Packages.requests
+      python34Packages.nose
     ];
     PYTHONPATH=./.;
     shellHook = ''
