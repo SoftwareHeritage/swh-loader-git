@@ -96,3 +96,22 @@ PYTHONPATH=$PYTHONPATH:`pwd` ./bin/sgloader --repo-path /path/to/repo dropdb
 - [ ] A small unit test to determine the slight difference in commit number
 - [ ] Improve modularization (a file module? a hash computation module?)
 - [ ] Of course, add unit tests!
+* Implementation
+** sqlalchemy
+
+Lost my scratch buffer
+need to replay this.
+
+** psycopg2
+
+with one open/close for each db access
+#+begin_src sh
+# tony at corellia in ~/work/inria/repo/swh-git-loader on git:master x [17:38:56]
+$ time make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files
+rm -rf ./log
+rm -rf ./dataset/
+mkdir -p log dataset
+PYTHONPATH=`pwd` ./bin/sgloader -v cleandb
+PYTHONPATH=`pwd` ./bin/sgloader -v --repo-path ~/repo/perso/dot-files initdb
+make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files  85.82s user 23.53s system 19% cpu 9:16.00 total
+#+end_src

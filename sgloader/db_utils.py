@@ -4,17 +4,10 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-from contextlib import contextmanager
+import psycopg2
 
 
-@contextmanager
-def session_scope(mk_session):
-    session = mk_session()
-    try:
-        yield session
-        session.commit()
-    except:
-        session.rollback()
-        raise
-    finally:
-        session.close()
+def db_connect(db_url):
+    """Given the db_url, return the couple (engine, session).
+    """
+    return psycopg2.connect(db_url)

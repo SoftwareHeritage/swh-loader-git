@@ -9,7 +9,7 @@ import os
 import pygit2
 import hashlib
 
-from sgloader.models import ObjectCache, FileCache
+from sgloader.models import find_file, find_object, add_file, add_object
 
 
 def load_repo(parent_repo_path):
@@ -34,44 +34,37 @@ def _hashkey(data):
     return sha256.hexdigest()
 
 
-def in_cache_objects(db_session, obj):
+def in_cache_objects(db_url, obj):
     """Determine if a commit is in the cache.
     """
-    return db_session.query(ObjectCache) \
-                     .filter(ObjectCache.sha1 == obj.hex) \
-                     .first()
+    return find_object(db_url, obj.hex) is not None
 
 
-def add_object_in_cache(db_session, obj, obj_type):
+def add_object_in_cache(db_url, obj, obj_type):
     """Add obj in cache.
     """
-    if in_cache_objects(db_session, obj):
+    if in_cache_objects(db_url, obj):
         logging.info('Object \'%s\' already present... skip' % obj.hex)
         return
 
     logging.debug('Injecting object \'%s\' in cache' % obj.hex)
 
-    kwargs = {'sha1': obj.hex, 'type': obj_type}
-    sql_repo = ObjectCache(**kwargs)
-    db_session.add(sql_repo)
-    db_session.commit()
+    add_object(db_url, obj.hex, obj_type)
 
 
-def in_cache_files(db_session, blob, hashkey=None):
+def in_cache_files(db_url, blob, hashkey=None):
     """Determine if a file is in the file cache.
     """
     hashkey = _hashkey(blob.data) if hashkey is None else hashkey
-    return db_session.query(FileCache) \
-                     .filter(FileCache.sha256 == hashkey) \
-                     .first()
+    return find_file(db_url, hashkey) is not None
 
 
-def add_file_in_cache(db_session, blob, filepath):
+def add_file_in_cache(db_url, blob, filepath):
     """Add file in cache.
     """
     hashkey = _hashkey(blob.data)
 
-    if in_cache_files(db_session, blob, hashkey):
+    if in_cache_files(db_url, blob, hashkey):
         logging.info('Blob \'%s\' already present. skip' % blob.hex)
         return
 
@@ -80,10 +73,7 @@ def add_file_in_cache(db_session, blob, filepath):
                   filepath,
                   hashkey)
 
-    kwargs = {'sha256': hashkey, 'path': filepath}
-    sql_repo = FileCache(**kwargs)
-    db_session.add(sql_repo)
-    db_session.commit()
+    add_file(db_url, hashkey, filepath)
 
 
 def _compute_folder(dataset_dir, hashkey):
@@ -116,7 +106,7 @@ def write_blob_on_disk(blob, filepath):
     f.close()
 
 
-def add_file_in_dataset(db_session, dataset_dir, blob):
+def add_file_in_dataset(db_url, dataset_dir, blob):
     """Add file in the dataset (on disk).
 
 TODO: split in another module, file manipulation maybe?
