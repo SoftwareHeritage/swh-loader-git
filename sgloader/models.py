@@ -6,66 +6,61 @@
 
 from datetime import datetime
 
-from sgloader.db_utils import db_connect
 
-
-def cleandb(db_url, only_truncate=False):
+def cleandb(db_conn, only_truncate=False):
     """Clean the database.
     """
-    conn = db_connect(db_url)
-    cur = conn.cursor()
+    cur = db_conn.cursor()
 
     action = "truncate table" if only_truncate else "drop table if exists"
 
     cur.execute("{} file_cache;".format(action))
     cur.execute("{} object_cache;".format(action))
 
-    conn.commit()
+    db_conn.commit()
     cur.close()
 
 
-def initdb(db_url):
+def initdb(db_conn):
     """Initialize the database.
     """
-    conn = db_connect(db_url)
-    cur = conn.cursor()
+    cur = db_conn.cursor()
     cur.execute("""create table if not exists file_cache (sha256 varchar(65) primary key,
                                             path varchar(255),
                                             last_seen date);""")
     cur.execute("""create table if not exists object_cache (sha1 varchar(41) primary key,
                                               type integer,
                                               last_seen date);""")
-    conn.commit()
+    db_conn.commit()
     cur.close()
 
 
-def add_file(db_url, sha, filepath):
-    """Insert a new file"""
-    conn = db_connect(db_url)
-    cur = conn.cursor()
+def add_file(db_conn, sha, filepath):
+    """Insert a new file
+    """
+    cur = db_conn.cursor()
     cur.execute("""insert into file_cache (sha256, path, last_seen)
                    values (%s, %s, %s);""",
                 (sha, filepath, datetime.now()))
-    conn.commit()
+    db_conn.commit()
     cur.close()
 
 
-def add_object(db_url, sha, type):
-    """insert a new object"""
-    conn = db_connect(db_url)
-    cur = conn.cursor()
+def add_object(db_conn, sha, type):
+    """Insert a new object
+    """
+    cur = db_conn.cursor()
     cur.execute("""insert into object_cache (sha1, type, last_seen)
                    values (%s, %s, %s);""",
                 (sha, type, datetime.now()))
-    conn.commit()
+    db_conn.commit()
     cur.close()
 
 
-def find_file(db_url, sha):
-    """find a file by its hash.
+def find_file(db_conn, sha):
+    """Find a file by its hash.
     """
-    conn = db_connect(db_url)
-    cur = conn.cursor()
+    cur = db_conn.cursor()
     cur.execute("""select sha256 from file_cache
                    where 1=%s and sha256=%s;""",
                 (1, sha))  # ? need to have at least 2 otherwise fails!
@@ -74,11 +69,10 @@ def find_file(db_url, sha):
     return res
 
 
-def find_object(db_url, sha):
+def find_object(db_conn, sha):
     """Find an object by its hash.
     """
-    conn = db_connect(db_url)
-    cur = conn.cursor()
+    cur = db_conn.cursor()
     cur.execute("""SELECT sha1 from object_cache
                    where 1=%s and sha1 = %s;""",
                 (1, sha))

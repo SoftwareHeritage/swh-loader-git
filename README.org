@@ -115,3 +115,17 @@ PYTHONPATH=`pwd` ./bin/sgloader -v cleandb
 PYTHONPATH=`pwd` ./bin/sgloader -v --repo-path ~/repo/perso/dot-files initdb
 make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files  85.82s user 23.53s system 19% cpu 9:16.00 total
 #+end_src
+
+
+with one connection open for the db during the computation:
+
+#+begin_src sh
+# tony at corellia in ~/work/inria/repo/swh-git-loader on git:psycopg2-tryout x [18:02:27]
+$ time make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files
+rm -rf ./log
+rm -rf ./dataset/
+mkdir -p log dataset
+PYTHONPATH=`pwd` ./bin/sgloader -v cleandb
+PYTHONPATH=`pwd` ./bin/sgloader -v --repo-path ~/repo/perso/dot-files initdb
+make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files  39.45s user 8.02s system 50% cpu 1:34.08 total
+#+end_src
