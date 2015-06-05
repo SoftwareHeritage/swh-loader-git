@@ -1,6 +1,7 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
-# Copyright (C) 2015  Stefano Zacchiroli <zack@upsilon.cc>, Antoine R. Dumont <antoine.romain.dumont@gmail.com>
+# Copyright (C) 2015  Stefano Zacchiroli <zack@upsilon.cc>,
+#                     Antoine R. Dumont <antoine.romain.dumont@gmail.com>
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -9,7 +10,6 @@ import argparse
 import configparser
 import logging
 import os
-import sys
 
 import pygit2
 from sqlalchemy import create_engine
@@ -44,9 +44,12 @@ def db_connect(db_url):
 def parse_args():
     """ Parse the configuration for the cli.
     """
-    cli = argparse.ArgumentParser(description='Parse git repositories objects and load them into a DB.')
+    cli = argparse.ArgumentParser(
+        description='Parse git repositories objects and load them into a DB.')
     cli.add_argument('--verbose', '-v', action='store_true', help='Be verbose')
-    cli.add_argument('--repo-path', '-r', dest='repo_path', help='Provide the git repository\'s path to read objects from.')
+    cli.add_argument('--repo-path', '-r',
+                     dest='repo_path',
+                     help='Provide the git repository\'s path.')
 
     subcli = cli.add_subparsers(dest='action')
     subcli.add_parser('initdb', help='Initialize DB data')
@@ -72,7 +75,7 @@ def read_conf(args):
     config.read(os.path.expanduser(DEFAULT_CONF_FILE))
 
     conf = config._sections['main']
-    conf ['repo_path'] = args.repo_path
+    conf['repo_path'] = args.repo_path
 
     return conf
 
@@ -81,14 +84,17 @@ def parse_git_repo(db_session, repo_path, dataset_dir):
     """Parse git repository `repo_path` and flush files on disk in `dataset_dir`.
     """
     def _store_blobs_from_tree(tree_ref, repo):
-        """Given a tree, walk the tree and store the blobs in dataset (if not present in dataset/cache)."""
+        """Given a tree, walk the tree and store the blobs in dataset
+ (if not present in dataset/cache).
+        """
 
-        if loader.in_cache_objects(db_session, tree_ref): # already visited, skip!
+        if loader.in_cache_objects(db_session, tree_ref):
             logging.debug("Tree \'%s\' already visited, skip!" % tree_ref.hex)
-            return;
+            return
 
         # Add the tree in cache
-        loader.add_object_in_cache(db_session, tree_ref, ObjectCache.types["Tree"])
+        loader.add_object_in_cache(db_session, tree_ref,
+                                   ObjectCache.types["Tree"])
 
         # Now walk the tree
         for tree_entry in tree_ref:
@@ -100,15 +106,19 @@ def parse_git_repo(db_session, repo_path, dataset_dir):
                 _store_blobs_from_tree(object_entry_ref, repo)
             elif isinstance(object_entry_ref, pygit2.Blob):
                 if not loader.in_cache_objects(db_session, object_entry_ref):
-                    logging.debug("Blob \'%s\' -> store in dataset !" % object_entry_ref.hex)
+                    logging.debug("Blob \'%s\' -> store in dataset !" %
+                                  object_entry_ref.hex)
                     # add the file to the dataset on the filesystem
-                    filepath = loader.add_file_in_dataset(db_session, dataset_dir, object_entry_ref)
-                    # add the file to the file cache, pointing to the file path on the filesystemFilemode
-                    loader.add_file_in_cache(db_session, object_entry_ref, filepath)
+                    filepath = loader.add_file_in_dataset(db_session,
+                                                          dataset_dir,
+                                                          object_entry_ref)
+                    # add the file to the file cache, pointing to the file
+                    # path on the filesystem
+                    loader.add_file_in_cache(db_session, object_entry_ref,
+                                             filepath)
             else:
                 logging.debug("Tag \'%s\' -> skip!" % object_entry_ref.hex)
-                break;
-
+                break
 
     repo = loader.load_repo(repo_path)
     all_refs = repo.listall_references()
@@ -122,9 +132,10 @@ def parse_git_repo(db_session, repo_path, dataset_dir):
         for commit in loader.commits_from(repo, head_commit):
             # if we have a git commit cache and the commit is in there:
             if loader.in_cache_objects(db_session, commit):
-                break # stop treating the current commit sub-graph
+                break  # stop treating the current commit sub-graph
             else:
-                loader.add_object_in_cache(db_session, commit, ObjectCache.types["Commit"])
+                loader.add_object_in_cache(db_session, commit,
+                                           ObjectCache.types["Commit"])
                 _store_blobs_from_tree(commit.tree, repo)
 
 
@@ -133,7 +144,8 @@ if __name__ == '__main__':
     conf = read_conf(args)
 
     log_filename = os.path.join(conf['log_dir'], 'sgloader.log')
-    logging.basicConfig(filename = log_filename, level = logging.DEBUG if args.verbose else logging.INFO)
+    logging.basicConfig(filename=log_filename,
+                        level=logging.DEBUG if args.verbose else logging.INFO)
 
     db_engine, mk_session = db_connect(conf['db_url'])
 
