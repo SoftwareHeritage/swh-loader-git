@@ -124,10 +124,8 @@ def parse_git_repo(db_session, repo_path, dataset_dir):
             if loader.in_cache_objects(db_session, commit):
                 break # stop treating the current commit sub-graph
             else:
-                tree_start_ref = commit.tree
-                _store_blobs_from_tree(tree_start_ref, repo)
-
-            loader.add_object_in_cache(db_session, commit, ObjectCache.types["Commit"])
+                loader.add_object_in_cache(db_session, commit, ObjectCache.types["Commit"])
+                _store_blobs_from_tree(commit.tree, repo)
 
 
 if __name__ == '__main__':
