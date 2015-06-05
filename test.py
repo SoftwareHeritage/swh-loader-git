@@ -126,3 +126,15 @@ print isinstance(other_commit, pygit2.Object)  # object in the git sense
 # >>> object_entry_by_name=repo[entry_by_name.id]
 # >>> isinstance(object_entry_by_name, pygit2.Blob)
 # True
+
+import psycopg2
+
+conn = psycopg2.connect("dbname=swhgitloader user=tony")
+cur = conn.cursor()
+
+cur.execute("select sha1 from object_cache where type = 0")
+
+cur.execute("select sha1 from object_cache where type = 0")
+cur.fetchone()
+#>>> ('4724caa4676e992d2705d498506ee34bd80c0e6d',)
+
