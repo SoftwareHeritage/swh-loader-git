@@ -1,4 +1,7 @@
 import unittest
 
-def test_tryout():
+from nose.tools import istest
+
+@istest
+def tryout():
     assert True
