@@ -7,7 +7,7 @@ REPO_PATH=$(HOME)/work/inria/repo/org-beamer-swh
 FLAG=
 
 NOSE = nosetests
-TESTFLAGS =
+TESTFLAGS = -s
 TESTDIR = ./tests
 
 prepare:
@@ -30,4 +30,4 @@ profile:
 	python3 -m cProfile profile.py
 
 test:
-	$(NOSE) $(TESTFLAGS) $(TESTDIR)/*
+	$(NOSE) $(TESTFLAGS) $(TESTDIR)
