@@ -92,10 +92,10 @@ PYTHONPATH=$PYTHONPATH:`pwd` ./bin/sgloader --repo-path /path/to/repo dropdb
 - [X] Push on remote git repository
 - [X] Serialize blob's data and not blob's size.
 - [X] Logging in python? How to see the log?
-- [ ] Drop sqlalchemy and use psycopg2
-- [ ] A small unit test to determine the slight difference in commit number
-- [ ] Improve modularization (a file module? a hash computation module?)
+- [X] Give psycopg2 a try (as an alternative to ORM sqlalchemy)
+- [ ] A unit test to determine the slight difference in commit number
 - [ ] Of course, add unit tests!
+- [ ] Improve modularization (a file module? a hash computation module?)
 * Implementation
 ** Expected results
 
