@@ -6,6 +6,10 @@ REPO_PATH=$(HOME)/work/inria/repo/org-beamer-swh
 # add -v for example
 FLAG=
 
+NOSE = nosetests
+TESTFLAGS =
+TESTDIR = ./tests
+
 prepare:
 	mkdir -p log dataset
 
@@ -21,3 +25,9 @@ run: clean prepare
 
 check:
 	$(FLAKE) $(BINDIR)/sgloader $(SRCDIR)/*.py
+
+profile:
+	python3 -m cProfile profile.py
+
+test:
+	$(NOSE) $(TESTFLAGS) $(TESTDIR)/*
