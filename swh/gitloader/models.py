@@ -32,7 +32,7 @@ def initdb(db_conn):
          (sha256 bytea primary key,
           path varchar(255),
           last_seen date);""")
-    cur.execute("""create table if not exists object_cache (sha1 varchar(41) primary key,
+    cur.execute("""create table if not exists object_cache (sha1 bytea primary key,
                                               type integer,
                                               last_seen date);""")
     db_conn.commit()
@@ -78,7 +78,7 @@ def find_object(db_conn, sha):
     """
     cur = db_conn.cursor()
     cur.execute("""select sha1 from object_cache
-                   where 1=%s and sha1 = %s;""",
+                   where 1=%s and sha1=%s;""",
                 (1, sha))
     res = cur.fetchone()
     cur.close()

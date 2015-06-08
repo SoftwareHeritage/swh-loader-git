@@ -128,7 +128,7 @@ PYTHONPATH=$PYTHONPATH:`pwd` ./bin/sgloader --actions initdb
 - [X] Improve sgloader cli interface
 - [X] Serialize sha256 as bytes
 - [X] Update README.org
-- [ ] Serialize sha1 as bytes
+- [X] Serialize sha1 as bytes
 - [ ] Use sha1 instead of sha256
 - [ ] A unit test to determine the slight difference in commit number
 - [ ] Of course, add unit tests!

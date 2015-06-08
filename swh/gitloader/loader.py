@@ -27,7 +27,34 @@ def commits_from(repo, commit):
     return repo.walk(commit.id, pygit2.GIT_SORT_TIME)
 
 
-def _hashkey(data):
+def _hashkeybin(data):
+    """Given some data, compute the sha1 ready object of such data.
+    Return the reference but not the computation.
+    """
+    return data.encode('utf-8')
+
+
+def in_cache_objects(db_conn, sha):
+    """Determine if an object with hash sha is in the cache.
+    """
+    return models.find_object(db_conn, sha) is not None
+
+
+def add_object_in_cache(db_conn, obj, obj_type):
+    """Add obj in cache.
+    """
+    sha1bin = _hashkeybin(obj.hex)
+
+    if in_cache_objects(db_conn, sha1bin):
+        logging.debug('Object \'%s\' already present... skip' % sha1bin)
+        return
+
+    logging.debug('Injecting object \'%s\' in cache' % sha1bin)
+
+    models.add_object(db_conn, sha1bin, obj_type)
+
+
+def _hashkey256(data):
     """Given some data, compute the hash ready object of such data.
     Return the reference but not the computation.
     """
@@ -36,35 +63,17 @@ def _hashkey(data):
     return sha256
 
 
-def in_cache_objects(db_conn, obj):
-    """Determine if a commit is in the cache.
-    """
-    return models.find_object(db_conn, obj.hex) is not None
-
-
-def add_object_in_cache(db_conn, obj, obj_type):
-    """Add obj in cache.
-    """
-    if in_cache_objects(db_conn, obj):
-        logging.debug('Object \'%s\' already present... skip' % obj.hex)
-        return
-
-    logging.debug('Injecting object \'%s\' in cache' % obj.hex)
-
-    models.add_object(db_conn, obj.hex, obj_type)
-
-
 def in_cache_blobs(db_conn, blob, hashkey=None):
     """Determine if a blob is in the blob cache.
     """
-    hashkey = _hashkey(blob.data).digest() if hashkey is None else hashkey
+    hashkey = _hashkey256(blob.data).digest() if hashkey is None else hashkey
     return models.find_blob(db_conn, hashkey) is not None
 
 
 def add_blob_in_cache(db_conn, blob, filepath):
     """Add blob in cache.
     """
-    hashkey = _hashkey(blob.data).digest()
+    hashkey = _hashkey256(blob.data).digest()
 
     if in_cache_blobs(db_conn, blob, hashkey):
         logging.debug('Blob \'%s\' already present. skip' % blob.hex)
@@ -111,7 +120,7 @@ def add_blob_in_dataset(db_conn, dataset_dir, blob):
 
 TODO: split in another module, file manipulation maybe?
     """
-    hashkey = _hashkey(blob.data).hexdigest()
+    hashkey = _hashkey256(blob.data).hexdigest()
     folder_in_dataset = create_dir_from_hash(dataset_dir, hashkey)
 
     filepath = os.path.join(folder_in_dataset, hashkey)
@@ -137,7 +146,7 @@ def parse_git_repo(db_conn, repo_path, dataset_dir):
  (if not present in dataset/cache).
         """
 
-        if in_cache_objects(db_conn, tree_ref):
+        if in_cache_objects(db_conn, tree_ref.hex):
             logging.debug("Tree \'%s\' already visited, skip!" % tree_ref.hex)
             return
 
@@ -194,7 +203,7 @@ def parse_git_repo(db_conn, repo_path, dataset_dir):
         # for each commit referenced by the commit graph starting at that ref
         for commit in commits_from(repo, head_commit):
             # if we have a git commit cache and the commit is in there:
-            if in_cache_objects(db_conn, commit):
+            if in_cache_objects(db_conn, commit.hex):
                 break  # stop treating the current commit sub-graph
             else:
                 add_object_in_cache(db_conn, commit,
@@ -215,7 +224,8 @@ def run(actions, db_url, repo_path=None, dataset_dir=None):
         else:
             logging.warn("Unknown action '%s', skip!" % action)
 
-    logging.info("Parsing git repository \'%s\'" % repo_path)
-    parse_git_repo(db_conn, repo_path, dataset_dir)
+    if repo_path is not None:
+        logging.info("Parsing git repository \'%s\'" % repo_path)
+        parse_git_repo(db_conn, repo_path, dataset_dir)
 
     db_conn.close()
