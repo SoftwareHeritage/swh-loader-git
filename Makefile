@@ -33,7 +33,7 @@ check:
 	$(FLAKE) $(BINDIR)/sgloader $(SRCDIR)/*.py
 
 profile:
-	python3 -m cProfile profile.py
+	[ -f profile-sgloader.py ] && python3 -m cProfile profile-sgloader.py
 
 test:
 	$(NOSE) $(TESTFLAGS) $(TESTDIR)
