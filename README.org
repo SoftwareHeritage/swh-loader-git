@@ -75,8 +75,7 @@ Create a configuration file in *~/.cache/sgloader.ini*:
 [main]
 dataset_dir = dataset
 log_dir = log
-# see http://docs.sqlalchemy.org/en/latest/core/engines.html#database-urls
-db_url = postgres:///swhgitloader
+db_url = dbname=swhgitloader user=tony
 #+end_src
 
 * Run
@@ -87,13 +86,23 @@ db_url = postgres:///swhgitloader
 PYTHONPATH=$PYTHONPATH:`pwd` ./bin/sgloader --repo-path /path/to/repo createdb
 #+end_src
 
+For ease:
+#+begin_src sh
+make cleandb run REPO_PATH=/path/to/repo
+#+end_src
+
 ** Clean data
 
 #+begin_src sh
-PYTHONPATH=$PYTHONPATH:`pwd` ./bin/sgloader --repo-path /path/to/repo dropdb
+PYTHONPATH=$PYTHONPATH:`pwd` ./bin/sgloader dropdb
 #+end_src
 
-* TODO Improvments
+For ease:
+#+begin_src sh
+make cleandb
+#+end_src
+
+* IN-PROGRESS Improvments
 - [X] Push on remote git repository
 - [X] Serialize blob's data and not blob's size.
 - [X] Logging in python? How to see the log?
@@ -127,6 +136,7 @@ swhgitloader=> select count(*) from file_cache;
 
 ** sqlalchemy
 
+ORM framework.
 Lost my scratch buffer
 need to replay this.
 
