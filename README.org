@@ -69,7 +69,7 @@ It will be stored at STORAGE_ROOT/b5/bb/9d/80/14a0f9b1d61e21e796d78dccdf1352f23c
 
 * Configuration
 
-Create a configuration file in *~/.cache/sgloader.ini*:
+Create a configuration file in *~/.config/sgloader.ini*:
 
 #+begin_src ini
 [main]
