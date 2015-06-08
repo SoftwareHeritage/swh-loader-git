@@ -10,6 +10,9 @@ NOSE = nosetests
 TESTFLAGS = -s
 TESTDIR = ./tests
 
+deps:
+	sudo apt-get install -y python3 python3-pygit2 python3-psycopg2 python3-nose
+
 prepare:
 	mkdir -p log dataset
 
