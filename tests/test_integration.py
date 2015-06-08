@@ -9,11 +9,15 @@ import shutil
 from nose.tools import istest
 from nose.plugins.attrib import attr
 
-from sgloader.sgloader import run
+from sgloader.sgloader import run, TYPES
+from sgloader.models import count_files, count_objects
+from sgloader.db_utils import db_connect
 
 @attr('slow')
 class TestingLearning(unittest.TestCase):
     tmpGitRepo = None
+    db_url = None
+    db_conn = None
 
     def create_blob(self, blob_content):
         """Create a blob with blob_content and returns its oid.
@@ -67,22 +71,33 @@ class TestingLearning(unittest.TestCase):
         commit3 = self.create_content_and_commit(None, 'commit msg 3', commit2.hex)
         commit4 = self.create_content_and_commit('blob 4', 'commit msg 4', commit3.hex)
 
+        # open connection to db
+        self.db_url = "dbname=swhgitloader-test user=tony"
+        self.db_conn = db_connect(self.db_url)
+
+
     def tearDown(self):
         """Destroy the test git repository.
         """
 
+        # Remove temporary git repository
         shutil.rmtree(self.tmpGitRepo.workdir)
+        # close db connection
+        self.db_conn.close()
 
     @istest
     def tryout(self):
         """Trigger sgloader and make sure everything is ok.
         """
         # trigger the script
-        db_url = "host=localhost dbname=swhgitloader-test user=tony"
         repo_path = self.tmpGitRepo.workdir
         dataset_dir = os.path.join(repo_path, "dataset")
 
         os.makedirs(dataset_dir, exist_ok=True)
         
-        run("cleandb", db_url)
-        # sgloader.run("initdb", db_url, repo_path, dataset_dir)
+        run("cleandb", self.db_url)
+        run("initdb", self.db_url, repo_path, dataset_dir)
+
+        assert count_objects(self.db_conn, TYPES["Commit"]) == 5
+        assert count_objects(self.db_conn, TYPES["Tree"]) == 5
+        assert count_files(self.db_conn) == 4

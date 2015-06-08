@@ -14,7 +14,7 @@ from sgloader.sgloader import run
 
 # Clean the db up
 action = "initdb"
-db_url = "host=localhost dbname=swhgitloader user=tony"
+db_url = "dbname=swhgitloader user=tony"
 
 # cleanup first
 run("cleandb", db_url)

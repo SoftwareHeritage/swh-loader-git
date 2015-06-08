@@ -7,6 +7,8 @@
 from datetime import datetime
 
 
+#FIXME: Find the pythonic way to use Higher-order functions (too much duplication here)
+
 def cleandb(db_conn, only_truncate=False):
     """Clean the database.
     """
@@ -79,5 +81,41 @@ def find_object(db_conn, sha):
                    where 1=%s and sha1 = %s;""",
                 (1, sha))
     res = cur.fetchone()
+    cur.close()
+    return res
+
+
+# not working!
+# def count(db_conn, tablename, type = None):
+#     """Count the number of objects inside the tablename."""
+#     cur = db_conn.cursor()
+#     count_str = " where type = {}".format(type) if type == 0 or type == 1 else ""
+
+#     cur.execute("""select count(*) from %s%s;""", (tablename, count_str))
+
+#     res = cur.fetchone()[0]
+#     cur.close()
+#     return res
+
+
+def count_files(db_conn):
+    """Count the number of objects inside the tablename."""
+    cur = db_conn.cursor()
+
+    cur.execute("""select count(*) from file_cache;""")
+
+    res = cur.fetchone()[0]
+    cur.close()
+    return res
+
+
+def count_objects(db_conn, type):
+    """Count the number of objects inside the tablename."""
+    cur = db_conn.cursor()
+
+    cur.execute("""select count(*) from object_cache
+                   where 1=%s and type=%s;""", (1, type))
+
+    res = cur.fetchone()[0]
     cur.close()
     return res
