@@ -9,9 +9,9 @@ import shutil
 from nose.tools import istest
 from nose.plugins.attrib import attr
 
-from sgloader.sgloader import run, TYPES
-from sgloader.models import count_files, count_objects
-from sgloader.db_utils import db_connect
+from swh.gitloader.sgloader import run, TYPES
+from swh.gitloader.models import count_files, count_objects
+from swh.db_utils import db_connect
 
 @attr('slow')
 class TestingLearning(unittest.TestCase):

@@ -9,7 +9,7 @@ import os
 import pygit2
 import hashlib
 
-from sgloader.models import find_file, find_object, add_file, add_object
+from swh.gitloader.models import find_file, find_object, add_file, add_object
 
 
 def load_repo(parent_repo_path):

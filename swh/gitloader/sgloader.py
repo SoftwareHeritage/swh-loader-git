@@ -11,7 +11,8 @@ import os
 
 import pygit2
 
-from sgloader import loader, models, db_utils
+from swh import db_utils
+from swh.gitloader import loader, models
 
 
 # Default types
