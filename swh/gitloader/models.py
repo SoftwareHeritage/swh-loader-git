@@ -7,7 +7,8 @@
 from datetime import datetime
 
 
-#FIXME: Find the pythonic way to use Higher-order functions (too much duplication here)
+# FIXME: Find the pythonic way to use Higher-order
+# functions (too much duplication here)
 
 def cleandb(db_conn, only_truncate=False):
     """Clean the database.
@@ -16,7 +17,7 @@ def cleandb(db_conn, only_truncate=False):
 
     action = "truncate table" if only_truncate else "drop table if exists"
 
-    cur.execute("{} file_cache;".format(action))
+    cur.execute("{} blob_cache;".format(action))
     cur.execute("{} object_cache;".format(action))
 
     db_conn.commit()
@@ -27,7 +28,7 @@ def initdb(db_conn):
     """Initialize the database.
     """
     cur = db_conn.cursor()
-    cur.execute("""create table if not exists file_cache
+    cur.execute("""create table if not exists blob_cache
          (sha256 bytea primary key,
           path varchar(255),
           last_seen date);""")
@@ -38,11 +39,11 @@ def initdb(db_conn):
     cur.close()
 
 
-def add_file(db_conn, sha, filepath):
+def add_blob(db_conn, sha, filepath):
     """Insert a new file
     """
     cur = db_conn.cursor()
-    cur.execute("""insert into file_cache (sha256, path, last_seen)
+    cur.execute("""insert into blob_cache (sha256, path, last_seen)
                    values (%s, %s, %s);""",
                 (sha, filepath, datetime.now()))
     db_conn.commit()
@@ -60,11 +61,11 @@ def add_object(db_conn, sha, type):
     cur.close()
 
 
-def find_file(db_conn, sha):
+def find_blob(db_conn, sha):
     """Find a file by its hash.
     """
     cur = db_conn.cursor()
-    cur.execute("""select sha256 from file_cache
+    cur.execute("""select sha256 from blob_cache
                    where 1=%s and sha256=%s;""",
                 (1, sha))  # ? need to have at least 2 otherwise fails!
     res = cur.fetchone()

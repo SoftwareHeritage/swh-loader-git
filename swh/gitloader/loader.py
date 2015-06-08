@@ -54,28 +54,28 @@ def add_object_in_cache(db_conn, obj, obj_type):
     models.add_object(db_conn, obj.hex, obj_type)
 
 
-def in_cache_files(db_conn, blob, hashkey=None):
-    """Determine if a file is in the file cache.
+def in_cache_blobs(db_conn, blob, hashkey=None):
+    """Determine if a blob is in the blob cache.
     """
     hashkey = _hashkey(blob.data).digest() if hashkey is None else hashkey
-    return models.find_file(db_conn, hashkey) is not None
+    return models.find_blob(db_conn, hashkey) is not None
 
 
-def add_file_in_cache(db_conn, blob, filepath):
-    """Add file in cache.
+def add_blob_in_cache(db_conn, blob, filepath):
+    """Add blob in cache.
     """
     hashkey = _hashkey(blob.data).digest()
 
-    if in_cache_files(db_conn, blob, hashkey):
+    if in_cache_blobs(db_conn, blob, hashkey):
         logging.debug('Blob \'%s\' already present. skip' % blob.hex)
         return
 
-    logging.debug('Injecting file \'%s\' with \'%s\' (sha256: \'%s\')',
+    logging.debug('Injecting blob \'%s\' with \'%s\' (sha256: \'%s\')',
                   blob.hex,
                   filepath,
                   hashkey)
 
-    models.add_file(db_conn, hashkey, filepath)
+    models.add_blob(db_conn, hashkey, filepath)
 
 
 def write_blob_on_disk(blob, filepath):
@@ -106,8 +106,8 @@ def create_dir_from_hash(dataset_dir, hash):
     return folder_in_dataset
 
 
-def add_file_in_dataset(db_conn, dataset_dir, blob):
-    """Add file in the dataset (on disk).
+def add_blob_in_dataset(db_conn, dataset_dir, blob):
+    """Add blob in the dataset (on disk).
 
 TODO: split in another module, file manipulation maybe?
     """
@@ -115,7 +115,7 @@ TODO: split in another module, file manipulation maybe?
     folder_in_dataset = create_dir_from_hash(dataset_dir, hashkey)
 
     filepath = os.path.join(folder_in_dataset, hashkey)
-    logging.debug("Injecting file '%s' in dataset." % filepath)
+    logging.debug("Injecting blob '%s' in dataset." % filepath)
 
     write_blob_on_disk(blob, filepath)
 
@@ -160,7 +160,7 @@ def parse_git_repo(db_conn, repo_path, dataset_dir):
 
                 elif isinstance(object_entry_ref, pygit2.Blob):
 
-                    if in_cache_files(db_conn, object_entry_ref):
+                    if in_cache_blobs(db_conn, object_entry_ref):
                         logging.debug('Blob \'%s\' already present. skip' %
                                       object_entry_ref.hex)
                         continue
@@ -168,13 +168,13 @@ def parse_git_repo(db_conn, repo_path, dataset_dir):
                     logging.debug("Blob \'%s\' -> store in dataset !" %
                                   object_entry_ref.hex)
                     # add the file to the dataset on the filesystem
-                    filepath = add_file_in_dataset(
+                    filepath = add_blob_in_dataset(
                         db_conn,
                         dataset_dir,
                         object_entry_ref)
                     # add the file to the file cache, pointing to the file
                     # path on the filesystem
-                    add_file_in_cache(db_conn, object_entry_ref, filepath)
+                    add_blob_in_cache(db_conn, object_entry_ref, filepath)
 
                 else:
                     logging.debug("Tag \'%s\' -> skip!" % object_entry_ref.hex)
