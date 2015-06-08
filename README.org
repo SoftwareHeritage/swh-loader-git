@@ -80,26 +80,44 @@ db_url = dbname=swhgitloader user=tony
 
 * Run
 
-** Parse a repository
+** Help
 
 #+begin_src sh
-PYTHONPATH=$PYTHONPATH:`pwd` ./bin/sgloader --repo-path /path/to/repo createdb
+PYTHONPATH=$PYTHONPATH:`pwd` ./bin/sgloader --help
+#+end_src
+
+** Parse a repository from a clean slate
+
+Clean and initialize the model then parse the repository git:
+#+begin_src sh
+PYTHONPATH=$PYTHONPATH:`pwd` ./bin/sgloader --actions cleandb,initdb --load-repo /path/to/repo
 #+end_src
 
 For ease:
 #+begin_src sh
-make cleandb run REPO_PATH=/path/to/repo
+make clean-and-run REPO_PATH=/path/to/repo
+#+end_src
+
+** Parse an existing repository
+#+begin_src sh
+PYTHONPATH=$PYTHONPATH:`pwd` ./bin/sgloader --load-repo /path/to/repo
 #+end_src
 
 ** Clean data
 
 #+begin_src sh
-PYTHONPATH=$PYTHONPATH:`pwd` ./bin/sgloader dropdb
+PYTHONPATH=$PYTHONPATH:`pwd` ./bin/sgloader --actions cleandb
 #+end_src
 
 For ease:
 #+begin_src sh
 make cleandb
+#+end_src
+
+** Init data
+
+#+begin_src sh
+PYTHONPATH=$PYTHONPATH:`pwd` ./bin/sgloader --actions initdb
 #+end_src
 
 * IN-PROGRESS Improvments
@@ -108,8 +126,10 @@ make cleandb
 - [X] Logging in python? How to see the log?
 - [X] Replace sqlalchemy dao layer with psycopg2
 - [X] Improve sgloader cli interface
-- [ ] Use sha1 instead of sha256
+- [X] Serialize sha256 as bytes
+- [X] Update README.org
 - [ ] Serialize sha1 as bytes
+- [ ] Use sha1 instead of sha256
 - [ ] A unit test to determine the slight difference in commit number
 - [ ] Of course, add unit tests!
 - [ ] Improve modularization (a file module? a hash computation module?)
