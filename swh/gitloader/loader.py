@@ -146,31 +146,33 @@ def parse_git_repo(db_conn, repo_path, dataset_dir):
 
         # Now walk the tree
         for tree_entry in tree_ref:
-            object_entry_ref = repo[tree_entry.id]
-
-            # FIXME: find pythonic way to do type dispatch call to function?
-            if isinstance(object_entry_ref, pygit2.Tree):
-                logging.debug("Tree \'%s\' -> walk!" % object_entry_ref.hex)
-                _store_blobs_from_tree(object_entry_ref, repo)
-            elif isinstance(object_entry_ref, pygit2.Blob):
-                if in_cache_files(db_conn, object_entry_ref):
-                    logging.debug('Blob \'%s\' already present. skip' %
+            try:
+                object_entry_ref = repo[tree_entry.id]
+    
+                if isinstance(object_entry_ref, pygit2.Tree):
+                    logging.debug("Tree \'%s\' -> walk!" % object_entry_ref.hex)
+                    _store_blobs_from_tree(object_entry_ref, repo)
+                elif isinstance(object_entry_ref, pygit2.Blob):
+                    if in_cache_files(db_conn, object_entry_ref):
+                        logging.debug('Blob \'%s\' already present. skip' %
+                                      object_entry_ref.hex)
+                        continue
+    
+                    logging.debug("Blob \'%s\' -> store in dataset !" %
                                   object_entry_ref.hex)
-                    continue
-
-                logging.debug("Blob \'%s\' -> store in dataset !" %
-                              object_entry_ref.hex)
-                # add the file to the dataset on the filesystem
-                filepath = add_file_in_dataset(
-                    db_conn,
-                    dataset_dir,
-                    object_entry_ref)
-                # add the file to the file cache, pointing to the file
-                # path on the filesystem
-                add_file_in_cache(db_conn, object_entry_ref, filepath)
-            else:
-                logging.debug("Tag \'%s\' -> skip!" % object_entry_ref.hex)
-                break
+                    # add the file to the dataset on the filesystem
+                    filepath = add_file_in_dataset(
+                        db_conn,
+                        dataset_dir,
+                        object_entry_ref)
+                    # add the file to the file cache, pointing to the file
+                    # path on the filesystem
+                    add_file_in_cache(db_conn, object_entry_ref, filepath)
+                else:
+                    logging.debug("Tag \'%s\' -> skip!" % object_entry_ref.hex)
+                    break
+            except KeyError:
+                logging.warn("Submodule - Key \'%s\' not found!" % tree_entry.id)
 
     repo = load_repo(repo_path)
     all_refs = repo.listall_references()
