@@ -23,4 +23,4 @@ run("cleandb", db_url)
 # Then run
 repo_path = os.path.expanduser("~/repo/perso/dot-files")
 dataset_dir = "./dataset"
-#run(action, db_url, repo_path, dataset_dir)
+run(action, db_url, repo_path, dataset_dir)
