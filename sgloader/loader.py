@@ -59,7 +59,7 @@ def in_cache_files(db_conn, blob, hashkey=None):
     return find_file(db_conn, hashkey) is not None
 
 
-def add_file_in_cache(db_conn, blob, filepath, status_write):
+def add_file_in_cache(db_conn, blob, filepath):
     """Add file in cache.
     """
     hashkey = _hashkey(blob.data)
@@ -73,31 +73,15 @@ def add_file_in_cache(db_conn, blob, filepath, status_write):
                   filepath,
                   hashkey)
 
-    add_file(db_conn, hashkey, filepath, status_write)
+    add_file(db_conn, hashkey, filepath)
 
 
 def write_blob_on_disk(blob, filepath):
     """Write blob on disk.
     """
-    status_write = True
-    data = blob.data
-
-    try:
-        data_to_store = data.decode("utf-8")
-    except UnicodeDecodeError:
-        logging.warn("Problem during decoding blob %s's data... Skip!" %
-                     blob.hex)
-        # logging.warn("blob's data: '%s'", blob.data)
-        # sometimes if fails with cryptic error `UnicodeDecodeError: 'utf-8'
-        # codec can't decode byte 0x9d in position 10: invalid start byte`...
-        status_write = False  # reference there was some issue
-        data_to_store = str(data)
-
-    f = open(filepath, 'w')
-    f.write(data_to_store)
+    f = open(filepath, 'wb')
+    f.write(blob.data)
     f.close()
-
-    return status_write
 
 
 def create_dir_from_hash(dataset_dir, hash):
@@ -131,6 +115,6 @@ TODO: split in another module, file manipulation maybe?
     filepath = os.path.join(folder_in_dataset, hashkey)
     logging.debug("Injecting file '%s' in dataset." % filepath)
 
-    status_write = write_blob_on_disk(blob, filepath)
+    write_blob_on_disk(blob, filepath)
 
-    return (filepath, status_write)
+    return filepath

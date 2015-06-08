@@ -192,3 +192,15 @@ PYTHONPATH=`pwd` bin/sgloader -v cleandb
 PYTHONPATH=`pwd` bin/sgloader -v --repo-path ~/repo/perso/dot-files initdb
 make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files  15.90s user 2.08s system 31% cpu 56.879 total
 #+end_src
+
+No need for byte decoding before serializing on disk:
+#+begin_src sh
+# tony at corellia in ~/work/inria/repo/swh-git-loader on git:master x [12:36:10]
+$ time make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files
+rm -rf ./log
+rm -rf ./dataset/
+mkdir -p log dataset
+PYTHONPATH=`pwd` bin/sgloader -v cleandb
+PYTHONPATH=`pwd` bin/sgloader -v --repo-path ~/repo/perso/dot-files initdb
+make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files  14.67s user 1.64s system 30% cpu 54.303 total
+#+end_src

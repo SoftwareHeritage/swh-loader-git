@@ -29,7 +29,6 @@ def initdb(db_conn):
     cur = db_conn.cursor()
     cur.execute("""create table if not exists file_cache
          (sha256 varchar(65) primary key,
-          status_write boolean,
           path varchar(255),
           last_seen date);""")
     cur.execute("""create table if not exists object_cache (sha1 varchar(41) primary key,
@@ -39,13 +38,13 @@ def initdb(db_conn):
     cur.close()
 
 
-def add_file(db_conn, sha, filepath, status):
+def add_file(db_conn, sha, filepath):
     """Insert a new file
     """
     cur = db_conn.cursor()
-    cur.execute("""insert into file_cache (sha256, path, last_seen, status_write)
-                   values (%s, %s, %s, %s);""",
-                (sha, filepath, datetime.now(), status))
+    cur.execute("""insert into file_cache (sha256, path, last_seen)
+                   values (%s, %s, %s);""",
+                (sha, filepath, datetime.now()))
     db_conn.commit()
     cur.close()
 
