@@ -13,14 +13,9 @@ from sgloader.sgloader import run
 
 
 # Clean the db up
-action = "initdb"
-db_url = "dbname=swhgitloader user=tony"
-
-# cleanup first
-run("cleandb", db_url)
-
+db_url = "dbname=swhgitloader2"
 
 # Then run
 repo_path = os.path.expanduser("~/repo/perso/dot-files")
 dataset_dir = "./dataset"
-run(action, db_url, repo_path, dataset_dir)
+run(["cleandb", "initdb"], db_url, repo_path, dataset_dir)

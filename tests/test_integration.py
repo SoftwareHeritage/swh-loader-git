@@ -95,8 +95,7 @@ class TestingLearning(unittest.TestCase):
 
         os.makedirs(dataset_dir, exist_ok=True)
         
-        run("cleandb", self.db_url)
-        run("initdb", self.db_url, repo_path, dataset_dir)
+        run(["cleandb", "initdb"], self.db_url, repo_path, dataset_dir)
 
         assert count_objects(self.db_conn, TYPES["Commit"]) == 5
         assert count_objects(self.db_conn, TYPES["Tree"]) == 5

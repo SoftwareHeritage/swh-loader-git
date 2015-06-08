@@ -10,7 +10,7 @@ NOSE = nosetests3
 TESTFLAGS = -s
 TESTDIR = ./tests
 
-DB=swhgitloader
+DB=swhgitloader2
 DB_TEST=swhgitloader-test
 
 deps:
@@ -23,11 +23,17 @@ clean:
 	rm -rf ./log
 	rm -rf ./dataset/
 
+help: clean prepare
+	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) -h
+
 cleandb: clean prepare
-	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) cleandb
+	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) --actions cleandb
 
 run: clean prepare
-	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) --repo-path $(REPO_PATH) initdb
+	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) --actions initdb --load-repo $(REPO_PATH)
+
+clean-and-run: clean prepare
+	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) --actions cleandb,initdb --load-repo $(REPO_PATH)
 
 check:
 	$(FLAKE) $(BINDIR)/sgloader $(SRCDIR)/*.py

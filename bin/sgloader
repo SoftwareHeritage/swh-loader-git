@@ -15,14 +15,14 @@ from swh.gitloader.loader import run
 
 
 # Default configuration file
-DEFAULT_CONF_FILE = '~/.config/sgloader.ini'
+DEFAULT_CONF_FILE = '~/.config/sgloader2.ini'
 
 
 # default configuration (can be overriden by the DEFAULT_CONF_FILE)
 DEFAULT_CONF = {
     'dataset_dir': './dataset',
     'log_dir': './log',
-    'db_url': 'host=localhost db_name=swhgitloader user=tony'
+    'db_url': 'dbname=swhgitloader'
 }
 
 
@@ -30,20 +30,24 @@ def parse_args():
     """ Parse the configuration for the cli.
     """
     cli = argparse.ArgumentParser(
-        description='Parse git repositories objects and load them into a DB.')
-    cli.add_argument('--verbose', '-v', action='store_true', help='Be verbose')
-    cli.add_argument('--repo-path', '-r',
-                     dest='repo_path',
-                     help='Provide the git repository\'s path.')
+        description='Parse git repository objects to load them into DB.')
 
-    subcli = cli.add_subparsers(dest='action')
-    subcli.add_parser('initdb', help='Initialize DB data')
-    subcli.add_parser('cleandb', help='Clean DB data')
+    cli.add_argument('--verbose', '-v', action='store_true',
+                     help='Verbosity level in log file.')
+
+    cli.add_argument('--configuration-file', '-c', dest='conf_file',
+                     help='Configuration file path to load db access, ' +
+                     'log file, etc...')
+
+    cli.add_argument('--load-repo', '-l',
+                     dest='repo_path',
+                     help='Git repository path to load.')
+
+    cli.add_argument('--actions', '-a', dest='actions', nargs='?',
+                     help='Comma separated action values in [initdb|cleandb]',
+                     default='initdb')
 
     args = cli.parse_args()
-
-    if not args.repo_path and args.action != 'cleandb':
-        cli.error('No repository given')
 
     return args
 
@@ -57,10 +61,14 @@ def read_conf(args):
     (No cli override.)
     """
     config = configparser.ConfigParser(defaults=DEFAULT_CONF)
-    config.read(os.path.expanduser(DEFAULT_CONF_FILE))
+    conf_file = DEFAULT_CONF_FILE if args.conf_file is None else args.conf_file
+    config.read(os.path.expanduser(conf_file))
 
     conf = config._sections['main']
     conf['repo_path'] = args.repo_path
+
+    actions = args.actions
+    conf['actions'] = actions if actions is None else actions.split(',')
 
     return conf
 
@@ -73,4 +81,7 @@ if __name__ == '__main__':
     logging.basicConfig(filename=log_filename,
                         level=logging.DEBUG if args.verbose else logging.INFO)
 
-    run(args.action, conf['db_url'], conf['repo_path'], conf['dataset_dir'])
+    run(conf['actions'],
+        conf['db_url'],
+        conf['repo_path'],
+        conf['dataset_dir'])

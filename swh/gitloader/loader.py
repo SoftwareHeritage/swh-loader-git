@@ -193,18 +193,20 @@ def parse_git_repo(db_conn, repo_path, dataset_dir):
                 _store_blobs_from_tree(commit.tree, repo)
 
 
-def run(action, db_url, repo_path = None, dataset_dir = None):
+def run(actions, db_url, repo_path = None, dataset_dir = None):
     db_conn = db_utils.db_connect(db_url)
 
-    if action == 'cleandb':
-        logging.info("Database cleanup!")
-        models.cleandb(db_conn)
-    else:
-        if action == 'initdb':
+    for action in actions:
+        if action == 'cleandb':
+            logging.info("Database cleanup!")
+            models.cleandb(db_conn)
+        elif action == 'initdb':
             logging.info("Database initialization!")
             models.initdb(db_conn)
+        else:
+            logging.warn("Unknown action '%s', skip!" % action)
 
-        logging.info("Parsing git repository \'%s\'" % repo_path)
-        parse_git_repo(db_conn, repo_path, dataset_dir)
+    logging.info("Parsing git repository \'%s\'" % repo_path)
+    parse_git_repo(db_conn, repo_path, dataset_dir)
 
     db_conn.close()
