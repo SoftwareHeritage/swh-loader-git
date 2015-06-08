@@ -113,36 +113,49 @@ make cleandb
 * Implementation
 ** Expected results
 
-After each run (as per comparison purposes) :
-#+begin_src sql
+Given a specific repository https://github.com/ardumont/dot-files.git
+
+Here is the expected result for each run (as per comparison purposes):
+#+begin_src sh
 swhgitloader=> select count(*) from object_cache where type = 0; -- commit
  count
 -------
-  1731
+  1744
 (1 row)
 
 swhgitloader=> select count(*) from object_cache where type = 1; -- tree
  count
 -------
-  2819
+  2839
 (1 row)
 
 swhgitloader=> select count(*) from file_cache;
  count
 -------
-  2944
+  2958
 (1 row)
 #+end_src
 
 ** sqlalchemy
 
 ORM framework.
-Lost my scratch buffer
-need to replay this.
+
+#+begin_src sh
+# tony at corellia in ~/work/inria/repo/swh-git-loader on git:master o [10:35:08]
+$ time make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files
+rm -rf ./log
+rm -rf ./dataset/
+mkdir -p log dataset
+PYTHONPATH=`pwd` ./bin/sgloader -v cleandb
+PYTHONPATH=`pwd` ./bin/sgloader -v --repo-path ~/repo/perso/dot-files initdb
+make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files  161.05s user 10.82s system 76% cpu 3:46.01 total
+#+end_src
 
 ** psycopg2
 
-with one open/close for each db access
+A simple db client.
+
+First implementation, with one open/close for each db access:
 #+begin_src sh
 # tony at corellia in ~/work/inria/repo/swh-git-loader on git:master x [17:38:56]
 $ time make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files
@@ -155,8 +168,7 @@ make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files  85.82s user 23.53s sy
 #+end_src
 
 
-with one connection open for the db during the computation:
-
+With one opened connection during all the computation:
 #+begin_src sh
 # tony at corellia in ~/work/inria/repo/swh-git-loader on git:psycopg2-tryout x [18:02:27]
 $ time make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files
@@ -168,26 +180,15 @@ PYTHONPATH=`pwd` ./bin/sgloader -v --repo-path ~/repo/perso/dot-files initdb
 make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files  39.45s user 8.02s system 50% cpu 1:34.08 total
 #+end_src
 
-With unneeded check:
+
+Sanitize the algorithm (remove unneeded check, use the file cache, ...) :
 #+begin_src sh
-# tony at corellia in ~/work/inria/repo/swh-git-loader on git:psycopg2-tryout x [18:07:59]
+# tony at corellia in ~/work/inria/repo/swh-git-loader on git:psycopg2-tryout x [10:42:03]
 $ time make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files
 rm -rf ./log
 rm -rf ./dataset/
 mkdir -p log dataset
-PYTHONPATH=`pwd` ./bin/sgloader -v cleandb
-PYTHONPATH=`pwd` ./bin/sgloader -v --repo-path ~/repo/perso/dot-files initdb
-make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files  30.74s user 6.19s system 48% cpu 1:16.32 total
-#+end_src
-
-Use the file cache:
-#+begin_src sh
-# tony at corellia in ~/work/inria/repo/swh-git-loader on git:psycopg2-tryout x [20:48:31]
-$ time make cleandb run REPO_PATH=~/repo/perso/dot-files FLAG=-v
-rm -rf ./log
-rm -rf ./dataset/
-mkdir -p log dataset
-PYTHONPATH=`pwd` ./bin/sgloader -v cleandb
-PYTHONPATH=`pwd` ./bin/sgloader -v --repo-path ~/repo/perso/dot-files initdb
-make cleandb run REPO_PATH=~/repo/perso/dot-files FLAG=-v  17.68s user 2.23s system 33% cpu 59.404 total
+PYTHONPATH=`pwd` bin/sgloader -v cleandb
+PYTHONPATH=`pwd` bin/sgloader -v --repo-path ~/repo/perso/dot-files initdb
+make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files  15.90s user 2.08s system 31% cpu 56.879 total
 #+end_src
