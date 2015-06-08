@@ -45,7 +45,7 @@ test-drop-db:
 	sudo su -l postgres -c "dropdb $(DB_TEST)"
 
 test-create-db:
-	sudo su -l postgres -c "createdb -O tony $(DB_TEST)"
+	sudo su -l postgres -c "createdb -O $(USER) $(DB_TEST)"
 
 connect-db:
 	psql -d $(DB)
@@ -54,4 +54,4 @@ drop-db:
 	sudo su -l postgres -c "dropdb $(DB)"
 
 create-db:
-	sudo su -l postgres -c "createdb -O tony $(DB)"
+	sudo su -l postgres -c "createdb -O $(USER) $(DB)"
