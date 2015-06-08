@@ -11,7 +11,7 @@ import configparser
 import logging
 import os
 
-from swh.gitloader.sgloader import run
+from swh.gitloader.loader import run
 
 
 # Default configuration file
