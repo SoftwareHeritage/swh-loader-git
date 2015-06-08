@@ -14,7 +14,7 @@ DB=swhgitloader
 DB_TEST=swhgitloader-test
 
 deps:
-	sudo apt-get install -y python3 python3-pygit2 python3-psycopg2 python3-nose
+	sudo apt-get install -y python3 python3-pygit2 python3-psycopg2 python3-nose ipython3
 
 prepare:
 	mkdir -p log dataset
