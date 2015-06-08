@@ -85,19 +85,6 @@ def find_object(db_conn, sha):
     return res
 
 
-# not working!
-# def count(db_conn, tablename, type = None):
-#     """Count the number of objects inside the tablename."""
-#     cur = db_conn.cursor()
-#     count_str = " where type = {}".format(type) if type == 0 or type == 1 else ""
-
-#     cur.execute("""select count(*) from %s%s;""", (tablename, count_str))
-
-#     res = cur.fetchone()[0]
-#     cur.close()
-#     return res
-
-
 def count_files(db_conn):
     """Count the number of objects inside the tablename."""
     cur = db_conn.cursor()
