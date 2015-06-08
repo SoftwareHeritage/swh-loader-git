@@ -29,6 +29,9 @@ help: clean prepare
 cleandb: clean prepare
 	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) --actions cleandb
 
+initdb: clean prepare
+	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) --actions initdb
+
 run: clean prepare
 	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) --actions initdb --load-repo $(REPO_PATH)
 
