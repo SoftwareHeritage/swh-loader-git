@@ -9,8 +9,7 @@ import shutil
 from nose.tools import istest
 from nose.plugins.attrib import attr
 
-import sgloader
-from sgloader import run
+from sgloader.sgloader import run
 
 @attr('slow')
 class TestingLearning(unittest.TestCase):
@@ -79,14 +78,11 @@ class TestingLearning(unittest.TestCase):
         """Trigger sgloader and make sure everything is ok.
         """
         # trigger the script
-        db_url = "host=localhost db_name=swhgitloader-test user=tony"
+        db_url = "host=localhost dbname=swhgitloader-test user=tony"
         repo_path = self.tmpGitRepo.workdir
         dataset_dir = os.path.join(repo_path, "dataset")
 
         os.makedirs(dataset_dir, exist_ok=True)
         
-        # sys.path.append(".")
-        # sys.path.append("./bin/")
-        
-        # run("cleandb", db_url)
+        run("cleandb", db_url)
         # sgloader.run("initdb", db_url, repo_path, dataset_dir)
