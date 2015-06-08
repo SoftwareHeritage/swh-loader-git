@@ -21,10 +21,10 @@ clean:
 	rm -rf ./dataset/
 
 cleandb: clean prepare
-	PYTHONPATH=`pwd` ./bin/sgloader $(FLAG) cleandb
+	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) cleandb
 
 run: clean prepare
-	PYTHONPATH=`pwd` ./bin/sgloader $(FLAG) --repo-path $(REPO_PATH) initdb
+	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) --repo-path $(REPO_PATH) initdb
 
 check:
 	$(FLAKE) $(BINDIR)/sgloader $(SRCDIR)/*.py
