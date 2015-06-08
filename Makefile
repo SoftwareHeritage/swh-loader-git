@@ -6,9 +6,12 @@ REPO_PATH=$(HOME)/work/inria/repo/org-beamer-swh
 # add -v for example
 FLAG=
 
-NOSE = nosetests
+NOSE = nosetests3
 TESTFLAGS = -s
 TESTDIR = ./tests
+
+DB=swhgitloader
+DB_TEST=swhgitloader-test
 
 deps:
 	sudo apt-get install -y python3 python3-pygit2 python3-psycopg2 python3-nose
@@ -34,3 +37,21 @@ profile:
 
 test:
 	$(NOSE) $(TESTFLAGS) $(TESTDIR)
+
+test-connect-db:
+	psql -d $(DB_TEST)
+
+test-drop-db:
+	sudo su -l postgres -c "dropdb $(DB_TEST)"
+
+test-create-db:
+	sudo su -l postgres -c "createdb -O tony $(DB_TEST)"
+
+connect-db:
+	psql -d $(DB)
+
+drop-db:
+	sudo su -l postgres -c "dropdb $(DB)"
+
+create-db:
+	sudo su -l postgres -c "createdb -O tony $(DB)"
