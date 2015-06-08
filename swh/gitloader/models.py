@@ -28,7 +28,7 @@ def initdb(db_conn):
     """
     cur = db_conn.cursor()
     cur.execute("""create table if not exists file_cache
-         (sha256 varchar(65) primary key,
+         (sha256 bytea primary key,
           path varchar(255),
           last_seen date);""")
     cur.execute("""create table if not exists object_cache (sha1 varchar(41) primary key,

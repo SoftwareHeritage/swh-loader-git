@@ -28,11 +28,12 @@ def commits_from(repo, commit):
 
 
 def _hashkey(data):
-    """Given some data, compute the sha256 of such data.
+    """Given some data, compute the hash ready object of such data.
+    Return the reference but not the computation.
     """
     sha256 = hashlib.sha256()
     sha256.update(data)
-    return sha256.hexdigest()
+    return sha256
 
 
 def in_cache_objects(db_conn, obj):
@@ -56,14 +57,14 @@ def add_object_in_cache(db_conn, obj, obj_type):
 def in_cache_files(db_conn, blob, hashkey=None):
     """Determine if a file is in the file cache.
     """
-    hashkey = _hashkey(blob.data) if hashkey is None else hashkey
+    hashkey = _hashkey(blob.data).digest() if hashkey is None else hashkey
     return models.find_file(db_conn, hashkey) is not None
 
 
 def add_file_in_cache(db_conn, blob, filepath):
     """Add file in cache.
     """
-    hashkey = _hashkey(blob.data)
+    hashkey = _hashkey(blob.data).digest()
 
     if in_cache_files(db_conn, blob, hashkey):
         logging.debug('Blob \'%s\' already present. skip' % blob.hex)
@@ -110,7 +111,7 @@ def add_file_in_dataset(db_conn, dataset_dir, blob):
 
 TODO: split in another module, file manipulation maybe?
     """
-    hashkey = _hashkey(blob.data)
+    hashkey = _hashkey(blob.data).hexdigest()
     folder_in_dataset = create_dir_from_hash(dataset_dir, hashkey)
 
     filepath = os.path.join(folder_in_dataset, hashkey)
@@ -142,22 +143,28 @@ def parse_git_repo(db_conn, repo_path, dataset_dir):
 
         # Add the tree in cache
         add_object_in_cache(db_conn, tree_ref,
-                                   TYPES["Tree"])
+                            TYPES["Tree"])
 
         # Now walk the tree
         for tree_entry in tree_ref:
             try:
+                # beware, this can raise KeyError if a git repository
+                # contains git submodule for example
                 object_entry_ref = repo[tree_entry.id]
-    
+
                 if isinstance(object_entry_ref, pygit2.Tree):
-                    logging.debug("Tree \'%s\' -> walk!" % object_entry_ref.hex)
+
+                    logging.debug("Tree \'%s\' -> walk!"
+                                  % object_entry_ref.hex)
                     _store_blobs_from_tree(object_entry_ref, repo)
+
                 elif isinstance(object_entry_ref, pygit2.Blob):
+
                     if in_cache_files(db_conn, object_entry_ref):
                         logging.debug('Blob \'%s\' already present. skip' %
                                       object_entry_ref.hex)
                         continue
-    
+
                     logging.debug("Blob \'%s\' -> store in dataset !" %
                                   object_entry_ref.hex)
                     # add the file to the dataset on the filesystem
@@ -168,11 +175,13 @@ def parse_git_repo(db_conn, repo_path, dataset_dir):
                     # add the file to the file cache, pointing to the file
                     # path on the filesystem
                     add_file_in_cache(db_conn, object_entry_ref, filepath)
+
                 else:
                     logging.debug("Tag \'%s\' -> skip!" % object_entry_ref.hex)
                     break
             except KeyError:
-                logging.warn("Submodule - Key \'%s\' not found!" % tree_entry.id)
+                logging.warn("Submodule - Key \'%s\' not found!"
+                             % tree_entry.id)
 
     repo = load_repo(repo_path)
     all_refs = repo.listall_references()
@@ -189,11 +198,11 @@ def parse_git_repo(db_conn, repo_path, dataset_dir):
                 break  # stop treating the current commit sub-graph
             else:
                 add_object_in_cache(db_conn, commit,
-                                           TYPES["Commit"])
+                                    TYPES["Commit"])
                 _store_blobs_from_tree(commit.tree, repo)
 
 
-def run(actions, db_url, repo_path = None, dataset_dir = None):
+def run(actions, db_url, repo_path=None, dataset_dir=None):
     db_conn = db_utils.db_connect(db_url)
 
     for action in actions:
