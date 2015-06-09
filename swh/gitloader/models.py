@@ -29,7 +29,7 @@ def initdb(db_conn):
     """
     cur = db_conn.cursor()
     cur.execute("""create table if not exists blob_cache
-         (sha256 bytea primary key,
+         (sha1 bytea primary key,
           path varchar(255),
           last_seen date);""")
     cur.execute("""create table if not exists object_cache (sha1 bytea primary key,
@@ -43,7 +43,7 @@ def add_blob(db_conn, sha, filepath):
     """Insert a new file
     """
     cur = db_conn.cursor()
-    cur.execute("""insert into blob_cache (sha256, path, last_seen)
+    cur.execute("""insert into blob_cache (sha1, path, last_seen)
                    values (%s, %s, %s);""",
                 (sha, filepath, datetime.now()))
     db_conn.commit()
@@ -65,8 +65,8 @@ def find_blob(db_conn, sha):
     """Find a file by its hash.
     """
     cur = db_conn.cursor()
-    cur.execute("""select sha256 from blob_cache
-                   where sha256=%s;""",
+    cur.execute("""select sha1 from blob_cache
+                   where sha1=%s;""",
                 (sha,))
     res = cur.fetchone()
     cur.close()

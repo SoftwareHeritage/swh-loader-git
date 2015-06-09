@@ -58,9 +58,9 @@ def _hashkey256(data):
     """Given some data, compute the hash ready object of such data.
     Return the reference but not the computation.
     """
-    sha256 = hashlib.sha256()
-    sha256.update(data)
-    return sha256
+    sha1 = hashlib.sha1()
+    sha1.update(data)
+    return sha1
 
 
 def in_cache_blobs(db_conn, blob, hashkey=None):
@@ -79,7 +79,7 @@ def add_blob_in_cache(db_conn, blob, filepath):
         logging.debug('Blob \'%s\' already present. skip' % blob.hex)
         return
 
-    logging.debug('Injecting blob \'%s\' with \'%s\' (sha256: \'%s\')',
+    logging.debug('Injecting blob \'%s\' with \'%s\' (sha1: \'%s\')',
                   blob.hex,
                   filepath,
                   hashkey)
