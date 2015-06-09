@@ -118,11 +118,10 @@ TODO: split in another module, file manipulation maybe?
     return filepath
 
 
-# Default types
-TYPES = {"Tag": 3,
-         "Blob": 2,
-         "Tree": 1,
-         "Commit": 0}
+TYPE_TREE = 1
+
+
+TYPE_COMMIT = 0
 
 
 def parse_git_repo(db_conn,
@@ -143,7 +142,7 @@ def parse_git_repo(db_conn,
 
         # Add the tree in cache
         add_object_in_cache(db_conn, tree_ref,
-                            TYPES["Tree"])
+                            TYPE_TREE)
 
         # Now walk the tree
         for tree_entry in tree_ref:
@@ -199,7 +198,7 @@ def parse_git_repo(db_conn,
                 break  # stop treating the current commit sub-graph
             else:
                 add_object_in_cache(db_conn, commit,
-                                    TYPES["Commit"])
+                                    TYPE_COMMIT)
 
                 _store_blobs_from_tree(commit.tree, repo)
 
