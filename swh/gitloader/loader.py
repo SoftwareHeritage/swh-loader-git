@@ -54,7 +54,7 @@ def add_object_in_cache(db_conn, obj, obj_type):
     models.add_object(db_conn, sha1bin, obj_type)
 
 
-def _hashkey256(data):
+def _hashkey_sha1(data):
     """Given some data, compute the hash ready object of such data.
     Return the reference but not the computation.
     """
@@ -63,28 +63,16 @@ def _hashkey256(data):
     return sha1
 
 
-def in_cache_blobs(db_conn, blob, hashkey=None):
-    """Determine if a blob is in the blob cache.
+def in_cache_blobs(db_conn, binhashkey):
+    """Determine if a binary binhashkey is in the blob cache.
     """
-    hashkey = _hashkey256(blob.data).digest() if hashkey is None else hashkey
-    return models.find_blob(db_conn, hashkey) is not None
+    return models.find_blob(db_conn, binhashkey) is not None
 
 
-def add_blob_in_cache(db_conn, blob, filepath):
+def add_blob_in_cache(db_conn, filepath, binhashkey):
     """Add blob in cache.
     """
-    hashkey = _hashkey256(blob.data).digest()
-
-    if in_cache_blobs(db_conn, blob, hashkey):
-        logging.debug('Blob \'%s\' already present. skip' % blob.hex)
-        return
-
-    logging.debug('Injecting blob \'%s\' with \'%s\' (sha1: \'%s\')',
-                  blob.hex,
-                  filepath,
-                  hashkey)
-
-    models.add_blob(db_conn, hashkey, filepath)
+    models.add_blob(db_conn, binhashkey, filepath)
 
 
 def write_blob_on_disk(blob, filepath):
@@ -115,12 +103,11 @@ def create_dir_from_hash(file_content_storage_dir, hash):
     return folder_in_storage
 
 
-def add_blob_in_file_storage(db_conn, file_content_storage_dir, blob):
+def add_blob_in_file_storage(db_conn, file_content_storage_dir, blob, hashkey):
     """Add blob in the file content storage (on disk).
 
 TODO: split in another module, file manipulation maybe?
     """
-    hashkey = _hashkey256(blob.data).hexdigest()
     folder_in_storage = create_dir_from_hash(file_content_storage_dir, hashkey)
 
     filepath = os.path.join(folder_in_storage, hashkey)
@@ -173,23 +160,29 @@ def parse_git_repo(db_conn,
                 _store_blobs_from_tree(repo[tree_entry.id], repo)
 
             else:
-                object_entry_ref = repo[tree_entry.id]
+                blob_entry_ref = repo[tree_entry.id]
+
+                hashkey = _hashkey_sha1(blob_entry_ref.data)
+
+                binhashkey = hashkey.digest()
 
                 # Remains only Blob
-                if in_cache_blobs(db_conn, object_entry_ref):
+                if in_cache_blobs(db_conn, binhashkey):
                     logging.debug('Existing blob \'%s\' -> skip' %
-                                  object_entry_ref.hex)
+                                  blob_entry_ref.hex)
                     continue
 
                 logging.debug("New blob \'%s\' -> in file storage!" %
-                              object_entry_ref.hex)
+                              blob_entry_ref.hex)
                 filepath = add_blob_in_file_storage(
                     db_conn,
                     file_content_storage_dir,
-                    object_entry_ref)
+                    blob_entry_ref,
+                    hashkey.hexdigest())
+
                 # add the file to the file cache, pointing to the file
                 # path on the filesystem
-                add_blob_in_cache(db_conn, object_entry_ref, filepath)
+                add_blob_in_cache(db_conn, filepath, binhashkey)
 
     repo = load_repo(repo_path)
     all_refs = repo.listall_references()
