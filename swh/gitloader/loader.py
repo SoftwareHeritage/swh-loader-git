@@ -24,7 +24,7 @@ def load_repo(parent_repo_path):
 def commits_from(repo, commit):
     """Return the lists of commits from a given commit.
     """
-    return repo.walk(commit.id, pygit2.GIT_SORT_TIME)
+    return repo.walk(commit.id, pygit2.GIT_SORT_TOPOLOGICAL)
 
 
 def _hashkeybin(data):
