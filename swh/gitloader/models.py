@@ -73,13 +73,14 @@ def find_blob(db_conn, sha):
     return res
 
 
-def find_object(db_conn, sha):
+def find_object(db_conn, sha, type):
     """Find an object by its hash.
     """
     cur = db_conn.cursor()
     cur.execute("""select sha1 from object_cache
-                   where sha1=%s;""",
-                (sha,))
+                   where sha1=%s
+                   and type=%s;""",
+                (sha,type))
     res = cur.fetchone()
     cur.close()
     return res

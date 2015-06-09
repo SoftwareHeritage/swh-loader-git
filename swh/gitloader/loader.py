@@ -27,10 +27,10 @@ def commits_from(repo, commit):
     return repo.walk(commit.id, pygit2.GIT_SORT_TOPOLOGICAL)
 
 
-def in_cache_objects(db_conn, sha):
+def in_cache_objects(db_conn, sha, type):
     """Determine if an object with hash sha is in the cache.
     """
-    return models.find_object(db_conn, sha) is not None
+    return models.find_object(db_conn, sha, type) is not None
 
 
 def add_object_in_cache(db_conn, sha, obj_type):
@@ -123,7 +123,7 @@ def parse_git_repo(db_conn,
         (if not already present).
         """
 
-        if in_cache_objects(db_conn, tree_ref.hex):
+        if in_cache_objects(db_conn, tree_ref.hex, TYPE_TREE):
             logging.debug("Tree \'%s\' already visited, skip!" % tree_ref.hex)
             return
 
@@ -180,7 +180,7 @@ def parse_git_repo(db_conn,
         # for each commit referenced by the commit graph starting at that ref
         for commit in commits_from(repo, head_commit):
             # if we have a git commit cache and the commit is in there:
-            if in_cache_objects(db_conn, commit.hex):
+            if in_cache_objects(db_conn, commit.hex, TYPE_COMMIT):
                 break  # stop treating the current commit sub-graph
             else:
                 add_object_in_cache(db_conn, commit.hex,
