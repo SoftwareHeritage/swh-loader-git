@@ -138,6 +138,28 @@ TYPES = {"Tag": 3,
          "Commit": 0}
 
 
+# def dispatch(filemode):
+#     """dispatch on filemode."""
+#     typemode = None
+#     logging.debug("{tree: %s\nblob: %s\n blobExec: %s\n link: %s\n commit: %s}"
+#                 % (pygit2.GIT_FILEMODE_TREE, pygit2.GIT_FILEMODE_BLOB,
+#                    pygit2.GIT_FILEMODE_BLOB_EXECUTABLE,
+#                    pygit2.GIT_FILEMODE_LINK, pygit2.GIT_FILEMODE_COMMIT))
+#     if (filemode == pygit2.GIT_FILEMODE_TREE):
+#         typemode = "Tree"
+#     elif (filemode == pygit2.GIT_FILEMODE_BLOB):
+#         typemode = "Blb"
+#     elif (filemode == pygit2.GIT_FILEMODE_BLOB_EXECUTABLE):
+#         typemode = "BlbExecutable"
+#     elif (filemode == pygit2.GIT_FILEMODE_LINK):
+#         typemode = "Lnk"
+#     elif (filemode == pygit2.GIT_FILEMODE_COMMIT):
+#         typemode = "Commit"
+#     else:
+#         typemode = "Unknown"
+#     return typemode
+
+
 def parse_git_repo(db_conn, repo_path, dataset_dir):
     """Parse git repository `repo_path` and flush files on disk in `dataset_dir`.
     """
@@ -156,41 +178,42 @@ def parse_git_repo(db_conn, repo_path, dataset_dir):
 
         # Now walk the tree
         for tree_entry in tree_ref:
-            try:
-                # beware, this can raise KeyError if a git repository
-                # contains git submodule for example
-                object_entry_ref = repo[tree_entry.id]
-
-                if isinstance(object_entry_ref, pygit2.Tree):
-
-                    logging.debug("Tree \'%s\' -> walk!"
-                                  % object_entry_ref.hex)
-                    _store_blobs_from_tree(object_entry_ref, repo)
-
-                elif isinstance(object_entry_ref, pygit2.Blob):
-
-                    if in_cache_blobs(db_conn, object_entry_ref):
-                        logging.debug('Blob \'%s\' already present. skip' %
-                                      object_entry_ref.hex)
-                        continue
-
-                    logging.debug("Blob \'%s\' -> store in dataset !" %
-                                  object_entry_ref.hex)
-                    # add the file to the dataset on the filesystem
-                    filepath = add_blob_in_dataset(
-                        db_conn,
-                        dataset_dir,
-                        object_entry_ref)
-                    # add the file to the file cache, pointing to the file
-                    # path on the filesystem
-                    add_blob_in_cache(db_conn, object_entry_ref, filepath)
-
-                else:
-                    logging.debug("Tag \'%s\' -> skip!" % object_entry_ref.hex)
-                    break
-            except KeyError:
+            filemode = tree_entry.filemode
+            # logging.debug("tree_entry filemode: %s -> %s "
+            #                 % (filemode, dispatch(filemode)))
+            if (filemode == pygit2.GIT_FILEMODE_COMMIT):  # submodule!
                 logging.warn("Submodule - Key \'%s\' not found!"
                              % tree_entry.id)
+                break
+            elif (filemode == pygit2.GIT_FILEMODE_TREE):  # Tree
+                logging.debug("Tree \'%s\' -> walk!"
+                              % tree_entry.id)
+                _store_blobs_from_tree(repo[tree_entry.id], repo)
+            else:
+                object_entry_ref = repo[tree_entry.id]
+
+                # Filter out tags
+                # if isinstance(object_entry_ref, pygit2.Tag):
+                #     logging.error("TAG")
+                #     continue
+                # else:
+
+                # Remains only Blob
+                if in_cache_blobs(db_conn, object_entry_ref):
+                    logging.debug('Existing blob \'%s\' -> skip' %
+                                  object_entry_ref.hex)
+                    continue
+
+                logging.debug("New blob \'%s\' -> store in dataset!" %
+                              object_entry_ref.hex)
+                # add the file to the dataset on the filesystem
+                filepath = add_blob_in_dataset(
+                    db_conn,
+                    dataset_dir,
+                    object_entry_ref)
+                # add the file to the file cache, pointing to the file
+                # path on the filesystem
+                add_blob_in_cache(db_conn, object_entry_ref, filepath)
 
     repo = load_repo(repo_path)
     all_refs = repo.listall_references()
@@ -208,6 +231,7 @@ def parse_git_repo(db_conn, repo_path, dataset_dir):
             else:
                 add_object_in_cache(db_conn, commit,
                                     TYPES["Commit"])
+
                 _store_blobs_from_tree(commit.tree, repo)
 
 
