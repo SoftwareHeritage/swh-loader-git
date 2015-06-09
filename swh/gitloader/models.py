@@ -8,7 +8,7 @@ from datetime import datetime
 
 
 # FIXME: Find the pythonic way to use Higher-order
-# functions (too much duplication here)
+# functions (too much duplication here) -> lambda with varargs parameters?
 
 def cleandb(db_conn, only_truncate=False):
     """Clean the database.
@@ -66,8 +66,8 @@ def find_blob(db_conn, sha):
     """
     cur = db_conn.cursor()
     cur.execute("""select sha256 from blob_cache
-                   where 1=%s and sha256=%s;""",
-                (1, sha))  # ? need to have at least 2 otherwise fails!
+                   where sha256=%s;""",
+                (sha,))
     res = cur.fetchone()
     cur.close()
     return res
@@ -78,8 +78,8 @@ def find_object(db_conn, sha):
     """
     cur = db_conn.cursor()
     cur.execute("""select sha1 from object_cache
-                   where 1=%s and sha1=%s;""",
-                (1, sha))
+                   where sha1=%s;""",
+                (sha,))
     res = cur.fetchone()
     cur.close()
     return res
@@ -97,11 +97,11 @@ def count_files(db_conn):
 
 
 def count_objects(db_conn, type):
-    """Count the number of objects inside the tablename."""
+    """Count the number of objects with type `type` inside the tablename."""
     cur = db_conn.cursor()
 
     cur.execute("""select count(*) from object_cache
-                   where 1=%s and type=%s;""", (1, type))
+                   where type=%s;""", (type,))
 
     res = cur.fetchone()[0]
     cur.close()
