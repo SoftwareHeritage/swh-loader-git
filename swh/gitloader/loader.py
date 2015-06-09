@@ -27,31 +27,18 @@ def commits_from(repo, commit):
     return repo.walk(commit.id, pygit2.GIT_SORT_TOPOLOGICAL)
 
 
-def _hashkeybin(data):
-    """Given some data, compute the sha1 ready object of such data.
-    Return the reference but not the computation.
-    """
-    return data.encode('utf-8')
-
-
 def in_cache_objects(db_conn, sha):
     """Determine if an object with hash sha is in the cache.
     """
     return models.find_object(db_conn, sha) is not None
 
 
-def add_object_in_cache(db_conn, obj, obj_type):
+def add_object_in_cache(db_conn, sha, obj_type):
     """Add obj in cache.
     """
-    sha1bin = _hashkeybin(obj.hex)
+    logging.debug('Injecting object \'%s\' in cache' % sha)
 
-    if in_cache_objects(db_conn, sha1bin):
-        logging.debug('Object \'%s\' already present... skip' % sha1bin)
-        return
-
-    logging.debug('Injecting object \'%s\' in cache' % sha1bin)
-
-    models.add_object(db_conn, sha1bin, obj_type)
+    models.add_object(db_conn, sha, obj_type)
 
 
 def _hashkey_sha1(data):
@@ -141,8 +128,7 @@ def parse_git_repo(db_conn,
             return
 
         # Add the tree in cache
-        add_object_in_cache(db_conn, tree_ref,
-                            TYPE_TREE)
+        add_object_in_cache(db_conn, tree_ref.hex, TYPE_TREE)
 
         # Now walk the tree
         for tree_entry in tree_ref:
@@ -197,7 +183,7 @@ def parse_git_repo(db_conn,
             if in_cache_objects(db_conn, commit.hex):
                 break  # stop treating the current commit sub-graph
             else:
-                add_object_in_cache(db_conn, commit,
+                add_object_in_cache(db_conn, commit.hex,
                                     TYPE_COMMIT)
 
                 _store_blobs_from_tree(commit.tree, repo)
