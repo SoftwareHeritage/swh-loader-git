@@ -140,108 +140,108 @@ It's runs on a given machine.
 
 cat /proc/cpuinfo:
 #+begin_src sh
-processor	: 0
-vendor_id	: GenuineIntel
-cpu family	: 6
-model		: 61
-model name	: Intel(R) Core(TM) i7-5600U CPU @ 2.60GHz
-stepping	: 4
-microcode	: 0x16
-cpu MHz		: 3100.195
-cache size	: 4096 KB
-physical id	: 0
-siblings	: 4
-core id		: 0
-cpu cores	: 2
-apicid		: 0
-initial apicid	: 0
-fpu		: yes
-fpu_exception	: yes
-cpuid level	: 20
-wp		: yes
-flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc aperfmperf eagerfpu pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch ida arat epb xsaveopt pln pts dtherm tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm rdseed adx smap
-bogomips	: 5187.99
-clflush size	: 64
-cache_alignment	: 64
-address sizes	: 39 bits physical, 48 bits virtual
+processor       : 0
+vendor_id       : GenuineIntel
+cpu family      : 6
+model           : 61
+model name      : Intel(R) Core(TM) i7-5600U CPU @ 2.60GHz
+stepping        : 4
+microcode       : 0x16
+cpu MHz         : 3100.195
+cache size      : 4096 KB
+physical id     : 0
+siblings        : 4
+core id         : 0
+cpu cores       : 2
+apicid          : 0
+initial apicid  : 0
+fpu             : yes
+fpu_exception   : yes
+cpuid level     : 20
+wp              : yes
+flags           : fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc aperfmperf eagerfpu pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch ida arat epb xsaveopt pln pts dtherm tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm rdseed adx smap
+bogomips        : 5187.99
+clflush size    : 64
+cache_alignment : 64
+address sizes   : 39 bits physical, 48 bits virtual
 power management:
 
-processor	: 1
-vendor_id	: GenuineIntel
-cpu family	: 6
-model		: 61
-model name	: Intel(R) Core(TM) i7-5600U CPU @ 2.60GHz
-stepping	: 4
-microcode	: 0x16
-cpu MHz		: 3099.992
-cache size	: 4096 KB
-physical id	: 0
-siblings	: 4
-core id		: 0
-cpu cores	: 2
-apicid		: 1
-initial apicid	: 1
-fpu		: yes
-fpu_exception	: yes
-cpuid level	: 20
-wp		: yes
-flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc aperfmperf eagerfpu pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch ida arat epb xsaveopt pln pts dtherm tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm rdseed adx smap
-bogomips	: 5187.99
-clflush size	: 64
-cache_alignment	: 64
-address sizes	: 39 bits physical, 48 bits virtual
+processor       : 1
+vendor_id       : GenuineIntel
+cpu family      : 6
+model           : 61
+model name      : Intel(R) Core(TM) i7-5600U CPU @ 2.60GHz
+stepping        : 4
+microcode       : 0x16
+cpu MHz         : 3099.992
+cache size      : 4096 KB
+physical id     : 0
+siblings        : 4
+core id         : 0
+cpu cores       : 2
+apicid          : 1
+initial apicid  : 1
+fpu             : yes
+fpu_exception   : yes
+cpuid level     : 20
+wp              : yes
+flags           : fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc aperfmperf eagerfpu pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch ida arat epb xsaveopt pln pts dtherm tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm rdseed adx smap
+bogomips        : 5187.99
+clflush size    : 64
+cache_alignment : 64
+address sizes   : 39 bits physical, 48 bits virtual
 power management:
 
-processor	: 2
-vendor_id	: GenuineIntel
-cpu family	: 6
-model		: 61
-model name	: Intel(R) Core(TM) i7-5600U CPU @ 2.60GHz
-stepping	: 4
-microcode	: 0x16
-cpu MHz		: 3099.992
-cache size	: 4096 KB
-physical id	: 0
-siblings	: 4
-core id		: 1
-cpu cores	: 2
-apicid		: 2
-initial apicid	: 2
-fpu		: yes
-fpu_exception	: yes
-cpuid level	: 20
-wp		: yes
-flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc aperfmperf eagerfpu pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch ida arat epb xsaveopt pln pts dtherm tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm rdseed adx smap
-bogomips	: 5187.99
-clflush size	: 64
-cache_alignment	: 64
-address sizes	: 39 bits physical, 48 bits virtual
+processor       : 2
+vendor_id       : GenuineIntel
+cpu family      : 6
+model           : 61
+model name      : Intel(R) Core(TM) i7-5600U CPU @ 2.60GHz
+stepping        : 4
+microcode       : 0x16
+cpu MHz         : 3099.992
+cache size      : 4096 KB
+physical id     : 0
+siblings        : 4
+core id         : 1
+cpu cores       : 2
+apicid          : 2
+initial apicid  : 2
+fpu             : yes
+fpu_exception   : yes
+cpuid level     : 20
+wp              : yes
+flags           : fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc aperfmperf eagerfpu pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch ida arat epb xsaveopt pln pts dtherm tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm rdseed adx smap
+bogomips        : 5187.99
+clflush size    : 64
+cache_alignment : 64
+address sizes   : 39 bits physical, 48 bits virtual
 power management:
 
-processor	: 3
-vendor_id	: GenuineIntel
-cpu family	: 6
-model		: 61
-model name	: Intel(R) Core(TM) i7-5600U CPU @ 2.60GHz
-stepping	: 4
-microcode	: 0x16
-cpu MHz		: 3100.093
-cache size	: 4096 KB
-physical id	: 0
-siblings	: 4
-core id		: 1
-cpu cores	: 2
-apicid		: 3
-initial apicid	: 3
-fpu		: yes
-fpu_exception	: yes
-cpuid level	: 20
-wp		: yes
-flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc aperfmperf eagerfpu pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch ida arat epb xsaveopt pln pts dtherm tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm rdseed adx smap
-bogomips	: 5187.99
-clflush size	: 64
-cache_alignment	: 64
-address sizes	: 39 bits physical, 48 bits virtual
+processor       : 3
+vendor_id       : GenuineIntel
+cpu family      : 6
+model           : 61
+model name      : Intel(R) Core(TM) i7-5600U CPU @ 2.60GHz
+stepping        : 4
+microcode       : 0x16
+cpu MHz         : 3100.093
+cache size      : 4096 KB
+physical id     : 0
+siblings        : 4
+core id         : 1
+cpu cores       : 2
+apicid          : 3
+initial apicid  : 3
+fpu             : yes
+fpu_exception   : yes
+cpuid level     : 20
+wp              : yes
+flags           : fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc aperfmperf eagerfpu pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch ida arat epb xsaveopt pln pts dtherm tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm rdseed adx smap
+bogomips        : 5187.99
+clflush size    : 64
+cache_alignment : 64
+address sizes   : 39 bits physical, 48 bits virtual
 power management:
 
 
@@ -339,4 +339,134 @@ mkdir -p log dataset
 PYTHONPATH=`pwd` bin/sgloader -v cleandb
 PYTHONPATH=`pwd` bin/sgloader -v --repo-path ~/repo/perso/dot-files initdb
 make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files  14.67s user 1.64s system 30% cpu 54.303 total
+#+end_src
+** Sample
+
+|--------+----------------------------------------------|
+| repo   | url                                          |
+|--------+----------------------------------------------|
+| linux  |                                              |
+| gcc    | https://gcc.gnu.org/git/?p=gcc.git;a=summary |
+| pygit2 |                                              |
+|--------+----------------------------------------------|
+
+* Filemode investigation
+
+git - https://github.com/git/git/blob/398dd4bd039680ba98497fbedffa415a43583c16/vcs-svn/repo_tree.h#L6-L9:
+#+begin_src c
+#define REPO_MODE_DIR 0040000
+#define REPO_MODE_BLB 0100644
+#define REPO_MODE_EXE 0100755
+#define REPO_MODE_LNK 0120000
+#+end_src
+
+pygit2 - https://github.com/libgit2/pygit2/blob/d63c2d4fd7e45d99364b4d2ccc6a4dafc9b51705/src/pygit2.c#L211-L221:
+#+begin_src c
+ADD_CONSTANT_INT(m, GIT_OBJ_ANY)
+ADD_CONSTANT_INT(m, GIT_OBJ_COMMIT)
+ADD_CONSTANT_INT(m, GIT_OBJ_TREE)
+ADD_CONSTANT_INT(m, GIT_OBJ_BLOB)
+ADD_CONSTANT_INT(m, GIT_OBJ_TAG)
+/* Valid modes for index and tree entries. */
+ADD_CONSTANT_INT(m, GIT_FILEMODE_TREE)
+ADD_CONSTANT_INT(m, GIT_FILEMODE_BLOB)
+ADD_CONSTANT_INT(m, GIT_FILEMODE_BLOB_EXECUTABLE)
+ADD_CONSTANT_INT(m, GIT_FILEMODE_LINK)
+ADD_CONSTANT_INT(m, GIT_FILEMODE_COMMIT)
+#+end_src
+
+pygit2 - https://github.com/libgit2/pygit2/blob/c099655fc034c3be63017d0a3e112ea10928464a/src/tree.c#L52-L58:
+#+begin_src c
+PyDoc_STRVAR(TreeEntry_filemode__doc__, "Filemode.");
+
+PyObject *
+TreeEntry_filemode__get__(TreeEntry *self)
+{
+    return PyLong_FromLong(git_tree_entry_filemode(self->entry));
+}
+#+end_src
+
+pygit2 - https://github.com/libgit2/pygit2/blob/50a70086bfc72922b63a6e842582021a2bad0b24/src/utils.h#L49:
+#+begin_src c
+#define PyLong_FromLong PyInt_FromLong
+#+end_src
+
+From doc https://docs.python.org/2/c-api/int.html:
+#+begin_src txt
+PyObject* PyInt_FromLong(long ival)
+    Return value: New reference.
+
+    Create a new integer object with a value of ival.
+
+    The current implementation keeps an array of integer objects for all integers between -5 and 256, when you
+    create an int in that range you actually just get back a reference to the existing object. So it should be
+    possible to change the value of 1. I suspect the behaviour of Python in this case is undefined. :-)
+#+end_src
+
+libgit2 - https://github.com/libgit2/libgit2/blob/623fbd93f1a7538df0c9a433df68f87bbd58b803/src/tree.c#L239-L241:
+#+begin_src c
+git_filemode_t git_tree_entry_filemode(const git_tree_entry *entry)
+{
+	return normalize_filemode(entry->attr);
+}
+#+end_src
+
+libgit2 - https://github.com/libgit2/libgit2/blob/623fbd93f1a7538df0c9a433df68f87bbd58b803/src/tree.c#L31-L51:
+#+begin_src c
+GIT_INLINE(git_filemode_t) normalize_filemode(git_filemode_t filemode)
+{
+	/* Tree bits set, but it's not a commit */
+	if (GIT_MODE_TYPE(filemode) == GIT_FILEMODE_TREE)
+		return GIT_FILEMODE_TREE;
+
+	/* If any of the x bits are set */
+	if (GIT_PERMS_IS_EXEC(filemode))
+		return GIT_FILEMODE_BLOB_EXECUTABLE;
+
+	/* 16XXXX means commit */
+	if (GIT_MODE_TYPE(filemode) == GIT_FILEMODE_COMMIT)
+		return GIT_FILEMODE_COMMIT;
+
+	/* 12XXXX means commit */
+	if (GIT_MODE_TYPE(filemode) == GIT_FILEMODE_LINK)
+		return GIT_FILEMODE_LINK;
+
+	/* Otherwise, return a blob */
+	return GIT_FILEMODE_BLOB;
+}
+#+end_src
+
+libgit2 - https://github.com/libgit2/libgit2/blob/f85a9c2767b43f35904bf39858488a4b7bc304e8/src/common.h#L13-L18:
+#+begin_src c
+/** Declare a function as always inlined. */
+#if defined(_MSC_VER)
+# define GIT_INLINE(type) static __inline type
+#else
+# define GIT_INLINE(type) static inline type
+#endif
+#+end_src
+
+libgit2 - https://github.com/libgit2/libgit2/blob/d24a5312d8ab6d3cdb259e450ec9f1e2e6f3399d/src/fileops.h#L243-L250:
+#+begin_src c
+#define GIT_PERMS_IS_EXEC(MODE)		(((MODE) & 0111) != 0)
+#define GIT_PERMS_CANONICAL(MODE)	(GIT_PERMS_IS_EXEC(MODE) ? 0755 : 0644)
+#define GIT_PERMS_FOR_WRITE(MODE)   (GIT_PERMS_IS_EXEC(MODE) ? 0777 : 0666)
+
+#define GIT_MODE_PERMS_MASK			0777
+#define GIT_MODE_TYPE_MASK			0170000
+#define GIT_MODE_TYPE(MODE)			((MODE) & GIT_MODE_TYPE_MASK)
+#define GIT_MODE_ISBLOB(MODE)		(GIT_MODE_TYPE(MODE) == GIT_MODE_TYPE(GIT_FILEMODE_BLOB))
+#+end_src
+
+libgit2 - https://github.com/libgit2/libgit2/blob/c5c5cdb106d012d132475d9156923857f8d302fc/include/git2/types.h#L204-L212:
+#+begin_src c
+/** Valid modes for index and tree entries. */
+typedef enum {
+	GIT_FILEMODE_UNREADABLE          = 0000000,
+	GIT_FILEMODE_TREE                = 0040000,
+	GIT_FILEMODE_BLOB                = 0100644,
+	GIT_FILEMODE_BLOB_EXECUTABLE     = 0100755,
+	GIT_FILEMODE_LINK                = 0120000,
+	GIT_FILEMODE_COMMIT              = 0160000,
+} git_filemode_t;
 #+end_src
