@@ -95,36 +95,36 @@ def write_blob_on_disk(blob, filepath):
     f.close()
 
 
-def create_dir_from_hash(dataset_dir, hash):
+def create_dir_from_hash(file_content_storage_dir, hash):
     """Create directory from a given hash.
     """
-    def _compute_folder_name(dataset_dir):
+    def _compute_folder_name(file_content_storage_dir):
         """Compute the folder prefix from a hash key.
         """
         # FIXME: find some split function
-        return os.path.join(dataset_dir,
+        return os.path.join(file_content_storage_dir,
                             hash[0:2],
                             hash[2:4],
                             hash[4:6],
                             hash[6:8])
 
-    folder_in_dataset = _compute_folder_name(dataset_dir)
+    folder_in_storage = _compute_folder_name(file_content_storage_dir)
 
-    os.makedirs(folder_in_dataset, exist_ok=True)
+    os.makedirs(folder_in_storage, exist_ok=True)
 
-    return folder_in_dataset
+    return folder_in_storage
 
 
-def add_blob_in_dataset(db_conn, dataset_dir, blob):
-    """Add blob in the dataset (on disk).
+def add_blob_in_file_storage(db_conn, file_content_storage_dir, blob):
+    """Add blob in the file content storage (on disk).
 
 TODO: split in another module, file manipulation maybe?
     """
     hashkey = _hashkey256(blob.data).hexdigest()
-    folder_in_dataset = create_dir_from_hash(dataset_dir, hashkey)
+    folder_in_storage = create_dir_from_hash(file_content_storage_dir, hashkey)
 
-    filepath = os.path.join(folder_in_dataset, hashkey)
-    logging.debug("Injecting blob '%s' in dataset." % filepath)
+    filepath = os.path.join(folder_in_storage, hashkey)
+    logging.debug("Injecting blob '%s' in file content storage." % filepath)
 
     write_blob_on_disk(blob, filepath)
 
@@ -138,12 +138,16 @@ TYPES = {"Tag": 3,
          "Commit": 0}
 
 
-def parse_git_repo(db_conn, repo_path, dataset_dir):
-    """Parse git repository `repo_path` and flush files on disk in `dataset_dir`.
+def parse_git_repo(db_conn,
+                   repo_path,
+                   file_content_storage_dir,
+                   object_content_storage_dir):
+    """Parse git repository `repo_path` and flush
+    blobs on disk in `file_content_storage_dir`.
     """
     def _store_blobs_from_tree(tree_ref, repo):
-        """Given a tree, walk the tree and store the blobs in dataset
- (if not present in dataset/cache).
+        """Given a tree, walk the tree and store the blobs in file content storage
+        (if not already present).
         """
 
         if in_cache_objects(db_conn, tree_ref.hex):
@@ -177,12 +181,11 @@ def parse_git_repo(db_conn, repo_path, dataset_dir):
                                   object_entry_ref.hex)
                     continue
 
-                logging.debug("New blob \'%s\' -> store in dataset!" %
+                logging.debug("New blob \'%s\' -> in file storage!" %
                               object_entry_ref.hex)
-                # add the file to the dataset on the filesystem
-                filepath = add_blob_in_dataset(
+                filepath = add_blob_in_file_storage(
                     db_conn,
-                    dataset_dir,
+                    file_content_storage_dir,
                     object_entry_ref)
                 # add the file to the file cache, pointing to the file
                 # path on the filesystem
@@ -208,7 +211,16 @@ def parse_git_repo(db_conn, repo_path, dataset_dir):
                 _store_blobs_from_tree(commit.tree, repo)
 
 
-def run(actions, db_url, repo_path=None, dataset_dir=None):
+def run(actions, db_url,
+        repo_path=None,
+        file_content_storage_dir=None,
+        object_content_storage_dir=None):
+    """Parse a given git repository.
+actions: CSV values amongst [initdb|cleandb]
+repo_path: Path to the git repository
+file_content_storage_dir: The folder where to store the raw blobs
+object_content_storage_dir: The folder where to store the remaining git objects
+    """
     db_conn = db_utils.db_connect(db_url)
 
     for action in actions:
@@ -223,6 +235,9 @@ def run(actions, db_url, repo_path=None, dataset_dir=None):
 
     if repo_path is not None:
         logging.info("Parsing git repository \'%s\'" % repo_path)
-        parse_git_repo(db_conn, repo_path, dataset_dir)
+        parse_git_repo(db_conn,
+                       repo_path,
+                       file_content_storage_dir,
+                       object_content_storage_dir)
 
     db_conn.close()

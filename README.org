@@ -73,9 +73,11 @@ Create a configuration file in *~/.config/sgloader.ini*:
 
 #+begin_src ini
 [main]
-dataset_dir = dataset
-log_dir = log
-db_url = dbname=swhgitloader user=tony
+file_content_storage_dir = /tmp/swh-git-loader/file-content-storage
+object_content_storage_dir = /tmp/swh-git-loader/object-object-storage
+log_dir = /tmp/swh-git-loader/log
+# http://initd.org/psycopg/docs/module.html#psycopg2.connect
+db_url = dbname=swhgitloader2
 #+end_src
 
 * Run
@@ -120,7 +122,7 @@ make cleandb
 PYTHONPATH=$PYTHONPATH:`pwd` ./bin/sgloader --actions initdb
 #+end_src
 
-* IN-PROGRESS Improvments [8/12]
+* IN-PROGRESS Improvments [11/12]
 - [X] Push on remote git repository
 - [X] Serialize blob's data and not blob's size.
 - [X] Logging in python? How to see the log?
@@ -129,10 +131,10 @@ PYTHONPATH=$PYTHONPATH:`pwd` ./bin/sgloader --actions initdb
 - [X] Serialize sha256 as bytes
 - [X] Update README.org
 - [X] Serialize sha1 as bytes
-- [ ] Use sha1 instead of sha256
-- [ ] A unit test to determine the slight difference in commit number
-- [ ] Of course, add unit tests!
-- [ ] Improve modularization (a file module? a hash computation module?)
+- [X] Use sha1 instead of sha256 for file cache
+- [X] Use postgresql's bytea column for sha1
+- [X] Improve git object dispatch (look up on repo object only if necessary)
+- [ ] Store git object on disk too
 * Performance
 This is not perf test per say.
 It's runs on a given machine.

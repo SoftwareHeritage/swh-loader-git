@@ -17,11 +17,10 @@ deps:
 	sudo apt-get install -y python3 python3-pygit2 python3-psycopg2 python3-nose ipython3
 
 prepare:
-	mkdir -p log dataset
+	mkdir -p /tmp/swh-git-loader/log /tmp/swh-git-loader/file-content-storage /tmp/swh-git-loader/object-object-storage
 
 clean:
-	rm -rf ./log
-	rm -rf ./dataset/
+	rm -rf /tmp/swh-git-loader/log /tmp/swh-git-loader/file-content-storage /tmp/swh-git-loader/object-object-storage
 
 help: clean prepare
 	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) -h
