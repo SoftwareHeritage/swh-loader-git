@@ -138,28 +138,6 @@ TYPES = {"Tag": 3,
          "Commit": 0}
 
 
-# def dispatch(filemode):
-#     """dispatch on filemode."""
-#     typemode = None
-#     logging.debug("{tree: %s\nblob: %s\n blobExec: %s\n link: %s\n commit: %s}"
-#                 % (pygit2.GIT_FILEMODE_TREE, pygit2.GIT_FILEMODE_BLOB,
-#                    pygit2.GIT_FILEMODE_BLOB_EXECUTABLE,
-#                    pygit2.GIT_FILEMODE_LINK, pygit2.GIT_FILEMODE_COMMIT))
-#     if (filemode == pygit2.GIT_FILEMODE_TREE):
-#         typemode = "Tree"
-#     elif (filemode == pygit2.GIT_FILEMODE_BLOB):
-#         typemode = "Blb"
-#     elif (filemode == pygit2.GIT_FILEMODE_BLOB_EXECUTABLE):
-#         typemode = "BlbExecutable"
-#     elif (filemode == pygit2.GIT_FILEMODE_LINK):
-#         typemode = "Lnk"
-#     elif (filemode == pygit2.GIT_FILEMODE_COMMIT):
-#         typemode = "Commit"
-#     else:
-#         typemode = "Unknown"
-#     return typemode
-
-
 def parse_git_repo(db_conn, repo_path, dataset_dir):
     """Parse git repository `repo_path` and flush files on disk in `dataset_dir`.
     """
@@ -179,24 +157,19 @@ def parse_git_repo(db_conn, repo_path, dataset_dir):
         # Now walk the tree
         for tree_entry in tree_ref:
             filemode = tree_entry.filemode
-            # logging.debug("tree_entry filemode: %s -> %s "
-            #                 % (filemode, dispatch(filemode)))
+
             if (filemode == pygit2.GIT_FILEMODE_COMMIT):  # submodule!
                 logging.warn("Submodule - Key \'%s\' not found!"
                              % tree_entry.id)
                 break
+
             elif (filemode == pygit2.GIT_FILEMODE_TREE):  # Tree
                 logging.debug("Tree \'%s\' -> walk!"
                               % tree_entry.id)
                 _store_blobs_from_tree(repo[tree_entry.id], repo)
+
             else:
                 object_entry_ref = repo[tree_entry.id]
-
-                # Filter out tags
-                # if isinstance(object_entry_ref, pygit2.Tag):
-                #     logging.error("TAG")
-                #     continue
-                # else:
 
                 # Remains only Blob
                 if in_cache_blobs(db_conn, object_entry_ref):
