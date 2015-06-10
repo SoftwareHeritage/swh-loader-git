@@ -1,3 +1,4 @@
 /sgloader/__pycache__/
 /dataset/
 *.pyc
+/swh-git-loader/
