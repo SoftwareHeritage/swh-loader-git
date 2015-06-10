@@ -82,17 +82,23 @@ db_url = dbname=swhgitloader2
 
 * Run
 
+** environment initialization
+
+#+begin_src sh
+export PYTHONPATH=`pwd`:$PYTHONPATH
+#+end_src
+
 ** Help
 
 #+begin_src sh
-PYTHONPATH=$PYTHONPATH:`pwd` ./bin/sgloader --help
+bin/sgloader --help
 #+end_src
 
 ** Parse a repository from a clean slate
 
 Clean and initialize the model then parse the repository git:
 #+begin_src sh
-PYTHONPATH=$PYTHONPATH:`pwd` ./bin/sgloader --actions cleandb,initdb --load-repo /path/to/repo
+bin/sgloader --actions cleandb,initdb --load-repo /path/to/repo
 #+end_src
 
 For ease:
@@ -102,13 +108,13 @@ make clean-and-run REPO_PATH=/path/to/repo
 
 ** Parse an existing repository
 #+begin_src sh
-PYTHONPATH=$PYTHONPATH:`pwd` ./bin/sgloader --load-repo /path/to/repo
+bin/sgloader --load-repo /path/to/repo
 #+end_src
 
 ** Clean data
 
 #+begin_src sh
-PYTHONPATH=$PYTHONPATH:`pwd` ./bin/sgloader --actions cleandb
+bin/sgloader --actions cleandb
 #+end_src
 
 For ease:
@@ -119,7 +125,7 @@ make cleandb
 ** Init data
 
 #+begin_src sh
-PYTHONPATH=$PYTHONPATH:`pwd` ./bin/sgloader --actions initdb
+bin/sgloader --actions initdb
 #+end_src
 
 * IN-PROGRESS Improvments [11/12]
@@ -284,8 +290,8 @@ $ time make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files
 rm -rf ./log
 rm -rf ./dataset/
 mkdir -p log dataset
-PYTHONPATH=`pwd` ./bin/sgloader -v cleandb
-PYTHONPATH=`pwd` ./bin/sgloader -v --repo-path ~/repo/perso/dot-files initdb
+bin/sgloader -v cleandb
+bin/sgloader -v --repo-path ~/repo/perso/dot-files initdb
 make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files  161.05s user 10.82s system 76% cpu 3:46.01 total
 #+end_src
 
@@ -300,8 +306,8 @@ $ time make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files
 rm -rf ./log
 rm -rf ./dataset/
 mkdir -p log dataset
-PYTHONPATH=`pwd` ./bin/sgloader -v cleandb
-PYTHONPATH=`pwd` ./bin/sgloader -v --repo-path ~/repo/perso/dot-files initdb
+bin/sgloader -v cleandb
+bin/sgloader -v --repo-path ~/repo/perso/dot-files initdb
 make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files  85.82s user 23.53s system 19% cpu 9:16.00 total
 #+end_src
 
@@ -313,8 +319,8 @@ $ time make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files
 rm -rf ./log
 rm -rf ./dataset/
 mkdir -p log dataset
-PYTHONPATH=`pwd` ./bin/sgloader -v cleandb
-PYTHONPATH=`pwd` ./bin/sgloader -v --repo-path ~/repo/perso/dot-files initdb
+bin/sgloader -v cleandb
+bin/sgloader -v --repo-path ~/repo/perso/dot-files initdb
 make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files  39.45s user 8.02s system 50% cpu 1:34.08 total
 #+end_src
 
@@ -326,8 +332,8 @@ $ time make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files
 rm -rf ./log
 rm -rf ./dataset/
 mkdir -p log dataset
-PYTHONPATH=`pwd` bin/sgloader -v cleandb
-PYTHONPATH=`pwd` bin/sgloader -v --repo-path ~/repo/perso/dot-files initdb
+bin/sgloader -v cleandb
+bin/sgloader -v --repo-path ~/repo/perso/dot-files initdb
 make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files  15.90s user 2.08s system 31% cpu 56.879 total
 #+end_src
 
@@ -338,8 +344,8 @@ $ time make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files
 rm -rf ./log
 rm -rf ./dataset/
 mkdir -p log dataset
-PYTHONPATH=`pwd` bin/sgloader -v cleandb
-PYTHONPATH=`pwd` bin/sgloader -v --repo-path ~/repo/perso/dot-files initdb
+bin/sgloader -v cleandb
+bin/sgloader -v --repo-path ~/repo/perso/dot-files initdb
 make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files  14.67s user 1.64s system 30% cpu 54.303 total
 #+end_src
 ** Sample
