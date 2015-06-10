@@ -22,18 +22,8 @@ class Type(Enum):
     tag = 3
 
 
-def load_repo(parent_repo_path):
-    """Load the repository path.
-    """
-    repo_path = pygit2.discover_repository(parent_repo_path)
-
-    return pygit2.Repository(repo_path)
-
-
-def in_cache_objects(db_conn, obj_sha, obj_type):
-    """Determine if an object with hash obj_sha is in the cache.
-    """
-    return models.find_object(db_conn, obj_sha, obj_type) is not None
+in_cache_objects = lambda *args: models.find_object(*args) is not None
+in_cache_blobs = lambda *args: models.find_blob(*args) is not None
 
 
 def add_object_in_cache(db_conn, obj_sha, obj_type):
@@ -41,12 +31,6 @@ def add_object_in_cache(db_conn, obj_sha, obj_type):
     """
     logging.debug('Injecting object %s in cache' % obj_sha)
     models.add_object(db_conn, obj_sha, obj_type)
-
-
-def in_cache_blobs(db_conn, blob_data_sha1_bin):
-    """Determine if a binary blob_data_sha1_bin is in the blob cache.
-    """
-    return models.find_blob(db_conn, blob_data_sha1_bin) is not None
 
 
 def write_blob_on_disk(blob, filepath):
