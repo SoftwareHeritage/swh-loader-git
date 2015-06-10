@@ -73,11 +73,11 @@ Create a configuration file in *~/.config/sgloader.ini*:
 
 #+begin_src ini
 [main]
-file_content_storage_dir = /tmp/swh-git-loader/file-content-storage
-object_content_storage_dir = /tmp/swh-git-loader/object-object-storage
-log_dir = /tmp/swh-git-loader/log
+file_content_storage_dir = swh-git-loader/file-content-storage
+object_content_storage_dir = swh-git-loader/object-content-storage
+log_dir = swh-git-loader/log
 # http://initd.org/psycopg/docs/module.html#psycopg2.connect
-db_url = dbname=swhgitloader2
+db_url = dbname=swhgitloader
 #+end_src
 
 * Run
