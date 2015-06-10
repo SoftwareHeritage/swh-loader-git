@@ -40,7 +40,6 @@ def add_object_in_cache(db_conn, obj_sha, obj_type):
     """Add obj in cache.
     """
     logging.debug('Injecting object %s in cache' % obj_sha)
-
     models.add_object(db_conn, obj_sha, obj_type)
 
 
@@ -72,7 +71,6 @@ def create_dir_from_hash(file_content_storage_dir, hash):
                             hash[6:8])
 
     folder_in_storage = _compute_folder_name(file_content_storage_dir)
-
     os.makedirs(folder_in_storage, exist_ok=True)
 
     return folder_in_storage
@@ -84,12 +82,9 @@ def add_blob_in_file_storage(db_conn, file_content_storage_dir, blob, hashkey):
 TODO: split in another module, file manipulation maybe?
     """
     folder_in_storage = create_dir_from_hash(file_content_storage_dir, hashkey)
-
     filepath = os.path.join(folder_in_storage, hashkey)
     logging.debug('Injecting blob %s in file content storage.' % filepath)
-
     write_blob_on_disk(blob, filepath)
-
     return filepath
 
 
@@ -145,9 +140,7 @@ def parse_git_repo(db_conn,
 
             else:
                 blob_entry_ref = repo[tree_entry.id]
-
                 hashkey = _hashkey_sha1(blob_entry_ref.data)
-
                 blob_data_sha1_bin = hashkey.digest()
 
                 # Remains only Blob
@@ -164,8 +157,6 @@ def parse_git_repo(db_conn,
                     blob_entry_ref,
                     hashkey.hexdigest())
 
-                # add the file to the file cache, pointing to the file
-                # path on the filesystem
                 models.add_blob(db_conn,
                                 blob_data_sha1_bin,
                                 blob_entry_ref.size,
