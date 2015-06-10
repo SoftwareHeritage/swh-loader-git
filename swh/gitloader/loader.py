@@ -40,7 +40,7 @@ def in_cache_objects(db_conn, obj_sha, obj_type):
 def add_object_in_cache(db_conn, obj_sha, obj_type):
     """Add obj in cache.
     """
-    logging.debug('Injecting object \'%s\' in cache' % obj_sha)
+    logging.debug('Injecting object %s in cache' % obj_sha)
 
     models.add_object(db_conn, obj_sha, obj_type)
 
@@ -87,7 +87,7 @@ TODO: split in another module, file manipulation maybe?
     folder_in_storage = create_dir_from_hash(file_content_storage_dir, hashkey)
 
     filepath = os.path.join(folder_in_storage, hashkey)
-    logging.debug("Injecting blob '%s' in file content storage." % filepath)
+    logging.debug('Injecting blob %s in file content storage.' % filepath)
 
     write_blob_on_disk(blob, filepath)
 
@@ -124,7 +124,7 @@ def parse_git_repo(db_conn,
         tree_sha1_bin = _sha1_bin(tree_ref.hex)
 
         if in_cache_objects(db_conn, tree_sha1_bin, Type.tree):
-            logging.debug("Tree \'%s\' already visited, skip!" % tree_ref.hex)
+            logging.debug('Tree %s already visited, skip!' % tree_ref.hex)
             return
 
         # Add the tree in cache
@@ -135,12 +135,12 @@ def parse_git_repo(db_conn,
             filemode = tree_entry.filemode
 
             if (filemode == pygit2.GIT_FILEMODE_COMMIT):  # submodule!
-                logging.warn("Submodule - Key \'%s\' not found!"
+                logging.warn('Submodule - Key %s not found!'
                              % tree_entry.id)
                 continue
 
             elif (filemode == pygit2.GIT_FILEMODE_TREE):  # Tree
-                logging.debug("Tree \'%s\' -> walk!"
+                logging.debug('Tree %s -> walk!'
                               % tree_entry.id)
                 store_blobs_from_tree(repo[tree_entry.id], repo)
 
@@ -153,11 +153,11 @@ def parse_git_repo(db_conn,
 
                 # Remains only Blob
                 if in_cache_blobs(db_conn, blob_data_sha1_bin):
-                    logging.debug('Existing blob \'%s\' -> skip' %
+                    logging.debug('Existing blob %s -> skip' %
                                   blob_entry_ref.hex)
                     continue
 
-                logging.debug("New blob \'%s\' -> in file storage!" %
+                logging.debug('New blob %s -> in file storage!' %
                               blob_entry_ref.hex)
                 add_blob_in_file_storage(
                     db_conn,
@@ -177,7 +177,7 @@ def parse_git_repo(db_conn,
 
     # for each ref in the repo
     for ref_name in all_refs:
-        logging.debug("Parse reference \'%s\' " % ref_name)
+        logging.debug('Parse reference %s' % ref_name)
         ref = repo.lookup_reference(ref_name)
         head_commit = ref.peel()
         # for each commit referenced by the commit graph starting at that ref
@@ -207,18 +207,18 @@ def run(conf):
     action = conf['action']
 
     if action == 'cleandb':
-        logging.info("Database cleanup!")
+        logging.info('Database cleanup!')
         models.cleandb(db_conn)
     elif action == 'initdb':
-        logging.info("Database initialization!")
+        logging.info('Database initialization!')
         models.initdb(db_conn)
     elif action == 'load':
-        logging.info("Loading git repository %s" % conf['repository'])
+        logging.info('Loading git repository %s' % conf['repository'])
         parse_git_repo(db_conn,
                        conf['repository'],
                        conf['file_content_storage_dir'],
                        conf['object_content_storage_dir'])
     else:
-        logging.warn("Unknown action '%s', skip!" % action)
+        logging.warn('Unknown action %s, skip!' % action)
 
     db_conn.close()
