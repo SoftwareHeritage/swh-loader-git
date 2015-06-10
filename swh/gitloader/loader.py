@@ -189,33 +189,32 @@ def parse_git_repo(db_conn,
                 _store_blobs_from_tree(commit.tree, repo)
 
 
-def run(actions, db_url,
-        repo_path=None,
-        file_content_storage_dir=None,
-        object_content_storage_dir=None):
-    """Parse a given git repository.
-actions: CSV values amongst [initdb|cleandb]
-repo_path: Path to the git repository
-file_content_storage_dir: The folder where to store the raw blobs
-object_content_storage_dir: The folder where to store the remaining git objects
+def run(conf):
+    """loader driver, dispatching to the relevant action
+
+    used configuration keys:
+    - action: requested action
+    - repository: git repository path ('load' action only)
+    - file_content_storage_dir: path to file content storage
+    - object_content_storage_dir: path to git object content storage
     """
-    db_conn = db_utils.db_connect(db_url)
 
-    for action in actions:
-        if action == 'cleandb':
-            logging.info("Database cleanup!")
-            models.cleandb(db_conn)
-        elif action == 'initdb':
-            logging.info("Database initialization!")
-            models.initdb(db_conn)
-        else:
-            logging.warn("Unknown action '%s', skip!" % action)
+    db_conn = db_utils.db_connect(conf['db_url'])
+    action = conf['action']
 
-    if repo_path is not None:
-        logging.info("Parsing git repository \'%s\'" % repo_path)
+    if action == 'cleandb':
+        logging.info("Database cleanup!")
+        models.cleandb(db_conn)
+    elif action == 'initdb':
+        logging.info("Database initialization!")
+        models.initdb(db_conn)
+    elif action == 'load':
+        logging.info("Loading git repository %s" % conf['repository'])
         parse_git_repo(db_conn,
-                       repo_path,
-                       file_content_storage_dir,
-                       object_content_storage_dir)
+                       conf['repository'],
+                       conf['file_content_storage_dir'],
+                       conf['object_content_storage_dir'])
+    else:
+        logging.warn("Unknown action '%s', skip!" % action)
 
     db_conn.close()

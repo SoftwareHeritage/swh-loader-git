@@ -26,16 +26,19 @@ help: clean prepare
 	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) -h
 
 cleandb: clean prepare
-	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) --actions cleandb
+	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) cleandb
 
 initdb: clean prepare
-	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) --actions initdb
+	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) initdb
 
 run: clean prepare
-	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) --actions initdb --load-repo $(REPO_PATH)
+	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) initdb
+	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) load $(REPO_PATH)
 
 clean-and-run: clean prepare
-	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) --actions cleandb,initdb --load-repo $(REPO_PATH)
+	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) initdb
+	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) cleandb
+	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) load $(REPO_PATH)
 
 check:
 	$(FLAKE) $(BINDIR)/sgloader $(SRCDIR)/*.py

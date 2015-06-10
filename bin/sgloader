@@ -29,27 +29,26 @@ DEFAULT_CONF = {
 
 
 def parse_args():
-    """ Parse the configuration for the cli.
+    """Parse the configuration for the cli.
+
     """
+
     cli = argparse.ArgumentParser(
         description='Parse git repository objects to load them into DB.')
-
     cli.add_argument('--verbose', '-v', action='store_true',
                      help='Verbosity level in log file.')
+    cli.add_argument('--config', '-c', help='configuration file path')
 
-    cli.add_argument('--configuration-file', '-c', dest='conf_file',
-                     help='Configuration file path to load db access, ' +
-                     'log file, etc...')
+    subcli = cli.add_subparsers(dest='action')
+    subcli.add_parser('initdb', help='initialize DB')
+    subcli.add_parser('cleandb', help='clean DB')
 
-    cli.add_argument('--load-repo', '-l',
-                     dest='repo_path',
-                     help='Git repository path to load.')
-
-    cli.add_argument('--actions', '-a', dest='actions', nargs='?',
-                     help='Comma separated action values in [initdb|cleandb]',
-                     default='initdb')
+    load_cli = subcli.add_parser('load', help='load Git repo into DB')
+    load_cli.add_argument('repository', help='Git repository path')
 
     args = cli.parse_args()
+    if not args.action:
+        cli.error('no action given')
 
     return args
 
@@ -60,17 +59,18 @@ def read_conf(args):
     args contains the repo to parse.
     Transmit to the result.
 
-    (No cli override.)
     """
+
     config = configparser.ConfigParser(defaults=DEFAULT_CONF)
-    conf_file = DEFAULT_CONF_FILE if args.conf_file is None else args.conf_file
+    conf_file = args.config or DEFAULT_CONF_FILE
     config.read(os.path.expanduser(conf_file))
 
     conf = config._sections['main']
-    conf['repo_path'] = args.repo_path
 
-    actions = args.actions
-    conf['actions'] = actions if actions is None else actions.split(',')
+    # propagate CLI arguments to conf dictionary
+    conf['action'] = args.action
+    if 'repository' in args:
+        conf['repository'] = args.repository
 
     return conf
 
@@ -83,8 +83,4 @@ if __name__ == '__main__':
     logging.basicConfig(filename=log_filename,
                         level=logging.DEBUG if args.verbose else logging.INFO)
 
-    run(conf['actions'],
-        conf['db_url'],
-        conf['repo_path'],
-        conf['file_content_storage_dir'],
-        conf['object_content_storage_dir'])
+    run(conf)
