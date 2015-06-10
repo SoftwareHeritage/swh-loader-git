@@ -11,4 +11,3 @@ def db_connect(db_url):
     """Given the db_url, return the couple (engine, session).
     """
     return psycopg2.connect(db_url)
-

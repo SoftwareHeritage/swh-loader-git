@@ -80,7 +80,7 @@ def find_object(db_conn, sha, type):
     cur.execute("""select sha1 from object_cache
                    where sha1=%s
                    and type=%s;""",
-                (sha,type))
+                (sha, type))
     res = cur.fetchone()
     cur.close()
     return res
