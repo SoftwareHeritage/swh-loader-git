@@ -36,8 +36,8 @@ run: clean prepare
 	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) load $(REPO_PATH)
 
 clean-and-run: clean prepare
-	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) initdb
 	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) cleandb
+	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) initdb
 	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) load $(REPO_PATH)
 
 check:
