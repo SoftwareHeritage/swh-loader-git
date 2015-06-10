@@ -8,6 +8,7 @@ import logging
 import os
 import pygit2
 import hashlib
+import binascii
 
 from enum import Enum
 
@@ -30,12 +31,6 @@ def load_repo(parent_repo_path):
     return pygit2.Repository(repo_path)
 
 
-def commits_from(repo, commit):
-    """Return the lists of commits from a given commit.
-    """
-    return repo.walk(commit.id, pygit2.GIT_SORT_TOPOLOGICAL)
-
-
 def in_cache_objects(db_conn, obj_sha, obj_type):
     """Determine if an object with hash obj_sha is in the cache.
     """
@@ -50,19 +45,10 @@ def add_object_in_cache(db_conn, obj_sha, obj_type):
     models.add_object(db_conn, obj_sha, obj_type)
 
 
-def _hashkey_sha1(data):
-    """Given some data, compute the hash ready object of such data.
-    Return the reference but not the computation.
+def in_cache_blobs(db_conn, blob_data_sha1_bin):
+    """Determine if a binary blob_data_sha1_bin is in the blob cache.
     """
-    sha1 = hashlib.sha1()
-    sha1.update(data)
-    return sha1
-
-
-def in_cache_blobs(db_conn, binhashkey):
-    """Determine if a binary binhashkey is in the blob cache.
-    """
-    return models.find_blob(db_conn, binhashkey) is not None
+    return models.find_blob(db_conn, blob_data_sha1_bin) is not None
 
 
 def write_blob_on_disk(blob, filepath):
@@ -115,17 +101,30 @@ def parse_git_repo(db_conn,
     """Parse git repository `repo_path` and flush
     blobs on disk in `file_content_storage_dir`.
     """
+    def _sha1_bin(hexsha1):
+        return binascii.unhexlify(hexsha1)
+
+    def _hashkey_sha1(data):
+        """Given some data, compute the hash ready object of such data.
+        Return the reference but not the computation.
+        """
+        sha1 = hashlib.sha1()
+        sha1.update(data)
+        return sha1
+
     def _store_blobs_from_tree(tree_ref, repo):
         """Given a tree, walk the tree and store the blobs in file content storage
         (if not already present).
         """
 
-        if in_cache_objects(db_conn, tree_ref.hex, Type.tree):
+        tree_sha1_bin = _sha1_bin(tree_ref.hex)
+
+        if in_cache_objects(db_conn, tree_sha1_bin, Type.tree):
             logging.debug("Tree \'%s\' already visited, skip!" % tree_ref.hex)
             return
 
         # Add the tree in cache
-        add_object_in_cache(db_conn, tree_ref.hex, Type.tree)
+        add_object_in_cache(db_conn, tree_sha1_bin, Type.tree)
 
         # Now walk the tree
         for tree_entry in tree_ref:
@@ -146,10 +145,10 @@ def parse_git_repo(db_conn,
 
                 hashkey = _hashkey_sha1(blob_entry_ref.data)
 
-                binhashkey = hashkey.digest()
+                blob_data_sha1_bin = hashkey.digest()
 
                 # Remains only Blob
-                if in_cache_blobs(db_conn, binhashkey):
+                if in_cache_blobs(db_conn, blob_data_sha1_bin):
                     logging.debug('Existing blob \'%s\' -> skip' %
                                   blob_entry_ref.hex)
                     continue
@@ -165,9 +164,9 @@ def parse_git_repo(db_conn,
                 # add the file to the file cache, pointing to the file
                 # path on the filesystem
                 models.add_blob(db_conn,
-                                binhashkey,
+                                blob_data_sha1_bin,
                                 blob_entry_ref.size,
-                                blob_entry_ref.hex)
+                                _sha1_bin(blob_entry_ref.hex))
 
     repo = load_repo(repo_path)
     all_refs = repo.listall_references()
@@ -178,12 +177,13 @@ def parse_git_repo(db_conn,
         ref = repo.lookup_reference(ref_name)
         head_commit = ref.peel()
         # for each commit referenced by the commit graph starting at that ref
-        for commit in commits_from(repo, head_commit):
+        for commit in repo.walk(head_commit.id, pygit2.GIT_SORT_TOPOLOGICAL):
+            commit_sha1_bin = _sha1_bin(commit.hex)
             # if we have a git commit cache and the commit is in there:
-            if in_cache_objects(db_conn, commit.hex, Type.commit):
+            if in_cache_objects(db_conn, commit_sha1_bin, Type.commit):
                 continue  # stop treating the current commit sub-graph
             else:
-                add_object_in_cache(db_conn, commit.hex,
+                add_object_in_cache(db_conn, commit_sha1_bin,
                                     Type.commit)
 
                 _store_blobs_from_tree(commit.tree, repo)
