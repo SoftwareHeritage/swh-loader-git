@@ -94,6 +94,21 @@ TODO: split in another module, file manipulation maybe?
     return filepath
 
 
+def _sha1_bin(hexsha1):
+    """Compute the sha1's binary format from an hexadecimal format string.
+    """
+    return binascii.unhexlify(hexsha1)
+
+
+def _hashkey_sha1(data):
+    """Given some data, compute the hash ready object of such data.
+    Return the reference but not the computation.
+    """
+    sha1 = hashlib.sha1()
+    sha1.update(data)
+    return sha1
+
+
 def parse_git_repo(db_conn,
                    repo_path,
                    file_content_storage_dir,
@@ -101,18 +116,7 @@ def parse_git_repo(db_conn,
     """Parse git repository `repo_path` and flush
     blobs on disk in `file_content_storage_dir`.
     """
-    def _sha1_bin(hexsha1):
-        return binascii.unhexlify(hexsha1)
-
-    def _hashkey_sha1(data):
-        """Given some data, compute the hash ready object of such data.
-        Return the reference but not the computation.
-        """
-        sha1 = hashlib.sha1()
-        sha1.update(data)
-        return sha1
-
-    def _store_blobs_from_tree(tree_ref, repo):
+    def store_blobs_from_tree(tree_ref, repo):
         """Given a tree, walk the tree and store the blobs in file content storage
         (if not already present).
         """
@@ -138,7 +142,7 @@ def parse_git_repo(db_conn,
             elif (filemode == pygit2.GIT_FILEMODE_TREE):  # Tree
                 logging.debug("Tree \'%s\' -> walk!"
                               % tree_entry.id)
-                _store_blobs_from_tree(repo[tree_entry.id], repo)
+                store_blobs_from_tree(repo[tree_entry.id], repo)
 
             else:
                 blob_entry_ref = repo[tree_entry.id]
@@ -186,7 +190,7 @@ def parse_git_repo(db_conn,
                 add_object_in_cache(db_conn, commit_sha1_bin,
                                     Type.commit)
 
-                _store_blobs_from_tree(commit.tree, repo)
+                store_blobs_from_tree(commit.tree, repo)
 
 
 def run(conf):
