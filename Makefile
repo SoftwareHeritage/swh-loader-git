@@ -13,6 +13,8 @@ TESTDIR = ./tests
 DB=swhgitloader
 DB_TEST=swhgitloader-test
 
+BIN=$(BINDIR)/swh-git-loader
+
 deps:
 	sudo apt-get install -y python3 python3-pygit2 python3-psycopg2 python3-nose ipython3
 
@@ -23,22 +25,22 @@ clean:
 	rm -rf swh-git-loader/log swh-git-loader/file-content-storage swh-git-loader/object-content-storage
 
 help: clean prepare
-	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) -h
+	PYTHONPATH=`pwd` $(BIN) $(FLAG) -h
 
 cleandb: clean prepare
-	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) cleandb
+	PYTHONPATH=`pwd` $(BIN) $(FLAG) cleandb
 
 initdb: clean prepare
-	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) initdb
+	PYTHONPATH=`pwd` $(BIN) $(FLAG) initdb
 
 run: clean prepare
-	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) initdb
-	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) load $(REPO_PATH)
+	PYTHONPATH=`pwd` $(BIN) $(FLAG) initdb
+	PYTHONPATH=`pwd` $(BIN) $(FLAG) load $(REPO_PATH)
 
 clean-and-run: clean prepare
-	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) cleandb
-	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) initdb
-	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) load $(REPO_PATH)
+	PYTHONPATH=`pwd` $(BIN) $(FLAG) cleandb
+	PYTHONPATH=`pwd` $(BIN) $(FLAG) initdb
+	PYTHONPATH=`pwd` $(BIN) $(FLAG) load $(REPO_PATH)
 
 check:
 	$(FLAKE) $(BINDIR)/sgloader $(SRCDIR)/*.py
