@@ -9,8 +9,17 @@ import os
 import pygit2
 import hashlib
 
+from enum import Enum
+
 from swh import db_utils
 from swh.gitloader import models
+
+
+class Type(Enum):
+    commit = 0
+    tree = 1
+    blob = 2
+    tag = 3
 
 
 def load_repo(parent_repo_path):
@@ -56,12 +65,6 @@ def in_cache_blobs(db_conn, binhashkey):
     return models.find_blob(db_conn, binhashkey) is not None
 
 
-def add_blob_in_cache(db_conn, filepath, binhashkey):
-    """Add blob in cache.
-    """
-    models.add_blob(db_conn, binhashkey, filepath)
-
-
 def write_blob_on_disk(blob, filepath):
     """Write blob on disk.
     """
@@ -105,12 +108,6 @@ TODO: split in another module, file manipulation maybe?
     return filepath
 
 
-TYPE_TREE = 1
-
-
-TYPE_COMMIT = 0
-
-
 def parse_git_repo(db_conn,
                    repo_path,
                    file_content_storage_dir,
@@ -123,12 +120,12 @@ def parse_git_repo(db_conn,
         (if not already present).
         """
 
-        if in_cache_objects(db_conn, tree_ref.hex, TYPE_TREE):
+        if in_cache_objects(db_conn, tree_ref.hex, Type.tree):
             logging.debug("Tree \'%s\' already visited, skip!" % tree_ref.hex)
             return
 
         # Add the tree in cache
-        add_object_in_cache(db_conn, tree_ref.hex, TYPE_TREE)
+        add_object_in_cache(db_conn, tree_ref.hex, Type.tree)
 
         # Now walk the tree
         for tree_entry in tree_ref:
@@ -159,7 +156,7 @@ def parse_git_repo(db_conn,
 
                 logging.debug("New blob \'%s\' -> in file storage!" %
                               blob_entry_ref.hex)
-                filepath = add_blob_in_file_storage(
+                add_blob_in_file_storage(
                     db_conn,
                     file_content_storage_dir,
                     blob_entry_ref,
@@ -167,7 +164,10 @@ def parse_git_repo(db_conn,
 
                 # add the file to the file cache, pointing to the file
                 # path on the filesystem
-                add_blob_in_cache(db_conn, filepath, binhashkey)
+                models.add_blob(db_conn,
+                                binhashkey,
+                                blob_entry_ref.size,
+                                blob_entry_ref.hex)
 
     repo = load_repo(repo_path)
     all_refs = repo.listall_references()
@@ -180,11 +180,11 @@ def parse_git_repo(db_conn,
         # for each commit referenced by the commit graph starting at that ref
         for commit in commits_from(repo, head_commit):
             # if we have a git commit cache and the commit is in there:
-            if in_cache_objects(db_conn, commit.hex, TYPE_COMMIT):
+            if in_cache_objects(db_conn, commit.hex, Type.commit):
                 continue  # stop treating the current commit sub-graph
             else:
                 add_object_in_cache(db_conn, commit.hex,
-                                    TYPE_COMMIT)
+                                    Type.commit)
 
                 _store_blobs_from_tree(commit.tree, repo)
 
