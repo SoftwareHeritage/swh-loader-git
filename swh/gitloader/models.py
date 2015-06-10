@@ -14,8 +14,6 @@ def db_connect(db_url):
     """
     return psycopg2.connect(db_url)
 
-# FIXME: Find the pythonic way to use Higher-order
-# functions (too much duplication here) -> lambda with varargs parameters?
 
 def cleandb(db_conn, only_truncate=False):
     """Clean the database.
