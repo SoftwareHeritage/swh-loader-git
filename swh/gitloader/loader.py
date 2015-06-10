@@ -10,6 +10,7 @@ import pygit2
 
 from enum import Enum
 
+from swh.file import folder_path
 from swh.hash import sha1_bin, hashkey_sha1
 
 from swh.gitloader import models
@@ -43,17 +44,8 @@ def write_blob_on_disk(blob, filepath):
 def create_dir_from_hash(file_content_storage_dir, hash):
     """Create directory from a given hash.
     """
-    def _compute_folder_name(file_content_storage_dir):
-        """Compute the folder prefix from a hash key.
-        """
-        # FIXME: find some split function
-        return os.path.join(file_content_storage_dir,
-                            hash[0:2],
-                            hash[2:4],
-                            hash[4:6],
-                            hash[6:8])
 
-    folder_in_storage = _compute_folder_name(file_content_storage_dir)
+    folder_in_storage = folder_path(file_content_storage_dir, hash)
     os.makedirs(folder_in_storage, exist_ok=True)
 
     return folder_in_storage
