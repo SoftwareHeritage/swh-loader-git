@@ -86,10 +86,10 @@ def _hashkey_sha1(data):
     return sha1
 
 
-def parse_git_repo(db_conn,
-                   repo_path,
-                   file_content_storage_dir,
-                   object_content_storage_dir):
+def load_repo(db_conn,
+              repo_path,
+              file_content_storage_dir,
+              object_content_storage_dir):
     """Parse git repository `repo_path` and flush
     blobs on disk in `file_content_storage_dir`.
     """
@@ -187,10 +187,10 @@ def run(conf):
         models.initdb(db_conn)
     elif action == 'load':
         logging.info('Loading git repository %s' % conf['repository'])
-        parse_git_repo(db_conn,
-                       conf['repository'],
-                       conf['file_content_storage_dir'],
-                       conf['object_content_storage_dir'])
+        load_repo(db_conn,
+                  conf['repository'],
+                  conf['file_content_storage_dir'],
+                  conf['object_content_storage_dir'])
     else:
         logging.warn('Unknown action %s, skip!' % action)
 
