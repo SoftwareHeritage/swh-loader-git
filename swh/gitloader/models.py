@@ -17,8 +17,8 @@ def cleandb(db_conn, only_truncate=False):
 
     action = "truncate table" if only_truncate else "drop table if exists"
 
-    cur.execute("{} files;".format(action))
-    cur.execute("{} git_objects;".format(action))
+    cur.execute("%s files;" % action)
+    cur.execute("%s git_objects;" % action)
 
     db_conn.commit()
     cur.close()
