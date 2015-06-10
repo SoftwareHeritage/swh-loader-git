@@ -137,7 +137,7 @@ def parse_git_repo(db_conn,
             if (filemode == pygit2.GIT_FILEMODE_COMMIT):  # submodule!
                 logging.warn("Submodule - Key \'%s\' not found!"
                              % tree_entry.id)
-                break
+                continue
 
             elif (filemode == pygit2.GIT_FILEMODE_TREE):  # Tree
                 logging.debug("Tree \'%s\' -> walk!"
@@ -181,7 +181,7 @@ def parse_git_repo(db_conn,
         for commit in commits_from(repo, head_commit):
             # if we have a git commit cache and the commit is in there:
             if in_cache_objects(db_conn, commit.hex, TYPE_COMMIT):
-                break  # stop treating the current commit sub-graph
+                continue  # stop treating the current commit sub-graph
             else:
                 add_object_in_cache(db_conn, commit.hex,
                                     TYPE_COMMIT)
