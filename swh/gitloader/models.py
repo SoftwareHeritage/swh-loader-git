@@ -4,8 +4,15 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import psycopg2
+
 from datetime import datetime
 
+
+def db_connect(db_url):
+    """Given the db_url, return the couple (engine, session).
+    """
+    return psycopg2.connect(db_url)
 
 # FIXME: Find the pythonic way to use Higher-order
 # functions (too much duplication here) -> lambda with varargs parameters?

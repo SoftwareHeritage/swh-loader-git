@@ -12,7 +12,6 @@ import binascii
 
 from enum import Enum
 
-from swh import db_utils
 from swh.gitloader import models
 
 
@@ -203,7 +202,7 @@ def run(conf):
     - object_content_storage_dir: path to git object content storage
     """
 
-    db_conn = db_utils.db_connect(conf['db_url'])
+    db_conn = models.db_connect(conf['db_url'])
     action = conf['action']
 
     if action == 'cleandb':
