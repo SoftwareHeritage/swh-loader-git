@@ -10,17 +10,17 @@ NOSE = nosetests3
 TESTFLAGS = -s
 TESTDIR = ./tests
 
-DB=swhgitloader2
+DB=swhgitloader
 DB_TEST=swhgitloader-test
 
 deps:
 	sudo apt-get install -y python3 python3-pygit2 python3-psycopg2 python3-nose ipython3
 
 prepare:
-	mkdir -p /tmp/swh-git-loader/log /tmp/swh-git-loader/file-content-storage /tmp/swh-git-loader/object-object-storage
+	mkdir -p swh-git-loader/log swh-git-loader/file-content-storage swh-git-loader/object-content-storage
 
 clean:
-	rm -rf /tmp/swh-git-loader/log /tmp/swh-git-loader/file-content-storage /tmp/swh-git-loader/object-object-storage
+	rm -rf swh-git-loader/log swh-git-loader/file-content-storage swh-git-loader/object-content-storage
 
 help: clean prepare
 	PYTHONPATH=`pwd` $(BINDIR)/sgloader $(FLAG) -h
