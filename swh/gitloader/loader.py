@@ -145,7 +145,7 @@ def load_repo(db_conn,
                                 blob_entry_ref.size,
                                 _sha1_bin(blob_entry_ref.hex))
 
-    repo = load_repo(repo_path)
+    repo = pygit2.Repository(repo_path)
     all_refs = repo.listall_references()
 
     # for each ref in the repo
