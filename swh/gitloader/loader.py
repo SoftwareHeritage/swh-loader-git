@@ -27,18 +27,18 @@ def commits_from(repo, commit):
     return repo.walk(commit.id, pygit2.GIT_SORT_TOPOLOGICAL)
 
 
-def in_cache_objects(db_conn, sha, type):
-    """Determine if an object with hash sha is in the cache.
+def in_cache_objects(db_conn, obj_sha, obj_type):
+    """Determine if an object with hash obj_sha is in the cache.
     """
-    return models.find_object(db_conn, sha, type) is not None
+    return models.find_object(db_conn, obj_sha, obj_type) is not None
 
 
-def add_object_in_cache(db_conn, sha, obj_type):
+def add_object_in_cache(db_conn, obj_sha, obj_type):
     """Add obj in cache.
     """
-    logging.debug('Injecting object \'%s\' in cache' % sha)
+    logging.debug('Injecting object \'%s\' in cache' % obj_sha)
 
-    models.add_object(db_conn, sha, obj_type)
+    models.add_object(db_conn, obj_sha, obj_type)
 
 
 def _hashkey_sha1(data):

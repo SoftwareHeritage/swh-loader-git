@@ -39,55 +39,55 @@ def initdb(db_conn):
     cur.close()
 
 
-def add_blob(db_conn, sha, filepath):
+def add_blob(db_conn, obj_sha, filepath):
     """Insert a new file
     """
     cur = db_conn.cursor()
     cur.execute("""insert into blob_cache (sha1, path, last_seen)
                    values (%s, %s, %s);""",
-                (sha, filepath, datetime.now()))
+                (obj_sha, filepath, datetime.now()))
     db_conn.commit()
     cur.close()
 
 
-def add_object(db_conn, sha, type):
+def add_object(db_conn, obj_sha, obj_type):
     """Insert a new object
     """
     cur = db_conn.cursor()
     cur.execute("""insert into object_cache (sha1, type, last_seen)
                    values (%s, %s, %s);""",
-                (sha, type, datetime.now()))
+                (obj_sha, obj_type, datetime.now()))
     db_conn.commit()
     cur.close()
 
 
-def find_blob(db_conn, sha):
+def find_blob(db_conn, obj_sha):
     """Find a file by its hash.
     """
     cur = db_conn.cursor()
     cur.execute("""select sha1 from blob_cache
                    where sha1=%s;""",
-                (sha,))
+                (obj_sha,))
     res = cur.fetchone()
     cur.close()
     return res
 
 
-def find_object(db_conn, sha, type):
+def find_object(db_conn, obj_sha, obj_type):
     """Find an object by its hash.
     """
     cur = db_conn.cursor()
     cur.execute("""select sha1 from object_cache
                    where sha1=%s
                    and type=%s;""",
-                (sha, type))
+                (obj_sha, obj_type))
     res = cur.fetchone()
     cur.close()
     return res
 
 
 def count_files(db_conn):
-    """Count the number of objects inside the tablename."""
+    """Count the number of blobs."""
     cur = db_conn.cursor()
 
     cur.execute("""select count(*) from blob_cache;""")
@@ -97,12 +97,12 @@ def count_files(db_conn):
     return res
 
 
-def count_objects(db_conn, type):
-    """Count the number of objects with type `type` inside the tablename."""
+def count_objects(db_conn, obj_type):
+    """Count the number of objects with obj_type."""
     cur = db_conn.cursor()
 
     cur.execute("""select count(*) from object_cache
-                   where type=%s;""", (type,))
+                   where type=%s;""", (obj_type,))
 
     res = cur.fetchone()[0]
     cur.close()
