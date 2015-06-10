@@ -7,10 +7,10 @@
 import logging
 import os
 import pygit2
-import hashlib
-import binascii
 
 from enum import Enum
+
+from swh.hash import sha1_bin, hashkey_sha1
 
 from swh.gitloader import models
 
@@ -71,21 +71,6 @@ TODO: split in another module, file manipulation maybe?
     return filepath
 
 
-def _sha1_bin(hexsha1):
-    """Compute the sha1's binary format from an hexadecimal format string.
-    """
-    return binascii.unhexlify(hexsha1)
-
-
-def _hashkey_sha1(data):
-    """Given some data, compute the hash ready object of such data.
-    Return the reference but not the computation.
-    """
-    sha1 = hashlib.sha1()
-    sha1.update(data)
-    return sha1
-
-
 def load_repo(db_conn,
               repo_path,
               file_content_storage_dir,
@@ -98,7 +83,7 @@ def load_repo(db_conn,
         (if not already present).
         """
 
-        tree_sha1_bin = _sha1_bin(tree_ref.hex)
+        tree_sha1_bin = sha1_bin(tree_ref.hex)
 
         if in_cache_objects(db_conn, tree_sha1_bin, Type.tree):
             logging.debug('Tree %s already visited, skip!' % tree_ref.hex)
@@ -123,7 +108,7 @@ def load_repo(db_conn,
 
             else:
                 blob_entry_ref = repo[tree_entry.id]
-                hashkey = _hashkey_sha1(blob_entry_ref.data)
+                hashkey = hashkey_sha1(blob_entry_ref.data)
                 blob_data_sha1_bin = hashkey.digest()
 
                 # Remains only Blob
@@ -142,7 +127,7 @@ def load_repo(db_conn,
                 models.add_blob(db_conn,
                                 blob_data_sha1_bin,
                                 blob_entry_ref.size,
-                                _sha1_bin(blob_entry_ref.hex))
+                                sha1_bin(blob_entry_ref.hex))
 
     repo = pygit2.Repository(repo_path)
     all_refs = repo.listall_references()
@@ -154,7 +139,7 @@ def load_repo(db_conn,
         head_commit = ref.peel()
         # for each commit referenced by the commit graph starting at that ref
         for commit in repo.walk(head_commit.id, pygit2.GIT_SORT_TOPOLOGICAL):
-            commit_sha1_bin = _sha1_bin(commit.hex)
+            commit_sha1_bin = sha1_bin(commit.hex)
             # if we have a git commit cache and the commit is in there:
             if in_cache_objects(db_conn, commit_sha1_bin, Type.commit):
                 continue  # stop treating the current commit sub-graph
