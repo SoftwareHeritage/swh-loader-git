@@ -90,7 +90,7 @@ def count_files(db_conn):
     """Count the number of objects inside the tablename."""
     cur = db_conn.cursor()
 
-    cur.execute("""select count(*) from file_cache;""")
+    cur.execute("""select count(*) from blob_cache;""")
 
     res = cur.fetchone()[0]
     cur.close()

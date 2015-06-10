@@ -1,6 +1,5 @@
 import unittest
 
-import sys
 import os
 import pygit2
 import tempfile
@@ -9,7 +8,7 @@ import shutil
 from nose.tools import istest
 from nose.plugins.attrib import attr
 
-from swh.gitloader.loader import run, TYPES
+from swh.gitloader.loader import run, TYPE_COMMIT, TYPE_TREE
 from swh.gitloader.models import count_files, count_objects
 from swh.db_utils import db_connect
 
@@ -103,9 +102,22 @@ class TestingLearning(unittest.TestCase):
 
         os.makedirs(file_content_storage_dir, exist_ok=True)
 
-        run(["cleandb", "initdb"], self.db_url, repo_path,
-            file_content_storage_dir)
+        conf = {
+            'db_url': self.db_url,
+            'repository': repo_path,
+            'file_content_storage_dir': file_content_storage_dir,
+            'object_content_storage_dir': None
+            }
 
-        assert count_objects(self.db_conn, TYPES["Commit"]) == 5
-        assert count_objects(self.db_conn, TYPES["Tree"]) == 5
+        conf['action'] = "cleandb"
+        run(conf)
+
+        conf['action'] = "initdb"
+        run(conf)
+
+        conf['action'] = "load"
+        run(conf)
+
+        assert count_objects(self.db_conn, TYPE_COMMIT) == 5
+        assert count_objects(self.db_conn, TYPE_TREE) == 5
         assert count_files(self.db_conn) == 4
