@@ -36,9 +36,8 @@ def add_object_in_cache(db_conn, obj_sha, obj_type):
 def write_blob_on_disk(blob, filepath):
     """Write blob on disk.
     """
-    f = open(filepath, 'wb')
-    f.write(blob.data)
-    f.close()
+    with open(filepath, 'wb') as f:
+        f.write(blob.data)
 
 
 def create_dir_from_hash(file_content_storage_dir, hash):
