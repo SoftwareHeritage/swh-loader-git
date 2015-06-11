@@ -44,15 +44,13 @@ class FuncUseCase(unittest.TestCase):
                                      'vincent@committers.tld')
         return (author, committer)
 
-    def create_content_and_commit(self, blob_content,
-                                  commit_msg,
-                                  commit_parent=None):
+    def create_commit_with_content(self, blob_content,
+                                   commit_msg,
+                                   commit_parent=None):
         """Create a commit inside the git repository and return its oid.
         """
         author, committer = self.create_author_and_committer()
-
         tree = self.create_tree(blob_content)
-
         return self.tmpGitRepo.create_commit(
             'refs/heads/master',  # the name of the reference to update
             author, committer, commit_msg,
@@ -65,22 +63,9 @@ class FuncUseCase(unittest.TestCase):
         """
         tmpGitFolder = tempfile.mkdtemp(prefix='test-sgloader.',
                                         dir='/tmp')
-
         # create temporary git repository
         self.tmpGitRepo = pygit2.init_repository(tmpGitFolder)
         print("Git repository: {}".format(tmpGitFolder))
-
-        commit0 = self.create_content_and_commit('blob 0', 'commit msg 0')
-        commit1 = self.create_content_and_commit('blob 1', 'commit msg 1',
-                                                 commit0.hex)
-        commit2 = self.create_content_and_commit('blob 2', 'commit msg 2',
-                                                 commit1.hex)
-        commit3 = self.create_content_and_commit(None, 'commit msg 3',
-                                                 commit2.hex)
-        self.create_content_and_commit('blob 4', 'commit msg 4', commit3.hex)
-
-        # open connection to db
-        self.db_url = "dbname=swhgitloader-test user=tony"
 
         # trigger the script
         repo_path = self.tmpGitRepo.workdir
@@ -88,6 +73,7 @@ class FuncUseCase(unittest.TestCase):
 
         os.makedirs(file_content_storage_dir, exist_ok=True)
 
+        self.db_url = "dbname=swhgitloader-test"
         self.conf = {
             'db_url': self.db_url,
             'repository': repo_path,
@@ -108,12 +94,26 @@ class FuncUseCase(unittest.TestCase):
         shutil.rmtree(self.tmpGitRepo.workdir)
 
     @istest
-    def run_from_scratch(self):
-        """Trigger sgloader and make sure everything is ok.
+    def use_case_0(self):
+        """Trigger loader and make sure everything is ok.
         """
+
+        # given
+        commit0 = self.create_commit_with_content('blob 0', 'commit msg 0')
+        commit1 = self.create_commit_with_content('blob 1', 'commit msg 1',
+                                                  commit0.hex)
+        commit2 = self.create_commit_with_content('blob 2', 'commit msg 2',
+                                                  commit1.hex)
+        commit3 = self.create_commit_with_content(None, 'commit msg 3',
+                                                  commit2.hex)
+        commit4 = self.create_commit_with_content('blob 4', 'commit msg 4',
+                                                  commit3.hex)
+
+        # when
         self.conf['action'] = "load"
         loader.run(self.conf)
 
+        # then
         with db.connect(self.db_url) as db_conn:
             self.assertEquals(
                 models.count_objects(db_conn, models.Type.commit),
@@ -127,3 +127,52 @@ class FuncUseCase(unittest.TestCase):
                 models.count_files(db_conn),
                 4,
                 "Should be 4 blobs as we created one commit without data!")
+
+        # given
+        commit5 = self.create_commit_with_content('new blob 5', 'commit msg 5',
+                                                  commit4)
+        commit6 = self.create_commit_with_content('new blob and last 6',
+                                                  'commit msg 6',
+                                                  commit5.hex)
+        commit7 = self.create_commit_with_content('new blob 7', 'commit msg 7',
+                                                  commit6.hex)
+
+        # when
+        loader.run(self.conf)
+
+        # then
+        with db.connect(self.db_url) as db_conn:
+            self.assertEquals(
+                models.count_objects(db_conn, models.Type.commit),
+                8,
+                "Should be 5+3 == 8 commits now")
+            self.assertEquals(
+                models.count_objects(db_conn, models.Type.tree),
+                8,
+                "Should be 5+3 == 8 trees")
+            self.assertEquals(
+                models.count_files(db_conn),
+                7,
+                "Should be 4+3 == 7 blobs")
+
+        # given
+        self.create_commit_with_content(None, 'commit 8 with parent 2',
+                                        commit7.hex)
+
+        # when
+        loader.run(self.conf)
+
+        # then
+        with db.connect(self.db_url) as db_conn:
+            self.assertEquals(
+                models.count_objects(db_conn, models.Type.commit),
+                9,
+                "Should be 8+1 == 9 commits now")
+            self.assertEquals(
+                models.count_objects(db_conn, models.Type.tree),
+                8,
+                "Should be 8 trees (new commit without blob so no new tree)")
+            self.assertEquals(
+                models.count_files(db_conn),
+                7,
+                "Should be 7 blobs (new commit without new blob)")
