@@ -24,7 +24,8 @@ DEFAULT_CONF = {
     'object_content_storage_dir': '/tmp/swh-git-loader/git-object-storage',
     'log_dir': '/tmp/swh-git-loader/log',
     # http://initd.org/psycopg/docs/module.html#psycopg2.connect
-    'db_url': 'dbname=swhgitloader'
+    'db_url': 'dbname=swhgitloader',
+    'blob_compression': None,
 }
 
 
