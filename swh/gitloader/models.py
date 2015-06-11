@@ -37,6 +37,7 @@ def execute(db_conn):
         db_conn.commit()
         cur.close()
 
+
 @contextmanager
 def fetch(db_conn):
     """Execute sql select query to db.
