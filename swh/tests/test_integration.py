@@ -108,7 +108,7 @@ class TestingLearning(unittest.TestCase):
         shutil.rmtree(self.tmpGitRepo.workdir)
 
     @istest
-    def tryout(self):
+    def run_from_scratch(self):
         """Trigger sgloader and make sure everything is ok.
         """
         self.conf['action'] = "load"
@@ -116,8 +116,14 @@ class TestingLearning(unittest.TestCase):
 
         with db.connect(self.db_url) as db_conn:
             self.assertEquals(
-                models.count_objects(db_conn, models.Type.commit), 5)
+                models.count_objects(db_conn, models.Type.commit),
+                5,
+                "Should be 5 commits")
             self.assertEquals(
-                models.count_objects(db_conn, models.Type.tree), 5)
+                models.count_objects(db_conn, models.Type.tree),
+                5,
+                "Should be 5 trees")
             self.assertEquals(
-                models.count_files(db_conn), 4)
+                models.count_files(db_conn),
+                4,
+                "Should be 4 blobs as we created one commit without data!")
