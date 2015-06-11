@@ -9,7 +9,7 @@ import pygit2
 
 from enum import Enum
 
-from swh import hash
+from swh import hash, db
 from swh.gitloader import storage, models
 
 
@@ -119,7 +119,7 @@ def run(conf):
     - file_content_storage_dir: path to file content storage
     - object_content_storage_dir: path to git object content storage
     """
-    with models.db_connect(conf['db_url']) as db_conn:
+    with db.connect(conf['db_url']) as db_conn:
         action = conf['action']
 
         if action == 'cleandb':

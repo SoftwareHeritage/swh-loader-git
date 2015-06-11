@@ -9,6 +9,7 @@ from nose.tools import istest
 from nose.plugins.attrib import attr
 
 from swh.gitloader import loader, models
+from swh import db
 
 
 @attr('slow')
@@ -114,7 +115,7 @@ class TestingLearning(unittest.TestCase):
         conf['action'] = "load"
         loader.run(conf)
 
-        with models.db_connect(self.db_url) as db_conn:
+        with db.connect(self.db_url) as db_conn:
             assert models.count_objects(db_conn, loader.Type.commit) == 5
             assert models.count_objects(db_conn, loader.Type.tree) == 5
             assert models.count_files(db_conn) == 4
