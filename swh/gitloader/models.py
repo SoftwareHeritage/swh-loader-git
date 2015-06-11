@@ -21,13 +21,13 @@ def initdb(db_conn):
     """
     with db.execute(db_conn) as cur:
         cur.execute("""create table if not exists files
-             (id serial primary key,
+             (id bigserial primary key,
               sha1 bytea unique,
               ctime timestamp default current_timestamp,
               sha1_git bytea,
               size integer);""")
         cur.execute("""create table if not exists git_objects (
-                                   id serial primary key,
+                                   id bigserial primary key,
                                    sha1 bytea unique,
                                    type smallint,
                                    ctime timestamp default current_timestamp,
