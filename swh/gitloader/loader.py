@@ -83,7 +83,7 @@ def load_repo(db_conn,
     for ref_name in all_refs:
         logging.info('Parse reference %s' % ref_name)
         ref = repo.lookup_reference(ref_name)
-        head_commit = ref.peel()
+        head_commit = ref.peel(pygit2.GIT_OBJ_COMMIT)
         # for each commit referenced by the commit graph starting at that ref
         for commit in repo.walk(head_commit.id, pygit2.GIT_SORT_TOPOLOGICAL):
             commit_sha1_bin = hash.sha1_bin(commit.hex)
