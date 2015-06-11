@@ -25,7 +25,8 @@ def initdb(db_conn):
               sha1 bytea unique,
               size integer constraint no_null not null,
               ctime timestamp default current_timestamp,
-              sha1_git bytea constraint no_null not null);""")
+              sha1_git bytea constraint no_null not null,
+              UNIQUE(sha1, size));""")
         cur.execute("""create table if not exists git_objects (
                                    id bigserial primary key,
                                    sha1 bytea,
