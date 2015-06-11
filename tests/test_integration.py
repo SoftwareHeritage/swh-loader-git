@@ -8,7 +8,7 @@ import shutil
 from nose.tools import istest
 from nose.plugins.attrib import attr
 
-from swh.gitloader.loader import run, TYPE_COMMIT, TYPE_TREE
+from swh.gitloader.loader import run, Type
 from swh.gitloader.models import count_files, count_objects
 from swh.db_utils import db_connect
 
@@ -118,6 +118,6 @@ class TestingLearning(unittest.TestCase):
         conf['action'] = "load"
         run(conf)
 
-        assert count_objects(self.db_conn, TYPE_COMMIT) == 5
-        assert count_objects(self.db_conn, TYPE_TREE) == 5
+        assert count_objects(self.db_conn, Type.commit) == 5
+        assert count_objects(self.db_conn, Type.tree) == 5
         assert count_files(self.db_conn) == 4
