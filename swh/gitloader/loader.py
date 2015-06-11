@@ -27,7 +27,6 @@ def load_repo(db_conn,
         """Given a tree, walk the tree and store the blobs in file content storage
         (if not already present).
         """
-
         tree_sha1_bin = hash.sha1_bin(tree_ref.hex)
 
         if in_cache_objects(db_conn, tree_sha1_bin, models.Type.tree):
@@ -37,6 +36,7 @@ def load_repo(db_conn,
         # Add the tree in cache
         logging.debug('Store new tree %s (db).' % tree_sha1_bin)
         add_object_in_cache(db_conn, tree_sha1_bin, models.Type.tree)
+        
 
         # Now walk the tree
         for tree_entry in tree_ref:

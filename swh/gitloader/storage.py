@@ -21,7 +21,6 @@ def create_dir_from_hash(file_content_storage_dir, hashv):
 
 def add_blob_to_storage(db_conn, file_content_storage_dir, data, hashkey):
     """Add blob in the file content storage (on disk).
-
     """
     folder_in_storage = create_dir_from_hash(file_content_storage_dir, hashkey)
     filepath = os.path.join(folder_in_storage, hashkey)
