@@ -30,7 +30,8 @@ def initdb(db_conn):
         cur.execute("""create table if not exists git_objects (
                                    sha1 bytea primary key,
                                    type smallint,
-                                   ctime date);""")
+                                   ctime date,
+                                   stored bool default false);""")
 
 
 def add_blob(db_conn, obj_sha, size, obj_git_sha):
