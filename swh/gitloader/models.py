@@ -38,16 +38,16 @@ def initdb(db_conn):
              Type.tag.value)),
         """create table if not exists files
               (id bigserial primary key,
+              ctime timestamp default current_timestamp,
               sha1 bytea unique,
               size integer constraint no_null not null,
-              ctime timestamp default current_timestamp,
               sha1_git bytea constraint no_null not null,
               UNIQUE(sha1, size));""",
         """create table if not exists git_objects
                (id bigserial primary key,
+               ctime timestamp default current_timestamp,
                sha1 bytea,
                type type constraint no_null not null,
-               ctime timestamp default current_timestamp,
                stored bool default false);"""])
 
 
