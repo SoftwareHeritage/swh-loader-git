@@ -30,7 +30,7 @@ def execute(db_conn):
     try:
         yield cur
     except:
-        logging.error("An error has happenned, rollback db!")
+        logging.error("An error has happened, rollback db!")
         db_conn.rollback()
         raise
     finally:
