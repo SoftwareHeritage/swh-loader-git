@@ -364,9 +364,9 @@ make cleandb run FLAG=-v REPO_PATH=~/repo/perso/dot-files  14.67s user 1.64s sys
 |--------+----------------------------------------------|
 | repo   | url                                          |
 |--------+----------------------------------------------|
-| linux  |                                              |
+| linux  | https://github.com/torvalds/linux.git        |
 | gcc    | https://gcc.gnu.org/git/?p=gcc.git;a=summary |
-| pygit2 |                                              |
+| pygit2 | https://github.com/libgit2/pygit2.git        |
 |--------+----------------------------------------------|
 
 * Filemode investigation
