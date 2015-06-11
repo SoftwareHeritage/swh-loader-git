@@ -5,18 +5,17 @@
 # See top-level LICENSE file for more information
 
 import logging
-import os
 import pygit2
 
 from enum import Enum
 
-from swh.file import folder_path
-from swh.hash import sha1_bin, hashkey_sha1
-
-from swh.gitloader import models
+from swh import hash
+from swh.gitloader import storage, models
 
 
 class Type(Enum):
+    """Types of git objects.
+    """
     commit = 0
     tree = 1
     blob = 2
@@ -25,35 +24,7 @@ class Type(Enum):
 
 in_cache_objects = lambda *args: models.find_object(*args) is not None
 in_cache_blobs = lambda *args: models.find_blob(*args) is not None
-
-
-def add_object_in_cache(db_conn, obj_sha, obj_type):
-    """Add obj in cache.
-    """
-    logging.debug('Injecting object %s in cache' % obj_sha)
-    models.add_object(db_conn, obj_sha, obj_type)
-
-
-def create_dir_from_hash(file_content_storage_dir, hash):
-    """Create directory from a given hash.
-    """
-
-    folder_in_storage = folder_path(file_content_storage_dir, hash)
-    os.makedirs(folder_in_storage, exist_ok=True)
-
-    return folder_in_storage
-
-
-def add_blob_in_file_storage(db_conn, file_content_storage_dir, blob, hashkey):
-    """Add blob in the file content storage (on disk).
-
-TODO: split in another module, file manipulation maybe?
-    """
-    folder_in_storage = create_dir_from_hash(file_content_storage_dir, hashkey)
-    filepath = os.path.join(folder_in_storage, hashkey)
-    logging.debug('Injecting blob %s in file content storage.' % filepath)
-    write_blob_on_disk(blob, filepath)
-    return filepath
+add_object_in_cache = lambda *args: models.add_object(*args)
 
 
 def load_repo(db_conn,
@@ -68,13 +39,14 @@ def load_repo(db_conn,
         (if not already present).
         """
 
-        tree_sha1_bin = sha1_bin(tree_ref.hex)
+        tree_sha1_bin = hash.sha1_bin(tree_ref.hex)
 
         if in_cache_objects(db_conn, tree_sha1_bin, Type.tree):
             logging.debug('Tree %s already visited, skip!' % tree_ref.hex)
             return
 
         # Add the tree in cache
+        logging.debug('Store new tree %s (db).' % tree_sha1_bin)
         add_object_in_cache(db_conn, tree_sha1_bin, Type.tree)
 
         # Now walk the tree
@@ -93,7 +65,8 @@ def load_repo(db_conn,
 
             else:
                 blob_entry_ref = repo[tree_entry.id]
-                hashkey = hashkey_sha1(blob_entry_ref.data)
+                blob_data = blob_entry_ref.data
+                hashkey = hash.hashkey_sha1(blob_data)
                 blob_data_sha1_bin = hashkey.digest()
 
                 # Remains only Blob
@@ -102,17 +75,17 @@ def load_repo(db_conn,
                                   blob_entry_ref.hex)
                     continue
 
-                logging.debug('New blob %s -> in file storage!' %
+                logging.debug('Store new blob %s (db + file storage)!' %
                               blob_entry_ref.hex)
-                add_blob_in_file_storage(db_conn,
-                                         file_content_storage_dir,
-                                         blob_entry_ref,
-                                         hashkey.hexdigest())
+                storage.add_blob_to_storage(db_conn,
+                                            file_content_storage_dir,
+                                            blob_data,
+                                            hashkey.hexdigest())
 
                 models.add_blob(db_conn,
                                 blob_data_sha1_bin,
                                 blob_entry_ref.size,
-                                sha1_bin(blob_entry_ref.hex))
+                                hash.sha1_bin(blob_entry_ref.hex))
 
     repo = pygit2.Repository(repo_path)
     all_refs = repo.listall_references()
@@ -124,14 +97,16 @@ def load_repo(db_conn,
         head_commit = ref.peel()
         # for each commit referenced by the commit graph starting at that ref
         for commit in repo.walk(head_commit.id, pygit2.GIT_SORT_TOPOLOGICAL):
-            commit_sha1_bin = sha1_bin(commit.hex)
+            commit_sha1_bin = hash.sha1_bin(commit.hex)
             # if we have a git commit cache and the commit is in there:
             if in_cache_objects(db_conn, commit_sha1_bin, Type.commit):
                 continue  # stop treating the current commit sub-graph
             else:
+                logging.debug('Visit and store new commit %s (db).'
+                              % commit_sha1_bin)
+
                 add_object_in_cache(db_conn, commit_sha1_bin,
                                     Type.commit)
-
                 save_blobs(commit.tree, repo)
 
 
