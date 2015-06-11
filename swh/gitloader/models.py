@@ -33,7 +33,11 @@ def initdb(db_conn):
     """
     with db.execute(db_conn) as cur:
         cur.execute("""CREATE TYPE type
-                       as ENUM('commit','tree','blob','tag');""")
+                       as ENUM(%s, %s, %s, %s);""",
+                    (Type.commit.value,
+                     Type.tree.value,
+                     Type.blob.value,
+                     Type.tag.value))
         cur.execute("""create table if not exists files
              (id bigserial primary key,
               sha1 bytea unique,
