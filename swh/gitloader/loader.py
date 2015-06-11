@@ -13,7 +13,6 @@ from swh.gitloader import storage, models
 
 in_cache_objects = lambda *args: models.find_object(*args) is not None
 in_cache_blobs = lambda *args: models.find_blob(*args) is not None
-add_object_in_cache = lambda *args: models.add_object(*args)
 
 
 def load_repo(db_conn,
@@ -23,7 +22,7 @@ def load_repo(db_conn,
     """Parse git repository `repo_path` and flush
     blobs on disk in `file_content_storage_dir`.
     """
-    def save_blobs(tree_ref, repo):
+    def walk_tree(tree_ref, repo):
         """Given a tree, walk the tree and store the blobs in file content storage
         (if not already present).
         """
@@ -34,9 +33,9 @@ def load_repo(db_conn,
             return
 
         # Add the tree in cache
-        logging.debug('Store new tree %s (db).' % tree_sha1_bin)
-        add_object_in_cache(db_conn, tree_sha1_bin, models.Type.tree)
-        
+        logging.debug('Visit and store new tree %s (db).' % tree_sha1_bin)
+        storage.add_object(object_content_storage_dir, tree_ref)
+        models.add_object(db_conn, tree_sha1_bin, models.Type.tree)
 
         # Now walk the tree
         for tree_entry in tree_ref:
@@ -50,7 +49,7 @@ def load_repo(db_conn,
             elif (filemode == pygit2.GIT_FILEMODE_TREE):  # Tree
                 logging.debug('Tree %s -> walk!'
                               % tree_entry.id)
-                save_blobs(repo[tree_entry.id], repo)
+                walk_tree(repo[tree_entry.id], repo)
 
             else:
                 blob_entry_ref = repo[tree_entry.id]
@@ -89,12 +88,14 @@ def load_repo(db_conn,
             if in_cache_objects(db_conn, commit_sha1_bin, models.Type.commit):
                 continue  # stop treating the current commit sub-graph
             else:
-                logging.debug('Visit and store new commit %s (db).'
+                logging.debug('Store new commit %s (db + object storage)!'
                               % commit_sha1_bin)
 
-                add_object_in_cache(db_conn, commit_sha1_bin,
-                                    models.Type.commit)
-                save_blobs(commit.tree, repo)
+                storage.add_object(object_content_storage_dir, commit)
+                models.add_object(db_conn, commit_sha1_bin,
+                                  models.Type.commit)
+
+                walk_tree(commit.tree, repo)
 
 
 def run(conf):

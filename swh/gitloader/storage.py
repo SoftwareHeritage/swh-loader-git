@@ -19,10 +19,25 @@ def create_dir_from_hash(file_content_storage_dir, hashv):
     return folder_in_storage
 
 
+def write_object(dataset_dir, data, hashv):
+    """Write object with data and hashv on disk in dataset_dir.
+    """
+    folder_in_storage = create_dir_from_hash(dataset_dir, hashv)
+    filepath = os.path.join(folder_in_storage, hashv)
+    logging.debug('Injecting %s in content storage.' % filepath)
+    file.write_data(data, filepath)
+
+
 def add_blob(file_content_storage_dir, data, hashv):
     """Add blob in the file content storage (on disk).
     """
-    folder_in_storage = create_dir_from_hash(file_content_storage_dir, hashv)
-    filepath = os.path.join(folder_in_storage, hashv)
-    logging.debug('Injecting blob %s in file content storage.' % filepath)
-    file.write_data(data, filepath)
+    write_object(file_content_storage_dir, data, hashv)
+
+
+def add_object(object_content_storage_dir, object_ref):
+    """Add the object to the storage.
+       object_ref should of type Commit or Tree.
+    """
+    hashv = object_ref.hex
+    data = object_ref.read_raw()
+    write_object(object_content_storage_dir, data, hashv)
