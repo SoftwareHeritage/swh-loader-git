@@ -130,23 +130,6 @@ make cleandb
 bin/sgloader initdb
 #+end_src
 
-* IN-PROGRESS Improvments [14/16]
-- [X] Push on remote git repository
-- [X] Serialize blob's data and not blob's size.
-- [X] Logging in python? How to see the log?
-- [X] Replace sqlalchemy dao layer with psycopg2
-- [X] Improve sgloader cli interface
-- [X] Serialize sha256 as bytes
-- [X] Update README.org
-- [X] Serialize sha1 as bytes
-- [X] Use sha1 instead of sha256 for file cache
-- [X] Use postgresql's bytea column for sha1
-- [X] Improve git object dispatch (look up on repo object only if necessary)
-- [X] Add functional test which adds new commits
-- [X] Store git object on disk too
-- [X] Make the compression for the file storage optional
-- [ ] Make the compression for the git object storage optional
-- [ ] Add computation folder with depth parametrized
 * Performance
 This is not perf test per say.
 It's runs on a given machine.
