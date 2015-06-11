@@ -8,7 +8,7 @@ FLAG=
 
 NOSE = nosetests3
 TESTFLAGS = -s
-TESTDIR = ./tests
+TESTDIR = ./swh/tests
 
 DB=swhgitloader
 DB_TEST=swhgitloader-test
