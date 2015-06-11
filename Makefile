@@ -1,6 +1,6 @@
 FLAKE = flake8
 BINDIR = bin
-SRCDIR = sgloader
+SRCDIR = swh
 REPO_PATH=$(HOME)/work/inria/repo/org-beamer-swh
 
 # add -v for example
@@ -43,7 +43,7 @@ clean-and-run: clean prepare
 	PYTHONPATH=`pwd` $(BIN) $(FLAG) load $(REPO_PATH)
 
 check:
-	$(FLAKE) $(BINDIR)/sgloader $(SRCDIR)/*.py
+	$(FLAKE) $(BINDIR) $(SRCDIR)
 
 profile:
 	[ -f profile-sgloader.py ] && python3 -m cProfile profile-sgloader.py
