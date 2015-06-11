@@ -19,10 +19,10 @@ def create_dir_from_hash(file_content_storage_dir, hashv):
     return folder_in_storage
 
 
-def add_blob_to_storage(db_conn, file_content_storage_dir, data, hashkey):
+def add_blob(db_conn, file_content_storage_dir, data, hashv):
     """Add blob in the file content storage (on disk).
     """
-    folder_in_storage = create_dir_from_hash(file_content_storage_dir, hashkey)
-    filepath = os.path.join(folder_in_storage, hashkey)
+    folder_in_storage = create_dir_from_hash(file_content_storage_dir, hashv)
+    filepath = os.path.join(folder_in_storage, hashv)
     logging.debug('Injecting blob %s in file content storage.' % filepath)
     file.write_data(data, filepath)

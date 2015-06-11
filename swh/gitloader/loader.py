@@ -66,10 +66,10 @@ def load_repo(db_conn,
 
                 logging.debug('Store new blob %s (db + file storage)!' %
                               blob_entry_ref.hex)
-                storage.add_blob_to_storage(db_conn,
-                                            file_content_storage_dir,
-                                            blob_data,
-                                            hashkey.hexdigest())
+                storage.add_blob(db_conn,
+                                 file_content_storage_dir,
+                                 blob_data,
+                                 hashkey.hexdigest())
 
                 models.add_blob(db_conn,
                                 blob_data_sha1_bin,
