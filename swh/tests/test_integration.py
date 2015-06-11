@@ -115,6 +115,9 @@ class TestingLearning(unittest.TestCase):
         loader.run(self.conf)
 
         with db.connect(self.db_url) as db_conn:
-            assert models.count_objects(db_conn, models.Type.commit) == 5
-            assert models.count_objects(db_conn, models.Type.tree) == 5
-            assert models.count_files(db_conn) == 4
+            self.assertEquals(
+                models.count_objects(db_conn, models.Type.commit), 5)
+            self.assertEquals(
+                models.count_objects(db_conn, models.Type.tree), 5)
+            self.assertEquals(
+                models.count_files(db_conn), 4)
