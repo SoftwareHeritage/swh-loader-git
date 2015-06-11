@@ -119,23 +119,20 @@ def run(conf):
     - file_content_storage_dir: path to file content storage
     - object_content_storage_dir: path to git object content storage
     """
+    with models.db_connect(conf['db_url']) as db_conn:
+        action = conf['action']
 
-    db_conn = models.db_connect(conf['db_url'])
-    action = conf['action']
-
-    if action == 'cleandb':
-        logging.info('Database cleanup!')
-        models.cleandb(db_conn)
-    elif action == 'initdb':
-        logging.info('Database initialization!')
-        models.initdb(db_conn)
-    elif action == 'load':
-        logging.info('Loading git repository %s' % conf['repository'])
-        load_repo(db_conn,
-                  conf['repository'],
-                  conf['file_content_storage_dir'],
-                  conf['object_content_storage_dir'])
-    else:
-        logging.warn('Unknown action %s, skip!' % action)
-
-    db_conn.close()
+        if action == 'cleandb':
+            logging.info('Database cleanup!')
+            models.cleandb(db_conn)
+        elif action == 'initdb':
+            logging.info('Database initialization!')
+            models.initdb(db_conn)
+        elif action == 'load':
+            logging.info('Loading git repository %s' % conf['repository'])
+            load_repo(db_conn,
+                      conf['repository'],
+                      conf['file_content_storage_dir'],
+                      conf['object_content_storage_dir'])
+        else:
+            logging.warn('Unknown action %s, skip!' % action)

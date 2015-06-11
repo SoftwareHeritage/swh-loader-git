@@ -80,7 +80,6 @@ class TestingLearning(unittest.TestCase):
 
         # open connection to db
         self.db_url = "dbname=swhgitloader-test user=tony"
-        self.db_conn = models.db_connect(self.db_url)
 
     def tearDown(self):
         """Destroy the test git repository.
@@ -88,8 +87,6 @@ class TestingLearning(unittest.TestCase):
 
         # Remove temporary git repository
         shutil.rmtree(self.tmpGitRepo.workdir)
-        # close db connection
-        self.db_conn.close()
 
     @istest
     def tryout(self):
@@ -117,6 +114,7 @@ class TestingLearning(unittest.TestCase):
         conf['action'] = "load"
         loader.run(conf)
 
-        assert models.count_objects(self.db_conn, loader.Type.commit) == 5
-        assert models.count_objects(self.db_conn, loader.Type.tree) == 5
-        assert models.count_files(self.db_conn) == 4
+        with models.db_connect(self.db_url) as db_conn:
+            assert models.count_objects(db_conn, loader.Type.commit) == 5
+            assert models.count_objects(db_conn, loader.Type.tree) == 5
+            assert models.count_files(db_conn) == 4
