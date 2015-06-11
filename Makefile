@@ -68,3 +68,10 @@ drop-db:
 
 create-db:
 	sudo su -l postgres -c "createdb -O $(USER) $(DB)"
+
+check-meta:
+	echo "Repository metadata:"
+	$(BINDIR)/dir-git-repo-meta.sh $(REPO_PATH)
+
+	echo "DB Repository metadata:"
+	$(BINDIR)/db-git-repo-meta.sh
