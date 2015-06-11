@@ -82,10 +82,28 @@ class TestingLearning(unittest.TestCase):
         # open connection to db
         self.db_url = "dbname=swhgitloader-test user=tony"
 
+        # trigger the script
+        repo_path = self.tmpGitRepo.workdir
+        file_content_storage_dir = os.path.join(repo_path, "dataset")
+
+        os.makedirs(file_content_storage_dir, exist_ok=True)
+
+        self.conf = {
+            'db_url': self.db_url,
+            'repository': repo_path,
+            'file_content_storage_dir': file_content_storage_dir,
+            'object_content_storage_dir': None
+            }
+
+        self.conf['action'] = "cleandb"
+        loader.run(self.conf)
+
+        self.conf['action'] = "initdb"
+        loader.run(self.conf)
+
     def tearDown(self):
         """Destroy the test git repository.
         """
-
         # Remove temporary git repository
         shutil.rmtree(self.tmpGitRepo.workdir)
 
@@ -93,27 +111,8 @@ class TestingLearning(unittest.TestCase):
     def tryout(self):
         """Trigger sgloader and make sure everything is ok.
         """
-        # trigger the script
-        repo_path = self.tmpGitRepo.workdir
-        file_content_storage_dir = os.path.join(repo_path, "dataset")
-
-        os.makedirs(file_content_storage_dir, exist_ok=True)
-
-        conf = {
-            'db_url': self.db_url,
-            'repository': repo_path,
-            'file_content_storage_dir': file_content_storage_dir,
-            'object_content_storage_dir': None
-            }
-
-        conf['action'] = "cleandb"
-        loader.run(conf)
-
-        conf['action'] = "initdb"
-        loader.run(conf)
-
-        conf['action'] = "load"
-        loader.run(conf)
+        self.conf['action'] = "load"
+        loader.run(self.conf)
 
         with db.connect(self.db_url) as db_conn:
             assert models.count_objects(db_conn, models.Type.commit) == 5
