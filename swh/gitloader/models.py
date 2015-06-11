@@ -4,7 +4,18 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+from enum import Enum
+
 from swh import db
+
+
+class Type(Enum):
+    """Types of git objects.
+    """
+    commit = 'commit'
+    tree = 'tree'
+    blob = 'blob'
+    tag = 'tag'
 
 
 def cleandb(db_conn, only_truncate=False):
@@ -14,12 +25,15 @@ def cleandb(db_conn, only_truncate=False):
         action = "truncate table" if only_truncate else "drop table if exists"
         cur.execute("%s files;" % action)
         cur.execute("%s git_objects;" % action)
+        cur.execute("drop type if exists type;")
 
 
 def initdb(db_conn):
     """Initialize the database.
     """
     with db.execute(db_conn) as cur:
+        cur.execute("""CREATE TYPE type
+                       as ENUM('commit','tree','blob','tag');""")
         cur.execute("""create table if not exists files
              (id bigserial primary key,
               sha1 bytea unique,
@@ -30,7 +44,7 @@ def initdb(db_conn):
         cur.execute("""create table if not exists git_objects (
                                    id bigserial primary key,
                                    sha1 bytea,
-                                   type smallint constraint no_null not null,
+                                   type type constraint no_null not null,
                                    ctime timestamp default current_timestamp,
                                    stored bool default false);""")
 

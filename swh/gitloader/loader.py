@@ -7,19 +7,8 @@
 import logging
 import pygit2
 
-from enum import Enum
-
 from swh import hash, db
 from swh.gitloader import storage, models
-
-
-class Type(Enum):
-    """Types of git objects.
-    """
-    commit = 0
-    tree = 1
-    blob = 2
-    tag = 3
 
 
 in_cache_objects = lambda *args: models.find_object(*args) is not None
@@ -41,13 +30,13 @@ def load_repo(db_conn,
 
         tree_sha1_bin = hash.sha1_bin(tree_ref.hex)
 
-        if in_cache_objects(db_conn, tree_sha1_bin, Type.tree):
+        if in_cache_objects(db_conn, tree_sha1_bin, models.Type.tree):
             logging.debug('Tree %s already visited, skip!' % tree_ref.hex)
             return
 
         # Add the tree in cache
         logging.debug('Store new tree %s (db).' % tree_sha1_bin)
-        add_object_in_cache(db_conn, tree_sha1_bin, Type.tree)
+        add_object_in_cache(db_conn, tree_sha1_bin, models.Type.tree)
 
         # Now walk the tree
         for tree_entry in tree_ref:
@@ -99,14 +88,14 @@ def load_repo(db_conn,
         for commit in repo.walk(head_commit.id, pygit2.GIT_SORT_TOPOLOGICAL):
             commit_sha1_bin = hash.sha1_bin(commit.hex)
             # if we have a git commit cache and the commit is in there:
-            if in_cache_objects(db_conn, commit_sha1_bin, Type.commit):
+            if in_cache_objects(db_conn, commit_sha1_bin, models.Type.commit):
                 continue  # stop treating the current commit sub-graph
             else:
                 logging.debug('Visit and store new commit %s (db).'
                               % commit_sha1_bin)
 
                 add_object_in_cache(db_conn, commit_sha1_bin,
-                                    Type.commit)
+                                    models.Type.commit)
                 save_blobs(commit.tree, repo)
 
 
