@@ -5,6 +5,7 @@
 # See top-level LICENSE file for more information
 
 import os
+import gzip
 
 
 def folder_path(prefix_dir, hash):
@@ -18,8 +19,9 @@ def folder_path(prefix_dir, hash):
                         hash[6:8])
 
 
-def write_data(data, filepath):
-    """Write data to filepath.
+def write_data(data, path, comp_flag=None):
+    """Write data to path.
+    If compress_path is not None, gzip the data.
     """
-    with open(filepath, 'wb') as f:
+    with (gzip.open(path, 'wb') if comp_flag else open(path, 'wb')) as f:
         f.write(data)

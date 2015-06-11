@@ -18,7 +18,8 @@ in_cache_blobs = lambda *args: models.find_blob(*args) is not None
 def load_repo(db_conn,
               repo_path,
               file_content_storage_dir,
-              object_content_storage_dir):
+              object_content_storage_dir,
+              blob_compress_flag=None):
     """Parse git repository `repo_path` and flush
     blobs on disk in `file_content_storage_dir`.
     """
@@ -67,7 +68,8 @@ def load_repo(db_conn,
                               blob_entry_ref.hex)
                 storage.add_blob(file_content_storage_dir,
                                  blob_data,
-                                 hashkey.hexdigest())
+                                 hashkey.hexdigest(),
+                                 blob_compress_flag)
                 models.add_blob(db_conn,
                                 blob_data_sha1_bin,
                                 blob_entry_ref.size,

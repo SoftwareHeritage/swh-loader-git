@@ -19,19 +19,19 @@ def create_dir_from_hash(file_content_storage_dir, hashv):
     return folder_in_storage
 
 
-def write_object(dataset_dir, data, hashv):
+def write_object(dataset_dir, data, hashv, compress_flag=None):
     """Write object with data and hashv on disk in dataset_dir.
     """
     folder_in_storage = create_dir_from_hash(dataset_dir, hashv)
     filepath = os.path.join(folder_in_storage, hashv)
     logging.debug('Injecting %s in content storage.' % filepath)
-    file.write_data(data, filepath)
+    file.write_data(data, filepath, compress_flag)
 
 
-def add_blob(file_content_storage_dir, data, hashv):
+def add_blob(file_content_storage_dir, data, hashv, compress_flag=None):
     """Add blob in the file content storage (on disk).
     """
-    write_object(file_content_storage_dir, data, hashv)
+    write_object(file_content_storage_dir, data, hashv, compress_flag)
 
 
 def add_object(object_content_storage_dir, object_ref):

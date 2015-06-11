@@ -130,7 +130,7 @@ make cleandb
 bin/sgloader initdb
 #+end_src
 
-* IN-PROGRESS Improvments [11/16]
+* IN-PROGRESS Improvments [13/16]
 - [X] Push on remote git repository
 - [X] Serialize blob's data and not blob's size.
 - [X] Logging in python? How to see the log?
@@ -142,8 +142,8 @@ bin/sgloader initdb
 - [X] Use sha1 instead of sha256 for file cache
 - [X] Use postgresql's bytea column for sha1
 - [X] Improve git object dispatch (look up on repo object only if necessary)
-- [ ] Store git object on disk too
-- [ ] Make the compression for the file storage optional
+- [X] Store git object on disk too
+- [X] Make the compression for the file storage optional
 - [ ] Make the compression for the git object storage optional
 - [ ] Add computation folder with depth parametrized
 - [ ] Add functional test which adds new commits
