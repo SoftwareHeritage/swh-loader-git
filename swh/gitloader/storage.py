@@ -19,7 +19,7 @@ def create_dir_from_hash(file_content_storage_dir, hashv):
     return folder_in_storage
 
 
-def add_blob(db_conn, file_content_storage_dir, data, hashv):
+def add_blob(file_content_storage_dir, data, hashv):
     """Add blob in the file content storage (on disk).
     """
     folder_in_storage = create_dir_from_hash(file_content_storage_dir, hashv)
