@@ -24,12 +24,12 @@ def initdb(db_conn):
     with db.execute(db_conn) as cur:
         cur.execute("""create table if not exists files
              (sha1 bytea primary key,
-              size integer,
+              ctime date,
               sha1_git bytea,
-              ctime date);""")
+              size integer);""")
         cur.execute("""create table if not exists git_objects (
                                    sha1 bytea primary key,
-                                   type integer,
+                                   type smallint,
                                    ctime date);""")
 
 
