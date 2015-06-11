@@ -34,7 +34,6 @@ initdb: clean prepare
 	PYTHONPATH=`pwd` $(BIN) $(FLAG) initdb
 
 run: clean prepare
-	PYTHONPATH=`pwd` $(BIN) $(FLAG) initdb
 	PYTHONPATH=`pwd` $(BIN) $(FLAG) load $(REPO_PATH)
 
 clean-and-run: clean prepare
