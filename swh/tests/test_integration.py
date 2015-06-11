@@ -13,7 +13,7 @@ from swh import db
 
 
 @attr('slow')
-class TestingLearning(unittest.TestCase):
+class FuncUseCase(unittest.TestCase):
     tmpGitRepo = None
     db_url = None
     db_conn = None
