@@ -4,8 +4,6 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-from datetime import datetime
-
 from swh import db
 
 
@@ -24,13 +22,13 @@ def initdb(db_conn):
     with db.execute(db_conn) as cur:
         cur.execute("""create table if not exists files
              (sha1 bytea primary key,
-              ctime date,
+              ctime timestamp default current_timestamp,
               sha1_git bytea,
               size integer);""")
         cur.execute("""create table if not exists git_objects (
                                    sha1 bytea primary key,
                                    type smallint,
-                                   ctime date,
+                                   ctime timestamp default current_timestamp,
                                    stored bool default false);""")
 
 
@@ -38,18 +36,18 @@ def add_blob(db_conn, obj_sha, size, obj_git_sha):
     """Insert a new file
     """
     with db.execute(db_conn) as cur:
-        cur.execute("""insert into files (sha1, size, sha1_git, ctime)
-                       values (%s, %s, %s, %s);""",
-                    (obj_sha, size, obj_git_sha, datetime.now()))
+        cur.execute("""insert into files (sha1, size, sha1_git)
+                       values (%s, %s, %s);""",
+                    (obj_sha, size, obj_git_sha))
 
 
 def add_object(db_conn, obj_sha, obj_type):
     """Insert a new object
     """
     with db.execute(db_conn) as cur:
-        cur.execute("""insert into git_objects (sha1, type, ctime)
-                       values (%s, %s, %s);""",
-                    (obj_sha, obj_type.value, datetime.now()))
+        cur.execute("""insert into git_objects (sha1, type)
+                       values (%s, %s);""",
+                    (obj_sha, obj_type.value))
 
 
 def find_blob(db_conn, obj_sha):
