@@ -8,9 +8,8 @@ import shutil
 from nose.tools import istest
 from nose.plugins.attrib import attr
 
-from swh.gitloader.loader import run, Type
-from swh.gitloader.models import count_files, count_objects
-from swh.db_utils import db_connect
+from swh.gitloader import loader, models
+
 
 @attr('slow')
 class TestingLearning(unittest.TestCase):
@@ -81,7 +80,7 @@ class TestingLearning(unittest.TestCase):
 
         # open connection to db
         self.db_url = "dbname=swhgitloader-test user=tony"
-        self.db_conn = db_connect(self.db_url)
+        self.db_conn = models.db_connect(self.db_url)
 
     def tearDown(self):
         """Destroy the test git repository.
@@ -110,14 +109,14 @@ class TestingLearning(unittest.TestCase):
             }
 
         conf['action'] = "cleandb"
-        run(conf)
+        loader.run(conf)
 
         conf['action'] = "initdb"
-        run(conf)
+        loader.run(conf)
 
         conf['action'] = "load"
-        run(conf)
+        loader.run(conf)
 
-        assert count_objects(self.db_conn, Type.commit) == 5
-        assert count_objects(self.db_conn, Type.tree) == 5
-        assert count_files(self.db_conn) == 4
+        assert models.count_objects(self.db_conn, loader.Type.commit) == 5
+        assert models.count_objects(self.db_conn, loader.Type.tree) == 5
+        assert models.count_files(self.db_conn) == 4
