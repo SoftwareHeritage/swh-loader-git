@@ -22,7 +22,7 @@ def connect(db_url):
 
 
 @contextmanager
-def execute(db_conn):
+def _execute(db_conn):
     """Execute sql insert, create, dropb, delete query to db.
     """
     cur = db_conn.cursor()
@@ -38,7 +38,7 @@ def execute(db_conn):
 
 
 @contextmanager
-def fetch(db_conn):
+def _fetch(db_conn):
     """Execute sql select query to db.
     """
     cur = db_conn.cursor()
@@ -46,3 +46,35 @@ def fetch(db_conn):
         yield cur
     finally:
         cur.close()
+
+
+def query_execute(db_conn, query_params):
+    """Execute one query.
+       Type of sql queries: insert, delete, drop, create...
+    """
+    queries_execute(db_conn, [query_params])
+
+
+def queries_execute(db_conn, queries_params):
+    """Execute multiple queries without any result expected.
+       Type of sql queries: insert, delete, drop, create...
+    """
+    with _execute(db_conn) as cur:
+        for query_params in queries_params:
+            if isinstance(query_params, str):
+                cur.execute(query_params)
+            else:
+                query, params = query_params
+                cur.execute(cur.mogrify(query, params))
+
+
+def query_fetchone(db_conn, query_params):
+    """Execute sql query which returns one result.
+    """
+    with _fetch(db_conn) as cur:
+        if isinstance(query_params, str):
+            cur.execute(query_params)
+        else:
+            query, params = query_params
+            cur.execute(cur.mogrify(query, params))
+        return cur.fetchone()

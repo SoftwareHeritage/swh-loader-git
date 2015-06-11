@@ -18,90 +18,81 @@ class Type(Enum):
     tag = 'tag'
 
 
-def cleandb(db_conn, only_truncate=False):
+def cleandb(db_conn):
     """Clean the database.
     """
-    with db.execute(db_conn) as cur:
-        action = "truncate table" if only_truncate else "drop table if exists"
-        cur.execute("%s files;" % action)
-        cur.execute("%s git_objects;" % action)
-        cur.execute("drop type if exists type;")
+    db.queries_execute(db_conn, ["drop table if exists files;",
+                                 "drop table if exists git_objects;",
+                                 "drop type if exists type;"])
 
 
 def initdb(db_conn):
     """Initialize the database.
     """
-    with db.execute(db_conn) as cur:
-        cur.execute("""CREATE TYPE type
-                       as ENUM(%s, %s, %s, %s);""",
-                    (Type.commit.value,
-                     Type.tree.value,
-                     Type.blob.value,
-                     Type.tag.value))
-        cur.execute("""create table if not exists files
-             (id bigserial primary key,
+    db.queries_execute(db_conn, [
+        ("""CREATE TYPE type
+            as ENUM(%s, %s, %s, %s);""",
+            (Type.commit.value,
+             Type.tree.value,
+             Type.blob.value,
+             Type.tag.value)),
+        """create table if not exists files
+              (id bigserial primary key,
               sha1 bytea unique,
               size integer constraint no_null not null,
               ctime timestamp default current_timestamp,
               sha1_git bytea constraint no_null not null,
-              UNIQUE(sha1, size));""")
-        cur.execute("""create table if not exists git_objects (
-                                   id bigserial primary key,
-                                   sha1 bytea,
-                                   type type constraint no_null not null,
-                                   ctime timestamp default current_timestamp,
-                                   stored bool default false);""")
+              UNIQUE(sha1, size));""",
+        """create table if not exists git_objects
+               (id bigserial primary key,
+               sha1 bytea,
+               type type constraint no_null not null,
+               ctime timestamp default current_timestamp,
+               stored bool default false);"""])
 
 
 def add_blob(db_conn, obj_sha, size, obj_git_sha):
     """Insert a new file
     """
-    with db.execute(db_conn) as cur:
-        cur.execute("""insert into files (sha1, size, sha1_git)
-                       values (%s, %s, %s);""",
-                    (obj_sha, size, obj_git_sha))
+    db.query_execute(db_conn, ("""insert into files (sha1, size, sha1_git)
+                                  values (%s, %s, %s);""",
+                               (obj_sha, size, obj_git_sha)))
 
 
 def add_object(db_conn, obj_sha, obj_type):
     """Insert a new object
     """
-    with db.execute(db_conn) as cur:
-        cur.execute("""insert into git_objects (sha1, type)
-                       values (%s, %s);""",
-                    (obj_sha, obj_type.value))
+    db.query_execute(db_conn, ("""insert into git_objects (sha1, type)
+                                  values (%s, %s);""",
+                               (obj_sha, obj_type.value)))
 
 
 def find_blob(db_conn, obj_sha):
     """Find a file by its hash.
     """
-    with db.fetch(db_conn) as cur:
-        cur.execute("""select sha1 from files
-                       where sha1=%s;""",
-                    (obj_sha,))
-        return cur.fetchone()
+    return db.query_fetchone(db_conn, ("""select sha1 from files
+                                          where sha1=%s;""",
+                                       (obj_sha,)))
 
 
 def find_object(db_conn, obj_sha, obj_type):
     """Find an object by its hash.
     """
-    with db.fetch(db_conn) as cur:
-        cur.execute("""select sha1 from git_objects
-                       where sha1=%s
-                       and type=%s;""",
-                    (obj_sha, obj_type.value))
-        return cur.fetchone()
+    return db.query_fetchone(db_conn, ("""select sha1 from git_objects
+                                          where sha1=%s
+                                          and type=%s;""",
+                                       (obj_sha, obj_type.value)))
 
 
 def count_files(db_conn):
     """Count the number of blobs."""
-    with db.fetch(db_conn) as cur:
-        cur.execute("""select count(*) from files;""")
-        return cur.fetchone()[0]
+    row = db.query_fetchone(db_conn, "select count(*) from files;")
+    return row[0]
 
 
 def count_objects(db_conn, obj_type):
     """Count the number of objects with obj_type."""
-    with db.fetch(db_conn) as cur:
-        cur.execute("""select count(*) from git_objects
-                       where type=%s;""", (obj_type.value,))
-        return cur.fetchone()[0]
+    row = db.query_fetchone(db_conn, ("""select count(*) from git_objects
+                                         where type=%s;""",
+                                      (obj_type.value,)))
+    return row[0]
