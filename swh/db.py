@@ -22,7 +22,7 @@ def connect(db_url):
 
 
 @contextmanager
-def _execute(db_conn):
+def _transaction(db_conn):
     """Execute sql insert, create, dropb, delete query to db.
     """
     cur = db_conn.cursor()
@@ -48,33 +48,48 @@ def _fetch(db_conn):
         cur.close()
 
 
+def _execute(cur, query_params):
+    """Execute the query_params.
+    query_params is expected to be either:
+    - a sql query (string)
+    - a tuple (sql query, params)
+    """
+    if isinstance(query_params, str):
+        cur.execute(query_params)
+    else:
+        query, params = query_params
+        cur.execute(cur.mogrify(query, params))
+
+
 def query_execute(db_conn, query_params):
     """Execute one query.
        Type of sql queries: insert, delete, drop, create...
+       query_params is expected to be either:
+       - a sql query (string)
+       - a tuple (sql query, params)
     """
-    queries_execute(db_conn, [query_params])
+    with _transaction(db_conn) as cur:
+        _execute(cur, query_params)
 
 
 def queries_execute(db_conn, queries_params):
     """Execute multiple queries without any result expected.
        Type of sql queries: insert, delete, drop, create...
+       query_params is expected to be a list of mixed:
+       - sql query (string)
+       - tuple (sql query, params)
     """
-    with _execute(db_conn) as cur:
+    with _transaction(db_conn) as cur:
         for query_params in queries_params:
-            if isinstance(query_params, str):
-                cur.execute(query_params)
-            else:
-                query, params = query_params
-                cur.execute(cur.mogrify(query, params))
+            _execute(cur, query_params)
 
 
 def query_fetchone(db_conn, query_params):
     """Execute sql query which returns one result.
+       query_params is expected to be either:
+       - a sql query (string)
+       - a tuple (sql query, params)
     """
     with _fetch(db_conn) as cur:
-        if isinstance(query_params, str):
-            cur.execute(query_params)
-        else:
-            query, params = query_params
-            cur.execute(cur.mogrify(query, params))
+        _execute(cur, query_params)
         return cur.fetchone()
