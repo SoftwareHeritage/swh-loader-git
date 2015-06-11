@@ -81,7 +81,7 @@ def load_repo(db_conn,
 
     # for each ref in the repo
     for ref_name in all_refs:
-        logging.debug('Parse reference %s' % ref_name)
+        logging.info('Parse reference %s' % ref_name)
         ref = repo.lookup_reference(ref_name)
         head_commit = ref.peel()
         # for each commit referenced by the commit graph starting at that ref
