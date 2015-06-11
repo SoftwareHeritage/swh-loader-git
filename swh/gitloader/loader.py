@@ -34,13 +34,6 @@ def add_object_in_cache(db_conn, obj_sha, obj_type):
     models.add_object(db_conn, obj_sha, obj_type)
 
 
-def write_blob_on_disk(blob, filepath):
-    """Write blob on disk.
-    """
-    with open(filepath, 'wb') as f:
-        f.write(blob.data)
-
-
 def create_dir_from_hash(file_content_storage_dir, hash):
     """Create directory from a given hash.
     """
@@ -70,7 +63,7 @@ def load_repo(db_conn,
     """Parse git repository `repo_path` and flush
     blobs on disk in `file_content_storage_dir`.
     """
-    def store_blobs_from_tree(tree_ref, repo):
+    def save_blobs(tree_ref, repo):
         """Given a tree, walk the tree and store the blobs in file content storage
         (if not already present).
         """
@@ -96,7 +89,7 @@ def load_repo(db_conn,
             elif (filemode == pygit2.GIT_FILEMODE_TREE):  # Tree
                 logging.debug('Tree %s -> walk!'
                               % tree_entry.id)
-                store_blobs_from_tree(repo[tree_entry.id], repo)
+                save_blobs(repo[tree_entry.id], repo)
 
             else:
                 blob_entry_ref = repo[tree_entry.id]
@@ -139,7 +132,7 @@ def load_repo(db_conn,
                 add_object_in_cache(db_conn, commit_sha1_bin,
                                     Type.commit)
 
-                store_blobs_from_tree(commit.tree, repo)
+                save_blobs(commit.tree, repo)
 
 
 def run(conf):

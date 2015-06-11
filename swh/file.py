@@ -16,3 +16,10 @@ def folder_path(prefix_dir, hash):
                         hash[2:4],
                         hash[4:6],
                         hash[6:8])
+
+
+def write_data(data, filepath):
+    """Write data to filepath.
+    """
+    with open(filepath, 'wb') as f:
+        f.write(data)
