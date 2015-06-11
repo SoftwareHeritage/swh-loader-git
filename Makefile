@@ -1,7 +1,7 @@
 FLAKE = flake8
 BINDIR = bin
 SRCDIR = swh
-REPO_PATH=$(HOME)/work/inria/repo/org-beamer-swh
+REPO_PATH=../debsources
 
 # add -v for example
 FLAG=
