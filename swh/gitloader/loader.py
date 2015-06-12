@@ -24,6 +24,29 @@ def load_repo(db_conn,
     """Parse git repository `repo_path` and flush
     blobs on disk in `file_content_storage_dir`.
     """
+    def store_object(object_ref, object_sha1_bin, object_type):
+        """Store object in swh storage"""
+        logging.debug('store %s %s' % (object_ref.hex, object_type))
+        storage.add_object(object_content_storage_dir, object_ref,
+                           folder_depth)
+        models.add_object(db_conn, object_sha1_bin, object_type)
+        db_conn.commit()
+
+    def store_blob(blob_entry_ref, blob_hex_sha1, blob_bin_sha1):
+        """Store blob in swh storage."""
+        logging.debug('store blob %s' %
+                      blob_entry_ref.hex)
+        storage.add_blob(file_content_storage_dir,
+                         blob_entry_ref.data,
+                         blob_hex_sha1,
+                         folder_depth,
+                         blob_compress_flag)
+        models.add_blob(db_conn,
+                        blob_bin_sha1,
+                        blob_entry_ref.size,
+                        hash.sha1_bin(blob_entry_ref.hex))
+        db_conn.commit()
+
     def walk_tree(tree_ref, repo):
         """Given a tree, walk the tree and save the blobs in file content storage
         (if not already present).
@@ -34,11 +57,9 @@ def load_repo(db_conn,
             logging.debug('skip tree %s' % tree_ref.hex)
             return
 
-        # Add the tree in cache
-        logging.debug('store tree %s' % tree_sha1_bin)
-        storage.add_object(object_content_storage_dir, tree_ref, folder_depth)
-        models.add_object(db_conn, tree_sha1_bin, models.Type.tree)
-        db_conn.commit()
+        store_object(tree_ref,
+                     tree_sha1_bin,
+                     models.Type.tree)
 
         # Now walk the tree
         for tree_entry in tree_ref:
@@ -56,8 +77,7 @@ def load_repo(db_conn,
 
             else:
                 blob_entry_ref = repo[tree_entry.id]
-                blob_data = blob_entry_ref.data
-                hashkey = hash.hashkey_sha1(blob_data)
+                hashkey = hash.hashkey_sha1(blob_entry_ref.data)
                 blob_data_sha1_bin = hashkey.digest()
 
                 # Remains only Blob
@@ -65,18 +85,9 @@ def load_repo(db_conn,
                     logging.debug('skip blob %s' % blob_entry_ref.hex)
                     continue
 
-                logging.debug('store blob %s' %
-                              blob_entry_ref.hex)
-                storage.add_blob(file_content_storage_dir,
-                                 blob_data,
-                                 hashkey.hexdigest(),
-                                 folder_depth,
-                                 blob_compress_flag)
-                models.add_blob(db_conn,
-                                blob_data_sha1_bin,
-                                blob_entry_ref.size,
-                                hash.sha1_bin(blob_entry_ref.hex))
-                db_conn.commit()
+                store_blob(blob_entry_ref,
+                           hashkey.hexdigest(),
+                           blob_data_sha1_bin)
 
     repo = pygit2.Repository(repo_path)
     all_refs = repo.listall_references()
@@ -93,14 +104,9 @@ def load_repo(db_conn,
             if in_cache_objects(db_conn, commit_sha1_bin, models.Type.commit):
                 continue  # stop treating the current commit sub-graph
             else:
-                logging.debug('store commit %s'
-                              % commit_sha1_bin)
-
-                storage.add_object(object_content_storage_dir, commit,
-                                   folder_depth)
-                models.add_object(db_conn, commit_sha1_bin,
-                                  models.Type.commit)
-                db_conn.commit()
+                store_object(commit,
+                             commit_sha1_bin,
+                             models.Type.commit)
 
                 walk_tree(commit.tree, repo)
 
