@@ -80,3 +80,6 @@ readme:
 
 log:
 	tail -f swh-git-loader/log/sgloader.log
+
+coverage:
+	$(NOSE) --with-coverage $(SRCDIR) -v --cover-package=$(SRCDIR)
