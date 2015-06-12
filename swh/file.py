@@ -8,15 +8,15 @@ import os
 import gzip
 
 
-def folder_path(prefix_dir, hash):
-    """Compute the folder prefix from a hash key.
+def folder_path(prefix_dir, hexhash):
+    """Compute the folder prefix from a hexhash key.
     """
     # FIXME: find some split function
     return os.path.join(prefix_dir,
-                        hash[0:2],
-                        hash[2:4],
-                        hash[4:6],
-                        hash[6:8])
+                        hexhash[0:2],
+                        hexhash[2:4],
+                        hexhash[4:6],
+                        hexhash[6:8])
 
 
 def write_data(data, path, comp_flag=None):
