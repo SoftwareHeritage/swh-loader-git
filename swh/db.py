@@ -22,8 +22,7 @@ def _execute(cur, query_params):
     if isinstance(query_params, str):
         cur.execute(query_params)
     else:
-        query, params = query_params
-        cur.execute(cur.mogrify(query, params))
+        cur.execute(*query_params)
 
 
 def query_execute(db_conn, query_params):
