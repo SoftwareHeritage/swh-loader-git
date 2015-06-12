@@ -74,3 +74,6 @@ check-meta:
 
 	echo "DB Repository metadata:"
 	$(BINDIR)/db-git-repo-meta.sh
+
+readme:
+	pandoc -f org -t markdown README.org > README
