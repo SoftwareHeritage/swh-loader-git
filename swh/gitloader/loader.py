@@ -38,6 +38,7 @@ def load_repo(db_conn,
         logging.debug('store tree %s' % tree_sha1_bin)
         storage.add_object(object_content_storage_dir, tree_ref, folder_depth)
         models.add_object(db_conn, tree_sha1_bin, models.Type.tree)
+        db_conn.commit()
 
         # Now walk the tree
         for tree_entry in tree_ref:
@@ -75,6 +76,7 @@ def load_repo(db_conn,
                                 blob_data_sha1_bin,
                                 blob_entry_ref.size,
                                 hash.sha1_bin(blob_entry_ref.hex))
+                db_conn.commit()
 
     repo = pygit2.Repository(repo_path)
     all_refs = repo.listall_references()
@@ -98,6 +100,7 @@ def load_repo(db_conn,
                                    folder_depth)
                 models.add_object(db_conn, commit_sha1_bin,
                                   models.Type.commit)
+                db_conn.commit()
 
                 walk_tree(commit.tree, repo)
 
