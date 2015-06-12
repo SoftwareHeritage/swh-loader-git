@@ -77,3 +77,6 @@ check-meta:
 
 readme:
 	pandoc -f org -t markdown README.org > README
+
+log:
+	tail -f swh-git-loader/log/sgloader.log
