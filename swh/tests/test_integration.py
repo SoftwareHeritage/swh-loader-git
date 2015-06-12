@@ -5,7 +5,6 @@
 # See top-level LICENSE file for more information
 
 import unittest
-
 import os
 import pygit2
 import tempfile
@@ -71,7 +70,7 @@ class FuncUseCase(unittest.TestCase):
                                         dir='/tmp')
         # create temporary git repository
         self.tmpGitRepo = pygit2.init_repository(tmpGitFolder)
-        print("Git repository: {}".format(tmpGitFolder))
+        # print("Git repository: %s " % tmpGitFolder)
 
         # trigger the script
         repo_path = self.tmpGitRepo.workdir
