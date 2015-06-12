@@ -7,6 +7,8 @@
 import logging
 import pygit2
 
+from pygit2 import GIT_SORT_TOPOLOGICAL, GIT_SORT_REVERSE, GIT_REF_OID
+from pygit2 import GIT_FILEMODE_TREE, GIT_FILEMODE_COMMIT, GIT_OBJ_COMMIT
 from swh import hash, db
 from swh.gitloader import storage, models
 
@@ -57,19 +59,15 @@ def load_repo(db_conn,
             logging.debug('skip tree %s' % tree_ref.hex)
             return
 
-        store_object(tree_ref,
-                     tree_sha1_bin,
-                     models.Type.tree)
-
         for tree_entry in tree_ref:
             filemode = tree_entry.filemode
 
-            if (filemode == pygit2.GIT_FILEMODE_COMMIT):  # submodule!
+            if (filemode == GIT_FILEMODE_COMMIT):  # submodule!
                 logging.warn('skip submodule-commit %s'
                              % tree_entry.id)
                 continue
 
-            elif (filemode == pygit2.GIT_FILEMODE_TREE):  # Tree
+            elif (filemode == GIT_FILEMODE_TREE):  # Tree
                 logging.debug('walk Tree %s'
                               % tree_entry.id)
                 walk_tree(repo[tree_entry.id], repo)
@@ -87,25 +85,28 @@ def load_repo(db_conn,
                            hashkey.hexdigest(),
                            blob_data_sha1_bin)
 
+        store_object(tree_ref,
+                     tree_sha1_bin,
+                     models.Type.tree)
+
     repo = pygit2.Repository(repo_path)
     all_refs = repo.listall_references()
 
     for ref_name in all_refs:
         logging.info('walk reference %s' % ref_name)
         ref = repo.lookup_reference(ref_name)
-        head_commit_sha1 = ref.target if ref.type is pygit2.GIT_REF_OID \
-                                      else ref.peel(pygit2.GIT_OBJ_COMMIT).hex
+        head_commit_sha1 = ref.target if ref.type is GIT_REF_OID \
+                                      else ref.peel(GIT_OBJ_COMMIT).hex
 
-        for commit in repo.walk(head_commit_sha1, pygit2.GIT_SORT_TOPOLOGICAL):
+        for commit in repo.walk(head_commit_sha1, GIT_SORT_TOPOLOGICAL):
             commit_sha1_bin = hash.sha1_bin(commit.hex)
             if in_cache_objects(db_conn, commit_sha1_bin, models.Type.commit):
                 continue
             else:
+                walk_tree(commit.tree, repo)
                 store_object(commit,
                              commit_sha1_bin,
                              models.Type.commit)
-
-                walk_tree(commit.tree, repo)
 
 
 def run(conf):
