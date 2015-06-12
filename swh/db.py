@@ -5,42 +5,12 @@
 # See top-level LICENSE file for more information
 
 import psycopg2
-import logging
-
-from contextlib import contextmanager
 
 
 def connect(db_url):
     """Open db connection.
     """
     return psycopg2.connect(db_url)
-
-
-@contextmanager
-def _transaction(db_conn):
-    """Execute sql insert, create, dropb, delete query to db.
-    """
-    cur = db_conn.cursor()
-    try:
-        yield cur
-    except:
-        logging.error("An error has happened, rollback db!")
-        db_conn.rollback()
-        raise
-    finally:
-        db_conn.commit()
-        cur.close()
-
-
-@contextmanager
-def _fetch(db_conn):
-    """Execute sql select query to db.
-    """
-    cur = db_conn.cursor()
-    try:
-        yield cur
-    finally:
-        cur.close()
 
 
 def _execute(cur, query_params):
@@ -63,7 +33,7 @@ def query_execute(db_conn, query_params):
        - a sql query (string)
        - a tuple (sql query, params)
     """
-    with _transaction(db_conn) as cur:
+    with db_conn.cursor() as cur:
         _execute(cur, query_params)
 
 
@@ -74,7 +44,7 @@ def queries_execute(db_conn, queries_params):
        - sql query (string)
        - tuple (sql query, params)
     """
-    with _transaction(db_conn) as cur:
+    with db_conn.cursor() as cur:
         for query_params in queries_params:
             _execute(cur, query_params)
 
@@ -85,6 +55,6 @@ def query_fetchone(db_conn, query_params):
        - a sql query (string)
        - a tuple (sql query, params)
     """
-    with _fetch(db_conn) as cur:
+    with db_conn.cursor() as cur:
         _execute(cur, query_params)
         return cur.fetchone()
