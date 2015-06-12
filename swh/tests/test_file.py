@@ -20,12 +20,22 @@ class TestFile(unittest.TestCase):
     @istest
     def check_folder_path_computation(self):
         # when
-        fpath = file.folder_path('prefix-dir', '01234567890102345678')
+        fpath = file.folder_path('prefix-dir', 'aabbccdd0123456789')
 
         # then
         self.assertEquals(fpath,
-                          'prefix-dir/01/23/45/67',
-                          'Depth is hard-coded to 4')
+                          'prefix-dir/aa/bb/cc/dd',
+                          'Depth should be 4 because not specified')
+
+    @istest
+    def check_folder_path_computation_with_different_deps(self):
+        # when
+        fpath = file.folder_path('prefix-dir', 'aabb01234567890', 2)
+
+        # then
+        self.assertEquals(fpath,
+                          'prefix-dir/aa/bb',
+                          'Depth is now 2')
 
     @istest
     def check_write_data_with_no_compress_flag(self):
