@@ -10,15 +10,10 @@ import logging
 from contextlib import contextmanager
 
 
-@contextmanager
 def connect(db_url):
     """Open db connection.
     """
-    db_conn = psycopg2.connect(db_url)
-    try:
-        yield db_conn
-    finally:
-        db_conn.close()
+    return psycopg2.connect(db_url)
 
 
 @contextmanager
