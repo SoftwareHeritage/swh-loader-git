@@ -77,6 +77,10 @@ def read_conf(args):
         conf['folder_depth'] = DEFAULT_CONF['folder_depth']
     else:
         conf['folder_depth'] = int(conf['folder_depth'])
+
+    if 'blob_compression' not in conf:
+        conf['blob_compression'] = DEFAULT_CONF['blob_compression']
+
     return conf
 
 

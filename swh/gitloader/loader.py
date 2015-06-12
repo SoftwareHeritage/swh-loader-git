@@ -123,15 +123,11 @@ def run(conf):
             models.initdb(db_conn)
         elif action == 'load':
             logging.info('Loading git repository %s' % conf['repository'])
-
-            key = 'blob_compression'
-            blob_compress_flag = key in conf and conf[key] == 'true'
-
             load_repo(db_conn,
                       conf['repository'],
                       conf['file_content_storage_dir'],
                       conf['object_content_storage_dir'],
-                      blob_compress_flag)
                       conf['folder_depth'],
+                      conf['blob_compression'])
         else:
             logging.warn('Unknown action %s, skip!' % action)
