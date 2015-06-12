@@ -1,0 +1,30 @@
+#+title: TODO
+#+author: swh team
+
+* First implementation
+
+- [X] Push on remote git repository
+- [X] All git objects must be written in storage (at the moment only blobs)
+- [X] Improve performance
+- [X] Serialize blob's data and not blob's size.
+- [X] Logging in python? How to see the log?
+- [X] Replace sqlalchemy dao layer with psycopg2
+- [X] Improve sgloader cli interface
+- [X] Serialize sha256 as bytes
+- [X] Update README.org
+- [X] Switch dao layer (from sqlalchemy to psycopg2)
+- [X] Serialize sha1 as bytes
+- [X] Use sha1 instead of sha256 for file cache
+- [X] Improve architecture
+- [X] Use postgresql's bytea column for sha1
+- [X] Improve git object dispatch (look up on repo object only if necessary)
+- [X] Add functional test which adds new commits
+- [X] Store git object on disk too
+- [X] Make the compression for the file storage optional
+- [X] Expose the flag to the swh-git-loader's configuration
+- [X] Make the compression for the git object storage optional
+- [X] Expose option flag for blob compression
+- [X] Add computation folder with depth as parameter
+- [X] Expose option flag for folder depth
+- [ ] Test coverage for at least primitives functions
+- [ ] Add git-sha1 function in swh.hash module
