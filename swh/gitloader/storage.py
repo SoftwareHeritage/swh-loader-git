@@ -25,7 +25,7 @@ def write_object(dataset_dir, data, hashv, folder_depth, compress_flag=None):
     """
     folder_in_storage = create_dir_from_hash(dataset_dir, hashv, folder_depth)
     filepath = os.path.join(folder_in_storage, hashv)
-    logging.debug('Inject object %s' % filepath)
+    logging.debug('write object %s' % filepath)
     file.write_data(data, filepath, compress_flag)
 
 

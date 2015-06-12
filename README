@@ -183,12 +183,11 @@ information in the following format: \<action-verb\> \<nature-object\>
 
 where: \<action-verb\>
 
--   walk walk a tree
+-   walk walk a tree or a reference
 -   skip skip an already saved/visited object or unknown object (e.g.
     commit submodule)
 -   store save an object in db (file or object) and content (file or
     object) storage
--   inject serialize on disk an object
 -   initialize Initialize the db
 -   clean Clean the db's data
 
@@ -199,6 +198,7 @@ where: \<action-verb\>
 -   blob
 -   reference
 -   submodule-commit A commit from a submodule
+-   unknown-action An unknown action from swhgitloader's cli
 
 \<sha1-name-or-path\>
 

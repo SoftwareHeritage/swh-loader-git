@@ -25,17 +25,17 @@ def load_repo(db_conn,
     blobs on disk in `file_content_storage_dir`.
     """
     def walk_tree(tree_ref, repo):
-        """Given a tree, walk the tree and store the blobs in file content storage
+        """Given a tree, walk the tree and save the blobs in file content storage
         (if not already present).
         """
         tree_sha1_bin = hash.sha1_bin(tree_ref.hex)
 
         if in_cache_objects(db_conn, tree_sha1_bin, models.Type.tree):
-            logging.debug('Skip tree %s' % tree_ref.hex)
+            logging.debug('skip tree %s' % tree_ref.hex)
             return
 
         # Add the tree in cache
-        logging.debug('Store tree %s' % tree_sha1_bin)
+        logging.debug('store tree %s' % tree_sha1_bin)
         storage.add_object(object_content_storage_dir, tree_ref, folder_depth)
         models.add_object(db_conn, tree_sha1_bin, models.Type.tree)
 
@@ -44,12 +44,12 @@ def load_repo(db_conn,
             filemode = tree_entry.filemode
 
             if (filemode == pygit2.GIT_FILEMODE_COMMIT):  # submodule!
-                logging.warn('Skip submodule-commit %s'
+                logging.warn('skip submodule-commit %s'
                              % tree_entry.id)
                 continue
 
             elif (filemode == pygit2.GIT_FILEMODE_TREE):  # Tree
-                logging.debug('Walk Tree %s'
+                logging.debug('walk Tree %s'
                               % tree_entry.id)
                 walk_tree(repo[tree_entry.id], repo)
 
@@ -61,10 +61,10 @@ def load_repo(db_conn,
 
                 # Remains only Blob
                 if in_cache_blobs(db_conn, blob_data_sha1_bin):
-                    logging.debug('Skip blob %s' % blob_entry_ref.hex)
+                    logging.debug('skip blob %s' % blob_entry_ref.hex)
                     continue
 
-                logging.debug('Store blob %s' %
+                logging.debug('store blob %s' %
                               blob_entry_ref.hex)
                 storage.add_blob(file_content_storage_dir,
                                  blob_data,
@@ -81,7 +81,7 @@ def load_repo(db_conn,
 
     # for each ref in the repo
     for ref_name in all_refs:
-        logging.info('Parse reference %s' % ref_name)
+        logging.info('walk reference %s' % ref_name)
         ref = repo.lookup_reference(ref_name)
         head_commit = ref.peel(pygit2.GIT_OBJ_COMMIT)
         # for each commit referenced by the commit graph starting at that ref
@@ -91,7 +91,7 @@ def load_repo(db_conn,
             if in_cache_objects(db_conn, commit_sha1_bin, models.Type.commit):
                 continue  # stop treating the current commit sub-graph
             else:
-                logging.debug('Store commit %s'
+                logging.debug('store commit %s'
                               % commit_sha1_bin)
 
                 storage.add_object(object_content_storage_dir, commit,
@@ -115,13 +115,13 @@ def run(conf):
         action = conf['action']
 
         if action == 'cleandb':
-            logging.info('Clean database')
+            logging.info('clean database')
             models.cleandb(db_conn)
         elif action == 'initdb':
-            logging.info('Initialize database')
+            logging.info('initialize database')
             models.initdb(db_conn)
         elif action == 'load':
-            logging.info('Load repository %s' % conf['repository'])
+            logging.info('load repository %s' % conf['repository'])
             load_repo(db_conn,
                       conf['repository'],
                       conf['file_content_storage_dir'],
@@ -129,4 +129,4 @@ def run(conf):
                       conf['folder_depth'],
                       conf['blob_compression'])
         else:
-            logging.warn('Skip unknown action %s' % action)
+            logging.warn('skip unknown-action %s' % action)
