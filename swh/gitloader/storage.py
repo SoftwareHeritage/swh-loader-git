@@ -25,7 +25,7 @@ def write_object(dataset_dir, data, hashv, folder_depth, compress_flag=None):
     """
     folder_in_storage = create_dir_from_hash(dataset_dir, hashv, folder_depth)
     filepath = os.path.join(folder_in_storage, hashv)
-    logging.debug('Injecting %s in content storage.' % filepath)
+    logging.debug('Inject object %s' % filepath)
     file.write_data(data, filepath, compress_flag)
 
 
@@ -39,7 +39,7 @@ def add_blob(file_content_storage_dir, data, hashv, folder_depth,
 
 def add_object(object_content_storage_dir, object_ref, folder_depth):
     """Add the object to the storage.
-       object_ref should of type Commit or Tree.
+       object_ref should be of type Commit or Tree.
     """
     hashv = object_ref.hex
     data = object_ref.read_raw()

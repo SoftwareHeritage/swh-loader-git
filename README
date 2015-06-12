@@ -107,13 +107,16 @@ db_url = dbname=swhgitloader
 #folder_depth=4
 ```
 
-Note: [url
-dsl](http://initd.org/psycopg/docs/module.html#psycopg2.connect)
+Note:
 
-Run
-===
+-   [DB url
+    DSL](http://initd.org/psycopg/docs/module.html#psycopg2.connect)
+-   the configuration file can be changed in the CLI with the flag \`-c
+    \<config-filepath\>\` or \`--config-file \<config-filepath\>\`
 
-environment initialization
+-   Run
+
+Environment initialization
 --------------------------
 
 ``` {.bash}
@@ -141,7 +144,7 @@ bin/sgloader load /path/to/git/repo
 For ease:
 
 ``` {.bash}
-make clean-and-run REPO_PATH=/path/to/git/repo
+make cleandb initdb clean-and-run REPO_PATH=/path/to/git/repo
 ```
 
 Parse an existing repository
@@ -171,8 +174,42 @@ Init data
 bin/sgloader initdb
 ```
 
+Log
+===
+
+Activating the debug mode (flag \`-v\` or \`--verbose\` will log more
+information in the following format: \<action-verb\> \<nature-object\>
+\<sha1-name-or-path\>
+
+where: \<action-verb\>
+
+-   walk walk a tree
+-   skip skip an already saved/visited object or unknown object (e.g.
+    commit submodule)
+-   store save an object in db (file or object) and content (file or
+    object) storage
+-   inject serialize on disk an object
+-   initialize Initialize the db
+-   clean Clean the db's data
+
+\<nature-object\>
+
+-   tree
+-   commit
+-   blob
+-   reference
+-   submodule-commit A commit from a submodule
+
+\<sha1-name-or-path\>
+
+-   sha1 git or swh's sha1
+-   name object name
+-   path object's content storage path
+
+-   Miscellaneous
+
 Performance
-===========
+-----------
 
 This is not perf test per say. It's runs on a given machine.
 
@@ -405,7 +442,7 @@ Sample
   pygit2   <https://github.com/libgit2/pygit2.git>
 
 Filemode investigation
-======================
+----------------------
 
 git -
 <https://github.com/git/git/blob/398dd4bd039680ba98497fbedffa415a43583c16/vcs-svn/repo_tree.h#L6-L9>:
@@ -473,7 +510,7 @@ libgit2 -
 ``` {.c}
 git_filemode_t git_tree_entry_filemode(const git_tree_entry *entry)
 {
-    return normalize_filemode(entry->attr);
+        return normalize_filemode(entry->attr);
 }
 ```
 
@@ -483,24 +520,24 @@ libgit2 -
 ``` {.c}
 GIT_INLINE(git_filemode_t) normalize_filemode(git_filemode_t filemode)
 {
-    /* Tree bits set, but it's not a commit */
-    if (GIT_MODE_TYPE(filemode) == GIT_FILEMODE_TREE)
-        return GIT_FILEMODE_TREE;
+        /* Tree bits set, but it's not a commit */
+        if (GIT_MODE_TYPE(filemode) == GIT_FILEMODE_TREE)
+                return GIT_FILEMODE_TREE;
 
-    /* If any of the x bits are set */
-    if (GIT_PERMS_IS_EXEC(filemode))
-        return GIT_FILEMODE_BLOB_EXECUTABLE;
+        /* If any of the x bits are set */
+        if (GIT_PERMS_IS_EXEC(filemode))
+                return GIT_FILEMODE_BLOB_EXECUTABLE;
 
-    /* 16XXXX means commit */
-    if (GIT_MODE_TYPE(filemode) == GIT_FILEMODE_COMMIT)
-        return GIT_FILEMODE_COMMIT;
+        /* 16XXXX means commit */
+        if (GIT_MODE_TYPE(filemode) == GIT_FILEMODE_COMMIT)
+                return GIT_FILEMODE_COMMIT;
 
-    /* 12XXXX means commit */
-    if (GIT_MODE_TYPE(filemode) == GIT_FILEMODE_LINK)
-        return GIT_FILEMODE_LINK;
+        /* 12XXXX means commit */
+        if (GIT_MODE_TYPE(filemode) == GIT_FILEMODE_LINK)
+                return GIT_FILEMODE_LINK;
 
-    /* Otherwise, return a blob */
-    return GIT_FILEMODE_BLOB;
+        /* Otherwise, return a blob */
+        return GIT_FILEMODE_BLOB;
 }
 ```
 
@@ -520,14 +557,14 @@ libgit2 -
 <https://github.com/libgit2/libgit2/blob/d24a5312d8ab6d3cdb259e450ec9f1e2e6f3399d/src/fileops.h#L243-L250>:
 
 ``` {.c}
-#define GIT_PERMS_IS_EXEC(MODE)     (((MODE) & 0111) != 0)
-#define GIT_PERMS_CANONICAL(MODE)   (GIT_PERMS_IS_EXEC(MODE) ? 0755 : 0644)
+#define GIT_PERMS_IS_EXEC(MODE)         (((MODE) & 0111) != 0)
+#define GIT_PERMS_CANONICAL(MODE)       (GIT_PERMS_IS_EXEC(MODE) ? 0755 : 0644)
 #define GIT_PERMS_FOR_WRITE(MODE)   (GIT_PERMS_IS_EXEC(MODE) ? 0777 : 0666)
 
-#define GIT_MODE_PERMS_MASK         0777
-#define GIT_MODE_TYPE_MASK          0170000
-#define GIT_MODE_TYPE(MODE)         ((MODE) & GIT_MODE_TYPE_MASK)
-#define GIT_MODE_ISBLOB(MODE)       (GIT_MODE_TYPE(MODE) == GIT_MODE_TYPE(GIT_FILEMODE_BLOB))
+#define GIT_MODE_PERMS_MASK                     0777
+#define GIT_MODE_TYPE_MASK                      0170000
+#define GIT_MODE_TYPE(MODE)                     ((MODE) & GIT_MODE_TYPE_MASK)
+#define GIT_MODE_ISBLOB(MODE)           (GIT_MODE_TYPE(MODE) == GIT_MODE_TYPE(GIT_FILEMODE_BLOB))
 ```
 
 libgit2 -
@@ -536,11 +573,11 @@ libgit2 -
 ``` {.c}
 /** Valid modes for index and tree entries. */
 typedef enum {
-    GIT_FILEMODE_UNREADABLE          = 0000000,
-    GIT_FILEMODE_TREE                = 0040000,
-    GIT_FILEMODE_BLOB                = 0100644,
-    GIT_FILEMODE_BLOB_EXECUTABLE     = 0100755,
-    GIT_FILEMODE_LINK                = 0120000,
-    GIT_FILEMODE_COMMIT              = 0160000,
+        GIT_FILEMODE_UNREADABLE          = 0000000,
+        GIT_FILEMODE_TREE                = 0040000,
+        GIT_FILEMODE_BLOB                = 0100644,
+        GIT_FILEMODE_BLOB_EXECUTABLE     = 0100755,
+        GIT_FILEMODE_LINK                = 0120000,
+        GIT_FILEMODE_COMMIT              = 0160000,
 } git_filemode_t;
 ```
