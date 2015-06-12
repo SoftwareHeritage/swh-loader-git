@@ -85,9 +85,9 @@ def load_repo(db_conn,
     for ref_name in all_refs:
         logging.info('walk reference %s' % ref_name)
         ref = repo.lookup_reference(ref_name)
-        head_commit = ref.peel(pygit2.GIT_OBJ_COMMIT)
+        head_commit_sha1 = ref.target if ref.type is pygit2.GIT_REF_OID else ref.peel(pygit2.GIT_OBJ_COMMIT).hex
         # for each commit referenced by the commit graph starting at that ref
-        for commit in repo.walk(head_commit.id, pygit2.GIT_SORT_TOPOLOGICAL):
+        for commit in repo.walk(head_commit_sha1, pygit2.GIT_SORT_TOPOLOGICAL):
             commit_sha1_bin = hash.sha1_bin(commit.hex)
             # if we have a git commit cache and the commit is in there:
             if in_cache_objects(db_conn, commit_sha1_bin, models.Type.commit):
