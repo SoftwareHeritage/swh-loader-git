@@ -26,5 +26,35 @@
 - [X] Expose option flag for blob compression
 - [X] Add computation folder with depth as parameter
 - [X] Expose option flag for folder depth
-- [ ] Test coverage for at least primitives functions
+- [-] Test coverage for at least primitives functions [1/2]
+  - [X] swh.file
+  - [ ] swh.hash
 - [ ] Add git-sha1 function in swh.hash module
+
+* Discussion
+
+** How to stream blob's data
+
+Returned as raw data
+
+** Structure log
+
+This way they could serve for analysis by other mechanism
+
+** Rules
+
+**** Don't lose data
+
+Multiple workers.
+Same disks and db.
+
+**** Transaction
+
+Unit of transaction.
+Reading if a commit exists, if not write on disk + on db.
+If one disk fails, fail the transaction.
+
+**** ?
+
+**** Profiling
+Look into the cursor implementation details.
