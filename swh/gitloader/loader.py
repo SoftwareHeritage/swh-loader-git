@@ -61,7 +61,6 @@ def load_repo(db_conn,
                      tree_sha1_bin,
                      models.Type.tree)
 
-        # Now walk the tree
         for tree_entry in tree_ref:
             filemode = tree_entry.filemode
 
@@ -75,12 +74,11 @@ def load_repo(db_conn,
                               % tree_entry.id)
                 walk_tree(repo[tree_entry.id], repo)
 
-            else:
+            else:  # blob
                 blob_entry_ref = repo[tree_entry.id]
                 hashkey = hash.hashkey_sha1(blob_entry_ref.data)
                 blob_data_sha1_bin = hashkey.digest()
 
-                # Remains only Blob
                 if in_cache_blobs(db_conn, blob_data_sha1_bin):
                     logging.debug('skip blob %s' % blob_entry_ref.hex)
                     continue
@@ -92,17 +90,16 @@ def load_repo(db_conn,
     repo = pygit2.Repository(repo_path)
     all_refs = repo.listall_references()
 
-    # for each ref in the repo
     for ref_name in all_refs:
         logging.info('walk reference %s' % ref_name)
         ref = repo.lookup_reference(ref_name)
-        head_commit_sha1 = ref.target if ref.type is pygit2.GIT_REF_OID else ref.peel(pygit2.GIT_OBJ_COMMIT).hex
-        # for each commit referenced by the commit graph starting at that ref
+        head_commit_sha1 = ref.target if ref.type is pygit2.GIT_REF_OID \
+                                      else ref.peel(pygit2.GIT_OBJ_COMMIT).hex
+
         for commit in repo.walk(head_commit_sha1, pygit2.GIT_SORT_TOPOLOGICAL):
             commit_sha1_bin = hash.sha1_bin(commit.hex)
-            # if we have a git commit cache and the commit is in there:
             if in_cache_objects(db_conn, commit_sha1_bin, models.Type.commit):
-                continue  # stop treating the current commit sub-graph
+                continue
             else:
                 store_object(commit,
                              commit_sha1_bin,
