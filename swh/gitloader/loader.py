@@ -19,7 +19,8 @@ def load_repo(db_conn,
               repo_path,
               file_content_storage_dir,
               object_content_storage_dir,
-              blob_compress_flag=None):
+              folder_depth,
+              blob_compress_flag):
     """Parse git repository `repo_path` and flush
     blobs on disk in `file_content_storage_dir`.
     """
@@ -35,7 +36,7 @@ def load_repo(db_conn,
 
         # Add the tree in cache
         logging.debug('Visit and store new tree %s (db).' % tree_sha1_bin)
-        storage.add_object(object_content_storage_dir, tree_ref)
+        storage.add_object(object_content_storage_dir, tree_ref, folder_depth)
         models.add_object(db_conn, tree_sha1_bin, models.Type.tree)
 
         # Now walk the tree
@@ -69,6 +70,7 @@ def load_repo(db_conn,
                 storage.add_blob(file_content_storage_dir,
                                  blob_data,
                                  hashkey.hexdigest(),
+                                 folder_depth,
                                  blob_compress_flag)
                 models.add_blob(db_conn,
                                 blob_data_sha1_bin,
@@ -93,7 +95,8 @@ def load_repo(db_conn,
                 logging.debug('Store new commit %s (db + object storage)!'
                               % commit_sha1_bin)
 
-                storage.add_object(object_content_storage_dir, commit)
+                storage.add_object(object_content_storage_dir, commit,
+                                   folder_depth)
                 models.add_object(db_conn, commit_sha1_bin,
                                   models.Type.commit)
 
@@ -129,5 +132,6 @@ def run(conf):
                       conf['file_content_storage_dir'],
                       conf['object_content_storage_dir'],
                       blob_compress_flag)
+                      conf['folder_depth'],
         else:
             logging.warn('Unknown action %s, skip!' % action)

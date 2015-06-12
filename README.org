@@ -73,11 +73,24 @@ Create a configuration file in *~/.config/sgloader.ini*:
 
 #+begin_src ini
 [main]
+# where to store blob on disk
 file_content_storage_dir = swh-git-loader/file-content-storage
+
+# where to store commit/tree on disk
 object_content_storage_dir = swh-git-loader/object-content-storage
+
+# Where to store the logs
 log_dir = swh-git-loader/log
+
+# url access to db
+# http://initd.org/psycopg/docs/module.html#psycopg2.connect
 db_url = dbname=swhgitloader
-# blob_compression = true
+
+# activate the compression for each blob object
+#blob_compression = true
+
+# compute folder's depth on disk aa/bb/cc/dd
+#folder_depth=4
 #+end_src
 
 Note: [[http://initd.org/psycopg/docs/module.html#psycopg2.connect][url dsl]]

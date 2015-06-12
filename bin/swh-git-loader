@@ -26,6 +26,7 @@ DEFAULT_CONF = {
     # http://initd.org/psycopg/docs/module.html#psycopg2.connect
     'db_url': 'dbname=swhgitloader',
     'blob_compression': None,
+    'folder_depth': 4,
 }
 
 
@@ -65,7 +66,6 @@ def read_conf(args):
     config = configparser.ConfigParser(defaults=DEFAULT_CONF)
     conf_file = args.config or DEFAULT_CONF_FILE
     config.read(os.path.expanduser(conf_file))
-
     conf = config._sections['main']
 
     # propagate CLI arguments to conf dictionary
@@ -73,6 +73,10 @@ def read_conf(args):
     if 'repository' in args:
         conf['repository'] = args.repository
 
+    if 'folder_depth' not in conf:
+        conf['folder_depth'] = DEFAULT_CONF['folder_depth']
+    else:
+        conf['folder_depth'] = int(conf['folder_depth'])
     return conf
 
 

@@ -85,7 +85,9 @@ class FuncUseCase(unittest.TestCase):
             'db_url': self.db_url,
             'repository': repo_path,
             'file_content_storage_dir': file_content_storage_dir,
-            'object_content_storage_dir': object_content_storage_dir
+            'object_content_storage_dir': object_content_storage_dir,
+            'blob_compression': None,
+            'folder_depth': 2,
             }
 
         self.conf['action'] = "cleandb"
