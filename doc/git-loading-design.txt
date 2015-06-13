@@ -3,7 +3,7 @@ Design considerations
 
 * **Caching**: our storage contains two main parts: a file storage, and a git
   object storage. Both parts are accessible as key-value storage. Whenever
-  possible we want to avoid checking in content that is provably already in
+  possible we want to avoid checking in content that is probably already in
   there.
 
 * **Concurrency**: our storage will be accessed concurrently for both read and
