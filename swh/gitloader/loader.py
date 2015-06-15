@@ -89,15 +89,9 @@ def load_repo(db_conn,
                      tree_sha1_bin,
                      models.Type.tree)
 
-    repo = pygit2.Repository(repo_path)
-    all_refs = repo.listall_references()
-
-    for ref_name in all_refs:
-        logging.info('walk reference %s' % ref_name)
-        ref = repo.lookup_reference(ref_name)
-        head_commit_sha1 = ref.target if ref.type is GIT_REF_OID \
-                                      else ref.peel(GIT_OBJ_COMMIT).hex
-
+    def walk_revision(repo, head_commit_sha1):
+        """Walk the current revision from the commit.
+        """
         for commit in repo.walk(head_commit_sha1, GIT_SORT_TOPOLOGICAL):
             commit_sha1_bin = hash.sha1_bin(commit.hex)
             if in_cache_objects(db_conn, commit_sha1_bin, models.Type.commit):
@@ -107,6 +101,19 @@ def load_repo(db_conn,
                 store_object(commit,
                              commit_sha1_bin,
                              models.Type.commit)
+
+    def walk_references(repo):
+        """Walk the references from the repository repo_path.
+        """
+        for ref_name in repo.listall_references():
+            logging.info('walk reference %s' % ref_name)
+            ref = repo.lookup_reference(ref_name)
+            head_commit_sha1 = ref.target if ref.type is GIT_REF_OID \
+                               else ref.peel(GIT_OBJ_COMMIT).hex
+            walk_revision(repo, head_commit_sha1)
+
+    repo = pygit2.Repository(repo_path)
+    walk_references(repo)
 
 
 def run(conf):
