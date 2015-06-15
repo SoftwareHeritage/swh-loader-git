@@ -69,11 +69,13 @@ create-db:
 	sudo su -l postgres -c "createdb -O $(USER) $(DB)"
 
 check-meta:
-	echo "Repository metadata:"
-	$(BINDIR)/dir-git-repo-meta.sh $(REPO_PATH)
+	@echo "Git Repository metadata:"
+	@$(BINDIR)/dir-git-repo-meta.sh $(REPO_PATH)
+	@echo
 
-	echo "DB Repository metadata:"
-	$(BINDIR)/db-git-repo-meta.sh
+	@echo "DB Repository metadata:"
+	@$(BINDIR)/db-git-repo-meta.sh
+	@echo
 
 readme:
 	pandoc -f org -t markdown README.org > README
