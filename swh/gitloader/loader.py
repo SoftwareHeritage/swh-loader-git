@@ -107,8 +107,9 @@ def load_repo(db_conn,
         for ref_name in repo.listall_references():
             logging.info('walk reference %s' % ref_name)
             ref = repo.lookup_reference(ref_name)
-            head_commit_sha1 = ref.target if ref.type is GIT_REF_OID \
-                               else ref.peel(GIT_OBJ_COMMIT).hex
+            head_commit_sha1 = ref.target \
+                                   if ref.type is GIT_REF_OID \
+                                   else ref.peel(GIT_OBJ_COMMIT).hex
             walk_revision_from(repo, head_commit_sha1)
 
     walk_references_from(pygit2.Repository(repo_path))
