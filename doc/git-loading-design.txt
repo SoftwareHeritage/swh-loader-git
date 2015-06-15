@@ -10,7 +10,7 @@ Design considerations
   write purposes. In particular for writing, it is possible that multiple
   workers will be in the process, at the same time, of loading into our storage
   different git repositories that have a lot of overlap, if not completely
-  identical. Whenever possible they should be able to benefit from each other
+  identical. Whenever possible they should be able to benefit from each other's
   work, collaborating *de facto*.
 
 * **Robustness**: workers that load content into our storage might crash before
@@ -26,7 +26,7 @@ Design considerations
   seen it *again*, and again, and again...).
 
 * **Transactionality**: every content addition should be transactional: only
-  after having stored the content in full we will tell the world (and other
+  after having stored the content in full will we tell the world (and other
   workers) that the content is available. (Without locking, which is desirable)
   This might result in temporary races where multiple workers trying to add the
   same content without knowing of each other---this situation should be handled
