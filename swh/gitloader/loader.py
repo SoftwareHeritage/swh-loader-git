@@ -13,10 +13,6 @@ from swh import hash, db
 from swh.gitloader import storage, models
 
 
-in_cache_objects = lambda *args: models.find_object(*args) is not None
-in_cache_blobs = lambda *args: models.find_blob(*args) is not None
-
-
 def load_repo(db_conn,
               repo_path,
               file_content_storage_dir,
@@ -26,6 +22,10 @@ def load_repo(db_conn,
     """Parse git repository `repo_path` and flush
     blobs on disk in `file_content_storage_dir`.
     """
+    in_cache_objects = lambda *args: models.find_object(*args) is not None
+
+    in_cache_blobs = lambda *args: models.find_blob(*args) is not None
+
     def store_object(object_ref, object_sha1_bin, object_type):
         """Store object in swh storage"""
         logging.debug('store %s %s' % (object_ref.hex, object_type))
@@ -34,17 +34,16 @@ def load_repo(db_conn,
         models.add_object(db_conn, object_sha1_bin, object_type)
         db_conn.commit()
 
-    def store_blob(blob_entry_ref, blob_hex_sha1, blob_bin_sha1):
+    def store_blob(blob_entry_ref, blob_data_sha1_hex, blob_data_sha1_bin):
         """Store blob in swh storage."""
-        logging.debug('store blob %s' %
-                      blob_entry_ref.hex)
+        logging.debug('store blob %s' % blob_entry_ref.hex)
         storage.add_blob(file_content_storage_dir,
                          blob_entry_ref.data,
-                         blob_hex_sha1,
+                         blob_data_sha1_hex,
                          folder_depth,
                          blob_compress_flag)
         models.add_blob(db_conn,
-                        blob_bin_sha1,
+                        blob_data_sha1_bin,
                         blob_entry_ref.size,
                         hash.sha1_bin(blob_entry_ref.hex))
         db_conn.commit()
@@ -89,7 +88,7 @@ def load_repo(db_conn,
                      tree_sha1_bin,
                      models.Type.tree)
 
-    def walk_revision(repo, head_commit_sha1):
+    def walk_revision_from(repo, head_commit_sha1):
         """Walk the current revision from the commit.
         """
         for commit in repo.walk(head_commit_sha1, GIT_SORT_TOPOLOGICAL):
@@ -102,7 +101,7 @@ def load_repo(db_conn,
                              commit_sha1_bin,
                              models.Type.commit)
 
-    def walk_references(repo):
+    def walk_references_from(repo):
         """Walk the references from the repository repo_path.
         """
         for ref_name in repo.listall_references():
@@ -110,10 +109,9 @@ def load_repo(db_conn,
             ref = repo.lookup_reference(ref_name)
             head_commit_sha1 = ref.target if ref.type is GIT_REF_OID \
                                else ref.peel(GIT_OBJ_COMMIT).hex
-            walk_revision(repo, head_commit_sha1)
+            walk_revision_from(repo, head_commit_sha1)
 
-    repo = pygit2.Repository(repo_path)
-    walk_references(repo)
+    walk_references_from(pygit2.Repository(repo_path))
 
 
 def run(conf):
