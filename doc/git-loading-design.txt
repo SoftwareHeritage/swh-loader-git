@@ -55,14 +55,15 @@ details about this.
 Top-down
 --------
 
-* Top-down, topological traversal of the git object graph starting from the
-  current refs is optimal from the point of view of caching. Once a given
-  object is found in the cache we know that we have already loaded it in the
-  storage and we do not need to treat its descendants any further.
+* Top-down, topological (latest first) traversal of the git object graph
+  starting from the current refs is optimal from the point of view of caching.
+  Once a given object is found in the cache we know that we have already loaded
+  it in the storage and we do not need to treat its parents any further.
 
 * Top-down however is not good for robustness. If we store the current node
-  before its descendants and the loading fails to complete, in the future we
-  will believe to have stored all its descendants whereas we have note. FAIL.
+  before its parents and the loading fails to complete, in the future we
+  will believe to have stored all its parents whereas we have not.
+  FAIL.
 
 Conclusion: pure top-down traversal is bad for us.
 
@@ -71,11 +72,11 @@ Bottom-up
 ---------
 
 * Bottom-up, topological traversal is good for robustness. Once we reach the
-  top we know we have stored all its descendants, so in the future we can
+  top we know we have stored all its parents, so in the future we can
   benefit from caching.
 
-* However, bottom-up is bad for caching. If we always treat descendants before
-  ancestors we will benefit from caching only at the level of individual
+* However, bottom-up is bad for caching. If we always treat parents before
+  descendants, we will benefit from caching only at the level of individual
   objects, and never at the level of whole subgraphs.
 
 Conclusion: pure bottom-up traversal is OK, but does not allow to benefit from
@@ -90,8 +91,8 @@ To get the best of both worlds we need a mixed approach, something like
 
     let rec load_git_graph node =
         if not (node in storage) then
-	        for node' in children(node)
-		        load_git_graph(node')
+	        for parent in parents(node)
+		        load_git_graph(parent)
             add_to_storage(node, storage)
 
 Note: non tail-recursive.
