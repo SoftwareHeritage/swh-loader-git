@@ -96,12 +96,8 @@ def load_repo(db_conn,
             if in_cache_objects(db_conn, commit_sha1_bin, models.Type.commit):
                 continue
             else:
-                # print("message: ", commit.hex, commit.message)
-                # print("parents:")
-                # for p in commit.parents:
-                #     print("parent:", p.hex, p.message)
-
                 walk_tree(commit.tree, repo)
+                # print("commit: ", commit.hex, commit.message)
                 store_object(commit,
                              commit_sha1_bin,
                              models.Type.commit)
