@@ -28,25 +28,33 @@ def load_repo(db_conn,
 
     def store_object(object_ref, object_sha1_bin, object_type):
         """Store object in swh storage"""
-        logging.debug('store %s %s' % (object_ref.hex, object_type))
-        storage.add_object(object_content_storage_dir, object_ref,
-                           folder_depth)
-        models.add_object(db_conn, object_sha1_bin, object_type)
-        db_conn.commit()
+        try:
+            logging.debug('store %s %s' % (object_ref.hex, object_type))
+            storage.add_object(object_content_storage_dir, object_ref,
+                               folder_depth)
+            models.add_object(db_conn, object_sha1_bin, object_type)
+            db_conn.commit()
+        except IOError:
+            logging.error('store %s %s' % (object_ref.hex, object_type))
+            db_conn.rollback()
 
     def store_blob(blob_entry_ref, blob_data_sha1_hex, blob_data_sha1_bin):
         """Store blob in swh storage."""
-        logging.debug('store blob %s' % blob_entry_ref.hex)
-        storage.add_blob(file_content_storage_dir,
-                         blob_entry_ref.data,
-                         blob_data_sha1_hex,
-                         folder_depth,
-                         blob_compress_flag)
-        models.add_blob(db_conn,
-                        blob_data_sha1_bin,
-                        blob_entry_ref.size,
-                        hash.sha1_bin(blob_entry_ref.hex))
-        db_conn.commit()
+        try:
+            logging.debug('store blob %s' % blob_entry_ref.hex)
+            storage.add_blob(file_content_storage_dir,
+                             blob_entry_ref.data,
+                             blob_data_sha1_hex,
+                             folder_depth,
+                             blob_compress_flag)
+            models.add_blob(db_conn,
+                            blob_data_sha1_bin,
+                            blob_entry_ref.size,
+                            hash.sha1_bin(blob_entry_ref.hex))
+            db_conn.commit()
+        except IOError:
+            logging.error('store blob %s' % blob_entry_ref.hex)
+            db_conn.rollback()
 
     def walk_tree(tree_ref, repo):
         """Given a tree, walk the tree and save the blobs in file content storage
