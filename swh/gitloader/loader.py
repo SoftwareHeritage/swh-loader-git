@@ -56,7 +56,7 @@ def load_repo(db_conn,
             logging.error('store blob %s' % blob_entry_ref.hex)
             db_conn.rollback()
 
-    def walk_tree(tree_ref, repo):
+    def walk_tree(repo, tree_ref):
         """Given a tree, walk the tree and save the blobs in file content storage
         (if not already present).
         """
@@ -77,7 +77,7 @@ def load_repo(db_conn,
             elif (filemode == GIT_FILEMODE_TREE):  # Tree
                 logging.debug('walk Tree %s'
                               % tree_entry.id)
-                walk_tree(repo[tree_entry.id], repo)
+                walk_tree(repo, repo[tree_entry.id])
 
             else:  # blob
                 blob_entry_ref = repo[tree_entry.id]
@@ -96,21 +96,28 @@ def load_repo(db_conn,
                      tree_sha1_bin,
                      models.Type.tree)
 
-    def walk_revision_from(repo, commit):
-        """Walk the current history from the commit.
+    def walk_revision_from(repo, head_commit):
+        """Walk the revision from commit head_commit.
         """
-        commit_sha1_bin = hash.sha1_bin(commit.hex)
-        if commit.type is not pygit2.GIT_OBJ_COMMIT \
-           or in_cache_objects(db_conn, commit_sha1_bin, models.Type.commit):
-            return # we are done!
-        else:
-            for parent in commit.parents:
-                walk_revision_from(repo, parent)
+        to_visits = [head_commit]  # the nodes to visit.
+        visited = []               # the node visited and ready to be stored
 
-        walk_tree(commit.tree, repo)
-        store_object(commit,
-                     commit_sha1_bin,
-                     models.Type.commit)
+        while to_visits:
+            commit = to_visits.pop()
+            if commit.type is not GIT_OBJ_COMMIT:
+                continue
+
+            commit_sha1_bin = hash.sha1_bin(commit.hex)
+            if not in_cache_objects(db_conn, commit_sha1_bin, models.Type.commit):
+                to_visits = commit.parents + to_visits
+                visited += [(commit_sha1_bin, commit)]
+
+        while visited:
+            commit_sha1_bin, commit_to_store = visited.pop()
+            walk_tree(repo, commit_to_store.tree)
+            store_object(commit_to_store,
+                         commit_sha1_bin,
+                         models.Type.commit)
 
     def walk_references_from(repo):
         """Walk the references from the repository repo_path.
