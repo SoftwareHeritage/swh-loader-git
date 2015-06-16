@@ -15,8 +15,11 @@ DB_TEST=swhgitloader-test
 
 BIN=$(BINDIR)/swh-git-loader
 
+# could use cProfile
+PROFILE_TYPE=profile
+
 deps:
-	sudo apt-get install -y python3 python3-pygit2 python3-psycopg2 python3-nose ipython3 tee
+	sudo apt-get install -y python3 python3-pygit2 python3-psycopg2 python3-nose ipython3
 
 prepare:
 	mkdir -p swh-git-loader/log swh-git-loader/file-content-storage swh-git-loader/object-content-storage
@@ -44,9 +47,11 @@ clean-and-run: clean prepare
 check:
 	$(FLAKE) $(BINDIR) $(SRCDIR)
 
-profile:
-	PYTHONPATH=`pwd` python3 -m cProfile ./scratch/profile-swhgitloader.py | tee ./scratch/swhgitloader.cProfile
-	PYTHONPATH=`pwd` python3 -m profile  ./scratch/profile-swhgitloader.py | tee ./scratch/swhgitloader.profile
+profile-run:
+	PYTHONPATH=`pwd` python3 -m $(PROFILE_TYPE) -o ./scratch/swhgitloader.$(PROFILE_TYPE) ./scratch/profile-swhgitloader.py
+
+profile-stats:
+	PYTHONPATH=`pwd` ./scratch/analyse-profile.py
 
 test:
 	$(NOSE) $(TESTFLAGS) $(TESTDIR)

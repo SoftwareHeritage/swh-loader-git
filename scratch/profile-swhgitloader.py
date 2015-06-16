@@ -13,7 +13,8 @@ from swh.gitloader import loader
 
 conf = {
     'db_url': 'dbname=swhgitloader',
-    'repository': os.path.expanduser('./test-repo'),
+    # 'repository': os.path.expanduser('./test-repo'),
+    'repository': os.path.expanduser('../debsources'),
     'file_content_storage_dir':  'swh-git-loader/file-content-storage',
     'object_content_storage_dir':  'swh-git-loader/object-content-storage',
     'folder_depth':  4,
