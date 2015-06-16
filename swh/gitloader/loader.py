@@ -100,7 +100,8 @@ def load_repo(db_conn,
         """Walk the current history from the commit.
         """
         commit_sha1_bin = hash.sha1_bin(commit.hex)
-        if in_cache_objects(db_conn, commit_sha1_bin, models.Type.commit):
+        if commit.type is not pygit2.GIT_OBJ_COMMIT \
+           or in_cache_objects(db_conn, commit_sha1_bin, models.Type.commit):
             return # we are done!
         else:
             for parent in commit.parents:
