@@ -88,19 +88,20 @@ def load_repo(db_conn,
                      tree_sha1_bin,
                      models.Type.tree)
 
-    def walk_revision_from(repo, head_commit_sha1):
-        """Walk the current revision from the commit.
+    def walk_revision_from(repo, commit):
+        """Walk the current history from the commit.
         """
-        for commit in repo.walk(head_commit_sha1, GIT_SORT_TOPOLOGICAL):
-            commit_sha1_bin = hash.sha1_bin(commit.hex)
-            if in_cache_objects(db_conn, commit_sha1_bin, models.Type.commit):
-                continue
-            else:
-                walk_tree(commit.tree, repo)
-                # print("commit: ", commit.hex, commit.message)
-                store_object(commit,
-                             commit_sha1_bin,
-                             models.Type.commit)
+        commit_sha1_bin = hash.sha1_bin(commit.hex)
+        if in_cache_objects(db_conn, commit_sha1_bin, models.Type.commit):
+            return # we are done!
+        else:
+            for parent in commit.parents:
+                walk_revision_from(repo, parent)
+
+        walk_tree(commit.tree, repo)
+        store_object(commit,
+                     commit_sha1_bin,
+                     models.Type.commit)
 
     def walk_references_from(repo):
         """Walk the references from the repository repo_path.
@@ -108,10 +109,10 @@ def load_repo(db_conn,
         for ref_name in repo.listall_references():
             logging.info('walk reference %s' % ref_name)
             ref = repo.lookup_reference(ref_name)
-            head_commit_sha1 = ref.target \
-                                   if ref.type is GIT_REF_OID \
-                                   else ref.peel(GIT_OBJ_COMMIT).hex
-            walk_revision_from(repo, head_commit_sha1)
+            head_commit = repo[ref.target] \
+                              if ref.type is GIT_REF_OID \
+                              else ref.peel(GIT_OBJ_COMMIT)
+            walk_revision_from(repo, head_commit)
 
     walk_references_from(pygit2.Repository(repo_path))
 
