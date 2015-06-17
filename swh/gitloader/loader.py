@@ -75,7 +75,7 @@ def load_repo(db_conn,
                 continue
 
             elif (filemode == GIT_FILEMODE_TREE):  # Tree
-                logging.debug('walk Tree %s'
+                logging.debug('walk tree %s'
                               % tree_entry.id)
                 walk_tree(repo, repo[tree_entry.id])
 
