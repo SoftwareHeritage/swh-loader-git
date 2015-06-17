@@ -51,7 +51,7 @@ class FuncUseCase(unittest.TestCase):
 
     def create_commit_with_content(self, blob_content,
                                    commit_msg,
-                                   commit_parent=None):
+                                   commit_parents=None):
         """Create a commit inside the git repository and return its oid.
         """
         author, committer = self.create_author_and_committer()
@@ -60,7 +60,7 @@ class FuncUseCase(unittest.TestCase):
             'refs/heads/master',  # the name of the reference to update
             author, committer, commit_msg,
             tree,  # binary string representing the tree object ID
-            [] if commit_parent is None else [commit_parent]  # commit parents
+            [] if commit_parents is None else commit_parents  # commit parents
         )
 
     def setUp(self):
@@ -110,13 +110,13 @@ class FuncUseCase(unittest.TestCase):
         # given
         commit0 = self.create_commit_with_content('blob 0', 'commit msg 0')
         commit1 = self.create_commit_with_content('blob 1', 'commit msg 1',
-                                                  commit0.hex)
+                                                  [commit0.hex])
         commit2 = self.create_commit_with_content('blob 2', 'commit msg 2',
-                                                  commit1.hex)
+                                                  [commit1.hex])
         commit3 = self.create_commit_with_content(None, 'commit msg 3',
-                                                  commit2.hex)
+                                                  [commit2.hex])
         commit4 = self.create_commit_with_content('blob 4', 'commit msg 4',
-                                                  commit3.hex)
+                                                  [commit3.hex])
 
         # when
         self.conf['action'] = "load"
@@ -139,12 +139,12 @@ class FuncUseCase(unittest.TestCase):
 
         # given
         commit5 = self.create_commit_with_content('new blob 5', 'commit msg 5',
-                                                  commit4)
+                                                  [commit4.hex])
         commit6 = self.create_commit_with_content('new blob and last 6',
                                                   'commit msg 6',
-                                                  commit5.hex)
+                                                  [commit5.hex])
         commit7 = self.create_commit_with_content('new blob 7', 'commit msg 7',
-                                                  commit6.hex)
+                                                  [commit6.hex])
 
         # when
         loader.run(self.conf)
@@ -166,7 +166,7 @@ class FuncUseCase(unittest.TestCase):
 
         # given
         self.create_commit_with_content(None, 'commit 8 with parent 2',
-                                        commit7.hex)
+                                        [commit7.hex])
 
         # when
         loader.run(self.conf)
