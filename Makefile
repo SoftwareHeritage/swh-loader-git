@@ -91,3 +91,6 @@ log:
 
 coverage:
 	$(NOSE) --with-coverage $(SRCDIR) -v --cover-package=$(SRCDIR)
+
+run-back:
+	PYTHONPATH=`pwd` $(SRCDIR)/backend/back.py
