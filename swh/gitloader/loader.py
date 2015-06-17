@@ -109,7 +109,7 @@ def load_repo(db_conn,
 
             commit_sha1_bin = hash.sha1_bin(commit.hex)
             if not in_cache_objects(db_conn, commit_sha1_bin, models.Type.commit):
-                to_visits = commit.parents + to_visits
+                to_visits += commit.parents
                 visited += [(commit_sha1_bin, commit)]
 
         while visited:
