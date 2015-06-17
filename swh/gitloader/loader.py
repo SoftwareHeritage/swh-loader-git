@@ -96,42 +96,47 @@ def load_repo(db_conn,
                      tree_sha1_bin,
                      models.Type.tree)
 
-    def walk_revision_from(repo, head_commit):
+    def walk_revision_from(repo, head_commit, visited):
         """Walk the revision from commit head_commit.
+        - repo is the current repository
+        - head_commit is the latest commit to start from
+        - visited is a memory cache of visited node (implemented as set)
         """
         to_visits = [head_commit]  # the nodes to visit.
-        visited = []               # the node visited and ready to be stored
+        to_store = []              # the node to_store and ready to be stored
 
         while to_visits:
             commit = to_visits.pop()
+
             if commit.type is not GIT_OBJ_COMMIT:
                 continue
-            print("commit to visit: ", commit.hex[0:7])
+
             commit_sha1_bin = hash.sha1_bin(commit.hex)
-            if not in_cache_objects(db_conn, commit_sha1_bin, models.Type.commit):
+            if commit_sha1_bin not in visited \
+               and not in_cache_objects(db_conn, commit_sha1_bin, models.Type.commit):
+                visited.add(commit_sha1_bin)
                 to_visits.extend(commit.parents)
-                visited.append((commit_sha1_bin, commit))
+                to_store.append((commit_sha1_bin, commit))
 
-        while visited:
-            commit_sha1_bin, commit_to_store = visited.pop()
-            print("visited: ", commit_to_store.hex[0:7])
-            if not in_cache_objects(db_conn, commit_sha1_bin, models.Type.commit):
-                walk_tree(repo, commit_to_store.tree)
-                store_object(commit_to_store,
-                             commit_sha1_bin,
-                             models.Type.commit)
-
+        while to_store:
+            commit_sha1_bin, commit_to_store = to_store.pop()
+            walk_tree(repo, commit_to_store.tree)
+            store_object(commit_to_store,
+                         commit_sha1_bin,
+                         models.Type.commit)
 
     def walk_references_from(repo):
         """Walk the references from the repository repo_path.
         """
+        visited = set()  # global set of visited commits from such repository
+
         for ref_name in repo.listall_references():
             logging.info('walk reference %s' % ref_name)
             ref = repo.lookup_reference(ref_name)
             head_commit = repo[ref.target] \
                               if ref.type is GIT_REF_OID \
                               else ref.peel(GIT_OBJ_COMMIT)
-            walk_revision_from(repo, head_commit)
+            walk_revision_from(repo, head_commit, visited)
 
     walk_references_from(pygit2.Repository(repo_path))
 
