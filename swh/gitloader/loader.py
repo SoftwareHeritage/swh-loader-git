@@ -106,7 +106,7 @@ def load_repo(db_conn,
             commit = to_visits.pop()
             if commit.type is not GIT_OBJ_COMMIT:
                 continue
-
+            print("commit to visit: ", commit.hex[0:7])
             commit_sha1_bin = hash.sha1_bin(commit.hex)
             if not in_cache_objects(db_conn, commit_sha1_bin, models.Type.commit):
                 to_visits.extend(commit.parents)
@@ -114,6 +114,7 @@ def load_repo(db_conn,
 
         while visited:
             commit_sha1_bin, commit_to_store = visited.pop()
+            print("visited: ", commit_to_store.hex[0:7])
             if not in_cache_objects(db_conn, commit_sha1_bin, models.Type.commit):
                 walk_tree(repo, commit_to_store.tree)
                 store_object(commit_to_store,
