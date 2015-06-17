@@ -22,10 +22,10 @@ conf = {
 }
 
 conf['action'] = 'cleandb'
-loader.run(conf)
+loader.load(conf)
 
 conf['action'] = 'initdb'
-loader.run(conf)
+loader.load(conf)
 
 conf['action'] = 'load'
-loader.run(conf)
+loader.load(conf)

@@ -11,7 +11,7 @@ import configparser
 import logging
 import os
 
-from swh.gitloader.loader import run
+from swh.gitloader.loader import load
 
 
 # Default configuration file
@@ -91,4 +91,4 @@ if __name__ == '__main__':
     logging.basicConfig(filename=log_filename,
                         level=logging.DEBUG if args.verbose else logging.INFO)
 
-    run(conf)
+    load(conf)

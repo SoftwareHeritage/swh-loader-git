@@ -141,7 +141,7 @@ def load_repo(db_conn,
     walk_references_from(pygit2.Repository(repo_path))
 
 
-def run(conf):
+def load(conf):
     """According to action, load the repository.
 
     used configuration keys:

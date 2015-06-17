@@ -91,10 +91,10 @@ class FuncUseCase(unittest.TestCase):
             }
 
         self.conf['action'] = "cleandb"
-        loader.run(self.conf)
+        loader.load(self.conf)
 
         self.conf['action'] = "initdb"
-        loader.run(self.conf)
+        loader.load(self.conf)
 
     def tearDown(self):
         """Destroy the test git repository.
@@ -120,7 +120,7 @@ class FuncUseCase(unittest.TestCase):
 
         # when
         self.conf['action'] = "load"
-        loader.run(self.conf)
+        loader.load(self.conf)
 
         # then
         with db.connect(self.db_url) as db_conn:
@@ -147,7 +147,7 @@ class FuncUseCase(unittest.TestCase):
                                                   [commit6.hex])
 
         # when
-        loader.run(self.conf)
+        loader.load(self.conf)
 
         # then
         with db.connect(self.db_url) as db_conn:
@@ -169,7 +169,7 @@ class FuncUseCase(unittest.TestCase):
                                         [commit7.hex])
 
         # when
-        loader.run(self.conf)
+        loader.load(self.conf)
 
         # then
         with db.connect(self.db_url) as db_conn:
