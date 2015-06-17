@@ -22,10 +22,6 @@ def load_repo(db_conn,
     """Parse git repository `repo_path` and flush
     blobs on disk in `file_content_storage_dir`.
     """
-    in_cache_objects = lambda *args: models.find_object(*args) is not None
-
-    in_cache_blobs = lambda *args: models.find_blob(*args) is not None
-
     def store_object(object_ref, object_sha1_bin, object_type):
         """Store object in swh storage"""
         try:
@@ -62,7 +58,7 @@ def load_repo(db_conn,
         """
         tree_sha1_bin = hash.sha1_bin(tree_ref.hex)
 
-        if in_cache_objects(db_conn, tree_sha1_bin, models.Type.tree):
+        if models.find_object(db_conn, tree_sha1_bin, models.Type.tree):
             logging.debug('skip tree %s' % tree_ref.hex)
             return
 
@@ -84,7 +80,7 @@ def load_repo(db_conn,
                 hashkey = hash.hashkey_sha1(blob_entry_ref.data)
                 blob_data_sha1_bin = hashkey.digest()
 
-                if in_cache_blobs(db_conn, blob_data_sha1_bin):
+                if models.find_blob(db_conn, blob_data_sha1_bin):
                     logging.debug('skip blob %s' % blob_entry_ref.hex)
                     continue
 
@@ -113,7 +109,7 @@ def load_repo(db_conn,
 
             commit_sha1_bin = hash.sha1_bin(commit.hex)
             if commit_sha1_bin not in visited \
-               and not in_cache_objects(db_conn, commit_sha1_bin, models.Type.commit):
+               and not models.find_object(db_conn, commit_sha1_bin, models.Type.commit):
                 visited.add(commit_sha1_bin)
                 to_visits.extend(commit.parents)
                 to_store.append((commit_sha1_bin, commit))
