@@ -114,10 +114,12 @@ def load_repo(db_conn,
 
         while visited:
             commit_sha1_bin, commit_to_store = visited.pop()
-            walk_tree(repo, commit_to_store.tree)
-            store_object(commit_to_store,
-                         commit_sha1_bin,
-                         models.Type.commit)
+            if not in_cache_objects(db_conn, commit_sha1_bin, models.Type.commit):
+                walk_tree(repo, commit_to_store.tree)
+                store_object(commit_to_store,
+                             commit_sha1_bin,
+                             models.Type.commit)
+
 
     def walk_references_from(repo):
         """Walk the references from the repository repo_path.
