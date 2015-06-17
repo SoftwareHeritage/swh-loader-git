@@ -102,8 +102,8 @@ def load_repo(db_conn,
         - head_commit is the latest commit to start from
         - visited is a memory cache of visited node (implemented as set)
         """
-        to_visits = [head_commit]  # the nodes to visit.
-        to_store = []              # the node to_store and ready to be stored
+        to_visits = [head_commit]  # the nodes to visit topologically
+        to_store = []              # the nodes to store in files + db
 
         while to_visits:
             commit = to_visits.pop()
@@ -142,7 +142,7 @@ def load_repo(db_conn,
 
 
 def run(conf):
-    """loader driver, dispatching to the relevant action
+    """According to action, load the repository.
 
     used configuration keys:
     - action: requested action
