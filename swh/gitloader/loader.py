@@ -64,19 +64,20 @@ def load_repo(db_conn,
 
         for tree_entry in tree_ref:
             filemode = tree_entry.filemode
+            tree_id = tree_entry.id
 
             if (filemode == GIT_FILEMODE_COMMIT):  # submodule!
                 logging.warn('skip submodule-commit %s'
-                             % tree_entry.id)
+                             % tree_id)
                 continue
 
             elif (filemode == GIT_FILEMODE_TREE):  # Tree
                 logging.debug('walk tree %s'
-                              % tree_entry.id)
-                walk_tree(repo, repo[tree_entry.id])
+                              % tree_id)
+                walk_tree(repo, repo[tree_id])
 
             else:  # blob
-                blob_entry_ref = repo[tree_entry.id]
+                blob_entry_ref = repo[tree_id]
                 hashkey = hash.hashkey_sha1(blob_entry_ref.data)
                 blob_data_sha1_bin = hashkey.digest()
 
