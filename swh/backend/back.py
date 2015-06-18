@@ -94,6 +94,29 @@ def put_tree(hexsha1):
     return persist_object(hexsha1, models.find_object, models.add_object, models.Type.tree)
 
 
+@app.route('/blobs/<hexsha1>', methods=['PUT'])
+def put_blob(hexsha1):
+    """Put a blob in storage.
+    """
+    try:
+        sha1_bin = hash.sha1_bin(hexsha1)
+    except:
+        logging.error("The sha1 provided must be in hexadecimal.")
+        return make_response('Bad request!', 400)
+
+    body = request.form  # do not care for the body for the moment
+    size, obj_git_sha = body['size'], body['git-sha1']
+
+    with db.connect(app.config['conf']['db_url']) as db_conn:
+        if models.find_blob(db_conn, sha1_bin):
+            return make_response('Successful update!', 200)  # immutable
+        else:
+            # creation
+            models.add_blob(db_conn, sha1_bin, size, obj_git_sha)
+            return make_response('Successful creation!', 204)
+
+
+
 def run(conf):
     # setup app
     app.config['conf'] = conf
