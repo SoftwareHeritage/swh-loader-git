@@ -13,7 +13,8 @@ TESTDIR = ./swh/tests
 DB=swhgitloader
 DB_TEST=swhgitloader-test
 
-BIN=$(BINDIR)/swh-git-loader
+SWH_LOADER=$(BINDIR)/swh-git-loader
+SWH_DB_MANAGER=$(BINDIR)/swh-db-manager
 
 # could use cProfile
 PROFILE_TYPE=profile
@@ -33,22 +34,17 @@ prepare:
 clean:
 	rm -rf swh-git-loader/log swh-git-loader/file-content-storage swh-git-loader/object-content-storage
 
-help: clean prepare
-	PYTHONPATH=`pwd` $(BIN) $(FLAG) -h
-
 cleandb: clean prepare
-	PYTHONPATH=`pwd` $(BIN) $(FLAG) cleandb
+	PYTHONPATH=`pwd` $(SWH_DB_MANAGER) $(FLAG) cleandb
 
 initdb: clean prepare
-	PYTHONPATH=`pwd` $(BIN) $(FLAG) initdb
+	PYTHONPATH=`pwd` $(SWH_DB_MANAGER) $(FLAG) initdb
 
 run:
-	PYTHONPATH=`pwd` $(BIN) $(FLAG) load $(REPO_PATH)
+	PYTHONPATH=`pwd` $(SWH_LOADER_BIN) $(FLAG) load $(REPO_PATH)
 
-clean-and-run: clean prepare
-	PYTHONPATH=`pwd` $(BIN) $(FLAG) cleandb
-	PYTHONPATH=`pwd` $(BIN) $(FLAG) initdb
-	PYTHONPATH=`pwd` $(BIN) $(FLAG) load $(REPO_PATH)
+clean-and-run: cleandb initdb
+	PYTHONPATH=`pwd` $(SWH_LOADER_BIN) $(FLAG) load $(REPO_PATH)
 
 check:
 	$(FLAKE) $(BINDIR) $(SRCDIR)
