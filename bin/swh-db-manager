@@ -75,4 +75,4 @@ if __name__ == '__main__':
     logging.basicConfig(filename=log_filename,
                         level=logging.DEBUG if args.verbose else logging.INFO)
 
-    manage(conf)
+    manage(conf['action'], conf['db_url'])
