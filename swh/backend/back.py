@@ -69,7 +69,7 @@ def persist_object(hexsha1, predicate_fn, insert_fn, type):
         logging.error("The sha1 provided must be in hexadecimal.")
         return make_response('Bad request!', 400)
 
-    # body = request.form  # do not care for the body for the moment
+    # payload = request.form  # do not care for the payload for the moment
     with db.connect(app.config['conf']['db_url']) as db_conn:
         if predicate_fn(db_conn, sha1_bin, type):
             return make_response('Successful update!', 200)  # immutable
@@ -104,8 +104,9 @@ def put_blob(hexsha1):
         logging.error("The sha1 provided must be in hexadecimal.")
         return make_response('Bad request!', 400)
 
-    body = request.form  # do not care for the body for the moment
-    size, obj_git_sha = body['size'], body['git-sha1']
+    payload = request.form
+    logging.debug("payload: %s" % payload)
+    size, obj_git_sha = payload['size'], payload['git-sha1']
 
     with db.connect(app.config['conf']['db_url']) as db_conn:
         if models.find_blob(db_conn, sha1_bin):
