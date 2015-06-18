@@ -62,6 +62,12 @@ profile-stats:
 test:
 	$(NOSE) $(TESTFLAGS) $(TESTDIR)
 
+test-loader:
+	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_loader.py
+
+test-api:
+	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_backend.py
+
 test-connect-db:
 	psql -d $(DB_TEST)
 
