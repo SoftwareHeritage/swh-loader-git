@@ -10,7 +10,7 @@ import configparser
 import logging
 import os
 
-from flask import Flask, make_response
+from flask import Flask, make_response, json
 
 from swh.gitloader import models
 from swh import hash, db
@@ -21,12 +21,12 @@ DEFAULT_CONF_FILE = '~/.config/swh/back.ini'
 
 # default configuration (can be overriden by the DEFAULT_CONF_FILE)
 DEFAULT_CONF = {
-    # 'file_content_storage_dir': '/tmp/swh-git-loader/file-content-storage',
-    # 'object_content_storage_dir': '/tmp/swh-git-loader/git-object-storage',
+    'file_content_storage_dir': '/tmp/swh-git-loader/file-content-storage',
+    'object_content_storage_dir': '/tmp/swh-git-loader/git-object-storage',
     'log_dir': '/tmp/swh-git-loader/log',
     'db_url': 'dbname=swhgitloader',
-    # 'blob_compression': None,
-    # 'folder_depth': 4,
+    'blob_compression': None,
+    'folder_depth': 4,
 }
 
 
@@ -84,32 +84,27 @@ def hello():
     return "SWH API - In dev for the moment!"
 
 
-@app.route("/commits/<hexsha1>")
-def is_commit_in(hexsha1):
-    """Return the given commit or not."""
+def lookup(hexsha1, type):
+    """Lookup function"""
     app.logger.debug('Looking up commit: %s ' % hexsha1)
     try:
         sha1_bin = hash.sha1_bin(hexsha1)
         with db.connect(app.config['conf']['db_url']) as db_conn:
-            if models.find_object(db_conn, sha1_bin, models.Type.commit):
-                return "Ok"  # 200
-            return make_response("Not found!", 404)
+            if models.find_object(db_conn, sha1_bin, type):
+                return json.jsonify(sha1=hexsha1)  # 200
+            return make_response('Not found!', 404)
     except:
-        return make_response("Bad request!", 400)
+        return make_response('Bad request!', 400)
 
+@app.route('/commits/<hexsha1>')
+def is_commit_in(hexsha1):
+    """Return the given commit or not."""
+    return lookup(hexsha1, models.Type.commit)
 
-@app.route("/trees/<hexsha1>")
+@app.route('/trees/<hexsha1>')
 def is_tree_in(hexsha1):
     """Return the given commit or not."""
-    app.logger.debug('Looking up tree: %s ' % hexsha1)
-    try:
-        sha1_bin = hash.sha1_bin(hexsha1)
-        with db.connect(app.config['conf']['db_url']) as db_conn:
-            if models.find_object(db_conn, sha1_bin, models.Type.tree):
-                return "Ok"  # 200
-            return make_response("Not found!", 404)
-    except:
-        return make_response("Bad request!", 400)
+    return lookup(hexsha1, models.Type.tree)
 
 
 if __name__ == "__main__":
