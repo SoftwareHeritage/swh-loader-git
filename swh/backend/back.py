@@ -18,7 +18,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def hello():
-    return 'SWH API - In dev for the moment!'
+    return 'Dev SWH API'
 
 
 def lookup(hexsha1, predicate_fn, type=None):

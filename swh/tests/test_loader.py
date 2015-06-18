@@ -15,8 +15,8 @@ from nose.plugins.attrib import attr
 
 from swh import db
 from swh.gitloader import loader, models
-from swh.manager import manage
 
+import test_initdb
 
 @attr('slow')
 class FuncUseCase(unittest.TestCase):
@@ -91,11 +91,7 @@ class FuncUseCase(unittest.TestCase):
             'folder_depth': 2,
             }
 
-        self.conf['action'] = "cleandb"
-        manage(self.conf)
-
-        self.conf['action'] = "initdb"
-        manage(self.conf)
+        test_initdb.prepare_db(self.db_url)
 
     def tearDown(self):
         """Destroy the test git repository.

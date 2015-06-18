@@ -11,15 +11,13 @@ import logging
 from swh import db
 from swh.gitloader import models
 
-def manage(conf):
+def manage(action, db_url):
     """According to action, load the repository.
 
     used configuration keys:
     - action: requested action [cleandb|initdb]
     """
-    with db.connect(conf['db_url']) as db_conn:
-        action = conf['action']
-
+    with db.connect(db_url) as db_conn:
         if action == 'cleandb':
             logging.info('clean database')
             models.cleandb(db_conn)
