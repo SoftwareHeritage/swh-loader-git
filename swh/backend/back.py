@@ -95,12 +95,13 @@ def lookup(hexsha1, predicate_fn, type=None):
                      % (type, hexsha1))
     try:
         sha1_bin = hash.sha1_bin(hexsha1)
-        with db.connect(app.config['conf']['db_url']) as db_conn:
-            if predicate_fn(db_conn, sha1_bin, type):
-                return json.jsonify(sha1=hexsha1)  # 200
-            return make_response('Not found!', 404)
     except:
         return make_response('Bad request!', 400)
+
+    with db.connect(app.config['conf']['db_url']) as db_conn:
+        if predicate_fn(db_conn, sha1_bin, type):
+            return json.jsonify(sha1=hexsha1)  # 200
+        return make_response('Not found!', 404)
 
 
 @app.route('/commits/<hexsha1>')
