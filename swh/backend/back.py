@@ -117,7 +117,6 @@ def put_blob(hexsha1):
             return make_response('Successful creation!', 204)
 
 
-
 def run(conf):
     # setup app
     app.config['conf'] = conf
