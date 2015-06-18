@@ -89,7 +89,7 @@ db_url = dbname=swhgitloader
 #+end_src
 
 ** swh-git-loader
-Create a configuration file in *~/.config/swh-git-loader.ini*:
+Create a configuration file in *~/.config/swh/git-loader.ini*:
 
 #+begin_src ini
 [main]
@@ -116,6 +116,38 @@ db_url = dbname=swhgitloader
 Note:
 - [[http://initd.org/psycopg/docs/module.html#psycopg2.connect][DB url DSL]]
 - the configuration file can be changed in the CLI with the flag `-c <config-filepath>` or `--config-file <config-filepath>`
+** swh-backend
+
+Backend api.
+
+Create a configuration file in *~/.config/swh/back.ini*:
+#+begin_src ini
+[main]
+
+# where to store blob on disk
+file_content_storage_dir = swh-git-loader/file-content-storage
+
+# where to store commit/tree on disk
+object_content_storage_dir = swh-git-loader/object-content-storage
+
+# Where to store the logs
+log_dir = swh-git-loader/log
+
+# url access to db
+# http://initd.org/psycopg/docs/module.html#psycopg2.connect
+db_url = dbname=swhgitloader
+
+# activate the compression for each blob object
+# blob_compression = true
+
+# compute folder's depth on disk aa/bb/cc/dd
+# folder_depth = 2
+
+# Debugger (for dev only)
+debug = true
+
+#+end_src
+
 
 * Run
 
