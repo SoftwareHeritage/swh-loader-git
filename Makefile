@@ -41,10 +41,10 @@ initdb: clean prepare
 	PYTHONPATH=`pwd` $(SWH_DB_MANAGER) $(FLAG) initdb
 
 run:
-	PYTHONPATH=`pwd` $(SWH_LOADER_BIN) $(FLAG) load $(REPO_PATH)
+	PYTHONPATH=`pwd` $(SWH_LOADER) $(FLAG) load $(REPO_PATH)
 
 clean-and-run: cleandb initdb
-	PYTHONPATH=`pwd` $(SWH_LOADER_BIN) $(FLAG) load $(REPO_PATH)
+	PYTHONPATH=`pwd` $(SWH_LOADER) $(FLAG) load $(REPO_PATH)
 
 check:
 	$(FLAKE) $(BINDIR) $(SRCDIR)
