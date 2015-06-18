@@ -69,7 +69,27 @@ It will be stored at STORAGE_ROOT/b5/bb/9d/80/14a0f9b1d61e21e796d78dccdf1352f23c
 
 * Configuration
 
-Create a configuration file in *~/.config/sgloader.ini*:
+swh-git-loader depends on some tools, here are the configuration files for those:
+** swh-db-manager
+
+This is a tool in charge of db management (cleanup data, bootstrap model, etc...).
+
+Create a configuration file in *~/.config/db-manager.ini*
+
+#+begin_src ini
+[main]
+
+# Where to store the logs
+log_dir = swh-git-loader/log
+
+# url access to db
+# http://initd.org/psycopg/docs/module.html#psycopg2.connect
+db_url = dbname=swhgitloader
+
+#+end_src
+
+** swh-git-loader
+Create a configuration file in *~/.config/swh-git-loader.ini*:
 
 #+begin_src ini
 [main]
@@ -108,16 +128,17 @@ export PYTHONPATH=`pwd`:$PYTHONPATH
 ** Help
 
 #+begin_src sh
-bin/sgloader --help
+bin/swh-git-loader --help
+bin/swh-db-manager --help
 #+end_src
 
 ** Parse a repository from a clean slate
 
 Clean and initialize the model then parse the repository git:
 #+begin_src sh
-bin/sgloader cleandb
-bin/sgloader initdb
-bin/sgloader load /path/to/git/repo
+bin/swh-db-manager cleandb
+bin/swh-db-manager initdb
+bin/swh-git-loader load /path/to/git/repo
 #+end_src
 
 For ease:
@@ -127,13 +148,13 @@ make cleandb initdb clean-and-run REPO_PATH=/path/to/git/repo
 
 ** Parse an existing repository
 #+begin_src sh
-bin/sgloader load /path/to/git/repo
+bin/swh-git-loader load /path/to/git/repo
 #+end_src
 
 ** Clean data
 
 #+begin_src sh
-bin/sgloader cleandb
+bin/swh-db-manager cleandb
 #+end_src
 
 For ease:
@@ -144,11 +165,12 @@ make cleandb
 ** Init data
 
 #+begin_src sh
-bin/sgloader initdb
+bin/swh-db-manager initdb
 #+end_src
 
 * Log
 
+** Format
 Activating the debug mode (flag `-v` or `--verbose` will log more information in the following format:
 <action-verb> <nature-object> <sha1-name-or-path>
 
@@ -172,3 +194,8 @@ where:
 - sha1 git or swh's sha1
 - name object name
 - path object's content storage path
+
+** Folder
+
+The different tools can be configured in their respective .ini file.
+They, by default, log inside the swh-git-loader/log folder.
