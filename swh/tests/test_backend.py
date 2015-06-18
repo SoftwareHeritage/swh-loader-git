@@ -220,6 +220,18 @@ class BlobTestCase(unittest.TestCase):
         assert rv.data == b'Bad request!'
 
     @istest
+    def get_blob_bad_request_bad_payload(self):
+        # when
+        # we create it
+        rv = self.app.put('/blobs/222222f9dd5dc46ee476a8be155ab049994f7170',
+                          data = {'size': 99,
+                                  'git-sha1': 'bad-payload'})
+
+        # then
+        assert rv.status_code == 400
+        assert rv.data == b'Bad request!'
+
+    @istest
     def put_blob_create_and_update(self):
         # does not exist
         rv = self.app.get('/blobs/222222f9dd5dc46ee476a8be155ab049994f7170')

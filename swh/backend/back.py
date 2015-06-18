@@ -28,8 +28,7 @@ def lookup(hexsha1, predicate_fn, type=None):
     - type is of models.Type (commit, tree, blob)
     This function returns an http response
     """
-    app.logger.debug('Looking up %s: %s '
-                     % (type, hexsha1))
+    app.logger.debug('lookup %s %s ' % (type, hexsha1))
     try:
         sha1_bin = hash.sha1_bin(hexsha1)
     except:
@@ -63,6 +62,7 @@ def blob_exists_p(hexsha1):
 def persist_object(hexsha1, predicate_fn, insert_fn, type):
     """Add object in storage.
     """
+    logging.debug('store %s %s' % (type, hexsha1))
     try:
         sha1_bin = hash.sha1_bin(hexsha1)
     except:
@@ -98,6 +98,7 @@ def put_tree(hexsha1):
 def put_blob(hexsha1):
     """Put a blob in storage.
     """
+    logging.debug('store blob %s' % hexsha1)
     try:
         sha1_bin = hash.sha1_bin(hexsha1)
     except:
@@ -106,14 +107,22 @@ def put_blob(hexsha1):
 
     payload = request.form
     logging.debug("payload: %s" % payload)
-    size, obj_git_sha = payload['size'], payload['git-sha1']
+    size, obj_git_sha_hex = payload['size'], payload['git-sha1']
+
+    # FIXME: to improve
+    try:
+        obj_git_sha_bin = hash.sha1_bin(obj_git_sha_hex)
+    except:
+        logging.error("The sha1 provided must be in hexadecimal.")
+        return make_response('Bad request!', 400)
+
 
     with db.connect(app.config['conf']['db_url']) as db_conn:
         if models.find_blob(db_conn, sha1_bin):
             return make_response('Successful update!', 200)  # immutable
         else:
             # creation
-            models.add_blob(db_conn, sha1_bin, size, obj_git_sha)
+            models.add_blob(db_conn, sha1_bin, size, obj_git_sha_bin)
             return make_response('Successful creation!', 204)
 
 
