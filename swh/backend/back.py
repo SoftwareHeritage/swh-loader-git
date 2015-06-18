@@ -5,11 +5,12 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-from flask import Flask, make_response, json
+import logging
+
+from flask import Flask, make_response, json, request
 
 from swh.gitloader import models
 from swh import hash, db
-
 
 
 app = Flask(__name__)
@@ -32,6 +33,7 @@ def lookup(hexsha1, predicate_fn, type=None):
     try:
         sha1_bin = hash.sha1_bin(hexsha1)
     except:
+        logging.error("The sha1 provided must be in hexadecimal.")
         return make_response('Bad request!', 400)
 
     with db.connect(app.config['conf']['db_url']) as db_conn:
@@ -58,11 +60,25 @@ def blob_exists_p(hexsha1):
     return lookup(hexsha1, models.find_blob)
 
 # put objects (tree/commits)
-# @app.route('/objects/')
+@app.route('/commits/<hexsha1>', methods=['PUT'])
+def put_commit(hexsha1):
+    """Put a commit.
+    """
+    try:
+        sha1_bin = hash.sha1_bin(hexsha1)
+    except:
+        logging.error("The sha1 provided must be in hexadecimal.")
+        return make_response('Bad request!', 400)
 
+    # body = request.form  # do not care for the body for the moment
+    with db.connect(app.config['conf']['db_url']) as db_conn:
+        if models.find_object(db_conn, sha1_bin, models.Type.commit):
+            return make_response('Successful update!', 200)  # do nothing (because no content on commit)
+        else:
+            # creation
+            models.add_object(db_conn, sha1_bin, models.Type.commit)
+            return make_response('Successful creation!', 204)
 
-# put blobs
-# @app.route('/blobs/')
 
 
 def run(conf):
