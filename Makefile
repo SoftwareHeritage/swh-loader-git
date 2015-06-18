@@ -15,6 +15,7 @@ DB_TEST=swhgitloader-test
 
 SWH_LOADER=$(BINDIR)/swh-git-loader
 SWH_DB_MANAGER=$(BINDIR)/swh-db-manager
+SWH_BACK=$(BINDIR)/swh-backend
 
 # could use cProfile
 PROFILE_TYPE=profile
@@ -42,6 +43,9 @@ initdb: clean prepare
 
 run:
 	PYTHONPATH=`pwd` $(SWH_LOADER) $(FLAG) load $(REPO_PATH)
+
+run-back:
+	PYTHONPATH=`pwd` $(SWH_BACK) $(FLAG)
 
 clean-and-run: cleandb initdb
 	PYTHONPATH=`pwd` $(SWH_LOADER) $(FLAG) load $(REPO_PATH)
@@ -93,6 +97,3 @@ log:
 
 coverage:
 	$(NOSE) --with-coverage $(SRCDIR) -v --cover-package=$(SRCDIR)
-
-run-back:
-	PYTHONPATH=`pwd` $(SRCDIR)/backend/back.py

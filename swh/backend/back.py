@@ -5,75 +5,11 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import argparse
-import configparser
-import logging
-import os
-
 from flask import Flask, make_response, json
 
 from swh.gitloader import models
 from swh import hash, db
 
-
-# Default configuration file
-DEFAULT_CONF_FILE = '~/.config/swh/back.ini'
-
-# default configuration (can be overriden by the DEFAULT_CONF_FILE)
-DEFAULT_CONF = {
-    'file_content_storage_dir': '/tmp/swh-git-loader/file-content-storage',
-    'object_content_storage_dir': '/tmp/swh-git-loader/git-object-storage',
-    'log_dir': '/tmp/swh-git-loader/log',
-    'db_url': 'dbname=swhgitloader',
-    'blob_compression': None,
-    'folder_depth': 4,
-}
-
-
-def parse_args():
-    """Parse the configuration for the cli.
-
-    """
-
-    cli = argparse.ArgumentParser(
-        description='Parse git repository objects to load them into DB.')
-    cli.add_argument('--verbose', '-v', action='store_true',
-                     help='Verbosity level in log file.')
-    cli.add_argument('--config', '-c', help='configuration file path')
-
-    subcli = cli.add_subparsers(dest='action')
-    subcli.add_parser('initdb', help='initialize DB')
-    subcli.add_parser('cleandb', help='clean DB')
-
-    args = cli.parse_args()
-
-    return args
-
-def read_conf(args):
-    """Read the user's configuration file.
-
-    args contains the repo to parse.
-    Transmit to the result.
-    """
-    config = configparser.ConfigParser(defaults=DEFAULT_CONF)
-    conf_file = args.config or DEFAULT_CONF_FILE
-    config.read(os.path.expanduser(conf_file))
-    conf = config._sections['main']
-
-    # propagate CLI arguments to conf dictionary
-    conf['action'] = args.action
-
-    conf['folder_depth'] = DEFAULT_CONF['folder_depth'] \
-                              if 'folder_depth' not in conf \
-                              else int(conf['folder_depth'])
-
-    if 'debug' not in conf:
-        conf['debug'] = None
-
-    if 'blob_compression' not in conf:
-        conf['blob_compression'] = DEFAULT_CONF['blob_compression']
-
-    return conf
 
 
 app = Flask(__name__)
@@ -121,16 +57,15 @@ def blob_exists_p(hexsha1):
     """Return the given commit or not."""
     return lookup(hexsha1, models.find_blob)
 
+# put objects (tree/commits)
+# @app.route('/objects/')
 
 
-if __name__ == '__main__':
-    args = parse_args()
-    conf = read_conf(args)
+# put blobs
+# @app.route('/blobs/')
 
-    log_filename = os.path.join(conf['log_dir'], 'back.log')
-    logging.basicConfig(filename=log_filename,
-                        level=logging.DEBUG if args.verbose else logging.INFO)
 
+def run(conf):
     # setup app
     app.config['conf'] = conf
     app.debug = True if conf['debug'] == 'true' else False
