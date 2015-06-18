@@ -42,8 +42,6 @@ def parse_args():
     cli.add_argument('--config', '-c', help='configuration file path')
 
     subcli = cli.add_subparsers(dest='action')
-    subcli.add_parser('initdb', help='initialize DB')
-    subcli.add_parser('cleandb', help='clean DB')
 
     load_cli = subcli.add_parser('load', help='load Git repo into DB')
     load_cli.add_argument('repository', help='Git repository path')

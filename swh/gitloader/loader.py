@@ -150,13 +150,7 @@ def load(conf):
     with db.connect(conf['db_url']) as db_conn:
         action = conf['action']
 
-        if action == 'cleandb':
-            logging.info('clean database')
-            models.cleandb(db_conn)
-        elif action == 'initdb':
-            logging.info('initialize database')
-            models.initdb(db_conn)
-        elif action == 'load':
+        if action == 'load':
             logging.info('load repository %s' % conf['repository'])
             load_repo(db_conn,
                       conf['repository'],
