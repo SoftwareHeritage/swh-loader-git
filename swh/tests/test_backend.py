@@ -33,7 +33,7 @@ class HomeTestCase(unittest.TestCase):
 
     @istest
     def get_slash(self):
-        # given
+        # when
         rv = self.app.get('/')
 
         # then
@@ -53,7 +53,7 @@ class CommitTestCase(unittest.TestCase):
 
     @istest
     def get_commit_ok(self):
-        # given
+        # when
         rv = self.app.get('/commits/%s' % self.commit_sha1_hex)
 
         # then
@@ -62,7 +62,7 @@ class CommitTestCase(unittest.TestCase):
 
     @istest
     def get_commit_not_found(self):
-        # given
+        # when
         rv = self.app.get('/commits/000000f6dd5dc46ee476a8be155ab049994f7170')
         # then
         assert rv.status_code == 404
@@ -70,7 +70,7 @@ class CommitTestCase(unittest.TestCase):
 
     @istest
     def get_commit_bad_request(self):
-        # given
+        # when
         rv = self.app.get('/commits/1')
         # then
         assert rv.status_code == 400
@@ -124,7 +124,7 @@ class TreeTestCase(unittest.TestCase):
 
     @istest
     def get_tree_ok(self):
-        # given
+        # when
         rv = self.app.get('/trees/%s' % self.tree_sha1_hex)
 
         # then
@@ -133,7 +133,7 @@ class TreeTestCase(unittest.TestCase):
 
     @istest
     def get_tree_not_found(self):
-        # given
+        # when
         rv = self.app.get('/trees/111111f9dd5dc46ee476a8be155ab049994f7170')
         # then
         assert rv.status_code == 404
@@ -141,7 +141,7 @@ class TreeTestCase(unittest.TestCase):
 
     @istest
     def get_tree_bad_request(self):
-        # given
+        # when
         rv = self.app.get('/trees/1')
         # then
         assert rv.status_code == 400
@@ -196,7 +196,7 @@ class BlobTestCase(unittest.TestCase):
 
     @istest
     def get_blob_ok(self):
-        # given
+        # when
         rv = self.app.get('/blobs/%s' % self.blob_sha1_hex)
 
         # then
@@ -205,7 +205,7 @@ class BlobTestCase(unittest.TestCase):
 
     @istest
     def get_blob_not_found(self):
-        # given
+        # when
         rv = self.app.get('/blobs/222222f9dd5dc46ee476a8be155ab049994f7170')
         # then
         assert rv.status_code == 404
@@ -213,7 +213,7 @@ class BlobTestCase(unittest.TestCase):
 
     @istest
     def get_blob_bad_request(self):
-        # given
+        # when
         rv = self.app.get('/blobs/1')
         # then
         assert rv.status_code == 400
