@@ -59,10 +59,9 @@ def blob_exists_p(hexsha1):
     """Return the given commit or not."""
     return lookup(hexsha1, models.find_blob)
 
-# put objects (tree/commits)
-@app.route('/commits/<hexsha1>', methods=['PUT'])
-def put_commit(hexsha1):
-    """Put a commit.
+
+def persist_object(hexsha1, predicate_fn, insert_fn, type):
+    """Add object in storage.
     """
     try:
         sha1_bin = hash.sha1_bin(hexsha1)
@@ -72,13 +71,27 @@ def put_commit(hexsha1):
 
     # body = request.form  # do not care for the body for the moment
     with db.connect(app.config['conf']['db_url']) as db_conn:
-        if models.find_object(db_conn, sha1_bin, models.Type.commit):
-            return make_response('Successful update!', 200)  # do nothing (because no content on commit)
+        if predicate_fn(db_conn, sha1_bin, type):
+            return make_response('Successful update!', 200)  # immutable
         else:
             # creation
-            models.add_object(db_conn, sha1_bin, models.Type.commit)
+            insert_fn(db_conn, sha1_bin, type)
             return make_response('Successful creation!', 204)
 
+
+# put objects (tree/commits)
+@app.route('/commits/<hexsha1>', methods=['PUT'])
+def put_commit(hexsha1):
+    """Put a commit in storage.
+    """
+    return persist_object(hexsha1, models.find_object, models.add_object, models.Type.commit)
+
+
+@app.route('/trees/<hexsha1>', methods=['PUT'])
+def put_tree(hexsha1):
+    """Put a tree in storage.
+    """
+    return persist_object(hexsha1, models.find_object, models.add_object, models.Type.tree)
 
 
 def run(conf):
