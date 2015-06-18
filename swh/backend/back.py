@@ -84,27 +84,42 @@ def hello():
     return 'SWH API - In dev for the moment!'
 
 
-def lookup(hexsha1, type):
-    """Lookup function"""
-    app.logger.debug('Looking up commit: %s ' % hexsha1)
+def lookup(hexsha1, predicate_fn, type=None):
+    """Looking up type object with sha1.
+    - predicate_fn is a lookup function taking in this order a db_conn, binary
+    sha1 and optionally a type to look for in the backend.
+    - type is of models.Type (commit, tree, blob)
+    This function returns an http response
+    """
+    app.logger.debug('Looking up %s: %s '
+                     % (type, hexsha1))
     try:
         sha1_bin = hash.sha1_bin(hexsha1)
         with db.connect(app.config['conf']['db_url']) as db_conn:
-            if models.find_object(db_conn, sha1_bin, type):
+            if predicate_fn(db_conn, sha1_bin, type):
                 return json.jsonify(sha1=hexsha1)  # 200
             return make_response('Not found!', 404)
     except:
         return make_response('Bad request!', 400)
 
+
 @app.route('/commits/<hexsha1>')
-def is_commit_in(hexsha1):
+def commit_exists_p(hexsha1):
     """Return the given commit or not."""
-    return lookup(hexsha1, models.Type.commit)
+    return lookup(hexsha1, models.find_object, models.Type.commit)
+
 
 @app.route('/trees/<hexsha1>')
-def is_tree_in(hexsha1):
+def tree_exists_p(hexsha1):
     """Return the given commit or not."""
-    return lookup(hexsha1, models.Type.tree)
+    return lookup(hexsha1, models.find_object, models.Type.tree)
+
+
+@app.route('/blobs/<hexsha1>')
+def blob_exists_p(hexsha1):
+    """Return the given commit or not."""
+    return lookup(hexsha1, models.find_blob)
+
 
 
 if __name__ == '__main__':

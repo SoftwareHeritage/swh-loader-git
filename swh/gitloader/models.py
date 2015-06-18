@@ -67,8 +67,9 @@ def add_object(db_conn, obj_sha, obj_type):
                                (obj_sha, obj_type.value)))
 
 
-def find_blob(db_conn, obj_sha):
+def find_blob(db_conn, obj_sha, obj_type=None):
     """Find a file by its hash.
+obj_type is not used (implementation detail).
     """
     return db.query_fetchone(db_conn, ("""SELECT sha1 FROM files
                                           WHERE sha1=%s;""",
