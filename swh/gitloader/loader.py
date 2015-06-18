@@ -9,8 +9,9 @@ import pygit2
 
 from pygit2 import GIT_REF_OID
 from pygit2 import GIT_FILEMODE_TREE, GIT_FILEMODE_COMMIT, GIT_OBJ_COMMIT
-from swh import hash
-from swh.gitloader import storage, models
+
+from swh import hash, models
+from swh.gitloader import storage
 from swh.http import client
 
 

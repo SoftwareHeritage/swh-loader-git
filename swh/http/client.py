@@ -7,7 +7,8 @@
 # See top-level LICENSE file for more information
 
 import requests
-from swh.gitloader import models
+
+from swh import models
 
 
 _api_url = {models.Type.blob: '/blobs/',

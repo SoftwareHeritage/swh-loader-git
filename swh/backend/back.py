@@ -9,8 +9,7 @@ import logging
 
 from flask import Flask, make_response, json, request
 
-from swh.gitloader import models
-from swh import hash, db
+from swh import models, hash, db
 
 
 app = Flask(__name__)
