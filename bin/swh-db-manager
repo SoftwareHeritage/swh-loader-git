@@ -11,8 +11,9 @@ import configparser
 import logging
 import os
 
-from swh import db
-from swh.gitloader import models
+
+from swh.manager import manage
+
 
 # Default configuration file
 DEFAULT_CONF_FILE = '~/.config/swh/db-manager.ini'
@@ -65,24 +66,6 @@ def read_conf(args):
 
     return conf
 
-
-def manage(conf):
-    """According to action, load the repository.
-
-    used configuration keys:
-    - action: requested action [cleandb|initdb]
-    """
-    with db.connect(conf['db_url']) as db_conn:
-        action = conf['action']
-
-        if action == 'cleandb':
-            logging.info('clean database')
-            models.cleandb(db_conn)
-        elif action == 'initdb':
-            logging.info('initialize database')
-            models.initdb(db_conn)
-        else:
-            logging.warn('skip unknown-action %s' % action)
 
 if __name__ == '__main__':
     args = parse_args()

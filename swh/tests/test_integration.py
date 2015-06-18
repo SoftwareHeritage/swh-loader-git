@@ -13,8 +13,9 @@ import shutil
 from nose.tools import istest
 from nose.plugins.attrib import attr
 
-from swh.gitloader import loader, models
 from swh import db
+from swh.gitloader import loader, models
+from swh.manager import manage
 
 
 @attr('slow')
@@ -91,10 +92,10 @@ class FuncUseCase(unittest.TestCase):
             }
 
         self.conf['action'] = "cleandb"
-        loader.load(self.conf)
+        manage(self.conf)
 
         self.conf['action'] = "initdb"
-        loader.load(self.conf)
+        manage(self.conf)
 
     def tearDown(self):
         """Destroy the test git repository.
