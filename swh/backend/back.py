@@ -79,9 +79,9 @@ def read_conf(args):
 app = Flask(__name__)
 
 
-@app.route("/")
+@app.route('/')
 def hello():
-    return "SWH API - In dev for the moment!"
+    return 'SWH API - In dev for the moment!'
 
 
 def lookup(hexsha1, type):
@@ -107,7 +107,7 @@ def is_tree_in(hexsha1):
     return lookup(hexsha1, models.Type.tree)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     args = parse_args()
     conf = read_conf(args)
 
