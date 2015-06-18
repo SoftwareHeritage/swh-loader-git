@@ -18,15 +18,12 @@ _api_url = {models.Type.blob: '/blobs/',
 def compute_url(baseurl, type, sha1hex):
     """Compute the api url.
     """
-    url = '%s%s%s' % (baseurl, _api_url[type], sha1hex)
-    print(url)
-    return url
+    return '%s%s%s' % (baseurl, _api_url[type], sha1hex)
 
 
 def get(baseurl, type, sha1hex):
     """Retrieve the objects of type type with sha1 sha1hex.
     """
-    print('get')
     r = requests.get(compute_url(baseurl, type, sha1hex))
     return r.ok
 
@@ -34,7 +31,6 @@ def get(baseurl, type, sha1hex):
 def put(baseurl, type, sha1hex, data=None):
     """Retrieve the objects of type type with sha1 sha1hex.
     """
-    print('put', baseurl, type, sha1hex, data)
     r = requests.put(compute_url(baseurl, type, sha1hex),
                      [] if data is None else data)
     return r.ok
