@@ -19,7 +19,13 @@ BIN=$(BINDIR)/swh-git-loader
 PROFILE_TYPE=profile
 
 deps:
-	sudo apt-get install -y python3 python3-pygit2 python3-psycopg2 python3-nose ipython3
+	sudo apt-get install -y python3 \
+		python3-pygit2 \
+		python3-psycopg2 \
+		python3-nose \
+		python3-flask \
+		python3-requests \
+		ipython3
 
 prepare:
 	mkdir -p swh-git-loader/log swh-git-loader/file-content-storage swh-git-loader/object-content-storage
