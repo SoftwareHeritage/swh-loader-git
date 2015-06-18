@@ -9,11 +9,12 @@ import pygit2
 
 from pygit2 import GIT_REF_OID
 from pygit2 import GIT_FILEMODE_TREE, GIT_FILEMODE_COMMIT, GIT_OBJ_COMMIT
-from swh import hash, db
+from swh import hash
 from swh.gitloader import storage, models
+from swh.http import client
 
 
-def load_repo(db_conn,
+def load_repo(baseurl,
               repo_path,
               file_content_storage_dir,
               object_content_storage_dir,
@@ -22,19 +23,17 @@ def load_repo(db_conn,
     """Parse git repository `repo_path` and flush
     blobs on disk in `file_content_storage_dir`.
     """
-    def store_object(object_ref, object_sha1_bin, object_type):
+    def store_object(object_ref, object_type):
         """Store object in swh storage"""
         try:
             logging.debug('store %s %s' % (object_ref.hex, object_type))
             storage.add_object(object_content_storage_dir, object_ref,
                                folder_depth)
-            models.add_object(db_conn, object_sha1_bin, object_type)
-            db_conn.commit()
+            client.put(baseurl, object_type, object_ref.hex)
         except IOError:
             logging.error('store %s %s' % (object_ref.hex, object_type))
-            db_conn.rollback()
 
-    def store_blob(blob_entry_ref, blob_data_sha1_hex, blob_data_sha1_bin):
+    def store_blob(blob_entry_ref, blob_data_sha1_hex):
         """Store blob in swh storage."""
         try:
             logging.debug('store blob %s' % blob_entry_ref.hex)
@@ -43,23 +42,22 @@ def load_repo(db_conn,
                              blob_data_sha1_hex,
                              folder_depth,
                              blob_compress_flag)
-            models.add_blob(db_conn,
-                            blob_data_sha1_bin,
-                            blob_entry_ref.size,
-                            hash.sha1_bin(blob_entry_ref.hex))
-            db_conn.commit()
+            client.put(baseurl,
+                       models.Type.blob,
+                       blob_data_sha1_hex,
+                       {'size': blob_entry_ref.size,
+                        'git-sha1': blob_entry_ref.hex})
         except IOError:
             logging.error('store blob %s' % blob_entry_ref.hex)
-            db_conn.rollback()
 
     def walk_tree(repo, tree_ref):
         """Given a tree, walk the tree and save the blobs in file content storage
         (if not already present).
         """
-        tree_sha1_bin = hash.sha1_bin(tree_ref.hex)
+        tree_sha1_hex = tree_ref.hex
 
-        if models.find_object(db_conn, tree_sha1_bin, models.Type.tree):
-            logging.debug('skip tree %s' % tree_ref.hex)
+        if client.get(baseurl, models.Type.tree, tree_sha1_hex):
+            logging.debug('skip tree %s' % tree_sha1_hex)
             return
 
         for tree_entry in tree_ref:
@@ -79,18 +77,16 @@ def load_repo(db_conn,
             else:  # blob
                 blob_entry_ref = repo[tree_id]
                 hashkey = hash.hashkey_sha1(blob_entry_ref.data)
-                blob_data_sha1_bin = hashkey.digest()
+                blob_data_sha1_hex = hashkey.hexdigest()
 
-                if models.find_blob(db_conn, blob_data_sha1_bin):
+                if client.get(baseurl, models.Type.blob, blob_data_sha1_hex):
                     logging.debug('skip blob %s' % blob_entry_ref.hex)
                     continue
 
                 store_blob(blob_entry_ref,
-                           hashkey.hexdigest(),
-                           blob_data_sha1_bin)
+                           blob_data_sha1_hex)
 
         store_object(tree_ref,
-                     tree_sha1_bin,
                      models.Type.tree)
 
     def walk_revision_from(repo, head_commit, visited):
@@ -108,18 +104,17 @@ def load_repo(db_conn,
             if commit.type is not GIT_OBJ_COMMIT:
                 continue
 
-            commit_sha1_bin = hash.sha1_bin(commit.hex)
-            if commit_sha1_bin not in visited \
-               and not models.find_object(db_conn, commit_sha1_bin, models.Type.commit):
-                visited.add(commit_sha1_bin)
+            commit_sha1_hex = commit.hex
+            if commit_sha1_hex not in visited \
+               and not client.get(baseurl, models.Type.commit, commit_sha1_hex):
+                visited.add(commit_sha1_hex)
                 to_visits.extend(commit.parents)
-                to_store.append((commit_sha1_bin, commit))
+                to_store.append(commit)
 
         while to_store:
-            commit_sha1_bin, commit_to_store = to_store.pop()
+            commit_to_store = to_store.pop()
             walk_tree(repo, commit_to_store.tree)
             store_object(commit_to_store,
-                         commit_sha1_bin,
                          models.Type.commit)
 
     def walk_references_from(repo):
@@ -147,16 +142,15 @@ def load(conf):
     - file_content_storage_dir: path to file content storage
     - object_content_storage_dir: path to git object content storage
     """
-    with db.connect(conf['db_url']) as db_conn:
-        action = conf['action']
+    action = conf['action']
 
-        if action == 'load':
-            logging.info('load repository %s' % conf['repository'])
-            load_repo(db_conn,
-                      conf['repository'],
-                      conf['file_content_storage_dir'],
-                      conf['object_content_storage_dir'],
-                      conf['folder_depth'],
-                      conf['blob_compression'])
-        else:
-            logging.warn('skip unknown-action %s' % action)
+    if action == 'load':
+        logging.info('load repository %s' % conf['repository'])
+        load_repo(conf['backend_url'],
+                  conf['repository'],
+                  conf['file_content_storage_dir'],
+                  conf['object_content_storage_dir'],
+                  conf['folder_depth'],
+                  conf['blob_compression'])
+    else:
+        logging.warn('skip unknown-action %s' % action)

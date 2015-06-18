@@ -23,8 +23,7 @@ DEFAULT_CONF = {
     'file_content_storage_dir': '/tmp/swh-git-loader/file-content-storage',
     'object_content_storage_dir': '/tmp/swh-git-loader/git-object-storage',
     'log_dir': '/tmp/swh-git-loader/log',
-    # http://initd.org/psycopg/docs/module.html#psycopg2.connect
-    'db_url': 'dbname=swhgitloader',
+    'backend_url': 'http://localhost:5000',
     'blob_compression': None,
     'folder_depth': 4,
 }
@@ -77,6 +76,9 @@ def read_conf(args):
 
     if 'blob_compression' not in conf:
         conf['blob_compression'] = DEFAULT_CONF['blob_compression']
+
+    if 'backend_url' not in conf:
+        conf['backend_url'] = DEFAULT_CONF['backend_url']
 
     return conf
 

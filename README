@@ -101,10 +101,11 @@ Create a configuration file in **\~/.config/db-manager.ini**
 log_dir = swh-git-loader/log
 
 # url access to db
-# http://initd.org/psycopg/docs/module.html#psycopg2.connect
 db_url = dbname=swhgitloader
-
 ```
+
+See <http://initd.org/psycopg/docs/module.html#psycopg2.connect> for the
+db url's schema
 
 swh-git-loader
 --------------
@@ -122,9 +123,8 @@ object_content_storage_dir = swh-git-loader/object-content-storage
 # Where to store the logs
 log_dir = swh-git-loader/log
 
-# url access to db
-# http://initd.org/psycopg/docs/module.html#psycopg2.connect
-db_url = dbname=swhgitloader
+# url access to api's backend
+backend_url = http://localhost:5000
 
 # activate the compression for each blob object
 #blob_compression = true
@@ -160,7 +160,6 @@ object_content_storage_dir = swh-git-loader/object-content-storage
 log_dir = swh-git-loader/log
 
 # url access to db
-# http://initd.org/psycopg/docs/module.html#psycopg2.connect
 db_url = dbname=swhgitloader
 
 # activate the compression for each blob object
@@ -171,7 +170,66 @@ db_url = dbname=swhgitloader
 
 # Debugger (for dev only)
 debug = true
+```
 
+See <http://initd.org/psycopg/docs/module.html#psycopg2.connect> for the
+db url's schema
+
+### Tryouts
+
+PUT on commits:
+
+``` {.bash}
+# tony at corellia in ~/work/inria/org/antelink on git:master x [14:04:40]
+$ curl -i -XPUT -H'application/json' -d 'date=1' http://localhost:5000/commits/52745df6dd5dc46ee476a8be155ab049994f714e
+HTTP/1.0 204 NO CONTENT
+Content-Type: text/html; charset=utf-8
+Content-Length: 0
+Server: Werkzeug/0.9.6 Python/3.4.3+
+Date: Thu, 18 Jun 2015 12:04:44 GMT
+
+
+# tony at corellia in ~/work/inria/org/antelink on git:master x [14:12:05]
+$ curl -i -XPUT -H'application/json' -d 'date=1' http://localhost:5000/commits/52745df6dd5dc46ee476a8be155ab049994f714e
+HTTP/1.0 200 OK
+Content-Type: text/html; charset=utf-8
+Content-Length: 18
+Server: Werkzeug/0.9.6 Python/3.4.3+
+Date: Thu, 18 Jun 2015 12:12:19 GMT
+
+Successful update!%
+# tony at corellia in ~/work/inria/org/antelink on git:master x [14:12:19]
+$ curl http://localhost:5000/commits/52745df6dd5dc46ee476a8be155ab049994f714e{
+  "sha1": "52745df6dd5dc46ee476a8be155ab049994f714e"
+}%
+
+```
+
+GET/PUT on blob:
+
+``` {.bash}
+# tony at corellia in ~/work/inria/org/antelink on git:master x [14:12:24]
+$ curl -i http://localhost:5000/blobs/52745df6dd5dc46ee476a8be155ab049994f714e                                         HTTP/1.0 404 NOT FOUND
+Content-Type: text/html; charset=utf-8
+Content-Length: 10
+Server: Werkzeug/0.9.6 Python/3.4.3+
+Date: Thu, 18 Jun 2015 12:12:33 GMT
+
+Not found!%
+
+
+# tony at corellia in ~/work/inria/org/antelink on git:master x [14:12:33]
+$ curl -i -XPUT -H'application/json' -d'git-sha1=456' -d'size=10' http://localhost:5000/blobs/52745df6dd5dc46ee476a8be155ab049994f714e
+HTTP/1.0 204 NO CONTENT
+Content-Type: text/html; charset=utf-8
+Content-Length: 0
+Server: Werkzeug/0.9.6 Python/3.4.3+
+Date: Thu, 18 Jun 2015 12:13:47 GMT
+
+
+# tony at corellia in ~/work/inria/org/antelink on git:master x [14:13:47]
+$ curl http://localhost:5000/blobs/52745df6dd5dc46ee476a8be155ab049994f714e{
+  "sha1": "52745df6dd5dc46ee476a8be155ab049994f714e"
 ```
 
 Run
