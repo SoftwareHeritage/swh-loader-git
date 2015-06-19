@@ -41,8 +41,25 @@ class HomeTestCase(unittest.TestCase):
         rv = self.app.get('/')
 
         # then
-        assert rv.status_code is 200
+        assert rv.status_code == 200
         assert rv.data == b'Dev SWH API'
+
+    @istest
+    def get_404(self):
+        # when
+        rv = self.app.get('/nowhere')
+
+        # then
+        assert rv.status_code == 404
+
+    @istest
+    def get_bad_request(self):
+        # when
+        rv = self.app.get('/git/not-a-good-type/1')
+
+        # then
+        assert rv.status_code == 400
+        assert rv.data == b'Bad request!'
 
 
 @attr('slow')
@@ -61,7 +78,7 @@ class CommitTestCase(unittest.TestCase):
         rv = self.app.get('/git/commits/%s' % self.commit_sha1_hex)
 
         # then
-        assert rv.status_code is 200
+        assert rv.status_code == 200
         assert rv.data == b'{\n  "sha1": "000000f6dd5dc46ee476a8be155ab049994f717e"\n}'
 
     @istest
@@ -132,7 +149,7 @@ class TreeTestCase(unittest.TestCase):
         rv = self.app.get('/git/trees/%s' % self.tree_sha1_hex)
 
         # then
-        assert rv.status_code is 200
+        assert rv.status_code == 200
         assert rv.data == b'{\n  "sha1": "111111f9dd5dc46ee476a8be155ab049994f717e"\n}'
 
     @istest
@@ -204,7 +221,7 @@ class BlobTestCase(unittest.TestCase):
         rv = self.app.get('/git/blobs/%s' % self.blob_sha1_hex)
 
         # then
-        assert rv.status_code is 200
+        assert rv.status_code == 200
         assert rv.data == b'{\n  "sha1": "222222f9dd5dc46ee476a8be155ab049994f717e"\n}'
 
     @istest
