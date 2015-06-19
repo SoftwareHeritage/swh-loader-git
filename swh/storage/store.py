@@ -50,7 +50,6 @@ def add(config, git_object):
     content = git_object['content']
 
     db_url = config['db_url']
-    storage_dir = config['file_content_storage_dir' if type is models.Type.blob else 'object_content_storage_dir']
     folder_depth = config['folder_depth']
 
     with db.connect(db_url) as db_conn:
@@ -62,7 +61,7 @@ def add(config, git_object):
                 if obj_git_sha_bin is None:
                     return None
 
-                fs.write_object(storage_dir,
+                fs.write_object(config['file_content_storage_dir'],
                                 obj_git_sha1,
                                 content,
                                 folder_depth,
@@ -71,13 +70,13 @@ def add(config, git_object):
                 # creation
                 models.add_blob(db_conn, sha1_bin, git_object['size'], obj_git_sha_bin)
             else:
-                fs.write_object(storage_dir,
+                fs.write_object(config['object_content_storage_dir'],
                                 sha1_hex,
                                 content,
                                 folder_depth)
                 models.add_object(db_conn, sha1_bin, type)
             return True
         except IOError:
-            db_conn.rollback()
             logging.error('store %s %s' % (sha1_hex, type))
+            db_conn.rollback()
             return False
