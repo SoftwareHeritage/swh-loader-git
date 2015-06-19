@@ -55,13 +55,13 @@ def add(config, git_object):
         try:
             logging.debug('store %s %s' % (sha1_hex, type))
             if type is models.Type.blob:
-                obj_git_sha = git_object['git-sha1']
-                obj_git_sha_bin = hex_to_bin(obj_git_sha)
+                obj_git_sha1 = git_object['git-sha1']
+                obj_git_sha_bin = hex_to_bin(obj_git_sha1)
                 if obj_git_sha_bin is None:
                     return None
 
                 fs.write_object(storage_dir,
-                                sha1_hex,
+                                obj_git_sha1,
                                 content,
                                 folder_depth,
                                 config['blob_compression'])
