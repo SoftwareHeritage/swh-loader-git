@@ -21,6 +21,11 @@ def hex_to_bin(sha1_hex):
         return None
 
 
+find_fn = {models.Type.blob: models.find_blob,
+           models.Type.commit: models.find_object,
+           models.Type.tree: models.find_object}
+
+
 def find(config, git_object):
     """Find an object according to its sha1_hex and type.
     """
@@ -32,10 +37,7 @@ def find(config, git_object):
         return None
 
     with db.connect(config['db_url']) as db_conn:
-        if type is models.Type.blob:
-            return models.find_blob(db_conn, sha1_bin)
-        else:
-            return models.find_object(db_conn, sha1_bin, type)
+        return find_fn[type](db_conn, sha1_bin, type)
 
 
 def add(config, git_object):
