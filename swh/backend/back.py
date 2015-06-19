@@ -43,25 +43,21 @@ def _build_object(sha1_hex, type, content=None, size=None, git_sha1=None):
             'size': size,
             'git-sha1': git_sha1}
 
-@app.route('/git/commits/<sha1_hex>')
-def commit_exists_p(sha1_hex):
+
+_uri_types = {'commits': models.Type.commit,
+              'blobs': models.Type.blob,
+              'trees': models.Type.tree}
+
+@app.route('/git/<uri_type>/<sha1_hex>')
+def object_exists_p(uri_type, sha1_hex):
     """Return the given commit or not."""
-    git_object = _build_object(sha1_hex, models.Type.commit)
+    type = _uri_types.get(uri_type, None)
+    if type is None:
+        return make_response('Bad request!', 400)
+
+    git_object = _build_object(sha1_hex, _uri_types.get(uri_type, None))
     return lookup(app.config['conf'], git_object)
 
-
-@app.route('/git/trees/<sha1_hex>')
-def tree_exists_p(sha1_hex):
-    """Return the given commit or not."""
-    git_object = _build_object(sha1_hex, models.Type.tree)
-    return lookup(app.config['conf'], git_object)
-
-
-@app.route('/git/blobs/<sha1_hex>')
-def blob_exists_p(sha1_hex):
-    """Return the given commit or not."""
-    git_object = _build_object(sha1_hex, models.Type.blob)
-    return lookup(app.config['conf'], git_object)
 
 def add_object(config, git_object):
     """Add object in storage.
@@ -85,37 +81,20 @@ def add_object(config, git_object):
             return make_response('Successful creation!', 204)
 
 
-@app.route('/git/commits/<sha1_hex>', methods=['PUT'])
-def put_commit(sha1_hex):
-    """Put a commit in storage.
+@app.route('/git/<uri_type>/<sha1_hex>', methods=['PUT'])
+def put_object(uri_type, sha1_hex):
+    """Put an object in storage.
     """
+    type = _uri_types.get(uri_type, None)
+    if type is None:
+        return make_response('Bad request!', 400)
+
     git_object = _build_object(sha1_hex,
-                              models.Type.commit,
-                              request.form['content'])
-    return add_object(app.config['conf'], git_object)
+                               _uri_types.get(uri_type, None),
+                               request.form.get('content', None),
+                               request.form.get('size', None),
+                               request.form.get('git-sha1', None))
 
-
-@app.route('/git/trees/<sha1_hex>', methods=['PUT'])
-def put_tree(sha1_hex):
-    """Put a tree in storage.
-    """
-    logging.debug('store tree %s' % sha1_hex)
-    git_object = _build_object(sha1_hex,
-                              models.Type.tree,
-                              request.form['content'])
-    return add_object(app.config['conf'], git_object)
-
-
-@app.route('/git/blobs/<sha1_hex>', methods=['PUT'])
-def put_blob(sha1_hex):
-    """Put a blob in storage.
-    """
-    logging.debug('store blob %s' % sha1_hex)
-    git_object = _build_object(sha1_hex,
-                               models.Type.blob,
-                               request.form['content'],
-                               request.form['size'],
-                               request.form['git-sha1'])
     return add_object(app.config['conf'], git_object)
 
 
