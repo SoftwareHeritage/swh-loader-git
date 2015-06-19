@@ -131,8 +131,15 @@ def put_blob(hexsha1):
 
 
 def run(conf):
-    # setup app
-    app.config['conf'] = conf
-    app.debug = True if conf['debug'] == 'true' else False
+    """Run the api's server.
+    conf is a dictionary of keywords:
+    - 'db_url' the db url's access (through psycopg2 format)
+    - 'file_content_storage_dir'   where to store blobs on disk
+    - 'object_content_storage_dir' where to store commits/trees on disk
+    - 'port'   to override the default of 5000 (from the underlying layer: flask)
+    - 'debug'  activate the verbose logs
+    """
+    app.config['conf'] = conf  # app.config is the app's state (accessible)
 
-    app.run()
+    app.run(port=conf['port'] if 'port' in conf else None,
+            debug=True if conf['debug'] == 'true' else False)
