@@ -34,27 +34,33 @@ def lookup(config, git_object):
     return make_response('Not found!', 404)
 
 
+def _build_object(sha1_hex, type, content=None, size=None, git_sha1=None):
+    """Build the object.
+    """
+    return {'sha1': sha1_hex,
+            'type': type,
+            'content': content,
+            'size': size,
+            'git-sha1': git_sha1}
+
 @app.route('/git/commits/<sha1_hex>')
 def commit_exists_p(sha1_hex):
     """Return the given commit or not."""
-    git_object = {'sha1': sha1_hex,
-                  'type': models.Type.commit}
+    git_object = _build_object(sha1_hex, models.Type.commit)
     return lookup(app.config['conf'], git_object)
 
 
 @app.route('/git/trees/<sha1_hex>')
 def tree_exists_p(sha1_hex):
     """Return the given commit or not."""
-    git_object = {'sha1': sha1_hex,
-                  'type': models.Type.tree}
+    git_object = _build_object(sha1_hex, models.Type.tree)
     return lookup(app.config['conf'], git_object)
 
 
 @app.route('/git/blobs/<sha1_hex>')
 def blob_exists_p(sha1_hex):
     """Return the given commit or not."""
-    git_object = {'sha1': sha1_hex,
-                  'type': models.Type.blob}
+    git_object = _build_object(sha1_hex, models.Type.blob)
     return lookup(app.config['conf'], git_object)
 
 def add_object(config, git_object):
@@ -83,9 +89,9 @@ def add_object(config, git_object):
 def put_commit(sha1_hex):
     """Put a commit in storage.
     """
-    git_object = {'sha1': sha1_hex,
-                  'type': models.Type.commit,
-                  'content': request.form['content']}
+    git_object = _build_object(sha1_hex,
+                              models.Type.commit,
+                              request.form['content'])
     return add_object(app.config['conf'], git_object)
 
 
@@ -94,9 +100,9 @@ def put_tree(sha1_hex):
     """Put a tree in storage.
     """
     logging.debug('store tree %s' % sha1_hex)
-    git_object = {'sha1': sha1_hex,
-                  'type': models.Type.tree,
-                  'content': request.form['content']}
+    git_object = _build_object(sha1_hex,
+                              models.Type.tree,
+                              request.form['content'])
     return add_object(app.config['conf'], git_object)
 
 
@@ -105,11 +111,11 @@ def put_blob(sha1_hex):
     """Put a blob in storage.
     """
     logging.debug('store blob %s' % sha1_hex)
-    git_object = {'sha1': sha1_hex,
-                  'type': models.Type.blob,
-                  'content': request.form['content'],
-                  'size': request.form['size'],
-                  'git-sha1': request.form['git-sha1']}
+    git_object = _build_object(sha1_hex,
+                               models.Type.blob,
+                               request.form['content'],
+                               request.form['size'],
+                               request.form['git-sha1'])
     return add_object(app.config['conf'], git_object)
 
 
