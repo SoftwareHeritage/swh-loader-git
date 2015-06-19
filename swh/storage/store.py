@@ -39,6 +39,49 @@ def find(config, git_object):
         return _find_fn[type](db_conn, sha1_bin, type)
 
 
+def _add_blob(db_conn, config, git_object):
+    """Add a blob to storage.
+    Designed to be wrapped in a db transaction.
+    Returns:
+    - True if everything went alright.
+    - None if the git sha1 was not rightly formatted.
+    """
+    sha1_bin = hex_to_bin(git_object['sha1'])
+    obj_git_sha1 = git_object['git-sha1']
+    obj_git_sha_bin = hex_to_bin(obj_git_sha1)
+    if obj_git_sha_bin is None:
+        return None
+    fs.write_object(config['file_content_storage_dir'],
+                    obj_git_sha1,
+                    git_object['content'],
+                    config['folder_depth'],
+                    config['blob_compression'])
+    models.add_blob(db_conn, sha1_bin, git_object['size'], obj_git_sha_bin)
+    return True
+
+
+def _add_object(db_conn, config, git_object):
+    """Add a commit/tree to storage.
+    Designed to be wrapped in a db transaction.
+    Returns:
+    - True if everything went alright.
+    """
+    sha1_hex = git_object['sha1']
+    sha1_bin = hex_to_bin(sha1_hex)
+    content = git_object['content']
+
+    folder_depth = config['folder_depth']
+    fs.write_object(config['object_content_storage_dir'],
+                    sha1_hex,
+                    content,
+                    folder_depth)
+    models.add_object(db_conn, sha1_bin, git_object['type'])
+    return True
+
+_store_fn = {models.Type.blob: _add_blob,
+             models.Type.commit: _add_object,
+             models.Type.tree: _add_object}
+
 def add(config, git_object):
     """Given a sha1_hex, type and content, store a given object in the store.
     """
@@ -48,32 +91,9 @@ def add(config, git_object):
     if sha1_bin is None:
         return None
 
-    content = git_object['content']
-
-    db_url = config['db_url']
-    folder_depth = config['folder_depth']
-
-    with db.connect(db_url) as db_conn:
+    with db.connect(config['db_url']) as db_conn:
         try:
-            if type is models.Type.blob:
-                obj_git_sha1 = git_object['git-sha1']
-                obj_git_sha_bin = hex_to_bin(obj_git_sha1)
-                if obj_git_sha_bin is None:
-                    return None
-
-                fs.write_object(config['file_content_storage_dir'],
-                                obj_git_sha1,
-                                content,
-                                folder_depth,
-                                config['blob_compression'])
-                models.add_blob(db_conn, sha1_bin, git_object['size'], obj_git_sha_bin)
-            else:
-                fs.write_object(config['object_content_storage_dir'],
-                                sha1_hex,
-                                content,
-                                folder_depth)
-                models.add_object(db_conn, sha1_bin, type)
-            return True
+            return _store_fn[type](db_conn, config, git_object)
         except IOError:
             db_conn.rollback()
             return False
