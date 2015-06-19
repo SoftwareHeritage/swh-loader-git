@@ -21,8 +21,8 @@ def hex_to_bin(sha1_hex):
 
 
 _find_fn = {models.Type.blob: models.find_blob,
-           models.Type.commit: models.find_object,
-           models.Type.tree: models.find_object}
+            models.Type.commit: models.find_object,
+            models.Type.tree: models.find_object}
 
 
 def find(config, git_object):
