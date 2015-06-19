@@ -99,7 +99,6 @@ class FuncUseCase(unittest.TestCase):
         # Remove temporary git repository
         shutil.rmtree(self.tmpGitRepo.workdir)
 
-    @istest
     def use_case_0(self):
         """Trigger loader and make sure everything is ok.
         """
