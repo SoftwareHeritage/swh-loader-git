@@ -73,12 +73,12 @@ class CommitTestCase(unittest.TestCase):
         assert rv.data == b'Not found!'
 
     @istest
-    def get_commit_bad_request(self):
+    def get_commit_not_found_with_bad_format(self):
         # when
         rv = self.app.get('/commits/1')
         # then
-        assert rv.status_code == 400
-        assert rv.data == b'Bad request!'
+        assert rv.status_code == 404
+        assert rv.data == b'Not found!'
 
     @istest
     def put_commit_create_and_update(self):
@@ -144,12 +144,12 @@ class TreeTestCase(unittest.TestCase):
         assert rv.data == b'Not found!'
 
     @istest
-    def get_tree_bad_request(self):
+    def get_tree_not_found_with_bad_format(self):
         # when
         rv = self.app.get('/trees/1')
         # then
-        assert rv.status_code == 400
-        assert rv.data == b'Bad request!'
+        assert rv.status_code == 404
+        assert rv.data == b'Not found!'
 
     @istest
     def put_tree_create_and_update(self):
@@ -216,15 +216,15 @@ class BlobTestCase(unittest.TestCase):
         assert rv.data == b'Not found!'
 
     @istest
-    def get_blob_bad_request(self):
+    def get_blob_not_found_with_bad_format(self):
         # when
         rv = self.app.get('/blobs/1')
         # then
-        assert rv.status_code == 400
-        assert rv.data == b'Bad request!'
+        assert rv.status_code == 404
+        assert rv.data == b'Not found!'
 
     @istest
-    def get_blob_bad_request_bad_payload(self):
+    def put_blob_bad_request_bad_payload(self):
         # when
         # we create it
         rv = self.app.put('/blobs/222222f9dd5dc46ee476a8be155ab049994f7170',
