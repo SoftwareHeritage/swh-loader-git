@@ -48,15 +48,17 @@ _uri_types = {'commits': models.Type.commit,
               'blobs': models.Type.blob,
               'trees': models.Type.tree}
 
-@app.route('/git/<uri_type>/<sha1_hex>')
-def object_exists_p(uri_type, sha1_hex):
-    """Return the given commit or not."""
-    type = _uri_types.get(uri_type, None)
-    if type is None:
+def _do_action(action_fn, uri_type, sha1_hex):
+    uri_type_ok = _uri_types.get(uri_type, None)
+    if uri_type_ok is None:
         return make_response('Bad request!', 400)
 
-    git_object = _build_object(sha1_hex, _uri_types.get(uri_type, None))
-    return lookup(app.config['conf'], git_object)
+    git_object = _build_object(sha1_hex,
+                               uri_type_ok,
+                               request.form.get('content', None),
+                               request.form.get('size', None),
+                               request.form.get('git-sha1', None))
+    return action_fn(app.config['conf'], git_object)
 
 
 def add_object(config, git_object):
@@ -72,6 +74,7 @@ def add_object(config, git_object):
     else:
         logging.debug('store %s %s' % (sha1_hex, type))
         res = store.add(config, git_object)
+
         if res is None:
              return make_response('Bad request!', 400)
         elif res is False:
@@ -81,21 +84,17 @@ def add_object(config, git_object):
             return make_response('Successful creation!', 204)
 
 
+@app.route('/git/<uri_type>/<sha1_hex>')
+def object_exists_p(uri_type, sha1_hex):
+    """Return the given commit or not."""
+    return _do_action(lookup, uri_type, sha1_hex)
+
+
 @app.route('/git/<uri_type>/<sha1_hex>', methods=['PUT'])
 def put_object(uri_type, sha1_hex):
     """Put an object in storage.
     """
-    type = _uri_types.get(uri_type, None)
-    if type is None:
-        return make_response('Bad request!', 400)
-
-    git_object = _build_object(sha1_hex,
-                               _uri_types.get(uri_type, None),
-                               request.form.get('content', None),
-                               request.form.get('size', None),
-                               request.form.get('git-sha1', None))
-
-    return add_object(app.config['conf'], git_object)
+    return _do_action(add_object, uri_type, sha1_hex)
 
 
 def run(conf):
