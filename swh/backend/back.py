@@ -10,7 +10,7 @@ import logging
 from flask import Flask, make_response, json, request
 
 from swh import models, hash, db
-from swh.gitloader import storage
+from swh.backend import storage
 
 app = Flask(__name__)
 
