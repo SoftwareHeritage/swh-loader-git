@@ -13,7 +13,8 @@ import shutil
 from nose.tools import istest
 from nose.plugins.attrib import attr
 
-from swh import db, models
+from swh import db
+from swh.storage import models
 from swh.gitloader import loader
 
 import test_initdb

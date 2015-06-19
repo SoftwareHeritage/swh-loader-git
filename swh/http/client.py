@@ -8,7 +8,7 @@
 
 import requests
 
-from swh import models
+from swh.storage import models
 
 
 _api_url = {models.Type.blob: '/blobs/',

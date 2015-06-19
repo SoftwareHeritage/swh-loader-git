@@ -9,8 +9,8 @@ import logging
 
 from flask import Flask, make_response, json, request
 
-from swh import models, hash, db
-from swh.storage import fs
+from swh import hash, db
+from swh.storage import fs, models
 
 app = Flask(__name__)
 
