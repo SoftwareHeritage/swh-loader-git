@@ -50,13 +50,15 @@ def _add_blob(db_conn, config, git_object, sha1_bin):
     obj_git_sha_bin = hex_to_bin(obj_git_sha1)
     if obj_git_sha_bin is None:
         return None
-    fs.write_object(config['file_content_storage_dir'],
+    res = fs.write_object(config['file_content_storage_dir'],
                     obj_git_sha1,
                     git_object['content'],
                     config['folder_depth'],
                     config['blob_compression'])
-    models.add_blob(db_conn, sha1_bin, git_object['size'], obj_git_sha_bin)
-    return True
+    if res is not None:
+        models.add_blob(db_conn, sha1_bin, git_object['size'], obj_git_sha_bin)
+        return True
+    return False
 
 
 def _add_object(db_conn, config, git_object, sha1_bin):
@@ -66,12 +68,14 @@ def _add_object(db_conn, config, git_object, sha1_bin):
     - True if everything went alright.
     """
     folder_depth = config['folder_depth']
-    fs.write_object(config['object_content_storage_dir'],
+    res = fs.write_object(config['object_content_storage_dir'],
                     git_object['sha1'],
                     git_object['content'],
                     folder_depth)
-    models.add_object(db_conn, sha1_bin, git_object['type'])
-    return True
+    if res is not None:
+        models.add_object(db_conn, sha1_bin, git_object['type'])
+        return True
+    return False
 
 _store_fn = {models.Type.blob: _add_blob,
              models.Type.commit: _add_object,
@@ -89,6 +93,6 @@ def add(config, git_object):
     with db.connect(config['db_url']) as db_conn:
         try:
             return _store_fn[type](db_conn, config, git_object, sha1_bin)
-        except IOError:
+        except:  # all kinds of error break the transaction
             db_conn.rollback()
             return False

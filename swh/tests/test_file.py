@@ -44,9 +44,11 @@ class TestFile(unittest.TestCase):
                                       dir='/tmp')
 
         # when
-        file.write_data('some data to write'.encode('utf-8'), tmpfile)
+        res = file.write_data('some data to write', tmpfile)
 
         # then
+        assert res is len('some data to write')
+
         with open(tmpfile, 'r') as f:
             self.assertEquals('some data to write',
                               f.read(),
@@ -62,11 +64,13 @@ class TestFile(unittest.TestCase):
                                       dir='/tmp')
 
         # when
-        file.write_data('some data to write compressed'.encode('utf-8'),
+        res = file.write_data('some data to write compressed',
                         tmpfile,
                         True)
 
         # then
+        assert res is len('some data to write compressed')
+
         with gzip.open(tmpfile, 'r') as f:
             self.assertEquals('some data to write compressed'.encode('utf-8'),
                               f.read(),
