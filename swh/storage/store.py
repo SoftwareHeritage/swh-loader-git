@@ -6,7 +6,6 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import logging
 
 from swh import hash
 from swh.storage import db, models, fs
@@ -56,7 +55,6 @@ def add(config, git_object):
 
     with db.connect(db_url) as db_conn:
         try:
-            logging.debug('store %s %s' % (sha1_hex, type))
             if type is models.Type.blob:
                 obj_git_sha1 = git_object['git-sha1']
                 obj_git_sha_bin = hex_to_bin(obj_git_sha1)
@@ -79,6 +77,5 @@ def add(config, git_object):
                 models.add_object(db_conn, sha1_bin, type)
             return True
         except IOError:
-            logging.error('store %s %s' % (sha1_hex, type))
             db_conn.rollback()
             return False

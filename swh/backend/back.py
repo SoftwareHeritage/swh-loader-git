@@ -69,11 +69,11 @@ def add_object(config, git_object):
         return make_response('Successful update!', 200)  # immutable
     else:
         logging.debug('store %s %s' % (sha1_hex, type))
-        res = store.add(config,
-                        git_object)
+        res = store.add(config, git_object)
         if res is None:
-            return make_response('Bad request!', 400)
+             return make_response('Bad request!', 400)
         elif res is False:
+            logging.error('store %s %s' % (sha1_hex, type))
             return make_response('Internal server error!', 500)
         else:
             return make_response('Successful creation!', 204)
