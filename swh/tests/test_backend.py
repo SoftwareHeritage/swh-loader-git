@@ -10,8 +10,8 @@ from nose.tools import istest
 from nose.plugins.attrib import attr
 
 from swh.backend import back
-from swh import db, hash
-from swh.storage import models
+from swh import hash
+from swh.storage import db, models
 
 import test_initdb
 

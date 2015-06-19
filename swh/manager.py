@@ -8,8 +8,7 @@
 
 import logging
 
-from swh import db
-from swh.storage import models
+from swh.storage import db, models
 
 def manage(action, db_url):
     """According to action, load the repository.

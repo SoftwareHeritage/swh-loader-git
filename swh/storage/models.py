@@ -6,7 +6,7 @@
 
 from enum import Enum
 
-from swh import db
+from swh.storage import db
 
 
 class Type(Enum):
