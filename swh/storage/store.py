@@ -20,7 +20,7 @@ def hex_to_bin(sha1_hex):
         return None
 
 
-find_fn = {models.Type.blob: models.find_blob,
+_find_fn = {models.Type.blob: models.find_blob,
            models.Type.commit: models.find_object,
            models.Type.tree: models.find_object}
 
@@ -36,7 +36,7 @@ def find(config, git_object):
         return None
 
     with db.connect(config['db_url']) as db_conn:
-        return find_fn[type](db_conn, sha1_bin, type)
+        return _find_fn[type](db_conn, sha1_bin, type)
 
 
 def add(config, git_object):
@@ -66,8 +66,6 @@ def add(config, git_object):
                                 content,
                                 folder_depth,
                                 config['blob_compression'])
-
-                # creation
                 models.add_blob(db_conn, sha1_bin, git_object['size'], obj_git_sha_bin)
             else:
                 fs.write_object(config['object_content_storage_dir'],
