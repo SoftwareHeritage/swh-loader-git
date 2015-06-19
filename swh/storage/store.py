@@ -60,19 +60,19 @@ def add(config, git_object):
                 if obj_git_sha_bin is None:
                     return None
 
-                fs.add_blob(storage_dir,
-                            sha1_hex,
-                            content,
-                            folder_depth,
-                            config['blob_compression'])
+                fs.write_object(storage_dir,
+                                sha1_hex,
+                                content,
+                                folder_depth,
+                                config['blob_compression'])
 
                 # creation
                 models.add_blob(db_conn, sha1_bin, git_object['size'], obj_git_sha_bin)
             else:
-                fs.add_object(storage_dir,
-                              sha1_hex,
-                              content,
-                              folder_depth)
+                fs.write_object(storage_dir,
+                                sha1_hex,
+                                content,
+                                folder_depth)
                 models.add_object(db_conn, sha1_bin, type)
             return True
         except IOError:
