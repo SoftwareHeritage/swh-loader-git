@@ -55,7 +55,7 @@ def tree_exists_p(hexsha1):
 @app.route('/blobs/<hexsha1>')
 def blob_exists_p(hexsha1):
     """Return the given commit or not."""
-    return lookup(hexsha1, models.find_blob)
+    return lookup(hexsha1, models.find_blob, models.Type.blob)
 
 
 def hex_to_bin(hexsha1):
