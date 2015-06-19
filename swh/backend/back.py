@@ -10,7 +10,7 @@ import logging
 from flask import Flask, make_response, json, request
 
 from swh import models, hash, db
-from swh.backend import storage
+from swh.storage import fs
 
 app = Flask(__name__)
 
@@ -87,7 +87,7 @@ def persist_object(hexsha1, predicate_fn, insert_fn, type):
         else:
             try:
                 logging.debug('store %s %s' % (hexsha1, type))
-                storage.add_object(app.config['conf']['object_content_storage_dir'],
+                fs.add_object(app.config['conf']['object_content_storage_dir'],
                                    hexsha1,
                                    blob_content,
                                    app.config['conf']['folder_depth'])
@@ -141,7 +141,7 @@ def put_blob(hexsha1):
         else:
             try:
                 logging.debug('store blob %s' % hexsha1)
-                storage.add_blob(app.config['conf']['file_content_storage_dir'],
+                fs.add_blob(app.config['conf']['file_content_storage_dir'],
                                  hexsha1,
                                  blob_content,
                                  app.config['conf']['folder_depth'],
