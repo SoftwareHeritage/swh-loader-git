@@ -12,6 +12,15 @@ from swh import hash
 from swh.storage import db, models, fs
 
 
+def hex_to_bin(sha1_hex):
+    """Given an hexadecimal sha1, return its binary equivalent.
+    Return None if sha1_hex is not the right sha1."""
+    try:
+        return hash.sha1_bin(sha1_hex)
+    except:
+        return None
+
+
 def find(config, git_object):
     """Find an object according to its sha1_hex and type.
     """
@@ -28,13 +37,6 @@ def find(config, git_object):
         else:
             return models.find_object(db_conn, sha1_bin, type)
 
-def hex_to_bin(sha1_hex):
-    """Given an hexadecimal sha1, return its binary equivalent.
-    Return None if sha1_hex is not the right sha1."""
-    try:
-        return hash.sha1_bin(sha1_hex)
-    except:
-        return None
 
 def add(config, git_object):
     """Given a sha1_hex, type and content, store a given object in the store.
