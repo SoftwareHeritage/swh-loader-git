@@ -58,13 +58,21 @@ def blob_exists_p(hexsha1):
     return lookup(hexsha1, models.find_blob)
 
 
+def hex_to_bin(hexsha1):
+    """Given an hexadecimal sha1, return its binary equivalent.
+    Return None if hexsha1 is not the right sha1."""
+    try:
+        return hash.sha1_bin(hexsha1)
+    except:
+        return None
+
+
 def persist_object(hexsha1, predicate_fn, insert_fn, type):
     """Add object in storage.
     """
     logging.debug('store %s %s' % (type, hexsha1))
-    try:
-        sha1_bin = hash.sha1_bin(hexsha1)
-    except:
+    sha1_bin = hex_to_bin(hexsha1)
+    if sha1_bin is None:
         logging.error("The sha1 provided must be in hexadecimal.")
         return make_response('Bad request!', 400)
 
@@ -98,9 +106,8 @@ def put_blob(hexsha1):
     """Put a blob in storage.
     """
     logging.debug('store blob %s' % hexsha1)
-    try:
-        sha1_bin = hash.sha1_bin(hexsha1)
-    except:
+    sha1_bin = hex_to_bin(hexsha1)
+    if sha1_bin is None:
         logging.error("The sha1 provided must be in hexadecimal.")
         return make_response('Bad request!', 400)
 
@@ -109,12 +116,10 @@ def put_blob(hexsha1):
     size, obj_git_sha_hex = payload['size'], payload['git-sha1']
 
     # FIXME: to improve
-    try:
-        obj_git_sha_bin = hash.sha1_bin(obj_git_sha_hex)
-    except:
+    obj_git_sha_bin = hex_to_bin(obj_git_sha_hex)
+    if obj_git_sha_bin is None:
         logging.error("The sha1 provided must be in hexadecimal.")
         return make_response('Bad request!', 400)
-
 
     with db.connect(app.config['conf']['db_url']) as db_conn:
         if models.find_blob(db_conn, sha1_bin):
