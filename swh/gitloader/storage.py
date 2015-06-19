@@ -20,7 +20,7 @@ def create_dir_from_hash(file_content_storage_dir, hashv, folder_depth):
     return folder_in_storage
 
 
-def write_object(dataset_dir, data, hashv, folder_depth, compress_flag=None):
+def write_object(dataset_dir, hashv, data, folder_depth, compress_flag=None):
     """Write object with data and hashv on disk in dataset_dir.
     """
     folder_in_storage = create_dir_from_hash(dataset_dir, hashv, folder_depth)
@@ -29,18 +29,16 @@ def write_object(dataset_dir, data, hashv, folder_depth, compress_flag=None):
     file.write_data(data, filepath, compress_flag)
 
 
-def add_blob(file_content_storage_dir, data, hashv, folder_depth,
+def add_blob(file_content_storage_dir, hashv, data, folder_depth,
              compress_flag=None):
     """Add blob in the file content storage (on disk).
     """
-    write_object(file_content_storage_dir, data, hashv, folder_depth,
+    write_object(file_content_storage_dir, hashv, data, folder_depth,
                  compress_flag)
 
 
-def add_object(object_content_storage_dir, object_ref, folder_depth):
+def add_object(object_content_storage_dir, object_ref_hex, object_ref_data, folder_depth):
     """Add the object to the storage.
        object_ref should be of type Commit or Tree.
     """
-    hashv = object_ref.hex
-    data = object_ref.read_raw()
-    write_object(object_content_storage_dir, data, hashv, folder_depth)
+    write_object(object_content_storage_dir, object_ref_hex, object_ref_data, folder_depth)

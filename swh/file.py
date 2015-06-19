@@ -22,4 +22,4 @@ def write_data(data, path, comp_flag=None):
     If compress_path is not None, gzip the data.
     """
     with (gzip.open(path, 'wb') if comp_flag else open(path, 'wb')) as f:
-        f.write(data)
+        f.write(bytes(data, 'UTF-8'))

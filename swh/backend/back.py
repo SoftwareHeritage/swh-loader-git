@@ -10,7 +10,7 @@ import logging
 from flask import Flask, make_response, json, request
 
 from swh import models, hash, db
-
+from swh.gitloader import storage
 
 app = Flask(__name__)
 
@@ -70,21 +70,33 @@ def hex_to_bin(hexsha1):
 def persist_object(hexsha1, predicate_fn, insert_fn, type):
     """Add object in storage.
     """
-    logging.debug('store %s %s' % (type, hexsha1))
+    logging.debug(app.config['conf'])
     sha1_bin = hex_to_bin(hexsha1)
     if sha1_bin is None:
         logging.error("The sha1 provided must be in hexadecimal.")
         return make_response('Bad request!', 400)
+
+    payload = request.form
+    logging.debug("payload: %s" % payload)
+    blob_content = payload['content']
 
     # payload = request.form  # do not care for the payload for the moment
     with db.connect(app.config['conf']['db_url']) as db_conn:
         if predicate_fn(db_conn, sha1_bin, type):
             return make_response('Successful update!', 200)  # immutable
         else:
-            # creation
-            insert_fn(db_conn, sha1_bin, type)
-            return make_response('Successful creation!', 204)
-
+            try:
+                logging.debug('store %s %s' % (hexsha1, type))
+                storage.add_object(app.config['conf']['object_content_storage_dir'],
+                                   hexsha1,
+                                   blob_content,
+                                   app.config['conf']['folder_depth'])
+                insert_fn(db_conn, sha1_bin, type)
+                return make_response('Successful creation!', 204)
+            except IOError:
+                db_conn.rollback()
+                logging.error('store %s %s' % (hexsha1, type))
+                return make_response('Internal server error!', 500)
 
 # put objects (tree/commits)
 @app.route('/commits/<hexsha1>', methods=['PUT'])
@@ -113,7 +125,9 @@ def put_blob(hexsha1):
 
     payload = request.form
     logging.debug("payload: %s" % payload)
-    size, obj_git_sha_hex = payload['size'], payload['git-sha1']
+    size, obj_git_sha_hex, blob_content = (payload['size'],
+                                           payload['git-sha1'],
+                                           payload['content'])
 
     # FIXME: to improve
     obj_git_sha_bin = hex_to_bin(obj_git_sha_hex)
@@ -125,9 +139,21 @@ def put_blob(hexsha1):
         if models.find_blob(db_conn, sha1_bin):
             return make_response('Successful update!', 200)  # immutable
         else:
-            # creation
-            models.add_blob(db_conn, sha1_bin, size, obj_git_sha_bin)
-            return make_response('Successful creation!', 204)
+            try:
+                logging.debug('store blob %s' % hexsha1)
+                storage.add_blob(app.config['conf']['file_content_storage_dir'],
+                                 hexsha1,
+                                 blob_content,
+                                 app.config['conf']['folder_depth'],
+                                 app.config['conf']['blob_compression'])
+
+                # creation
+                models.add_blob(db_conn, sha1_bin, size, obj_git_sha_bin)
+                return make_response('Successful creation!', 204)
+            except IOError:
+                db_conn.rollback()
+                logging.error('store blob %s' % hexsha1)
+                return make_response('Internal server error', 500)
 
 
 def run(conf):

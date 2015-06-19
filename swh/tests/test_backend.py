@@ -18,7 +18,11 @@ import test_initdb
 def app_client(db_url="dbname=swhgitloader-test"):
     """Setup the application ready for testing.
     """
-    back.app.config['conf'] = {'db_url': db_url}
+    back.app.config['conf'] = {'db_url': db_url,
+                               'file_content_storage_dir': 'swh-git-loader/file-content-storage',
+                               'object_content_storage_dir': 'swh-git-loader/object-content-storage',
+                               'folder_depth': 2,
+                               'blob_compression': None}
     back.app.config['TESTING'] = True
     app = back.app.test_client()
     test_initdb.prepare_db(db_url)
@@ -85,7 +89,7 @@ class CommitTestCase(unittest.TestCase):
         assert rv.data == b'Not found!'
 
         # we create it
-        rv = self.app.put('/commits/000000f6dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.put('/commits/000000f6dd5dc46ee476a8be155ab049994f7170', data = {'content': 'commit-foo'})
 
         assert rv.status_code == 204
         assert rv.data == b''
@@ -98,7 +102,7 @@ class CommitTestCase(unittest.TestCase):
         assert rv.data == b'{\n  "sha1": "000000f6dd5dc46ee476a8be155ab049994f7170"\n}'
 
         # we update it
-        rv = self.app.put('/commits/000000f6dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.put('/commits/000000f6dd5dc46ee476a8be155ab049994f7170', data = {'content': 'commit-foo'})
 
         assert rv.status_code == 200
         assert rv.data == b'Successful update!'
@@ -156,7 +160,7 @@ class TreeTestCase(unittest.TestCase):
         assert rv.data == b'Not found!'
 
         # we create it
-        rv = self.app.put('/trees/111111f9dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.put('/trees/111111f9dd5dc46ee476a8be155ab049994f7170', data = {'content': 'tree-bar'})
 
         assert rv.status_code == 204
         assert rv.data == b''
@@ -169,7 +173,7 @@ class TreeTestCase(unittest.TestCase):
         assert rv.data == b'{\n  "sha1": "111111f9dd5dc46ee476a8be155ab049994f7170"\n}'
 
         # we update it
-        rv = self.app.put('/trees/111111f9dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.put('/trees/111111f9dd5dc46ee476a8be155ab049994f7170', data = {'content': 'tree-bar'})
 
         assert rv.status_code == 200
         assert rv.data == b'Successful update!'
@@ -224,7 +228,8 @@ class BlobTestCase(unittest.TestCase):
         # we create it
         rv = self.app.put('/blobs/222222f9dd5dc46ee476a8be155ab049994f7170',
                           data = {'size': 99,
-                                  'git-sha1': 'bad-payload'})
+                                  'git-sha1': 'bad-payload',
+                                  'content': 'foo'})
 
         # then
         assert rv.status_code == 400
@@ -242,7 +247,8 @@ class BlobTestCase(unittest.TestCase):
         # we create it
         rv = self.app.put('/blobs/222222f9dd5dc46ee476a8be155ab049994f7170',
                           data = {'size': 99,
-                                  'git-sha1': '222222f9dd5dc46ee476a8be155ab03333333333'})
+                                  'git-sha1': '222222f9dd5dc46ee476a8be155ab03333333333',
+                                  'content': 'bar'})
 
         assert rv.status_code == 204
         assert rv.data == b''
@@ -257,7 +263,8 @@ class BlobTestCase(unittest.TestCase):
         # we update it
         rv = self.app.put('/blobs/222222f9dd5dc46ee476a8be155ab049994f7170',
                           data = {'size': 99,
-                                  'git-sha1': '222222f9dd5dc46ee476a8be155ab03333333333'})
+                                  'git-sha1': '222222f9dd5dc46ee476a8be155ab03333333333',
+                                  'content': 'foobar'})
 
         assert rv.status_code == 200
         assert rv.data == b'Successful update!'

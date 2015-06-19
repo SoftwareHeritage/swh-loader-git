@@ -11,7 +11,6 @@ from pygit2 import GIT_REF_OID
 from pygit2 import GIT_FILEMODE_TREE, GIT_FILEMODE_COMMIT, GIT_OBJ_COMMIT
 
 from swh import hash, models
-from swh.gitloader import storage
 from swh.http import client
 
 
@@ -26,30 +25,19 @@ def load_repo(baseurl,
     """
     def store_object(object_ref, object_type):
         """Store object in swh storage"""
-        try:
-            logging.debug('store %s %s' % (object_ref.hex, object_type))
-            storage.add_object(object_content_storage_dir, object_ref,
-                               folder_depth)
-            client.put(baseurl, object_type, object_ref.hex)
-        except IOError:
-            logging.error('store %s %s' % (object_ref.hex, object_type))
+        logging.debug('store %s %s' % (object_ref.hex, object_type))
+        client.put(baseurl, object_type, object_ref.hex,
+                   data={'content': object_ref.read_raw()})
 
     def store_blob(blob_entry_ref, blob_data_sha1_hex):
         """Store blob in swh storage."""
-        try:
-            logging.debug('store blob %s' % blob_entry_ref.hex)
-            storage.add_blob(file_content_storage_dir,
-                             blob_entry_ref.data,
-                             blob_data_sha1_hex,
-                             folder_depth,
-                             blob_compress_flag)
-            client.put(baseurl,
-                       models.Type.blob,
-                       blob_data_sha1_hex,
-                       {'size': blob_entry_ref.size,
-                        'git-sha1': blob_entry_ref.hex})
-        except IOError:
-            logging.error('store blob %s' % blob_entry_ref.hex)
+        logging.debug('store blob %s' % blob_entry_ref)
+        client.put(baseurl,
+                   models.Type.blob,
+                   blob_data_sha1_hex,
+                   {'size': blob_entry_ref.size,
+                    'git-sha1': blob_entry_ref.hex,
+                    'content': blob_entry_ref.data})
 
     def walk_tree(repo, tree_ref):
         """Given a tree, walk the tree and save the blobs in file content storage
