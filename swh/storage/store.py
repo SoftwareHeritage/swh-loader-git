@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 # Copyright (C) 2015  Stefano Zacchiroli <zack@upsilon.cc>,
 #                     Antoine R. Dumont <antoine.romain.dumont@gmail.com>
 # See the AUTHORS file at the top-level directory of this distribution
@@ -44,7 +42,9 @@ def _add_blob(db_conn, config, git_object, sha1_bin):
     Designed to be wrapped in a db transaction.
     Returns:
     - True if everything went alright.
+    - False if something went wrong during writing.
     - None if the git sha1 was not rightly formatted.
+    Writing exceptions can also be raised and expected to be handled by the caller.
     """
     obj_git_sha1 = git_object['git-sha1']
     obj_git_sha_bin = hex_to_bin(obj_git_sha1)
@@ -66,6 +66,9 @@ def _add_object(db_conn, config, git_object, sha1_bin):
     Designed to be wrapped in a db transaction.
     Returns:
     - True if everything went alright.
+    - False if something went wrong during writing
+    Writing exceptions can also be raised and expected to be handled by the
+    caller.
     """
     folder_depth = config['folder_depth']
     res = fs.write_object(config['object_content_storage_dir'],
