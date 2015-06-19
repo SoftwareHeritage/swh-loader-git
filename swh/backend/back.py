@@ -34,7 +34,7 @@ def lookup(config, git_object):
     return make_response('Not found!', 404)
 
 
-@app.route('/commits/<sha1_hex>')
+@app.route('/git/commits/<sha1_hex>')
 def commit_exists_p(sha1_hex):
     """Return the given commit or not."""
     git_object = {'sha1': sha1_hex,
@@ -42,7 +42,7 @@ def commit_exists_p(sha1_hex):
     return lookup(app.config['conf'], git_object)
 
 
-@app.route('/trees/<sha1_hex>')
+@app.route('/git/trees/<sha1_hex>')
 def tree_exists_p(sha1_hex):
     """Return the given commit or not."""
     git_object = {'sha1': sha1_hex,
@@ -50,7 +50,7 @@ def tree_exists_p(sha1_hex):
     return lookup(app.config['conf'], git_object)
 
 
-@app.route('/blobs/<sha1_hex>')
+@app.route('/git/blobs/<sha1_hex>')
 def blob_exists_p(sha1_hex):
     """Return the given commit or not."""
     git_object = {'sha1': sha1_hex,
@@ -79,8 +79,7 @@ def add_object(config, git_object):
             return make_response('Successful creation!', 204)
 
 
-# put objects (tree/commits)
-@app.route('/commits/<sha1_hex>', methods=['PUT'])
+@app.route('/git/commits/<sha1_hex>', methods=['PUT'])
 def put_commit(sha1_hex):
     """Put a commit in storage.
     """
@@ -90,7 +89,7 @@ def put_commit(sha1_hex):
     return add_object(app.config['conf'], git_object)
 
 
-@app.route('/trees/<sha1_hex>', methods=['PUT'])
+@app.route('/git/trees/<sha1_hex>', methods=['PUT'])
 def put_tree(sha1_hex):
     """Put a tree in storage.
     """
@@ -101,7 +100,7 @@ def put_tree(sha1_hex):
     return add_object(app.config['conf'], git_object)
 
 
-@app.route('/blobs/<sha1_hex>', methods=['PUT'])
+@app.route('/git/blobs/<sha1_hex>', methods=['PUT'])
 def put_blob(sha1_hex):
     """Put a blob in storage.
     """

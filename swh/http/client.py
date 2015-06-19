@@ -11,9 +11,9 @@ import requests
 from swh.storage import models
 
 
-_api_url = {models.Type.blob: '/blobs/',
-            models.Type.commit: '/commits/',
-            models.Type.tree: '/trees/'}
+_api_url = {models.Type.blob: '/git/blobs/',
+            models.Type.commit: '/git/commits/',
+            models.Type.tree: '/git/trees/'}
 
 
 def compute_url(baseurl, type, sha1hex):

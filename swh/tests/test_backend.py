@@ -58,7 +58,7 @@ class CommitTestCase(unittest.TestCase):
     @istest
     def get_commit_ok(self):
         # when
-        rv = self.app.get('/commits/%s' % self.commit_sha1_hex)
+        rv = self.app.get('/git/commits/%s' % self.commit_sha1_hex)
 
         # then
         assert rv.status_code is 200
@@ -67,7 +67,7 @@ class CommitTestCase(unittest.TestCase):
     @istest
     def get_commit_not_found(self):
         # when
-        rv = self.app.get('/commits/000000f6dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.get('/git/commits/000000f6dd5dc46ee476a8be155ab049994f7170')
         # then
         assert rv.status_code == 404
         assert rv.data == b'Not found!'
@@ -75,7 +75,7 @@ class CommitTestCase(unittest.TestCase):
     @istest
     def get_commit_not_found_with_bad_format(self):
         # when
-        rv = self.app.get('/commits/1')
+        rv = self.app.get('/git/commits/1')
         # then
         assert rv.status_code == 404
         assert rv.data == b'Not found!'
@@ -83,33 +83,33 @@ class CommitTestCase(unittest.TestCase):
     @istest
     def put_commit_create_and_update(self):
         # does not exist
-        rv = self.app.get('/commits/000000f6dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.get('/git/commits/000000f6dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 404
         assert rv.data == b'Not found!'
 
         # we create it
-        rv = self.app.put('/commits/000000f6dd5dc46ee476a8be155ab049994f7170', data = {'content': 'commit-foo'})
+        rv = self.app.put('/git/commits/000000f6dd5dc46ee476a8be155ab049994f7170', data = {'content': 'commit-foo'})
 
         assert rv.status_code == 204
         assert rv.data == b''
 
         # now it exists
-        rv = self.app.get('/commits/000000f6dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.get('/git/commits/000000f6dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 200
         assert rv.data == b'{\n  "sha1": "000000f6dd5dc46ee476a8be155ab049994f7170"\n}'
 
         # we update it
-        rv = self.app.put('/commits/000000f6dd5dc46ee476a8be155ab049994f7170', data = {'content': 'commit-foo'})
+        rv = self.app.put('/git/commits/000000f6dd5dc46ee476a8be155ab049994f7170', data = {'content': 'commit-foo'})
 
         assert rv.status_code == 200
         assert rv.data == b'Successful update!'
 
         # still the same
-        rv = self.app.get('/commits/000000f6dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.get('/git/commits/000000f6dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 200
@@ -129,7 +129,7 @@ class TreeTestCase(unittest.TestCase):
     @istest
     def get_tree_ok(self):
         # when
-        rv = self.app.get('/trees/%s' % self.tree_sha1_hex)
+        rv = self.app.get('/git/trees/%s' % self.tree_sha1_hex)
 
         # then
         assert rv.status_code is 200
@@ -138,7 +138,7 @@ class TreeTestCase(unittest.TestCase):
     @istest
     def get_tree_not_found(self):
         # when
-        rv = self.app.get('/trees/111111f9dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.get('/git/trees/111111f9dd5dc46ee476a8be155ab049994f7170')
         # then
         assert rv.status_code == 404
         assert rv.data == b'Not found!'
@@ -146,7 +146,7 @@ class TreeTestCase(unittest.TestCase):
     @istest
     def get_tree_not_found_with_bad_format(self):
         # when
-        rv = self.app.get('/trees/1')
+        rv = self.app.get('/git/trees/1')
         # then
         assert rv.status_code == 404
         assert rv.data == b'Not found!'
@@ -154,33 +154,33 @@ class TreeTestCase(unittest.TestCase):
     @istest
     def put_tree_create_and_update(self):
         # does not exist
-        rv = self.app.get('/trees/111111f9dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.get('/git/trees/111111f9dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 404
         assert rv.data == b'Not found!'
 
         # we create it
-        rv = self.app.put('/trees/111111f9dd5dc46ee476a8be155ab049994f7170', data = {'content': 'tree-bar'})
+        rv = self.app.put('/git/trees/111111f9dd5dc46ee476a8be155ab049994f7170', data = {'content': 'tree-bar'})
 
         assert rv.status_code == 204
         assert rv.data == b''
 
         # now it exists
-        rv = self.app.get('/trees/111111f9dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.get('/git/trees/111111f9dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 200
         assert rv.data == b'{\n  "sha1": "111111f9dd5dc46ee476a8be155ab049994f7170"\n}'
 
         # we update it
-        rv = self.app.put('/trees/111111f9dd5dc46ee476a8be155ab049994f7170', data = {'content': 'tree-bar'})
+        rv = self.app.put('/git/trees/111111f9dd5dc46ee476a8be155ab049994f7170', data = {'content': 'tree-bar'})
 
         assert rv.status_code == 200
         assert rv.data == b'Successful update!'
 
         # still the same
-        rv = self.app.get('/trees/111111f9dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.get('/git/trees/111111f9dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 200
@@ -201,7 +201,7 @@ class BlobTestCase(unittest.TestCase):
     @istest
     def get_blob_ok(self):
         # when
-        rv = self.app.get('/blobs/%s' % self.blob_sha1_hex)
+        rv = self.app.get('/git/blobs/%s' % self.blob_sha1_hex)
 
         # then
         assert rv.status_code is 200
@@ -210,7 +210,7 @@ class BlobTestCase(unittest.TestCase):
     @istest
     def get_blob_not_found(self):
         # when
-        rv = self.app.get('/blobs/222222f9dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.get('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170')
         # then
         assert rv.status_code == 404
         assert rv.data == b'Not found!'
@@ -218,7 +218,7 @@ class BlobTestCase(unittest.TestCase):
     @istest
     def get_blob_not_found_with_bad_format(self):
         # when
-        rv = self.app.get('/blobs/1')
+        rv = self.app.get('/git/blobs/1')
         # then
         assert rv.status_code == 404
         assert rv.data == b'Not found!'
@@ -227,7 +227,7 @@ class BlobTestCase(unittest.TestCase):
     def put_blob_bad_request_bad_payload(self):
         # when
         # we create it
-        rv = self.app.put('/blobs/222222f9dd5dc46ee476a8be155ab049994f7170',
+        rv = self.app.put('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170',
                           data = {'size': 99,
                                   'git-sha1': 'bad-payload',
                                   'content': 'foo'})
@@ -239,14 +239,14 @@ class BlobTestCase(unittest.TestCase):
     @istest
     def put_blob_create_and_update(self):
         # does not exist
-        rv = self.app.get('/blobs/222222f9dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.get('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 404
         assert rv.data == b'Not found!'
 
         # we create it
-        rv = self.app.put('/blobs/222222f9dd5dc46ee476a8be155ab049994f7170',
+        rv = self.app.put('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170',
                           data = {'size': 99,
                                   'git-sha1': '222222f9dd5dc46ee476a8be155ab03333333333',
                                   'content': 'bar'})
@@ -255,14 +255,14 @@ class BlobTestCase(unittest.TestCase):
         assert rv.data == b''
 
         # now it exists
-        rv = self.app.get('/blobs/222222f9dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.get('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 200
         assert rv.data == b'{\n  "sha1": "222222f9dd5dc46ee476a8be155ab049994f7170"\n}'
 
         # we update it
-        rv = self.app.put('/blobs/222222f9dd5dc46ee476a8be155ab049994f7170',
+        rv = self.app.put('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170',
                           data = {'size': 99,
                                   'git-sha1': '222222f9dd5dc46ee476a8be155ab03333333333',
                                   'content': 'foobar'})
@@ -271,7 +271,7 @@ class BlobTestCase(unittest.TestCase):
         assert rv.data == b'Successful update!'
 
         # still the same
-        rv = self.app.get('/blobs/222222f9dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.get('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 200
