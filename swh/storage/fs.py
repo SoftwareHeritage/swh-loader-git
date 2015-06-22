@@ -11,10 +11,10 @@ import os
 from swh import file
 
 
-def create_dir_from_hash(file_content_storage_dir, hashv, folder_depth):
-    """Create directory in folder file_content_storage_dir from a given hash value.
+def create_dir_from_hash(storage_dir, hashv, folder_depth):
+    """Create directory in folder storage_dir from a given hash value.
     """
-    folder_in_storage = file.folder_path(file_content_storage_dir, hashv,
+    folder_in_storage = file.folder_path(storage_dir, hashv,
                                          folder_depth)
     os.makedirs(folder_in_storage, exist_ok=True)
     return folder_in_storage
