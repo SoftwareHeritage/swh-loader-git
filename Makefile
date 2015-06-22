@@ -27,6 +27,7 @@ deps:
 		python3-nose \
 		python3-flask \
 		python3-requests \
+		python3-retrying \
 		ipython3
 
 prepare:
