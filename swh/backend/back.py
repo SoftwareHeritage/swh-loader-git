@@ -9,7 +9,7 @@ import logging
 
 from flask import Flask, make_response, json, request
 
-from swh.storage import store, models
+from swh.storage import store
 
 app = Flask(__name__)
 
@@ -44,9 +44,9 @@ def _build_object(sha1_hex, type, content=None, size=None, git_sha1=None):
             'git-sha1': git_sha1}
 
 
-_uri_types = {'commits': models.Type.commit,
-              'blobs': models.Type.blob,
-              'trees': models.Type.tree}
+_uri_types = {'commits': store.Type.commit,
+              'blobs': store.Type.blob,
+              'trees': store.Type.tree}
 
 def _do_action(action_fn, uri_type, sha1_hex):
     uri_type_ok = _uri_types.get(uri_type, None)

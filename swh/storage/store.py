@@ -8,6 +8,8 @@
 from swh import hash
 from swh.storage import db, models, fs
 
+Type = models.Type
+
 
 def hex_to_bin(sha1_hex):
     """Given an hexadecimal sha1, return its binary equivalent.
@@ -18,9 +20,9 @@ def hex_to_bin(sha1_hex):
         return None
 
 
-_find_fn = {models.Type.blob: models.find_blob,
-            models.Type.commit: models.find_object,
-            models.Type.tree: models.find_object}
+_find_fn = {Type.blob: models.find_blob,
+            Type.commit: models.find_object,
+            Type.tree: models.find_object}
 
 
 def find(config, git_object):
@@ -80,9 +82,9 @@ def _add_object(db_conn, config, git_object, sha1_bin):
         return True
     return False
 
-_store_fn = {models.Type.blob: _add_blob,
-             models.Type.commit: _add_object,
-             models.Type.tree: _add_object}
+_store_fn = {Type.blob: _add_blob,
+             Type.commit: _add_object,
+             Type.tree: _add_object}
 
 def add(config, git_object):
     """Given a sha1_hex, type and content, store a given object in the store.
