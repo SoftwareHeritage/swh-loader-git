@@ -7,11 +7,10 @@
 import logging
 import pygit2
 
-from pygit2 import GIT_REF_OID
-from pygit2 import GIT_FILEMODE_TREE, GIT_FILEMODE_COMMIT, GIT_OBJ_COMMIT
+from pygit2 import GIT_REF_OID, GIT_OBJ_COMMIT, GIT_OBJ_TREE, Repository
 
 from swh import hash
-from swh.storage import models
+from swh.storage import store
 from swh.http import client
 
 
@@ -24,60 +23,77 @@ def load_repo(baseurl,
     """Parse git repository `repo_path` and flush
     blobs on disk in `file_content_storage_dir`.
     """
+    def find_object(object_sha1hex, object_type):
+        """Find a given object.
+        """
+        client.get(baseurl, object_type, object_sha1hex)
+
     def store_object(object_ref, object_type):
-        """Store object in swh storage"""
+        """Store object in swh storage.
+        """
         logging.debug('store %s %s' % (object_ref.hex, object_type))
         client.put(baseurl, object_type, object_ref.hex,
                    data={'content': object_ref.read_raw()})
 
-    def store_blob(blob_entry_ref, blob_data_sha1_hex):
-        """Store blob in swh storage."""
-        logging.debug('store blob %s' % blob_entry_ref)
+    def store_blob(blob_ref, blob_data_sha1hex):
+        """Store blob in swh storage.
+        """
+        logging.debug('store blob %s' % blob_ref)
         client.put(baseurl,
-                   models.Type.blob,
-                   blob_data_sha1_hex,
-                   {'size': blob_entry_ref.size,
-                    'git-sha1': blob_entry_ref.hex,
-                    'content': blob_entry_ref.data})
+                   store.Type.blob,
+                   blob_data_sha1hex,
+                   {'size': blob_ref.size,
+                    'git-sha1': blob_ref.hex,
+                    'content': blob_ref.data})
 
-    def walk_tree(repo, tree_ref):
-        """Given a tree, walk the tree and save the blobs in file content storage
+    def treewalk(repo, tree, topdown=True):
+        """Walk a tree with the same implementation as `os.path`.
+        Returns: tree, trees, blobs
+        """
+        trees, blobs = [], []
+        for tree_entry in tree:
+            obj = repo.get(tree_entry.oid, None)
+            if obj is None:
+                logging.warn('skip submodule-commit %s' % tree_entry.hex)
+                continue  # submodule!
+
+            if obj.type == GIT_OBJ_TREE:
+                if not find_object(obj.hex, store.Type.tree):
+                    trees.append(obj)
+            else:
+                if not find_object(obj.hex, store.Type.blob):
+                    blobs.append(obj)
+
+        if topdown:
+            yield tree, trees, blobs
+        for tree_entry in trees:
+            for x in treewalk(repo, repo[tree_entry.oid], topdown):
+                yield x
+        if not topdown:
+            yield tree, trees, blobs
+
+    def store_tree(repo, tree_ref):
+        """Walk the tree and save the blobs in file content storage
         (if not already present).
         """
         tree_sha1_hex = tree_ref.hex
 
-        if client.get(baseurl, models.Type.tree, tree_sha1_hex):
+        if client.get(baseurl, store.Type.tree, tree_sha1_hex):
             logging.debug('skip tree %s' % tree_sha1_hex)
             return
 
-        for tree_entry in tree_ref:
-            filemode = tree_entry.filemode
-            tree_id = tree_entry.id
+        for ori_tree_ref, trees_ref, blobs_ref in treewalk(repo, tree_ref,
+                                                           topdown=False):
+            for blob_ref in blobs_ref:
+                blob_data_sha1hex = hash.hashkey_sha1(blob_ref.data).hexdigest()
+                store_blob(blob_ref, blob_data_sha1hex)
 
-            if (filemode == GIT_FILEMODE_COMMIT):  # submodule!
-                logging.warn('skip submodule-commit %s'
-                             % tree_id)
-                continue
+            for tree_ref in trees_ref:
+                store_object(tree_ref, store.Type.tree)
 
-            elif (filemode == GIT_FILEMODE_TREE):  # Tree
-                logging.debug('walk tree %s'
-                              % tree_id)
-                walk_tree(repo, repo[tree_id])
+            store_object(ori_tree_ref, store.Type.tree)
 
-            else:  # blob
-                blob_entry_ref = repo[tree_id]
-                hashkey = hash.hashkey_sha1(blob_entry_ref.data)
-                blob_data_sha1_hex = hashkey.hexdigest()
-
-                if client.get(baseurl, models.Type.blob, blob_data_sha1_hex):
-                    logging.debug('skip blob %s' % blob_entry_ref.hex)
-                    continue
-
-                store_blob(blob_entry_ref,
-                           blob_data_sha1_hex)
-
-        store_object(tree_ref,
-                     models.Type.tree)
+        store_object(tree_ref, store.Type.tree)
 
     def walk_revision_from(repo, head_commit, visited):
         """Walk the revision from commit head_commit.
@@ -96,16 +112,15 @@ def load_repo(baseurl,
 
             commit_sha1_hex = commit.hex
             if commit_sha1_hex not in visited \
-               and not client.get(baseurl, models.Type.commit, commit_sha1_hex):
+               and not client.get(baseurl, store.Type.commit, commit_sha1_hex):
                 visited.add(commit_sha1_hex)
                 to_visits.extend(commit.parents)
                 to_store.append(commit)
 
         while to_store:
             commit_to_store = to_store.pop()
-            walk_tree(repo, commit_to_store.tree)
-            store_object(commit_to_store,
-                         models.Type.commit)
+            store_tree(repo, commit_to_store.tree)
+            store_object(commit_to_store, store.Type.commit)
 
     def walk_references_from(repo):
         """Walk the references from the repository repo_path.
@@ -120,7 +135,7 @@ def load_repo(baseurl,
                               else ref.peel(GIT_OBJ_COMMIT)
             walk_revision_from(repo, head_commit, visited)
 
-    walk_references_from(pygit2.Repository(repo_path))
+    walk_references_from(Repository(repo_path))
 
 
 def load(conf):
