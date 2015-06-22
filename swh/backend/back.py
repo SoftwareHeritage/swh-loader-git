@@ -53,11 +53,12 @@ def _do_action(action_fn, uri_type, sha1_hex):
     if uri_type_ok is None:
         return make_response('Bad request!', 400)
 
+    payload = request.form
     git_object = _build_object(sha1_hex,
                                uri_type_ok,
-                               request.form.get('content', None),
-                               request.form.get('size', None),
-                               request.form.get('git-sha1', None))
+                               payload.get('content', None),
+                               payload.get('size', None),
+                               payload.get('git-sha1', None))
     return action_fn(app.config['conf'], git_object)
 
 
