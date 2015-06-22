@@ -26,10 +26,15 @@
 - [X] Expose option flag for blob compression
 - [X] Add computation folder with depth as parameter
 - [X] Expose option flag for folder depth
-- [-] Test coverage for at least primitives functions [1/2]
+- [X] Test coverage for at least primitives functions [2/2]
   - [X] swh.file
-  - [ ] swh.hash
-- [ ] Add git-sha1 function in swh.hash module
+  - [X] swh.hash
+- [X] Add git-sha1 function in swh.hash module
+- [X] Separate the git repository parsing from the persistence (using backend api)
+- [X] Enforce retrying disk writing policy
+- [X] Use blob's git sha1 as key on disk
+- [ ] Share http connection throughout the git repository parsing
+- [ ] Enforce retrying policy (db transaction? http requests?)
 
 * Discussion
 
