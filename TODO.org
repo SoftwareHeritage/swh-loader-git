@@ -33,8 +33,10 @@
 - [X] Separate the git repository parsing from the persistence (using backend api)
 - [X] Enforce retrying disk writing policy
 - [X] Use blob's git sha1 as key on disk
+- [X] Enforce retrying policy on http client requests
+- [ ] Use future computations
+- [ ] Enforce retrying policy on db transactions
 - [ ] Share http connection throughout the git repository parsing
-- [ ] Enforce retrying policy (db transaction? http requests?)
 
 * Discussion
 
