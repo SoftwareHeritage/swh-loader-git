@@ -8,6 +8,7 @@ import os
 import gzip
 
 from retrying import retry
+from swh.retry import policy
 
 
 def folder_path(prefix_dir, hexhash, depth=4):
@@ -24,14 +25,7 @@ def folder_path(prefix_dir, hexhash, depth=4):
     return os.path.join(prefix_dir, *hexhashes)
 
 
-def _retry_if_io_error(exc):
-    """Return True if we should retry (in this case when it's an IOError),
-       False otherwise.
-    """
-    return isinstance(exc, IOError)
-
-
-@retry(retry_on_exception=_retry_if_io_error, wrap_exception=True)
+@retry(retry_on_exception=policy.retry_if_io_error, wrap_exception=True)
 def write_data(data, path, comp_flag=None):
     """Write data to path.
        If compress_path is not None, gzip the data.
