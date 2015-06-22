@@ -99,8 +99,11 @@ check-meta:
 readme:
 	pandoc -f org -t markdown README.org > README
 
-log:
+log-loader:
 	tail -f swh-git-loader/log/sgloader.log
+
+log-back:
+	tail -f swh-git-loader/log/back.log
 
 coverage:
 	$(NOSE) --with-coverage $(SRCDIR) -v --cover-package=$(SRCDIR)
