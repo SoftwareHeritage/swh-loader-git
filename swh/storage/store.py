@@ -8,6 +8,7 @@
 from swh import hash
 from swh.storage import db, models, fs
 
+
 Type = models.Type
 
 
