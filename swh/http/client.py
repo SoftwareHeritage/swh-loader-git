@@ -8,8 +8,9 @@
 
 import requests
 
-from swh.storage import models
 from retrying import retry
+
+from swh.storage import models
 from swh.retry import policy
 
 
