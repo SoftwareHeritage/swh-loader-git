@@ -18,6 +18,8 @@ _api_url = {models.Type.blob: '/git/blobs/',
             models.Type.commit: '/git/commits/',
             models.Type.tree: '/git/trees/'}
 
+session_swh = requests.Session()
+
 
 def compute_url(baseurl, type, sha1hex):
     """Compute the api url.
@@ -29,7 +31,7 @@ def compute_url(baseurl, type, sha1hex):
 def get(baseurl, type, sha1hex):
     """Retrieve the objects of type type with sha1 sha1hex.
     """
-    r = requests.get(compute_url(baseurl, type, sha1hex))
+    r = session_swh.get(compute_url(baseurl, type, sha1hex))
     return r.ok
 
 
@@ -37,6 +39,6 @@ def get(baseurl, type, sha1hex):
 def put(baseurl, type, sha1hex, data=None):
     """Retrieve the objects of type type with sha1 sha1hex.
     """
-    r = requests.put(compute_url(baseurl, type, sha1hex),
-                     [] if data is None else data)
+    r = session_swh.put(compute_url(baseurl, type, sha1hex),
+                        [] if data is None else data)
     return r.ok
