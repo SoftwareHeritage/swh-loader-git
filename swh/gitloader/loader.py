@@ -40,7 +40,16 @@ def load_repo(baseurl,
                     'git-sha1': blob_entry_ref.hex,
                     'content': blob_entry_ref.data})
 
-    def walk_tree(repo, tree_ref):
+
+    def store_commit(repo, commit_to_store):
+        """Store a commit in swh storage.
+        """
+        store_tree(repo, commit_to_store.tree)
+        store_object(commit_to_store,
+                     models.Type.commit)
+
+
+    def store_tree(repo, tree_ref):
         """Given a tree, walk the tree and save the blobs in file content storage
         (if not already present).
         """
@@ -62,7 +71,7 @@ def load_repo(baseurl,
             elif (filemode == GIT_FILEMODE_TREE):  # Tree
                 logging.debug('walk tree %s'
                               % tree_id)
-                walk_tree(repo, repo[tree_id])
+                store_tree(repo, repo[tree_id])
 
             else:  # blob
                 blob_entry_ref = repo[tree_id]
@@ -102,10 +111,7 @@ def load_repo(baseurl,
                 to_store.append(commit)
 
         while to_store:
-            commit_to_store = to_store.pop()
-            walk_tree(repo, commit_to_store.tree)
-            store_object(commit_to_store,
-                         models.Type.commit)
+            store_commit(repo, to_store.pop())
 
     def walk_references_from(repo):
         """Walk the references from the repository repo_path.
