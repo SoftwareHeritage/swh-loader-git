@@ -11,7 +11,7 @@ from pygit2 import GIT_REF_OID
 from pygit2 import GIT_FILEMODE_TREE, GIT_FILEMODE_COMMIT, GIT_OBJ_COMMIT
 
 from swh import hash
-from swh.storage import models
+from swh.storage import store
 from swh.http import client
 
 
@@ -34,7 +34,7 @@ def load_repo(baseurl,
         """Store blob in swh storage."""
         logging.debug('store blob %s' % blob_entry_ref)
         client.put(baseurl,
-                   models.Type.blob,
+                   store.Type.blob,
                    blob_data_sha1_hex,
                    {'size': blob_entry_ref.size,
                     'git-sha1': blob_entry_ref.hex,
@@ -46,7 +46,7 @@ def load_repo(baseurl,
         """
         store_tree(repo, commit_to_store.tree)
         store_object(commit_to_store,
-                     models.Type.commit)
+                     store.Type.commit)
 
 
     def store_tree(repo, tree_ref):
@@ -55,7 +55,7 @@ def load_repo(baseurl,
         """
         tree_sha1_hex = tree_ref.hex
 
-        if client.get(baseurl, models.Type.tree, tree_sha1_hex):
+        if client.get(baseurl, store.Type.tree, tree_sha1_hex):
             logging.debug('skip tree %s' % tree_sha1_hex)
             return
 
@@ -78,7 +78,7 @@ def load_repo(baseurl,
                 hashkey = hash.hashkey_sha1(blob_entry_ref.data)
                 blob_data_sha1_hex = hashkey.hexdigest()
 
-                if client.get(baseurl, models.Type.blob, blob_data_sha1_hex):
+                if client.get(baseurl, store.Type.blob, blob_data_sha1_hex):
                     logging.debug('skip blob %s' % blob_entry_ref.hex)
                     continue
 
@@ -86,7 +86,7 @@ def load_repo(baseurl,
                            blob_data_sha1_hex)
 
         store_object(tree_ref,
-                     models.Type.tree)
+                     store.Type.tree)
 
     def walk_revision_from(repo, head_commit, visited):
         """Walk the revision from commit head_commit.
@@ -105,7 +105,7 @@ def load_repo(baseurl,
 
             commit_sha1_hex = commit.hex
             if commit_sha1_hex not in visited \
-               and not client.get(baseurl, models.Type.commit, commit_sha1_hex):
+               and not client.get(baseurl, store.Type.commit, commit_sha1_hex):
                 visited.add(commit_sha1_hex)
                 to_visits.extend(commit.parents)
                 to_store.append(commit)
