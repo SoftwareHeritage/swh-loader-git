@@ -93,12 +93,12 @@ def filter_unknowns_objects():
         return make_response('Bad request. Expected json data!', 400)
 
     sha1s = request.json
-    non_presents_sha1s = store.find_unknowns(app.config['conf'], sha1s)
+    unknowns_sha1s = store.find_unknowns(app.config['conf'], sha1s)
 
-    if non_presents_sha1s is None:
+    if unknowns_sha1s is None:
         return make_response('Bad request!', 400)
     else:
-        return json.jsonify(sha1s=non_presents_sha1s)
+        return json.jsonify(sha1s=unknowns_sha1s)
 
 
 @app.route('/git/<uri_type>/<sha1_hex>')
