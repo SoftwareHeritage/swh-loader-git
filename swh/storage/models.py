@@ -85,14 +85,30 @@ def find_object(db_conn, obj_sha, obj_type):
                                        (obj_sha, obj_type.value)))
 
 
+def find_knowns(db_conn, sha1s):
+    """Given a sha1s map (lazy), returns the objects list of sha1 non-presents in
+    models.
+    """
+    return db.query_fetch(db_conn, ("""WITH RECURSIVE sha1_union as (
+                                         select id, sha1 from git_objects
+                                         union
+                                         select id, sha1 from files
+                                      )
+                                      select sha1 from sha1_union
+                                      where sha1 in %s;""",
+                                       (sha1s,)))
+
+
 def count_files(db_conn):
-    """Count the number of blobs."""
+    """Count the number of blobs.
+    """
     row = db.query_fetchone(db_conn, "SELECT count(*) FROM files;")
     return row[0]
 
 
 def count_objects(db_conn, obj_type):
-    """Count the number of objects with obj_type."""
+    """Count the number of objects with obj_type.
+    """
     row = db.query_fetchone(db_conn, ("""SELECT count(*) FROM git_objects
                                          WHERE type=%s;""",
                                       (obj_type.value,)))

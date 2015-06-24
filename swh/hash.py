@@ -14,6 +14,12 @@ def sha1_bin(hexsha1):
     return binascii.unhexlify(hexsha1)
 
 
+def sha1_hex(binsha1):
+    """Compute the sha1's binary format from an hexadecimal format string.
+    """
+    return binascii.hexlify(binsha1)
+
+
 def hashkey_sha1(data):
     """Given some data, compute the hash ready object of such data.
     Return the reference object but not the computation.

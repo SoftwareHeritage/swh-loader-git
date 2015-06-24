@@ -40,6 +40,26 @@ def find(config, git_object):
         return _find_fn[type](db_conn, sha1_bin, type)
 
 
+def row_to_sha1(row):
+    """Convert a row (memoryview) to a string sha1.
+    """
+    sha1_bin = bytes(row[0])
+    return hash.sha1_hex(sha1_bin).decode('utf-8')
+
+
+def find_unknowns(config, sha1s_hex):
+    """Given a list of sha1s, return the non presents one in storage.
+    """
+    sha1s_bin = tuple(map(hex_to_bin, sha1s_hex))
+
+    with db.connect(config['db_url']) as db_conn:
+        knowns = models.find_knowns(db_conn, sha1s_bin)
+
+    sha1s_hex_set = set(sha1s_hex)
+    knowns_sha1s_hex_set = set(map(row_to_sha1, knowns))
+    return list(sha1s_hex_set - knowns_sha1s_hex_set)
+
+
 def _add_blob(db_conn, config, git_object, sha1_bin):
     """Add a blob to storage.
     Designed to be wrapped in a db transaction.

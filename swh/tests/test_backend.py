@@ -5,6 +5,7 @@
 # See top-level LICENSE file for more information
 
 import unittest
+import json
 
 from nose.tools import istest
 from nose.plugins.attrib import attr
@@ -12,6 +13,7 @@ from nose.plugins.attrib import attr
 from swh.backend import back
 from swh import hash
 from swh.storage import db, models
+from swh.storage import store
 
 import test_initdb
 
@@ -293,3 +295,46 @@ class BlobTestCase(unittest.TestCase):
         # then
         assert rv.status_code == 200
         assert rv.data == b'{\n  "sha1": "222222f9dd5dc46ee476a8be155ab049994f7170"\n}'
+
+
+@attr('slow')
+class TestObjectsCase(unittest.TestCase):
+    def setUp(self):
+        self.app, self.db_url = app_client()
+
+        with db.connect(self.db_url) as db_conn:
+            self.blob_sha1_hex = '000000111111c46ee476a8be155ab049994f717e'
+            self.blob_sha1_bin = hash.sha1_bin(self.blob_sha1_hex)
+            blog_git_sha1 = hash.sha1_bin('00000011111122222276a8be155ab049994f717e')
+            models.add_blob(db_conn, self.blob_sha1_bin, 10, blog_git_sha1)
+
+            self.tree_sha1_hex = '111111f9dd5dc46ee476a8be155ab049994f717e'
+            self.tree_sha1_bin = hash.sha1_bin(self.tree_sha1_hex)
+            models.add_object(db_conn, self.tree_sha1_bin, store.Type.tree)
+
+            self.commit_sha1_hex = '222222f9dd5dc46ee476a8be155ab049994f717e'
+            self.commit_sha1_bin = hash.sha1_bin(self.commit_sha1_hex)
+            models.add_object(db_conn, self.commit_sha1_bin, store.Type.commit)
+
+        # check the insertion went ok!
+        with db.connect(self.db_url) as db_conn:
+            assert models.find_blob(db_conn, self.blob_sha1_bin) is not None
+            assert models.find_object(db_conn, self.tree_sha1_bin, models.Type.tree) is not None
+            assert models.find_object(db_conn, self.commit_sha1_bin, models.Type.commit) is not None
+
+    @istest
+    def get_non_presents_objects(self):
+        # given
+
+        # when
+        json_payload = json.dumps([self.blob_sha1_hex,
+                                   self.tree_sha1_hex,
+                                   self.commit_sha1_hex,
+                                   '555444f9dd5dc46ee476a8be155ab049994f717e',
+                                   '666777f9dd5dc46ee476a8be155ab049994f717e'])
+
+        rv = self.app.post('/objects/', data=json_payload, headers={'Content-Type': 'application/json'})
+
+        # then
+        assert rv.status_code == 200
+        assert rv.data == b'{\n  "sha1s": [\n    "555444f9dd5dc46ee476a8be155ab049994f717e",\n    "666777f9dd5dc46ee476a8be155ab049994f717e"\n  ]\n}'
