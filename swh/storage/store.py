@@ -36,12 +36,8 @@ def find_unknowns(config, sha1s_hex):
         return row[0]
 
     with db.connect(config['db_url']) as db_conn:
-        knowns = models.find_knowns(db_conn, tuple(sha1s_hex))
-
-    sha1s_hex_set = set(sha1s_hex)
-    knowns_sha1s_hex_set = set(map(row_to_sha1, knowns))
-    res = sha1s_hex_set - knowns_sha1s_hex_set
-    return list(res)
+        unknowns = models.find_unknowns(db_conn, tuple(sha1s_hex))
+        return list(map(row_to_sha1, unknowns))
 
 
 def _add_blob(db_conn, config, git_object, sha1_hex):

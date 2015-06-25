@@ -13,7 +13,7 @@ def connect(db_url):
     return psycopg2.connect(db_url)
 
 
-def _execute(cur, query_params):
+def _execute(cur, query_params, trace=None):
     """Execute the query_params.
     query_params is expected to be either:
     - a sql query (string)
@@ -22,6 +22,8 @@ def _execute(cur, query_params):
     if isinstance(query_params, str):
         cur.execute(query_params)
     else:
+        if trace is not None:
+            print("mogrify: ", cur.mogrify(*query_params).decode())
         cur.execute(*query_params)
 
 
@@ -59,12 +61,12 @@ def query_fetchone(db_conn, query_params):
         return cur.fetchone()
 
 
-def query_fetch(db_conn, query_params):
+def query_fetch(db_conn, query_params, trace=None):
     """Execute sql query which returns results.
     query_params is expected to be either:
     - a sql query (string)
     - a tuple (sql query, params)
     """
     with db_conn.cursor() as cur:
-        _execute(cur, query_params)
+        _execute(cur, query_params, trace)
         return cur.fetchall()

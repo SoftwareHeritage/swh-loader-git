@@ -85,18 +85,21 @@ def find_object(db_conn, obj_sha, obj_type):
                                        (obj_sha, obj_type.value)))
 
 
-def find_knowns(db_conn, sha1s):
+def find_unknowns(db_conn, sha1s):
     """Given a sha1s map (lazy), returns the objects list of sha1 non-presents in
     models.
     """
-    return db.query_fetch(db_conn, ("""WITH RECURSIVE sha1_union as (
-                                         select id, sha1 from git_objects
-                                         union
-                                         select id, sha1 from files
+    return db.query_fetch(db_conn, ("""WITH sha1_union as (
+                                         SELECT sha1 FROM git_objects
+                                         UNION
+                                         SELECT sha1 FROM files
+                                      ), sha1_values as (
+                                         SELECT sha1 FROM (VALUES %s) as T(sha1)
                                       )
-                                      select sha1 from sha1_union
-                                      where sha1 in %s;""",
-                                       (sha1s,)))
+                                      (SELECT sha1 FROM sha1_values)
+                                      EXCEPT
+                                      (SELECT sha1 FROM sha1_union);""",
+                                      (sha1s,)), trace=True)
 
 
 def count_files(db_conn):
