@@ -333,6 +333,7 @@ class TestObjectsCase(unittest.TestCase):
 
         rv = self.app.post('/objects/', data=json_payload, headers={'Content-Type': 'application/json'})
 
+        print("data: ", rv.data)
         # then
         assert rv.status_code == 200
 

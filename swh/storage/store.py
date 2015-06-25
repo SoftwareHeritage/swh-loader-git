@@ -4,8 +4,11 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import tempfile
 
 # from swh import hash
+from io import StringIO
+from swh import hash
 from swh.storage import db, models, fs
 
 
@@ -35,8 +38,20 @@ def find_unknowns(config, sha1s_hex):
         """
         return row[0]
 
+    tmp = tempfile.mktemp(prefix='swh-git-backend-api.', dir='/tmp')
+    print("tmp: ", tmp)
+    # cpy = StringIO()
+    # cpy = '\n'.join([hex_to_bin(x) for x in sha1s_hex])
+
+    with open(tmp, 'wb') as f:
+        for sha1_hex in sha1s_hex:
+            # sha1_bin = hex_to_bin(sha1_hex)
+            f.write(hex_to_bin(sha1_hex))
+            f.write(b'\n')
+
+
     with db.connect(config['db_url']) as db_conn:
-        unknowns = models.find_unknowns(db_conn, tuple(sha1s_hex))
+        unknowns = models.find_unknowns(db_conn, tmp)
         return list(map(row_to_sha1, unknowns))
 
 

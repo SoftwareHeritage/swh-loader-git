@@ -85,21 +85,26 @@ def find_object(db_conn, obj_sha, obj_type):
                                        (obj_sha, obj_type.value)))
 
 
-def find_unknowns(db_conn, sha1s):
+def find_unknowns(db_conn, file_sha1s):
     """Given a sha1s map (lazy), returns the objects list of sha1 non-presents in
     models.
     """
+    db.queries_execute(db_conn,
+                       ("DROP TABLE IF EXISTS TMP_FILTER_SHA1;",
+                        "CREATE TABLE TMP_FILTER_SHA1(sha1 bytea);"))
+
+    with open(file_sha1s, 'rb') as f:
+        db.copy_from(db_conn, f, 'TMP_FILTER_SHA1')
+
     return db.query_fetch(db_conn, ("""WITH sha1_union as (
                                          SELECT sha1 FROM git_objects
                                          UNION
                                          SELECT sha1 FROM files
-                                      ), sha1_values as (
-                                         SELECT sha1 FROM (VALUES %s) as T(sha1)
                                       )
-                                      (SELECT sha1 FROM sha1_values)
+                                      (SELECT sha1 FROM tmp_filter_sha1)
                                       EXCEPT
                                       (SELECT sha1 FROM sha1_union);""",
-                                      (sha1s,)), trace=True)
+    ), trace=True)
 
 
 def count_files(db_conn):

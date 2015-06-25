@@ -26,6 +26,12 @@ def _execute(cur, query_params, trace=None):
             print("mogrify: ", cur.mogrify(*query_params).decode())
         cur.execute(*query_params)
 
+def copy_from(db_conn, file, table):
+    """Copy the content of a file to the db in the table table.
+    """
+    with db_conn.cursor() as cur:
+        cur.copy_from(file, table)
+
 
 def query_execute(db_conn, query_params):
     """Execute one query.
@@ -38,7 +44,7 @@ def query_execute(db_conn, query_params):
         _execute(cur, query_params)
 
 
-def queries_execute(db_conn, queries_params):
+def queries_execute(db_conn, queries_params, trace=None):
     """Execute multiple queries without any result expected.
     Type of sql queries: insert, delete, drop, create...
     query_params is expected to be a list of mixed:
@@ -47,7 +53,7 @@ def queries_execute(db_conn, queries_params):
     """
     with db_conn.cursor() as cur:
         for query_params in queries_params:
-            _execute(cur, query_params)
+            _execute(cur, query_params, trace)
 
 
 def query_fetchone(db_conn, query_params):
