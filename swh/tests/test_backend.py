@@ -327,6 +327,8 @@ class TestObjectsCase(unittest.TestCase):
         json_payload = json.dumps([self.blob_sha1_hex,
                                    self.tree_sha1_hex,
                                    self.commit_sha1_hex,
+                                   self.commit_sha1_hex,
+                                   '555444f9dd5dc46ee476a8be155ab049994f717e',
                                    '555444f9dd5dc46ee476a8be155ab049994f717e',
                                    '666777f9dd5dc46ee476a8be155ab049994f717e'])
 
