@@ -26,6 +26,7 @@ def _execute(cur, query_params, trace=None):
             print("mogrify: ", cur.mogrify(*query_params).decode())
         cur.execute(*query_params)
 
+
 def copy_from(db_conn, file, table):
     """Copy the content of a file to the db in the table table.
     """
