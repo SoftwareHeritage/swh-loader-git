@@ -23,7 +23,8 @@ def cleandb(db_conn):
     """
     db.queries_execute(db_conn, ['DROP TABLE IF EXISTS files;',
                                  'DROP TABLE IF EXISTS git_objects;',
-                                 'DROP TYPE IF EXISTS type;'])
+                                 'DROP TYPE IF EXISTS type;'
+                                 'DROP TABLE IF EXISTS tmp_filter_sha1;'])
 
 
 def initdb(db_conn):
@@ -48,7 +49,8 @@ def initdb(db_conn):
                ctime timestamp DEFAULT current_timestamp,
                sha1 char(40),
                type type CONSTRAINT no_null not null,
-               stored bool DEFAULT false);"""])
+               stored bool DEFAULT false);"""
+        'CREATE TABLE tmp_filter_sha1(sha1 char(40));'])
 
 
 def add_blob(db_conn, obj_sha, size, obj_git_sha):
@@ -86,12 +88,10 @@ def find_object(db_conn, obj_sha, obj_type):
 
 
 def find_unknowns(db_conn, file_sha1s):
-    """Given a sha1s map (lazy), returns the objects list of sha1 non-presents in
-    models.
+    """Given a list of sha1s (inside the file_sha1s reference),
+    returns the objects list of sha1 non-presents in db.
     """
-    db.queries_execute(db_conn,
-                       ("DROP TABLE IF EXISTS TMP_FILTER_SHA1;",
-                        "CREATE TABLE TMP_FILTER_SHA1(sha1 char(40));"))
+    db.query_execute(db_conn, 'TRUNCATE TABLE tmp_filter_sha1;')
     db.copy_from(db_conn, file_sha1s, 'TMP_FILTER_SHA1')
     return db.query_fetch(db_conn, ("""WITH sha1_union as (
                                          SELECT sha1 FROM git_objects
@@ -100,8 +100,7 @@ def find_unknowns(db_conn, file_sha1s):
                                       )
                                       (SELECT sha1 FROM tmp_filter_sha1)
                                       EXCEPT
-                                      (SELECT sha1 FROM sha1_union);""",
-    ), trace=True)
+                                      (SELECT sha1 FROM sha1_union);"""))
 
 
 def count_files(db_conn):
