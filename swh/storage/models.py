@@ -91,11 +91,8 @@ def find_unknowns(db_conn, file_sha1s):
     """
     db.queries_execute(db_conn,
                        ("DROP TABLE IF EXISTS TMP_FILTER_SHA1;",
-                        "CREATE TABLE TMP_FILTER_SHA1(sha1 bytea);"))
-
-    with open(file_sha1s, 'rb') as f:
-        db.copy_from(db_conn, f, 'TMP_FILTER_SHA1')
-
+                        "CREATE TABLE TMP_FILTER_SHA1(sha1 char(40));"))
+    db.copy_from(db_conn, file_sha1s, 'TMP_FILTER_SHA1')
     return db.query_fetch(db_conn, ("""WITH sha1_union as (
                                          SELECT sha1 FROM git_objects
                                          UNION

@@ -4,10 +4,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import tempfile
-
-# from swh import hash
-from io import StringIO, BytesIO
+from io import StringIO
 from swh.storage import db, models, fs
 
 
@@ -37,36 +34,16 @@ def find_unknowns(config, sha1s_hex):
         """
         return row[0]
 
-    cpy_data_buffer = tempfile.mktemp(prefix='swh-git-backend-api.', dir='/tmp')
-    print("cpy_data_buffer file to store sha1: ", cpy_data_buffer)
-    # cpy = StringIO()
-    # cpy = '\n'.join([hex_to_bin(x) for x in sha1s_hex])
-
-    # fails
-    # vals = '\n'.join([hex_to_bin(x).decode('utf-8') for x in sha1s_hex])
-    # print("vals:", vals)
-
-    # cpy_data_buffer = StringIO()
-    # cpy_data_buffer.write(vals)
-
-    # cpy_data_buffer = BytesIO()
-    # cpy_data_buffer.write(vals)
-
-    print(sha1s_hex)
-    with open(cpy_data_buffer, 'wb') as f:
-        for sha1_hex in sha1s_hex:
-            sha1_bin = hex_to_bin(sha1_hex)
-            print("hex:", sha1_hex)
-            print("bin:", sha1_bin)
-            f.write(sha1_bin)
-            # f.write(bytes(sha1_hex, 'utf-8'))
-            f.write(sha1_bin)
-            f.write(b'\n')
-
+    vals = '\n'.join(sha1s_hex)
+    cpy_data_buffer = StringIO()
+    cpy_data_buffer.write(vals)
+    cpy_data_buffer.seek(0)  # move file cursor back at start of file
 
     with db.connect(config['db_url']) as db_conn:
         unknowns = models.find_unknowns(db_conn, cpy_data_buffer)
+        cpy_data_buffer.close()
         return list(map(row_to_sha1, unknowns))
+
 
 
 def _add_blob(db_conn, config, git_object, sha1_hex):
