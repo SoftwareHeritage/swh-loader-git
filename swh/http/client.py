@@ -7,6 +7,7 @@
 # See top-level LICENSE file for more information
 
 import requests
+import json
 
 from retrying import retry
 
@@ -25,6 +26,12 @@ def compute_url(baseurl, type, sha1hex):
     """Compute the api url.
     """
     return '%s%s%s' % (baseurl, _api_url[type], sha1hex)
+
+
+def compute_simple_url(baseurl, type):
+    """Compute the api url.
+    """
+    return '%s%s' % (baseurl, type)
 
 
 @retry(retry_on_exception=policy.retry_if_connection_error,
@@ -46,3 +53,17 @@ def put(baseurl, type, sha1hex, data=None):
     r = session_swh.put(compute_url(baseurl, type, sha1hex),
                         [] if data is None else data)
     return r.ok
+
+
+@retry(retry_on_exception=policy.retry_if_connection_error,
+       wrap_exception=True,
+       stop_max_attempt_number=3)
+def post(baseurl, sha1s):
+    """Retrieve the objects of type type with sha1 sha1hex.
+    """
+    url = compute_simple_url(baseurl, "/objects/")
+    r = session_swh.post(url,
+                         data=json.dumps(sha1s),
+                         headers={'Content-type': 'application/json'})
+    result = r.json()
+    return result['sha1s']
