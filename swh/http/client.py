@@ -27,7 +27,9 @@ def compute_url(baseurl, type, sha1hex):
     return '%s%s%s' % (baseurl, _api_url[type], sha1hex)
 
 
-@retry(retry_on_exception=policy.retry_if_connection_error, wrap_exception=True)
+@retry(retry_on_exception=policy.retry_if_connection_error,
+       wrap_exception=True,
+       stop_max_attempt_number=3)
 def get(baseurl, type, sha1hex):
     """Retrieve the objects of type type with sha1 sha1hex.
     """
@@ -35,7 +37,9 @@ def get(baseurl, type, sha1hex):
     return r.ok
 
 
-@retry(retry_on_exception=policy.retry_if_connection_error, wrap_exception=True)
+@retry(retry_on_exception=policy.retry_if_connection_error,
+       wrap_exception=True,
+       stop_max_attempt_number=3)
 def put(baseurl, type, sha1hex, data=None):
     """Retrieve the objects of type type with sha1 sha1hex.
     """
