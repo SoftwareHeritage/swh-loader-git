@@ -13,6 +13,7 @@ from pygit2 import GIT_OBJ_COMMIT, GIT_OBJ_TREE, GIT_OBJ_BLOB
 
 from swh import hash
 from swh.storage import store
+from swh.gitloader.type import get_type, get_obj, make
 from swh.http import client
 
 
@@ -41,43 +42,41 @@ def load_repo(baseurl,
                     'git-sha1': blob_entry_ref.hex,
                     'content': blob_entry_ref.data})
 
-    def treewalk(repo, tree, topdown=True):
+    def treewalk(repo, tree, topdown=False):
         """Walk a tree with the same implementation as `os.path`.
         Returns: tree, trees, blobs
         """
         trees, blobs = [], []
-        for tree_entry in tree:
+        for tree_entry in get_obj(tree):
             obj = repo.get(tree_entry.oid, None)
             if obj is None:
                 logging.warn('skip submodule-commit %s' % tree_entry.hex)
                 continue  # submodule!
 
             if obj.type == GIT_OBJ_TREE:
-                trees.append(obj)
+                trees.append(make(store.Type.tree, obj))
             else:
-                blobs.append(obj)
+                blobs.append(make(store.Type.blob, obj))
 
         if topdown:
             yield tree, trees, blobs
         for tree_entry in trees:
-            for x in treewalk(repo, repo[tree_entry.oid], topdown):
+            for x in treewalk(repo, make(store.Type.tree, repo[get_obj(tree_entry).oid]), topdown):
                 yield x
         if not topdown:
             yield tree, trees, blobs
 
 
-    type_to = {GIT_OBJ_BLOB: store.Type.blob,
-               GIT_OBJ_TREE: store.Type.tree,
-               GIT_OBJ_COMMIT: store.Type.commit}
-
     def store_ref(sha1_hex, obj_ref):
-        t = type_to[obj_ref.type]
-        if t == store.Type.blob:
-            store_blob(obj_ref, sha1_hex)
-        else:
-            store_object(obj_ref, t)
+        t = get_type(obj_ref)
+        o = get_obj(obj_ref)
 
-    def store_tree(repo, tree_ref):
+        if t == store.Type.blob:
+            store_blob(o, sha1_hex)
+        else:
+            store_object(o, t)
+
+    def store_tree_from(repo, commit):
         """Walk the tree and save the blobs in file content storage
         (if not already present).
         """
@@ -89,23 +88,31 @@ def load_repo(baseurl,
 
         sha1s_hex = []
         sha1s_map = {}
-        for ori_tree_ref, trees_ref, blobs_ref in treewalk(repo, tree_ref,
-                                                           topdown=False):
 
+        for ori_tree_ref, trees_ref, blobs_ref in \
+                treewalk(repo, make(store.Type.tree, commit.tree)):
+
+            # TODO: Improve!
             for blob_ref in blobs_ref:
-                blob_data_sha1hex = hash.hashkey_sha1(blob_ref.data).hexdigest()
+                o = get_obj(blob_ref)
+                blob_data_sha1hex = hash.hashkey_sha1(o.data).hexdigest()
                 sha1s_hex.append(blob_data_sha1hex)
                 sha1s_map[blob_data_sha1hex] = blob_ref
                 # store_blob(blob_ref, blob_data_sha1hex)
 
             for tree_ref in trees_ref:
-                sha1s_hex.append(tree_ref.hex)
-                sha1s_map[tree_ref.hex] = tree_ref
+                o = get_obj(tree_ref)
+                sha1s_hex.append(o.hex)
+                sha1s_map[o.hex] = tree_ref
                 # store_object(tree_ref, store.Type.tree)
 
-            sha1s_hex.append(ori_tree_ref.hex)
-            sha1s_map[ori_tree_ref.hex] = ori_tree_ref
+            o = get_obj(ori_tree_ref)
+            sha1s_hex.append(o.hex)
+            sha1s_map[o.hex] = ori_tree_ref
             # store_object(ori_tree_ref, store.Type.tree)
+
+        sha1s_hex.append(commit.hex)
+        sha1s_map[commit.hex] = make(store.Type.commit, commit)
 
         return sha1s_hex, sha1s_map
 
@@ -115,14 +122,13 @@ def load_repo(baseurl,
     def store_commit(repo, commit_to_store):
         """Store a commit in swh storage.
         """
-        sha1s_hex, sha1s_map = store_tree(repo, commit_to_store.tree)
-        sha1s_hex.append(commit_to_store.hex)
-        sha1s_map[commit_to_store.hex] = commit_to_store
+        sha1s_hex, sha1s_map = store_tree_from(repo, commit_to_store)
 
-        res = client.post(baseurl, {'sha1s': sha1s_hex})
-
-        for unknown_ref_sha1 in res:
+        unknown_ref_sha1s = client.post(baseurl, {'sha1s': sha1s_hex})
+        for unknown_ref_sha1 in unknown_ref_sha1s:
             store_ref(unknown_ref_sha1, sha1s_map[unknown_ref_sha1])
+
+        client.put_all(baseurl, unknown_ref_sha1s, sha1s_map)
 
 
     def walk_revision_from(repo, head_commit, visited):

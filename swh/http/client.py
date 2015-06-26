@@ -13,6 +13,7 @@ from retrying import retry
 
 from swh.storage import models
 from swh.retry import policy
+from swh.gitloader.type import get_obj, get_type
 
 
 _api_url = {models.Type.blob: '/git/blobs/',
@@ -33,6 +34,24 @@ def compute_simple_url(baseurl, type):
     """
     return '%s%s' % (baseurl, type)
 
+
+def data_object(sha1hex, obj):
+    """Build data structure to query the backend.
+    """
+    type = get_type(obj)
+    raw_obj = get_obj(obj)
+
+    if type == models.Type.blob:
+        data = {'type': type.value,
+                'content': raw_obj.data,
+                'sha1': sha1hex,
+                'size': raw_obj.size,
+                'git-sha1': raw_obj.hex}
+    else:
+        data = {'type': type.value,
+                'sha1': sha1hex}
+
+    return data
 
 @retry(retry_on_exception=policy.retry_if_connection_error,
        wrap_exception=True,
@@ -67,3 +86,21 @@ def post(baseurl, sha1s):
                          headers={'Content-type': 'application/json'})
     result = r.json()
     return result['sha1s']
+
+# @retry(retry_on_exception=policy.retry_if_connection_error,
+#        wrap_exception=True,
+#        stop_max_attempt_number=3)
+def put_all(baseurl, sha1s_hex, sha1s_map):
+    """Given a list of sha1s, put them in the backend."""
+    json_payload = {}
+    for sha1_hex in sha1s_hex:
+        obj = sha1s_map[sha1_hex]
+        data = data_object(sha1_hex, obj)
+        json_payload[sha1_hex] = data
+
+    print(json_payload)
+#    url = compute_simple_url(baseurl, "/objects/")
+#    r = session_swh.put(url,
+#                         data=json.dumps(json_payload),
+#                         headers={'Content-type': 'application/json'})
+#    return r.json()
