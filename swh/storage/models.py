@@ -49,8 +49,7 @@ def initdb(db_conn):
                ctime timestamp DEFAULT current_timestamp,
                sha1 char(40),
                type type CONSTRAINT no_null not null,
-               stored bool DEFAULT false);"""
-        'CREATE TABLE tmp_filter_sha1(sha1 char(40));'])
+               stored bool DEFAULT false);"""])
 
 
 def add_blob(db_conn, obj_sha, size, obj_git_sha):
@@ -91,16 +90,23 @@ def find_unknowns(db_conn, file_sha1s):
     """Given a list of sha1s (inside the file_sha1s reference),
     returns the objects list of sha1 non-presents in db.
     """
-    db.query_execute(db_conn, 'TRUNCATE TABLE tmp_filter_sha1;')
-    db.copy_from(db_conn, file_sha1s, 'TMP_FILTER_SHA1')
-    return db.query_fetch(db_conn, ("""WITH sha1_union as (
-                                         SELECT sha1 FROM git_objects
-                                         UNION
-                                         SELECT sha1 FROM files
-                                      )
-                                      (SELECT sha1 FROM tmp_filter_sha1)
-                                      EXCEPT
-                                      (SELECT sha1 FROM sha1_union);"""))
+    with db_conn.cursor() as cur:
+        # explicit is better than implicit
+        # simply creating the temporary table seems to be enough
+        # (no drop, nor truncate) but this is not explained in documentation
+        db.execute(cur, """CREATE TEMPORARY TABLE IF NOT EXISTS filter_sha1(sha1 char(40))
+                           ON COMMIT DELETE ROWS;""")
+        db.copy_from(cur, file_sha1s, 'filter_sha1')
+        db.execute(cur, ("""WITH sha1_union as (
+                                 SELECT sha1 FROM git_objects
+                                 UNION
+                                 SELECT sha1 FROM files
+                              )
+                            (SELECT sha1 FROM filter_sha1)
+                            EXCEPT
+                            (SELECT sha1 FROM sha1_union);"""))
+        return cur.fetchall()
+
 
 
 def count_files(db_conn):

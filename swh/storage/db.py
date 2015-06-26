@@ -13,7 +13,7 @@ def connect(db_url):
     return psycopg2.connect(db_url)
 
 
-def _execute(cur, query_params, trace=None):
+def execute(cur, query_params, trace=None):
     """Execute the query_params.
     query_params is expected to be either:
     - a sql query (string)
@@ -26,12 +26,10 @@ def _execute(cur, query_params, trace=None):
             print("mogrify: ", cur.mogrify(*query_params).decode())
         cur.execute(*query_params)
 
-
-def copy_from(db_conn, file, table):
+def copy_from(cur, file, table):
     """Copy the content of a file to the db in the table table.
     """
-    with db_conn.cursor() as cur:
-        cur.copy_from(file, table)
+    cur.copy_from(file, table)
 
 
 def query_execute(db_conn, query_params):
@@ -42,7 +40,7 @@ def query_execute(db_conn, query_params):
     - a tuple (sql query, params)
     """
     with db_conn.cursor() as cur:
-        _execute(cur, query_params)
+        execute(cur, query_params)
 
 
 def queries_execute(db_conn, queries_params, trace=None):
@@ -54,7 +52,7 @@ def queries_execute(db_conn, queries_params, trace=None):
     """
     with db_conn.cursor() as cur:
         for query_params in queries_params:
-            _execute(cur, query_params, trace)
+            execute(cur, query_params, trace)
 
 
 def query_fetchone(db_conn, query_params):
@@ -64,7 +62,7 @@ def query_fetchone(db_conn, query_params):
     - a tuple (sql query, params)
     """
     with db_conn.cursor() as cur:
-        _execute(cur, query_params)
+        execute(cur, query_params)
         return cur.fetchone()
 
 
@@ -75,5 +73,5 @@ def query_fetch(db_conn, query_params, trace=None):
     - a tuple (sql query, params)
     """
     with db_conn.cursor() as cur:
-        _execute(cur, query_params, trace)
+        execute(cur, query_params, trace)
         return cur.fetchall()
