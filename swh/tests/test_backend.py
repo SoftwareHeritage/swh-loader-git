@@ -11,7 +11,6 @@ from nose.tools import istest
 from nose.plugins.attrib import attr
 
 from swh.backend import back
-from swh import hash
 from swh.storage import db, models
 from swh.storage import store
 
@@ -333,7 +332,6 @@ class TestObjectsCase(unittest.TestCase):
 
         rv = self.app.post('/objects/', data=json_payload, headers={'Content-Type': 'application/json'})
 
-        print("data: ", rv.data)
         # then
         assert rv.status_code == 200
 
