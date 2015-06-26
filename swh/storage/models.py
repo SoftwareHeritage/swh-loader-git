@@ -39,14 +39,14 @@ def initdb(db_conn):
         """CREATE TABLE IF NOT EXISTS files
               (id bigserial PRIMARY KEY,
               ctime timestamp DEFAULT current_timestamp,
-              sha1 bytea UNIQUE,
+              sha1 char(40) UNIQUE,
               size integer CONSTRAINT no_null not null,
-              sha1_git bytea CONSTRAINT no_null not null,
+              sha1_git char(40) CONSTRAINT no_null not null,
               UNIQUE(sha1, size));""",
         """CREATE TABLE IF NOT EXISTS git_objects
                (id bigserial PRIMARY KEY,
                ctime timestamp DEFAULT current_timestamp,
-               sha1 bytea,
+               sha1 char(40),
                type type CONSTRAINT no_null not null,
                stored bool DEFAULT false);"""])
 

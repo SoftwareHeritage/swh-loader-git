@@ -5,20 +5,11 @@
 # See top-level LICENSE file for more information
 
 
-from swh import hash
+# from swh import hash
 from swh.storage import db, models, fs
 
 
 Type = models.Type
-
-
-def hex_to_bin(sha1_hex):
-    """Given an hexadecimal sha1, return its binary equivalent.
-    Return None if sha1_hex is not the right sha1."""
-    try:
-        return hash.sha1_bin(sha1_hex)
-    except:
-        return None
 
 
 _find_fn = {Type.blob: models.find_blob,
@@ -32,35 +23,28 @@ def find(config, git_object):
     sha1_hex = git_object['sha1']
     type = git_object['type']
 
-    sha1_bin = hex_to_bin(sha1_hex)
-    if sha1_bin is None:
-        return None
-
     with db.connect(config['db_url']) as db_conn:
-        return _find_fn[type](db_conn, sha1_bin, type)
-
-
-def row_to_sha1(row):
-    """Convert a row (memoryview) to a string sha1.
-    """
-    sha1_bin = bytes(row[0])
-    return hash.sha1_hex(sha1_bin).decode('utf-8')
+        return _find_fn[type](db_conn, sha1_hex, type)
 
 
 def find_unknowns(config, sha1s_hex):
     """Given a list of sha1s, return the non presents one in storage.
     """
-    sha1s_bin = tuple(map(hex_to_bin, sha1s_hex))
+    def row_to_sha1(row):
+        """Convert a row (memoryview) to a string sha1.
+        """
+        return row[0]
 
     with db.connect(config['db_url']) as db_conn:
-        knowns = models.find_knowns(db_conn, sha1s_bin)
+        knowns = models.find_knowns(db_conn, tuple(sha1s_hex))
 
     sha1s_hex_set = set(sha1s_hex)
     knowns_sha1s_hex_set = set(map(row_to_sha1, knowns))
-    return list(sha1s_hex_set - knowns_sha1s_hex_set)
+    res = sha1s_hex_set - knowns_sha1s_hex_set
+    return list(res)
 
 
-def _add_blob(db_conn, config, git_object, sha1_bin):
+def _add_blob(db_conn, config, git_object, sha1_hex):
     """Add a blob to storage.
     Designed to be wrapped in a db transaction.
     Returns:
@@ -70,21 +54,19 @@ def _add_blob(db_conn, config, git_object, sha1_bin):
     Writing exceptions can also be raised and expected to be handled by the caller.
     """
     obj_git_sha1 = git_object['git-sha1']
-    obj_git_sha_bin = hex_to_bin(obj_git_sha1)
-    if obj_git_sha_bin is None:
-        return None
+
     res = fs.write_object(config['file_content_storage_dir'],
                     obj_git_sha1,
                     git_object['content'],
                     config['folder_depth'],
                     config['blob_compression'])
     if res is not None:
-        models.add_blob(db_conn, sha1_bin, git_object['size'], obj_git_sha_bin)
+        models.add_blob(db_conn, sha1_hex, git_object['size'], obj_git_sha1)
         return True
     return False
 
 
-def _add_object(db_conn, config, git_object, sha1_bin):
+def _add_object(db_conn, config, git_object, sha1_hex):
     """Add a commit/tree to storage.
     Designed to be wrapped in a db transaction.
     Returns:
@@ -99,7 +81,7 @@ def _add_object(db_conn, config, git_object, sha1_bin):
                     git_object['content'],
                     folder_depth)
     if res is not None:
-        models.add_object(db_conn, sha1_bin, git_object['type'])
+        models.add_object(db_conn, sha1_hex, git_object['type'])
         return True
     return False
 
@@ -112,13 +94,10 @@ def add(config, git_object):
     """
     type = git_object['type']
     sha1_hex = git_object['sha1']
-    sha1_bin = hex_to_bin(sha1_hex)
-    if sha1_bin is None:
-        return None
 
     with db.connect(config['db_url']) as db_conn:
         try:
-            return _store_fn[type](db_conn, config, git_object, sha1_bin)
+            return _store_fn[type](db_conn, config, git_object, sha1_hex)
         except:  # all kinds of error break the transaction
             db_conn.rollback()
             return False

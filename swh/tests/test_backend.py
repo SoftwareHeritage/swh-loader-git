@@ -70,9 +70,8 @@ class CommitTestCase(unittest.TestCase):
         self.app, db_url = app_client()
 
         self.commit_sha1_hex = '000000f6dd5dc46ee476a8be155ab049994f717e'
-        self.commit_sha1_bin = hash.sha1_bin(self.commit_sha1_hex)
         with db.connect(db_url) as db_conn:
-            models.add_object(db_conn, self.commit_sha1_bin, models.Type.commit)
+            models.add_object(db_conn, self.commit_sha1_hex, models.Type.commit)
 
     @istest
     def get_commit_ok(self):
@@ -141,9 +140,8 @@ class TreeTestCase(unittest.TestCase):
         self.app, db_url = app_client()
 
         self.tree_sha1_hex = '111111f9dd5dc46ee476a8be155ab049994f717e'
-        self.tree_sha1_bin = hash.sha1_bin(self.tree_sha1_hex)
         with db.connect(db_url) as db_conn:
-            models.add_object(db_conn, self.tree_sha1_bin, models.Type.tree)
+            models.add_object(db_conn, self.tree_sha1_hex, models.Type.tree)
 
     @istest
     def get_tree_ok(self):
@@ -212,10 +210,9 @@ class BlobTestCase(unittest.TestCase):
         self.app, db_url = app_client()
 
         self.blob_sha1_hex = '222222f9dd5dc46ee476a8be155ab049994f717e'
-        self.blob_sha1_bin = hash.sha1_bin(self.blob_sha1_hex)
-        blog_git_sha1 = hash.sha1_bin('22222200000011111176a8be155ab049994f717e')
+        blog_git_sha1 = '22222200000011111176a8be155ab049994f717e'
         with db.connect(db_url) as db_conn:
-            models.add_blob(db_conn, self.blob_sha1_bin, 10, blog_git_sha1)
+            models.add_blob(db_conn, self.blob_sha1_hex, 10, blog_git_sha1)
 
     @istest
     def get_blob_ok(self):
@@ -242,18 +239,22 @@ class BlobTestCase(unittest.TestCase):
         assert rv.status_code == 404
         assert rv.data == b'Not found!'
 
-    @istest
-    def put_blob_bad_request_bad_payload(self):
-        # when
-        # we create it
-        rv = self.app.put('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170',
-                          data = {'size': 99,
-                                  'git-sha1': 'bad-payload',
-                                  'content': 'foo'})
+    # NOTE:
+    # As we store the sha1 as hexadecimal now. we no longer check this.
+    # We assume this will be done by the db.
+    #
+    # @istest
+    # def put_blob_bad_request_bad_payload(self):
+    #     # when
+    #     # we create it
+    #     rv = self.app.put('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170',
+    #                       data = {'size': 99,
+    #                               'git-sha1': 'bad-payload',
+    #                               'content': 'foo'})
 
-        # then
-        assert rv.status_code == 400
-        assert rv.data == b'Bad request!'
+    #     # then
+    #     assert rv.status_code == 400
+    #     assert rv.data == b'Bad request!'
 
     @istest
     def put_blob_create_and_update(self):
@@ -304,23 +305,20 @@ class TestObjectsCase(unittest.TestCase):
 
         with db.connect(self.db_url) as db_conn:
             self.blob_sha1_hex = '000000111111c46ee476a8be155ab049994f717e'
-            self.blob_sha1_bin = hash.sha1_bin(self.blob_sha1_hex)
-            blog_git_sha1 = hash.sha1_bin('00000011111122222276a8be155ab049994f717e')
-            models.add_blob(db_conn, self.blob_sha1_bin, 10, blog_git_sha1)
+            blog_git_sha1 = '00000011111122222276a8be155ab049994f717e'
+            models.add_blob(db_conn, self.blob_sha1_hex, 10, blog_git_sha1)
 
             self.tree_sha1_hex = '111111f9dd5dc46ee476a8be155ab049994f717e'
-            self.tree_sha1_bin = hash.sha1_bin(self.tree_sha1_hex)
-            models.add_object(db_conn, self.tree_sha1_bin, store.Type.tree)
+            models.add_object(db_conn, self.tree_sha1_hex, store.Type.tree)
 
             self.commit_sha1_hex = '222222f9dd5dc46ee476a8be155ab049994f717e'
-            self.commit_sha1_bin = hash.sha1_bin(self.commit_sha1_hex)
-            models.add_object(db_conn, self.commit_sha1_bin, store.Type.commit)
+            models.add_object(db_conn, self.commit_sha1_hex, store.Type.commit)
 
         # check the insertion went ok!
         with db.connect(self.db_url) as db_conn:
-            assert models.find_blob(db_conn, self.blob_sha1_bin) is not None
-            assert models.find_object(db_conn, self.tree_sha1_bin, models.Type.tree) is not None
-            assert models.find_object(db_conn, self.commit_sha1_bin, models.Type.commit) is not None
+            assert models.find_blob(db_conn, self.blob_sha1_hex) is not None
+            assert models.find_object(db_conn, self.tree_sha1_hex, models.Type.tree) is not None
+            assert models.find_object(db_conn, self.commit_sha1_hex, models.Type.commit) is not None
 
     @istest
     def get_non_presents_objects(self):
@@ -337,4 +335,9 @@ class TestObjectsCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data == b'{\n  "sha1s": [\n    "555444f9dd5dc46ee476a8be155ab049994f717e",\n    "666777f9dd5dc46ee476a8be155ab049994f717e"\n  ]\n}'
+
+        json_result = json.loads(rv.data.decode('utf-8'))
+        assert len(json_result.keys()) is 1                                       # only 1 key
+        assert len(json_result['sha1s']) is 2                                     # only 2 sha1s
+        assert "666777f9dd5dc46ee476a8be155ab049994f717e" in json_result['sha1s']
+        assert "555444f9dd5dc46ee476a8be155ab049994f717e" in json_result['sha1s']
