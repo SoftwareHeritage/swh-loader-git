@@ -7,8 +7,9 @@
 import logging
 import pygit2
 
+
 from pygit2 import GIT_REF_OID
-from pygit2 import GIT_FILEMODE_TREE, GIT_FILEMODE_COMMIT, GIT_OBJ_COMMIT
+from pygit2 import GIT_OBJ_COMMIT, GIT_OBJ_TREE, GIT_OBJ_BLOB
 
 from swh import hash
 from swh.storage import store
@@ -41,52 +42,90 @@ def load_repo(baseurl,
                     'content': blob_entry_ref.data})
 
 
-    def store_commit(repo, commit_to_store):
-        """Store a commit in swh storage.
+    def treewalk(repo, tree, topdown=True):
+        """Walk a tree with the same implementation as `os.path`.
+        Returns: tree, trees, blobs
         """
-        store_tree(repo, commit_to_store.tree)
-        store_object(commit_to_store,
-                     store.Type.commit)
+        trees, blobs = [], []
+        for tree_entry in tree:
+            obj = repo.get(tree_entry.oid, None)
+            if obj is None:
+                logging.warn('skip submodule-commit %s' % tree_entry.hex)
+                continue  # submodule!
+
+            if obj.type == GIT_OBJ_TREE:
+                trees.append(obj)
+            else:
+                blobs.append(obj)
+
+        if topdown:
+            yield tree, trees, blobs
+        for tree_entry in trees:
+            for x in treewalk(repo, repo[tree_entry.oid], topdown):
+                yield x
+        if not topdown:
+            yield tree, trees, blobs
+
+
+    type_to = {GIT_OBJ_BLOB: store.Type.blob,
+               GIT_OBJ_TREE: store.Type.tree,
+               GIT_OBJ_COMMIT: store.Type.commit}
+
+    def store_ref(sha1_hex, obj_ref):
+        t = type_to[obj_ref.type]
+        if t == store.Type.blob:
+            store_blob(obj_ref, sha1_hex)
+        else:
+            store_object(obj_ref, t)
 
 
     def store_tree(repo, tree_ref):
-        """Given a tree, walk the tree and save the blobs in file content storage
+        """Walk the tree and save the blobs in file content storage
         (if not already present).
         """
-        tree_sha1_hex = tree_ref.hex
+        # tree_sha1_hex = tree_ref.hex
 
-        if client.get(baseurl, store.Type.tree, tree_sha1_hex):
-            logging.debug('skip tree %s' % tree_sha1_hex)
-            return
+        # if client.get(baseurl, store.Type.tree, tree_sha1_hex):
+        #     logging.debug('skip tree %s' % tree_sha1_hex)
+        #     return
 
-        for tree_entry in tree_ref:
-            filemode = tree_entry.filemode
-            tree_id = tree_entry.id
+        sha1s_hex = []
+        sha1s_map = {}
+        for ori_tree_ref, trees_ref, blobs_ref in treewalk(repo, tree_ref,
+                                                           topdown=False):
 
-            if (filemode == GIT_FILEMODE_COMMIT):  # submodule!
-                logging.warn('skip submodule-commit %s'
-                             % tree_id)
-                continue
+            for blob_ref in blobs_ref:
+                blob_data_sha1hex = hash.hashkey_sha1(blob_ref.data).hexdigest()
+                sha1s_hex.append(blob_data_sha1hex)
+                sha1s_map[blob_data_sha1hex] = blob_ref
+                # store_blob(blob_ref, blob_data_sha1hex)
 
-            elif (filemode == GIT_FILEMODE_TREE):  # Tree
-                logging.debug('walk tree %s'
-                              % tree_id)
-                store_tree(repo, repo[tree_id])
+            for tree_ref in trees_ref:
+                sha1s_hex.append(tree_ref.hex)
+                sha1s_map[tree_ref.hex] = tree_ref
+                # store_object(tree_ref, store.Type.tree)
 
-            else:  # blob
-                blob_entry_ref = repo[tree_id]
-                hashkey = hash.hashkey_sha1(blob_entry_ref.data)
-                blob_data_sha1_hex = hashkey.hexdigest()
+            sha1s_hex.append(ori_tree_ref.hex)
+            sha1s_map[ori_tree_ref.hex] = ori_tree_ref
+            # store_object(ori_tree_ref, store.Type.tree)
 
-                if client.get(baseurl, store.Type.blob, blob_data_sha1_hex):
-                    logging.debug('skip blob %s' % blob_entry_ref.hex)
-                    continue
+        return sha1s_hex, sha1s_map
 
-                store_blob(blob_entry_ref,
-                           blob_data_sha1_hex)
+        # store_object(tree_ref, store.Type.tree)
 
-        store_object(tree_ref,
-                     store.Type.tree)
+
+    def store_commit(repo, commit_to_store):
+        """Store a commit in swh storage.
+        """
+        sha1s_hex, sha1s_map = store_tree(repo, commit_to_store.tree)
+        sha1s_hex.append(commit_to_store.hex)
+        sha1s_map[commit_to_store.hex] = commit_to_store
+
+        res = client.post(baseurl, {'sha1s': sha1s_hex})
+
+        for unknown_ref_sha1 in res:
+            store_ref(unknown_ref_sha1, sha1s_map[unknown_ref_sha1])
+
 
     def walk_revision_from(repo, head_commit, visited):
         """Walk the revision from commit head_commit.
