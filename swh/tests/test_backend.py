@@ -336,13 +336,13 @@ class TestObjectsCase(unittest.TestCase):
         # given
 
         # when
-        json_payload = json.dumps([self.blob_sha1_hex,
-                                   self.tree_sha1_hex,
-                                   self.commit_sha1_hex,
-                                   self.commit_sha1_hex,
-                                   '555444f9dd5dc46ee476a8be155ab049994f717e',
-                                   '555444f9dd5dc46ee476a8be155ab049994f717e',
-                                   '666777f9dd5dc46ee476a8be155ab049994f717e'])
+        json_payload = json.dumps({'sha1s': [self.blob_sha1_hex,
+                                             self.tree_sha1_hex,
+                                             self.commit_sha1_hex,
+                                             self.commit_sha1_hex,
+                                             '555444f9dd5dc46ee476a8be155ab049994f717e',
+                                             '555444f9dd5dc46ee476a8be155ab049994f717e',
+                                             '666777f9dd5dc46ee476a8be155ab049994f717e']})
 
         rv = self.app.post('/objects/',
                            data=json_payload,
@@ -357,3 +357,16 @@ class TestObjectsCase(unittest.TestCase):
         sha1s = json_result['sha1s']
         assert "666777f9dd5dc46ee476a8be155ab049994f717e" in sha1s
         assert "555444f9dd5dc46ee476a8be155ab049994f717e" in sha1s
+
+    @istest
+    def get_non_presents_objects_bad_requests(self):
+        # given
+
+        # when
+        bad_payload = json.dumps({})
+
+        rv = self.app.post('/objects/', data=bad_payload, headers={'Content-Type': 'application/json'})
+
+        # then
+        assert rv.status_code == 400
+        assert rv.data == b"Bad request! Expects 'sha1s' keys with list of hexadecimal sha1s."
