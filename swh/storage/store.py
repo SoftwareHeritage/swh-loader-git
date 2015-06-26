@@ -7,8 +7,7 @@
 import tempfile
 
 # from swh import hash
-from io import StringIO
-from swh import hash
+from io import StringIO, BytesIO
 from swh.storage import db, models, fs
 
 
@@ -38,20 +37,35 @@ def find_unknowns(config, sha1s_hex):
         """
         return row[0]
 
-    tmp = tempfile.mktemp(prefix='swh-git-backend-api.', dir='/tmp')
-    print("tmp: ", tmp)
+    cpy_data_buffer = tempfile.mktemp(prefix='swh-git-backend-api.', dir='/tmp')
+    print("cpy_data_buffer file to store sha1: ", cpy_data_buffer)
     # cpy = StringIO()
     # cpy = '\n'.join([hex_to_bin(x) for x in sha1s_hex])
 
-    with open(tmp, 'wb') as f:
+    # fails
+    # vals = '\n'.join([hex_to_bin(x).decode('utf-8') for x in sha1s_hex])
+    # print("vals:", vals)
+
+    # cpy_data_buffer = StringIO()
+    # cpy_data_buffer.write(vals)
+
+    # cpy_data_buffer = BytesIO()
+    # cpy_data_buffer.write(vals)
+
+    print(sha1s_hex)
+    with open(cpy_data_buffer, 'wb') as f:
         for sha1_hex in sha1s_hex:
-            # sha1_bin = hex_to_bin(sha1_hex)
-            f.write(hex_to_bin(sha1_hex))
+            sha1_bin = hex_to_bin(sha1_hex)
+            print("hex:", sha1_hex)
+            print("bin:", sha1_bin)
+            f.write(sha1_bin)
+            # f.write(bytes(sha1_hex, 'utf-8'))
+            f.write(sha1_bin)
             f.write(b'\n')
 
 
     with db.connect(config['db_url']) as db_conn:
-        unknowns = models.find_unknowns(db_conn, tmp)
+        unknowns = models.find_unknowns(db_conn, cpy_data_buffer)
         return list(map(row_to_sha1, unknowns))
 
 
