@@ -65,7 +65,7 @@ def add_object(db_conn, obj_sha, obj_type):
     """
     db.query_execute(db_conn, ("""INSERT INTO git_objects (sha1, type)
                                   VALUES (%s, %s);""",
-                               (obj_sha, obj_type.value)))
+                               (obj_sha, obj_type)))
 
 
 def find_blob(db_conn, obj_sha, obj_type=None):
@@ -83,7 +83,7 @@ def find_object(db_conn, obj_sha, obj_type):
     return db.query_fetchone(db_conn, ("""SELECT sha1 FROM git_objects
                                           WHERE sha1=%s
                                           AND type=%s;""",
-                                       (obj_sha, obj_type.value)))
+                                       (obj_sha, obj_type)))
 
 
 def find_unknowns(db_conn, file_sha1s):

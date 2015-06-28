@@ -41,15 +41,20 @@ def data_object(sha1hex, obj):
     type = get_type(obj)
     raw_obj = get_obj(obj)
 
+    data = str(raw_obj.read_raw())
+    # raw_data = raw_obj.read_raw()
+    # data = raw_data.decode('utf-8') if isinstance(raw_data, bytes) else raw_data
+
     if type == models.Type.blob:
         data = {'type': type.value,
-                'content': raw_obj.data,
+                'content': data,
                 'sha1': sha1hex,
                 'size': raw_obj.size,
                 'git-sha1': raw_obj.hex}
     else:
         data = {'type': type.value,
-                'sha1': sha1hex}
+                'sha1': sha1hex,
+                'content': data}
 
     return data
 
@@ -98,9 +103,7 @@ def put_all(baseurl, sha1s_hex, sha1s_map):
         data = data_object(sha1_hex, obj)
         json_payload[sha1_hex] = data
 
-    print(json_payload)
-#    url = compute_simple_url(baseurl, "/objects/")
-#    r = session_swh.put(url,
-#                         data=json.dumps(json_payload),
-#                         headers={'Content-type': 'application/json'})
-#    return r.json()
+    url = compute_simple_url(baseurl, "/objects/")
+    session_swh.put(url,
+                    data=json.dumps(json_payload),
+                    headers={'Content-type': 'application/json'})

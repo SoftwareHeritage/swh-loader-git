@@ -125,8 +125,8 @@ def load_repo(baseurl,
         sha1s_hex, sha1s_map = store_tree_from(repo, commit_to_store)
 
         unknown_ref_sha1s = client.post(baseurl, {'sha1s': sha1s_hex})
-        for unknown_ref_sha1 in unknown_ref_sha1s:
-            store_ref(unknown_ref_sha1, sha1s_map[unknown_ref_sha1])
+        # for unknown_ref_sha1 in unknown_ref_sha1s:
+        #     store_ref(unknown_ref_sha1, sha1s_map[unknown_ref_sha1])
 
         client.put_all(baseurl, unknown_ref_sha1s, sha1s_map)
 

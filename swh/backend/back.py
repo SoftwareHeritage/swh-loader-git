@@ -38,7 +38,7 @@ def _build_object(sha1_hex, type, content=None, size=None, git_sha1=None):
     """Build the object.
     """
     return {'sha1': sha1_hex,
-            'type': type,
+            'type': type.value,
             'content': content,
             'size': size,
             'git-sha1': git_sha1}
@@ -106,6 +106,23 @@ def filter_unknowns_objects():
         return make_response('Bad request!', 400)
     else:
         return json.jsonify(sha1s=unknowns_sha1s)
+
+@app.route('/objects/', methods=['PUT'])
+def put_all():
+    """Return the given commit or not.
+    """
+    if request.headers.get('Content-Type') != 'application/json':
+        return make_response('Bad request. Expected json data!', 400)
+
+    payload = request.json
+
+    for sha1hex in payload.keys():  # iterate over objects
+        obj = payload.get(sha1hex)
+        obj_found = store.find(app.config['conf'], obj)
+        if obj_found is None:
+            store.add(app.config['conf'], obj)
+
+    return make_response('Successful creation!', 204)
 
 
 @app.route('/git/<uri_type>/<sha1_hex>')

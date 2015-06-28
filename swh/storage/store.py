@@ -11,9 +11,9 @@ from swh.storage import db, models, fs
 Type = models.Type
 
 
-_find_fn = {Type.blob: models.find_blob,
-            Type.commit: models.find_object,
-            Type.tree: models.find_object}
+_find_fn = {Type.blob.value: models.find_blob,
+            Type.commit.value: models.find_object,
+            Type.tree.value: models.find_object}
 
 
 def find(config, git_object):
@@ -78,18 +78,21 @@ def _add_object(db_conn, config, git_object, sha1_hex):
     caller.
     """
     folder_depth = config['folder_depth']
+    sha1 = git_object['sha1']
+    content = git_object.get('content', '')
     res = fs.write_object(config['object_content_storage_dir'],
-                          git_object['sha1'],
-                          git_object['content'],
+                          sha1,
+                          content,
                           folder_depth)
     if res is not None:
         models.add_object(db_conn, sha1_hex, git_object['type'])
         return True
     return False
 
-_store_fn = {Type.blob: _add_blob,
-             Type.commit: _add_object,
-             Type.tree: _add_object}
+
+_store_fn = {Type.blob.value: _add_blob,
+             Type.commit.value: _add_object,
+             Type.tree.value: _add_object}
 
 
 def add(config, git_object):

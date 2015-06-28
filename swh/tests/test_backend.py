@@ -74,7 +74,7 @@ class CommitTestCase(unittest.TestCase):
         with db.connect(db_url) as db_conn:
             models.add_object(db_conn,
                               self.commit_sha1_hex,
-                              models.Type.commit)
+                              models.Type.commit.value)
 
     @istest
     def get_commit_ok(self):
@@ -146,7 +146,7 @@ class TreeTestCase(unittest.TestCase):
 
         self.tree_sha1_hex = '111111f9dd5dc46ee476a8be155ab049994f717e'
         with db.connect(db_url) as db_conn:
-            models.add_object(db_conn, self.tree_sha1_hex, models.Type.tree)
+            models.add_object(db_conn, self.tree_sha1_hex, models.Type.tree.value)
 
     @istest
     def get_tree_ok(self):
@@ -318,18 +318,18 @@ class TestObjectsCase(unittest.TestCase):
             models.add_blob(db_conn, self.blob_sha1_hex, 10, blog_git_sha1)
 
             self.tree_sha1_hex = '111111f9dd5dc46ee476a8be155ab049994f717e'
-            models.add_object(db_conn, self.tree_sha1_hex, store.Type.tree)
+            models.add_object(db_conn, self.tree_sha1_hex, store.Type.tree.value)
 
             self.commit_sha1_hex = '222222f9dd5dc46ee476a8be155ab049994f717e'
-            models.add_object(db_conn, self.commit_sha1_hex, store.Type.commit)
+            models.add_object(db_conn, self.commit_sha1_hex, store.Type.commit.value)
 
         # check the insertion went ok!
         with db.connect(self.db_url) as db_conn:
             assert models.find_blob(db_conn, self.blob_sha1_hex) is not None
             assert models.find_object(db_conn, self.tree_sha1_hex,
-                                      models.Type.tree) is not None
+                                      models.Type.tree.value) is not None
             assert models.find_object(db_conn, self.commit_sha1_hex,
-                                      models.Type.commit) is not None
+                                      models.Type.commit.value) is not None
 
     @istest
     def get_non_presents_objects(self):
