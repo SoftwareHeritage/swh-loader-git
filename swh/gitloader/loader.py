@@ -9,11 +9,11 @@ import pygit2
 
 
 from pygit2 import GIT_REF_OID
-from pygit2 import GIT_OBJ_COMMIT, GIT_OBJ_TREE, GIT_OBJ_BLOB
+from pygit2 import GIT_OBJ_COMMIT, GIT_OBJ_TREE
 
 from swh import hash
 from swh.storage import store
-from swh.gitloader.type import get_type, get_obj, make
+from swh.gitloader.type import get_obj, make
 from swh.http import client
 
 
@@ -26,21 +26,6 @@ def load_repo(baseurl,
     """Parse git repository `repo_path` and flush
     blobs on disk in `file_content_storage_dir`.
     """
-    def store_object(object_ref, object_type):
-        """Store object in swh storage"""
-        logging.debug('store %s %s' % (object_ref.hex, object_type))
-        client.put(baseurl, object_type, object_ref.hex,
-                   data={'content': object_ref.read_raw()})
-
-    def store_blob(blob_entry_ref, blob_data_sha1_hex):
-        """Store blob in swh storage."""
-        logging.debug('store blob %s' % blob_entry_ref)
-        client.put(baseurl,
-                   store.Type.blob,
-                   blob_data_sha1_hex,
-                   {'size': blob_entry_ref.size,
-                    'git-sha1': blob_entry_ref.hex,
-                    'content': blob_entry_ref.data})
 
     def treewalk(repo, tree, topdown=False):
         """Walk a tree with the same implementation as `os.path`.
@@ -66,26 +51,10 @@ def load_repo(baseurl,
         if not topdown:
             yield tree, trees, blobs
 
-
-    def store_ref(sha1_hex, obj_ref):
-        t = get_type(obj_ref)
-        o = get_obj(obj_ref)
-
-        if t == store.Type.blob:
-            store_blob(o, sha1_hex)
-        else:
-            store_object(o, t)
-
     def store_tree_from(repo, commit):
         """Walk the tree and save the blobs in file content storage
         (if not already present).
         """
-        # tree_sha1_hex = tree_ref.hex
-
-        # if client.get(baseurl, store.Type.tree, tree_sha1_hex):
-        #     logging.debug('skip tree %s' % tree_sha1_hex)
-        #     return
-
         sha1s_hex = []
         sha1s_map = {}
 
@@ -98,25 +67,20 @@ def load_repo(baseurl,
                 blob_data_sha1hex = hash.hashkey_sha1(o.data).hexdigest()
                 sha1s_hex.append(blob_data_sha1hex)
                 sha1s_map[blob_data_sha1hex] = blob_ref
-                # store_blob(blob_ref, blob_data_sha1hex)
 
             for tree_ref in trees_ref:
                 o = get_obj(tree_ref)
                 sha1s_hex.append(o.hex)
                 sha1s_map[o.hex] = tree_ref
-                # store_object(tree_ref, store.Type.tree)
 
             o = get_obj(ori_tree_ref)
             sha1s_hex.append(o.hex)
             sha1s_map[o.hex] = ori_tree_ref
-            # store_object(ori_tree_ref, store.Type.tree)
 
         sha1s_hex.append(commit.hex)
         sha1s_map[commit.hex] = make(store.Type.commit, commit)
 
         return sha1s_hex, sha1s_map
-
-        # store_object(tree_ref, store.Type.tree)
 
 
     def store_commit(repo, commit_to_store):
@@ -125,8 +89,6 @@ def load_repo(baseurl,
         sha1s_hex, sha1s_map = store_tree_from(repo, commit_to_store)
 
         unknown_ref_sha1s = client.post(baseurl, {'sha1s': sha1s_hex})
-        # for unknown_ref_sha1 in unknown_ref_sha1s:
-        #     store_ref(unknown_ref_sha1, sha1s_map[unknown_ref_sha1])
 
         client.put_all(baseurl, unknown_ref_sha1s, sha1s_map)
 
