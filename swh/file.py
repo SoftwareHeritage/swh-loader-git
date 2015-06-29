@@ -27,7 +27,7 @@ def folder_path(prefix_dir, hexhash, depth=4):
 
 @retry(retry_on_exception=policy.retry_if_io_error, wrap_exception=True)
 def write_data(data, path, comp_flag=None):
-    """Write data to path.
+    """Write data (expected string) to path.
        If compress_path is not None, gzip the data.
 
        If an IOError is raised, this function will be triggered immediately
@@ -36,4 +36,4 @@ def write_data(data, path, comp_flag=None):
        RetryError.
     """
     with (gzip.open(path, 'wb') if comp_flag else open(path, 'wb')) as f:
-        return f.write(bytes(data, 'utf-8'))
+        return f.write(data.encode('utf-8'))
