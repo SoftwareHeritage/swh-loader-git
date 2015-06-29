@@ -370,3 +370,52 @@ class TestObjectsCase(unittest.TestCase):
         # then
         assert rv.status_code == 400
         assert rv.data == b"Bad request! Expects 'sha1s' keys with list of hexadecimal sha1s."
+
+    @istest
+    def put_non_presents_objects(self):
+        # given
+        json_payload_1 = json.dumps({'sha1s': [self.blob_sha1_hex,
+                                               self.tree_sha1_hex,
+                                               self.commit_sha1_hex,
+                                               self.commit_sha1_hex,
+                                               '555444f9dd5dc46ee476a8be155ab049994f717e',
+                                               '555444f9dd5dc46ee476a8be155ab049994f717e',
+                                               '666777f9dd5dc46ee476a8be155ab049994f717e']})
+
+        rv = self.app.post('/objects/', data=json_payload_1, headers={'Content-Type': 'application/json'})
+
+        assert rv.status_code == 200
+
+        json_result = json.loads(rv.data.decode('utf-8'))
+        assert len(json_result.keys()) is 1                                       # only 1 key
+        assert len(json_result['sha1s']) is 2                                     # only 2 sha1s
+        assert "666777f9dd5dc46ee476a8be155ab049994f717e" in json_result['sha1s']
+        assert "555444f9dd5dc46ee476a8be155ab049994f717e" in json_result['sha1s']
+
+
+        # when
+        json_payload_2 = json.dumps({'555444f9dd5dc46ee476a8be155ab049994f717e': {'sha1': '555444f9dd5dc46ee476a8be155ab049994f717e',
+                                                                                  'size': 20,
+                                                                                  'git-sha1': '555444f9dd5dc46ee476a8be155ab049994f717e',
+                                                                                  'type': 'blob',
+                                                                                  'content': 'blob\'s content'},
+                                     '555444f9dd5dc46ee476a8be155ab049994f717e': {'sha1': '555444f9dd5dc46ee476a8be155ab049994f717e',
+                                                                                  'content': 'tree content',
+                                                                                  'type': 'tree'},
+                                     '666777f9dd5dc46ee476a8be155ab049994f717e': {'sha1': '666777f9dd5dc46ee476a8be155ab049994f717e',
+                                                                                  'type': 'commit',
+                                                                                  'content': 'commit content'}})
+
+        rv = self.app.put('/objects/', data=json_payload_2, headers={'Content-Type': 'application/json'})
+
+        # then
+        assert rv.status_code == 204
+
+        rv = self.app.post('/objects/', data=json_payload_1, headers={'Content-Type': 'application/json'})
+
+        assert rv.status_code == 200
+
+        json_result = json.loads(rv.data.decode('utf-8'))
+        print(json_result)
+        assert len(json_result.keys()) is 1
+        assert len(json_result['sha1s']) is 0  # all sha1s are now knowns
