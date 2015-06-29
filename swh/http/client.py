@@ -41,20 +41,20 @@ def data_object(sha1hex, obj):
     type = get_type(obj)
     raw_obj = get_obj(obj)
 
-    data = str(raw_obj.read_raw())
+    raw_data = str(raw_obj.read_raw())
     # raw_data = raw_obj.read_raw()
     # data = raw_data.decode('utf-8') if isinstance(raw_data, bytes) else raw_data
 
     if type == models.Type.blob:
         data = {'type': type.value,
-                'content': data,
+                'content': raw_data,
                 'sha1': sha1hex,
                 'size': raw_obj.size,
                 'git-sha1': raw_obj.hex}
     else:
         data = {'type': type.value,
                 'sha1': sha1hex,
-                'content': data}
+                'content': raw_data}
 
     return data
 
