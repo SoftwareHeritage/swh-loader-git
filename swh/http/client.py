@@ -96,6 +96,7 @@ def post(baseurl, sha1s):
     result = r.json()
     return result['sha1s']
 
+
 @retry(retry_on_exception=policy.retry_if_connection_error,
        wrap_exception=True,
        stop_max_attempt_number=3)
