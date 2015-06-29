@@ -35,28 +35,32 @@ def compute_simple_url(baseurl, type):
     return '%s%s' % (baseurl, type)
 
 
+def to_unicode(s):
+    """Convert s to unicode.
+    FIXME: Technically, there is a serialization problem.
+    Wrap bytes into string (unicode in python3) to serialize in json.
+    """
+    return str(s) if isinstance(s, bytes) else s
+
+
 def data_object(sha1hex, obj):
     """Build data structure to query the backend.
     """
-    type = get_type(obj)
+    obj_type = get_type(obj)
     raw_obj = get_obj(obj)
-
-    raw_data = str(raw_obj.read_raw())
-    # raw_data = raw_obj.read_raw()
-    # data = raw_data.decode('utf-8') if isinstance(raw_data, bytes) else raw_data
-
-    if type == models.Type.blob:
-        data = {'type': type.value,
+    raw_data = to_unicode(raw_obj.read_raw())
+    type_value = obj_type.value
+    if obj_type == models.Type.blob:
+        return {'type': type_value,
                 'content': raw_data,
                 'sha1': sha1hex,
                 'size': raw_obj.size,
                 'git-sha1': raw_obj.hex}
     else:
-        data = {'type': type.value,
+        return {'type': type_value,
                 'sha1': sha1hex,
                 'content': raw_data}
 
-    return data
 
 @retry(retry_on_exception=policy.retry_if_connection_error,
        wrap_exception=True,
