@@ -108,7 +108,6 @@ def find_unknowns(db_conn, file_sha1s):
         return cur.fetchall()
 
 
-
 def count_files(db_conn):
     """Count the number of blobs.
     """

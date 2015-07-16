@@ -32,7 +32,8 @@ def write_data(data, path, comp_flag=None):
 
        If an IOError is raised, this function will be triggered immediately
        again.
-       Otherwise, if any other error is raised, the error will be wrapped in RetryError.
+       Otherwise, if any other error is raised, the error will be wrapped in
+       RetryError.
     """
     with (gzip.open(path, 'wb') if comp_flag else open(path, 'wb')) as f:
         return f.write(bytes(data, 'utf-8'))

@@ -48,6 +48,7 @@ _uri_types = {'commits': store.Type.commit,
               'blobs': store.Type.blob,
               'trees': store.Type.tree}
 
+
 def _do_action(action_fn, uri_type, sha1_hex):
     uri_type_ok = _uri_types.get(uri_type, None)
     if uri_type_ok is None:
@@ -77,7 +78,7 @@ def add_object(config, git_object):
         res = store.add(config, git_object)
 
         if res is None:
-             return make_response('Bad request!', 400)
+            return make_response('Bad request!', 400)
         elif res is False:
             logging.error('store %s %s' % (sha1_hex, type))
             return make_response('Internal server error!', 500)
@@ -120,7 +121,8 @@ def run(conf):
     - 'db_url' the db url's access (through psycopg2 format)
     - 'file_content_storage_dir'   where to store blobs on disk
     - 'object_content_storage_dir' where to store commits/trees on disk
-    - 'port'   to override the default of 5000 (from the underlying layer: flask)
+    - 'port'   to override the default of 5000 (from the underlying layer:
+    flask)
     - 'debug'  activate the verbose logs
     """
     app.config['conf'] = conf  # app.config is the app's state (accessible)

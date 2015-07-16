@@ -10,13 +10,13 @@ import pygit2
 import tempfile
 import shutil
 
-from nose.tools import istest
 from nose.plugins.attrib import attr
 
 from swh.storage import db, models
 from swh.gitloader import loader
 
 import test_initdb
+
 
 @attr('slow')
 class FuncUseCase(unittest.TestCase):

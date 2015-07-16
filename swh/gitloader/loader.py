@@ -40,14 +40,12 @@ def load_repo(baseurl,
                     'git-sha1': blob_entry_ref.hex,
                     'content': blob_entry_ref.data})
 
-
     def store_commit(repo, commit_to_store):
         """Store a commit in swh storage.
         """
         store_tree(repo, commit_to_store.tree)
         store_object(commit_to_store,
                      store.Type.commit)
-
 
     def store_tree(repo, tree_ref):
         """Given a tree, walk the tree and save the blobs in file content storage
@@ -122,8 +120,8 @@ def load_repo(baseurl,
             logging.info('walk reference %s' % ref_name)
             ref = repo.lookup_reference(ref_name)
             head_commit = repo[ref.target] \
-                              if ref.type is GIT_REF_OID \
-                              else ref.peel(GIT_OBJ_COMMIT)
+                          if ref.type is GIT_REF_OID \
+                          else ref.peel(GIT_OBJ_COMMIT)  # noqa
             walk_revision_from(repo, head_commit, visited)
 
     walk_references_from(pygit2.Repository(repo_path))

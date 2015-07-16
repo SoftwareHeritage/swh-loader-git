@@ -45,7 +45,6 @@ def find_unknowns(config, sha1s_hex):
         return list(map(row_to_sha1, unknowns))
 
 
-
 def _add_blob(db_conn, config, git_object, sha1_hex):
     """Add a blob to storage.
     Designed to be wrapped in a db transaction.
@@ -53,15 +52,16 @@ def _add_blob(db_conn, config, git_object, sha1_hex):
     - True if everything went alright.
     - False if something went wrong during writing.
     - None if the git sha1 was not rightly formatted.
-    Writing exceptions can also be raised and expected to be handled by the caller.
+    Writing exceptions can also be raised and expected to be handled by the
+    caller.
     """
     obj_git_sha1 = git_object['git-sha1']
 
     res = fs.write_object(config['file_content_storage_dir'],
-                    obj_git_sha1,
-                    git_object['content'],
-                    config['folder_depth'],
-                    config['blob_compression'])
+                          obj_git_sha1,
+                          git_object['content'],
+                          config['folder_depth'],
+                          config['blob_compression'])
     if res is not None:
         models.add_blob(db_conn, sha1_hex, git_object['size'], obj_git_sha1)
         return True
@@ -79,9 +79,9 @@ def _add_object(db_conn, config, git_object, sha1_hex):
     """
     folder_depth = config['folder_depth']
     res = fs.write_object(config['object_content_storage_dir'],
-                    git_object['sha1'],
-                    git_object['content'],
-                    folder_depth)
+                          git_object['sha1'],
+                          git_object['content'],
+                          folder_depth)
     if res is not None:
         models.add_object(db_conn, sha1_hex, git_object['type'])
         return True
@@ -90,6 +90,7 @@ def _add_object(db_conn, config, git_object, sha1_hex):
 _store_fn = {Type.blob: _add_blob,
              Type.commit: _add_object,
              Type.tree: _add_object}
+
 
 def add(config, git_object):
     """Given a sha1_hex, type and content, store a given object in the store.

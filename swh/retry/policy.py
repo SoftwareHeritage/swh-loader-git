@@ -6,6 +6,7 @@
 
 from requests import ConnectionError
 
+
 def retry_if_io_error(exc):
     """Return True if IOError,
        False otherwise.

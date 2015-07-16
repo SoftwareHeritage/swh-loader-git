@@ -6,6 +6,7 @@
 
 from swh.manager import manage
 
+
 def prepare_db(db_url):
     """DB fresh start.
     """
