@@ -28,13 +28,13 @@ class SWHMap():
         self.sha1s_hex = []
         self.sha1s_map = {}
 
-    def add(self, obj, sha1=None):
-        sha1 = sha1 if sha1 is not None else get_obj(obj).hex
+    def add(self, obj_type, obj, sha1=None):
+        sha1 = sha1 if sha1 is not None else obj.hex
         self.sha1s_hex.append(sha1)
-        self.sha1s_map[sha1] = obj
+        self.sha1s_map[sha1] = make(obj_type, obj)
 
     def get_all_sha1s(self):
         return self.sha1s_hex
 
-    def get_sha1(self, sha1):
+    def get_obj(self, sha1):
         return self.sha1s_map.get(sha1)

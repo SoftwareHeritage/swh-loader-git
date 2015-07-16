@@ -13,7 +13,7 @@ from pygit2 import GIT_OBJ_COMMIT, GIT_OBJ_TREE
 
 from swh import hash
 from swh.storage import store
-from swh.gitloader.type import get_obj, make, SWHMap
+from swh.gitloader.type import SWHMap
 from swh.http import client
 
 def load_repo(baseurl,
@@ -31,22 +31,21 @@ def load_repo(baseurl,
         Returns: tree, trees, blobs
         """
         trees, blobs = [], []
-        for tree_entry in get_obj(tree):
-            obj = repo.get(tree_entry.oid, None)
+        for tree_entry in tree:
+            obj = repo.get(tree_entry.oid)
             if obj is None:
                 logging.warn('skip submodule-commit %s' % tree_entry.hex)
                 continue  # submodule!
 
             if obj.type == GIT_OBJ_TREE:
-                trees.append(make(store.Type.tree, obj))
+                trees.append(obj)
             else:
-                blobs.append(make(store.Type.blob, obj))
+                blobs.append(obj)
 
         if topdown:
             yield tree, trees, blobs
         for tree_entry in trees:
-            t = make(store.Type.tree, repo[get_obj(tree_entry).oid])
-            for x in treewalk(repo, t, topdown):
+            for x in treewalk(repo, repo[tree_entry.oid], topdown):
                 yield x
         if not topdown:
             yield tree, trees, blobs
@@ -58,19 +57,19 @@ def load_repo(baseurl,
         sha1s_map = SWHMap()
 
         for ori_tree_ref, trees_ref, blobs_ref in \
-                treewalk(repo, make(store.Type.tree, commit.tree)):
+                treewalk(repo, commit.tree):
 
             for blob_ref in blobs_ref:
-                data = get_obj(blob_ref).data
+                data = blob_ref.data
                 blob_data_sha1hex = hash.hashkey_sha1(data).hexdigest()
-                sha1s_map.add(blob_ref, blob_data_sha1hex)
+                sha1s_map.add(store.Type.blob, blob_ref, blob_data_sha1hex)
 
             for tree_ref in trees_ref:
-                sha1s_map.add(tree_ref)
+                sha1s_map.add(store.Type.tree, tree_ref)
 
-            sha1s_map.add(ori_tree_ref)
+            sha1s_map.add(store.Type.tree, ori_tree_ref)
 
-        sha1s_map.add(make(store.Type.commit, commit))
+        sha1s_map.add(store.Type.commit, commit)
 
         return sha1s_map
 
@@ -78,7 +77,6 @@ def load_repo(baseurl,
         """Store a commit in swh storage.
         """
         sha1s_map = store_tree_from(repo, commit_to_store)
-
         sha1s_hex = sha1s_map.get_all_sha1s()
         unknown_ref_sha1s = client.post(baseurl, {'sha1s': sha1s_hex})
 
