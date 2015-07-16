@@ -13,9 +13,8 @@ from pygit2 import GIT_OBJ_COMMIT, GIT_OBJ_TREE
 
 from swh import hash
 from swh.storage import store
-from swh.gitloader.type import get_obj, make
+from swh.gitloader.type import get_obj, make, SWHMap
 from swh.http import client
-
 
 def load_repo(baseurl,
               repo_path,
@@ -56,38 +55,31 @@ def load_repo(baseurl,
         """Walk the tree and save the blobs in file content storage
         (if not already present).
         """
-        sha1s_hex = []
-        sha1s_map = {}
+        sha1s_map = SWHMap()
 
         for ori_tree_ref, trees_ref, blobs_ref in \
                 treewalk(repo, make(store.Type.tree, commit.tree)):
 
-            # TODO: Improve!
             for blob_ref in blobs_ref:
-                o = get_obj(blob_ref)
-                blob_data_sha1hex = hash.hashkey_sha1(o.data).hexdigest()
-                sha1s_hex.append(blob_data_sha1hex)
-                sha1s_map[blob_data_sha1hex] = blob_ref
+                data = get_obj(blob_ref).data
+                blob_data_sha1hex = hash.hashkey_sha1(data).hexdigest()
+                sha1s_map.add(blob_ref, blob_data_sha1hex)
 
             for tree_ref in trees_ref:
-                o = get_obj(tree_ref)
-                sha1s_hex.append(o.hex)
-                sha1s_map[o.hex] = tree_ref
+                sha1s_map.add(tree_ref)
 
-            o = get_obj(ori_tree_ref)
-            sha1s_hex.append(o.hex)
-            sha1s_map[o.hex] = ori_tree_ref
+            sha1s_map.add(ori_tree_ref)
 
-        sha1s_hex.append(commit.hex)
-        sha1s_map[commit.hex] = make(store.Type.commit, commit)
+        sha1s_map.add(make(store.Type.commit, commit))
 
-        return sha1s_hex, sha1s_map
+        return sha1s_map
 
     def store_commit(repo, commit_to_store):
         """Store a commit in swh storage.
         """
-        sha1s_hex, sha1s_map = store_tree_from(repo, commit_to_store)
+        sha1s_map = store_tree_from(repo, commit_to_store)
 
+        sha1s_hex = sha1s_map.get_all_sha1s()
         unknown_ref_sha1s = client.post(baseurl, {'sha1s': sha1s_hex})
 
         client.put_all(baseurl, unknown_ref_sha1s, sha1s_map)

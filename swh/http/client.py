@@ -97,14 +97,14 @@ def post(baseurl, sha1s):
     return result['sha1s']
 
 
-@retry(retry_on_exception=policy.retry_if_connection_error,
-       wrap_exception=True,
-       stop_max_attempt_number=3)
+# @retry(retry_on_exception=policy.retry_if_connection_error,
+#        wrap_exception=True,
+#        stop_max_attempt_number=3)
 def put_all(baseurl, sha1s_hex, sha1s_map):
     """Given a list of sha1s, put them in the backend."""
     json_payload = {}
     for sha1_hex in sha1s_hex:
-        obj = sha1s_map[sha1_hex]
+        obj = sha1s_map.get_sha1(sha1_hex)
         data = data_object(sha1_hex, obj)
         json_payload[sha1_hex] = data
 
