@@ -97,7 +97,7 @@ def filter_unknowns_objects():
     sha1s = payload.get('sha1s')
     if sha1s is None:
         return make_response(
-            "Bad request! Expects 'sha1s' keys with list of hexadecimal sha1s.",
+            "Bad request! Expects 'sha1s' key with list of hexadecimal sha1s.",
             400)
 
     unknowns_sha1s = store.find_unknowns(app.config['conf'], sha1s)
@@ -106,6 +106,7 @@ def filter_unknowns_objects():
         return make_response('Bad request!', 400)
     else:
         return json.jsonify(sha1s=unknowns_sha1s)
+
 
 @app.route('/objects/', methods=['PUT'])
 def put_all():

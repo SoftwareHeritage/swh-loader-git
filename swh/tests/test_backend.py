@@ -146,7 +146,8 @@ class TreeTestCase(unittest.TestCase):
 
         self.tree_sha1_hex = '111111f9dd5dc46ee476a8be155ab049994f717e'
         with db.connect(db_url) as db_conn:
-            models.add_object(db_conn, self.tree_sha1_hex, models.Type.tree.value)
+            models.add_object(db_conn, self.tree_sha1_hex,
+                              models.Type.tree.value)
 
     @istest
     def get_tree_ok(self):
@@ -318,10 +319,12 @@ class TestObjectsCase(unittest.TestCase):
             models.add_blob(db_conn, self.blob_sha1_hex, 10, blog_git_sha1)
 
             self.tree_sha1_hex = '111111f9dd5dc46ee476a8be155ab049994f717e'
-            models.add_object(db_conn, self.tree_sha1_hex, store.Type.tree.value)
+            models.add_object(db_conn, self.tree_sha1_hex,
+                              store.Type.tree.value)
 
             self.commit_sha1_hex = '222222f9dd5dc46ee476a8be155ab049994f717e'
-            models.add_object(db_conn, self.commit_sha1_hex, store.Type.commit.value)
+            models.add_object(db_conn, self.commit_sha1_hex,
+                              store.Type.commit.value)
 
         # check the insertion went ok!
         with db.connect(self.db_url) as db_conn:
@@ -336,13 +339,14 @@ class TestObjectsCase(unittest.TestCase):
         # given
 
         # when
-        json_payload = json.dumps({'sha1s': [self.blob_sha1_hex,
-                                             self.tree_sha1_hex,
-                                             self.commit_sha1_hex,
-                                             self.commit_sha1_hex,
-                                             '555444f9dd5dc46ee476a8be155ab049994f717e',
-                                             '555444f9dd5dc46ee476a8be155ab049994f717e',
-                                             '666777f9dd5dc46ee476a8be155ab049994f717e']})
+        payload = {'sha1s': [self.blob_sha1_hex,
+                             self.tree_sha1_hex,
+                             self.commit_sha1_hex,
+                             self.commit_sha1_hex,
+                             '555444f9dd5dc46ee476a8be155ab049994f717e',
+                             '555444f9dd5dc46ee476a8be155ab049994f717e',
+                             '666777f9dd5dc46ee476a8be155ab049994f717e']}
+        json_payload = json.dumps(payload)
 
         rv = self.app.post('/objects/',
                            data=json_payload,
@@ -365,53 +369,62 @@ class TestObjectsCase(unittest.TestCase):
         # when
         bad_payload = json.dumps({})
 
-        rv = self.app.post('/objects/', data=bad_payload, headers={'Content-Type': 'application/json'})
+        rv = self.app.post('/objects/', data=bad_payload,
+                           headers={'Content-Type': 'application/json'})
 
         # then
         assert rv.status_code == 400
-        assert rv.data == b"Bad request! Expects 'sha1s' keys with list of hexadecimal sha1s."
+        assert rv.data == b"Bad request! Expects 'sha1s' key with list of hexadecimal sha1s."  # noqa
 
     @istest
     def put_non_presents_objects(self):
         # given
-        json_payload_1 = json.dumps({'sha1s': [self.blob_sha1_hex,
-                                               self.tree_sha1_hex,
-                                               self.commit_sha1_hex,
-                                               self.commit_sha1_hex,
-                                               '555444f9dd5dc46ee476a8be155ab049994f717e',
-                                               '555444f9dd5dc46ee476a8be155ab049994f717e',
-                                               '666777f9dd5dc46ee476a8be155ab049994f717e']})
+        payload_1 = {'sha1s': [self.blob_sha1_hex,
+                               self.tree_sha1_hex,
+                               self.commit_sha1_hex,
+                               self.commit_sha1_hex,
+                               '555444f9dd5dc46ee476a8be155ab049994f717e',
+                               '555444f9dd5dc46ee476a8be155ab049994f717e',
+                               '666777f9dd5dc46ee476a8be155ab049994f717e']}
+        json_payload_1 = json.dumps(payload_1)
 
-        rv = self.app.post('/objects/', data=json_payload_1, headers={'Content-Type': 'application/json'})
+        rv = self.app.post('/objects/', data=json_payload_1,
+                           headers={'Content-Type': 'application/json'})
 
         assert rv.status_code == 200
 
         json_result = json.loads(rv.data.decode('utf-8'))
-        assert len(json_result.keys()) is 1                                       # only 1 key
-        assert len(json_result['sha1s']) is 2                                     # only 2 sha1s
-        assert "666777f9dd5dc46ee476a8be155ab049994f717e" in json_result['sha1s']
-        assert "555444f9dd5dc46ee476a8be155ab049994f717e" in json_result['sha1s']
-
+        assert len(json_result.keys()) is 1                         # only 1 key   # noqa
+        sha1s = json_result['sha1s']
+        assert len(sha1s) is 2                                      # only 2 sha1s # noqa
+        assert "666777f9dd5dc46ee476a8be155ab049994f717e" in sha1s
+        assert "555444f9dd5dc46ee476a8be155ab049994f717e" in sha1s
 
         # when
-        json_payload_2 = json.dumps({'555444f9dd5dc46ee476a8be155ab049994f717e': {'sha1': '555444f9dd5dc46ee476a8be155ab049994f717e',
-                                                                                  'size': 20,
-                                                                                  'git-sha1': '555444f9dd5dc46ee476a8be155ab049994f717e',
-                                                                                  'type': 'blob',
-                                                                                  'content': 'blob\'s content'},
-                                     '555444f9dd5dc46ee476a8be155ab049994f717e': {'sha1': '555444f9dd5dc46ee476a8be155ab049994f717e',
-                                                                                  'content': 'tree content',
-                                                                                  'type': 'tree'},
-                                     '666777f9dd5dc46ee476a8be155ab049994f717e': {'sha1': '666777f9dd5dc46ee476a8be155ab049994f717e',
-                                                                                  'type': 'commit',
-                                                                                  'content': 'commit content'}})
+        payload_2 = {'555444f9dd5dc46ee476a8be155ab049994f717e':
+                       {'sha1': '555444f9dd5dc46ee476a8be155ab049994f717e',
+                        'size': 20,
+                        'git-sha1': '555444f9dd5dc46ee476a8be155ab049994f717e',
+                        'type': 'blob',
+                        'content': 'blob\'s content'},
+                     '555444f9dd5dc46ee476a8be155ab049994f717e':
+                       {'sha1': '555444f9dd5dc46ee476a8be155ab049994f717e',
+                        'content': 'tree content',
+                        'type': 'tree'},
+                     '666777f9dd5dc46ee476a8be155ab049994f717e':
+                       {'sha1': '666777f9dd5dc46ee476a8be155ab049994f717e',
+                        'type': 'commit',
+                        'content': 'commit content'}}  # noqa
+        json_payload_2 = json.dumps(payload_2)
 
-        rv = self.app.put('/objects/', data=json_payload_2, headers={'Content-Type': 'application/json'})
+        rv = self.app.put('/objects/', data=json_payload_2,
+                          headers={'Content-Type': 'application/json'})
 
         # then
         assert rv.status_code == 204
 
-        rv = self.app.post('/objects/', data=json_payload_1, headers={'Content-Type': 'application/json'})
+        rv = self.app.post('/objects/', data=json_payload_1,
+                           headers={'Content-Type': 'application/json'})
 
         assert rv.status_code == 200
 

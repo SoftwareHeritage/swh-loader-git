@@ -46,7 +46,8 @@ def load_repo(baseurl,
         if topdown:
             yield tree, trees, blobs
         for tree_entry in trees:
-            for x in treewalk(repo, make(store.Type.tree, repo[get_obj(tree_entry).oid]), topdown):
+            t = make(store.Type.tree, repo[get_obj(tree_entry).oid])
+            for x in treewalk(repo, t, topdown):
                 yield x
         if not topdown:
             yield tree, trees, blobs
@@ -82,7 +83,6 @@ def load_repo(baseurl,
 
         return sha1s_hex, sha1s_map
 
-
     def store_commit(repo, commit_to_store):
         """Store a commit in swh storage.
         """
@@ -91,7 +91,6 @@ def load_repo(baseurl,
         unknown_ref_sha1s = client.post(baseurl, {'sha1s': sha1s_hex})
 
         client.put_all(baseurl, unknown_ref_sha1s, sha1s_map)
-
 
     def walk_revision_from(repo, head_commit, visited):
         """Walk the revision from commit head_commit.
