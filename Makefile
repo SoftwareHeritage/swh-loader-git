@@ -90,11 +90,13 @@ create-db:
 	sudo su -l postgres -c "createdb -O $(USER) $(DB)"
 
 check-meta:
-	@echo "Git Repository metadata:"
+	@echo "Repository: $(REPO_PATH)"
+
+	@echo "Git metadata:"
 	@$(BINDIR)/dir-git-repo-meta.sh $(REPO_PATH)
 	@echo
 
-	@echo "DB Repository metadata:"
+	@echo "DB metadata:"
 	@$(BINDIR)/db-git-repo-meta.sh $(REPO_PATH)
 	@echo
 
