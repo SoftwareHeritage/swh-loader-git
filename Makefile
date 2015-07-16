@@ -23,7 +23,8 @@ PROFILE_TYPE=profile
 FOLLOW_LOG=-f
 
 deps:
-	sudo apt-get install -y python3 \
+	apt-get install -y \
+		python3 \
 		python3-pygit2 \
 		python3-psycopg2 \
 		python3-nose \
