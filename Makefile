@@ -20,6 +20,8 @@ SWH_BACK=$(BINDIR)/swh-backend
 # could use cProfile
 PROFILE_TYPE=profile
 
+FOLLOW_LOG=-f
+
 deps:
 	sudo apt-get install -y python3 \
 		python3-pygit2 \
@@ -100,10 +102,10 @@ readme:
 	pandoc -f org -t markdown README.org > README
 
 log-loader:
-	tail -f swh-git-loader/log/sgloader.log
+	tail $(FOLLOW_LOG) swh-git-loader/log/sgloader.log
 
 log-back:
-	tail -f swh-git-loader/log/back.log
+	tail $(FOLLOW_LOG) swh-git-loader/log/back.log
 
 coverage:
 	$(NOSE) --with-coverage $(SRCDIR) -v --cover-package=$(SRCDIR)
