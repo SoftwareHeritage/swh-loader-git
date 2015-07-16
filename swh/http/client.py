@@ -13,7 +13,7 @@ from retrying import retry
 
 from swh.storage import models
 from swh.retry import policy
-from swh.gitloader.type import get_obj, get_type, SWHMap
+from swh.gitloader.type import SWHObj, SWHMap
 
 
 _api_url = {models.Type.blob: '/git/blobs/',
@@ -46,16 +46,15 @@ def to_unicode(s):
 def data_object(sha1hex, obj):
     """Build data structure to query the backend.
     """
-    obj_type = get_type(obj)
-    raw_obj = get_obj(obj)
-    raw_data = to_unicode(raw_obj.read_raw())
+    obj_type = obj.type()
+    raw_data = to_unicode(obj.read_raw())
     type_value = obj_type.value
     if obj_type == models.Type.blob:
         return {'type': type_value,
                 'content': raw_data,
                 'sha1': sha1hex,
-                'size': raw_obj.size,
-                'git-sha1': raw_obj.hex}
+                'size': obj.size(),
+                'git-sha1': obj.sha1()}
     else:
         return {'type': type_value,
                 'sha1': sha1hex,
