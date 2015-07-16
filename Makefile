@@ -76,19 +76,21 @@ test-connect-db:
 	psql -d $(DB_TEST)
 
 test-drop-db:
-	sudo su -l postgres -c "dropdb $(DB_TEST)"
+	dropdb $(DB_TEST)
 
 test-create-db:
-	sudo su -l postgres -c "createdb -O $(USER) $(DB_TEST)"
+	createdb -O $(USER) $(DB_TEST)
 
 connect-db:
 	psql -d $(DB)
 
 drop-db:
-	sudo su -l postgres -c "dropdb $(DB)"
+	dropdb $(DB)
 
 create-db:
-	sudo su -l postgres -c "createdb -O $(USER) $(DB)"
+	createdb -O $(USER) $(DB)
+
+create-db-dev:
 
 check-meta:
 	@echo "Repository: $(REPO_PATH)"
