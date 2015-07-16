@@ -83,12 +83,12 @@ class CommitTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data == b'{\n  "sha1": "000000f6dd5dc46ee476a8be155ab049994f717e"\n}'  # noqa
+        assert rv.data == b'{\n  "sha1": "000000f6dd5dc46ee476a8be155ab049994f717e"\n}'
 
     @istest
     def get_commit_not_found(self):
         # when
-        rv = self.app.get('/git/commits/000000f6dd5dc46ee476a8be155ab049994f7170')  # noqa
+        rv = self.app.get('/git/commits/000000f6dd5dc46ee476a8be155ab049994f7170')
         # then
         assert rv.status_code == 404
         assert rv.data == b'Not found!'
@@ -104,39 +104,39 @@ class CommitTestCase(unittest.TestCase):
     @istest
     def put_commit_create_and_update(self):
         # does not exist
-        rv = self.app.get('/git/commits/000000f6dd5dc46ee476a8be155ab049994f7170')  # noqa
+        rv = self.app.get('/git/commits/000000f6dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 404
         assert rv.data == b'Not found!'
 
         # we create it
-        rv = self.app.put('/git/commits/000000f6dd5dc46ee476a8be155ab049994f7170',  # noqa
+        rv = self.app.put('/git/commits/000000f6dd5dc46ee476a8be155ab049994f7170',
                           data={'content': 'commit-foo'})
 
         assert rv.status_code == 204
         assert rv.data == b''
 
         # now it exists
-        rv = self.app.get('/git/commits/000000f6dd5dc46ee476a8be155ab049994f7170')  # noqa
+        rv = self.app.get('/git/commits/000000f6dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 200
-        assert rv.data == b'{\n  "sha1": "000000f6dd5dc46ee476a8be155ab049994f7170"\n}'  # noqa
+        assert rv.data == b'{\n  "sha1": "000000f6dd5dc46ee476a8be155ab049994f7170"\n}'
 
         # we update it
-        rv = self.app.put('/git/commits/000000f6dd5dc46ee476a8be155ab049994f7170',  # noqa
+        rv = self.app.put('/git/commits/000000f6dd5dc46ee476a8be155ab049994f7170',
                           data={'content': 'commit-foo'})
 
         assert rv.status_code == 200
         assert rv.data == b'Successful update!'
 
         # still the same
-        rv = self.app.get('/git/commits/000000f6dd5dc46ee476a8be155ab049994f7170')  # noqa
+        rv = self.app.get('/git/commits/000000f6dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 200
-        assert rv.data == b'{\n  "sha1": "000000f6dd5dc46ee476a8be155ab049994f7170"\n}'  # noqa
+        assert rv.data == b'{\n  "sha1": "000000f6dd5dc46ee476a8be155ab049994f7170"\n}'
 
 
 @attr('slow')
@@ -156,12 +156,12 @@ class TreeTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data == b'{\n  "sha1": "111111f9dd5dc46ee476a8be155ab049994f717e"\n}'  # noqa
+        assert rv.data == b'{\n  "sha1": "111111f9dd5dc46ee476a8be155ab049994f717e"\n}'
 
     @istest
     def get_tree_not_found(self):
         # when
-        rv = self.app.get('/git/trees/111111f9dd5dc46ee476a8be155ab049994f7170')  # noqa
+        rv = self.app.get('/git/trees/111111f9dd5dc46ee476a8be155ab049994f7170')
         # then
         assert rv.status_code == 404
         assert rv.data == b'Not found!'
@@ -177,39 +177,39 @@ class TreeTestCase(unittest.TestCase):
     @istest
     def put_tree_create_and_update(self):
         # does not exist
-        rv = self.app.get('/git/trees/111111f9dd5dc46ee476a8be155ab049994f7170')  # noqa
+        rv = self.app.get('/git/trees/111111f9dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 404
         assert rv.data == b'Not found!'
 
         # we create it
-        rv = self.app.put('/git/trees/111111f9dd5dc46ee476a8be155ab049994f7170',  # noqa
+        rv = self.app.put('/git/trees/111111f9dd5dc46ee476a8be155ab049994f7170',
                           data={'content': 'tree-bar'})
 
         assert rv.status_code == 204
         assert rv.data == b''
 
         # now it exists
-        rv = self.app.get('/git/trees/111111f9dd5dc46ee476a8be155ab049994f7170')  # noqa
+        rv = self.app.get('/git/trees/111111f9dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 200
-        assert rv.data == b'{\n  "sha1": "111111f9dd5dc46ee476a8be155ab049994f7170"\n}'  # noqa
+        assert rv.data == b'{\n  "sha1": "111111f9dd5dc46ee476a8be155ab049994f7170"\n}'
 
         # we update it
-        rv = self.app.put('/git/trees/111111f9dd5dc46ee476a8be155ab049994f7170',  # noqa
+        rv = self.app.put('/git/trees/111111f9dd5dc46ee476a8be155ab049994f7170',
                           data={'content': 'tree-bar'})
 
         assert rv.status_code == 200
         assert rv.data == b'Successful update!'
 
         # still the same
-        rv = self.app.get('/git/trees/111111f9dd5dc46ee476a8be155ab049994f7170')  # noqa
+        rv = self.app.get('/git/trees/111111f9dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 200
-        assert rv.data == b'{\n  "sha1": "111111f9dd5dc46ee476a8be155ab049994f7170"\n}'  # noqa
+        assert rv.data == b'{\n  "sha1": "111111f9dd5dc46ee476a8be155ab049994f7170"\n}'
 
 
 @attr('slow')
@@ -229,12 +229,12 @@ class BlobTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data == b'{\n  "sha1": "222222f9dd5dc46ee476a8be155ab049994f717e"\n}'  # noqa
+        assert rv.data == b'{\n  "sha1": "222222f9dd5dc46ee476a8be155ab049994f717e"\n}'
 
     @istest
     def get_blob_not_found(self):
         # when
-        rv = self.app.get('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170')  # noqa
+        rv = self.app.get('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170')
         # then
         assert rv.status_code == 404
         assert rv.data == b'Not found!'
@@ -255,7 +255,7 @@ class BlobTestCase(unittest.TestCase):
     # def put_blob_bad_request_bad_payload(self):
     #     # when
     #     # we create it
-    #     rv = self.app.put('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170',  # noqa
+    #     rv = self.app.put('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170',
     #                       data = {'size': 99,
     #                               'git-sha1': 'bad-payload',
     #                               'content': 'foo'})
@@ -267,7 +267,7 @@ class BlobTestCase(unittest.TestCase):
     @istest
     def put_blob_create_and_update(self):
         # does not exist
-        rv = self.app.get('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170')  # noqa
+        rv = self.app.get('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 404
@@ -277,35 +277,35 @@ class BlobTestCase(unittest.TestCase):
         body = {'size': 99,
                 'git-sha1': '222222f9dd5dc46ee476a8be155ab03333333333',
                 'content': 'bar'}
-        rv = self.app.put('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170',  # noqa
+        rv = self.app.put('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170',
                           data=body)
 
         assert rv.status_code == 204
         assert rv.data == b''
 
         # now it exists
-        rv = self.app.get('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170')  # noqa
+        rv = self.app.get('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 200
-        assert rv.data == b'{\n  "sha1": "222222f9dd5dc46ee476a8be155ab049994f7170"\n}'   # noqa
+        assert rv.data == b'{\n  "sha1": "222222f9dd5dc46ee476a8be155ab049994f7170"\n}'
 
         # we update it
         body = {'size': 99,
                 'git-sha1': '222222f9dd5dc46ee476a8be155ab03333333333',
                 'content': 'foobar'}
-        rv = self.app.put('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170',  # noqa
+        rv = self.app.put('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170',
                           data=body)
 
         assert rv.status_code == 200
         assert rv.data == b'Successful update!'
 
         # still the same
-        rv = self.app.get('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170')  # noqa
+        rv = self.app.get('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 200
-        assert rv.data == b'{\n  "sha1": "222222f9dd5dc46ee476a8be155ab049994f7170"\n}'  # noqa
+        assert rv.data == b'{\n  "sha1": "222222f9dd5dc46ee476a8be155ab049994f7170"\n}'
 
 
 @attr('slow')
@@ -356,8 +356,8 @@ class TestObjectsCase(unittest.TestCase):
         assert rv.status_code == 200
 
         json_result = json.loads(rv.data.decode('utf-8'))
-        assert len(json_result.keys()) is 1                                       # only 1 key  # noqa
-        assert len(json_result['sha1s']) is 2                                     # only 2 sha1s  # noqa
+        assert len(json_result.keys()) is 1                                       # only 1 key
+        assert len(json_result['sha1s']) is 2                                     # only 2 sha1s
         sha1s = json_result['sha1s']
         assert "666777f9dd5dc46ee476a8be155ab049994f717e" in sha1s
         assert "555444f9dd5dc46ee476a8be155ab049994f717e" in sha1s
@@ -374,7 +374,7 @@ class TestObjectsCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 400
-        assert rv.data == b"Bad request! Expects 'sha1s' key with list of hexadecimal sha1s."  # noqa
+        assert rv.data == b"Bad request! Expects 'sha1s' key with list of hexadecimal sha1s."
 
     @istest
     def put_non_presents_objects(self):
@@ -394,9 +394,9 @@ class TestObjectsCase(unittest.TestCase):
         assert rv.status_code == 200
 
         json_result = json.loads(rv.data.decode('utf-8'))
-        assert len(json_result.keys()) is 1                         # only 1 key   # noqa
+        assert len(json_result.keys()) is 1                         # only 1 key
         sha1s = json_result['sha1s']
-        assert len(sha1s) is 2                                      # only 2 sha1s # noqa
+        assert len(sha1s) is 2                                      # only 2 sha1s
         assert "666777f9dd5dc46ee476a8be155ab049994f717e" in sha1s
         assert "555444f9dd5dc46ee476a8be155ab049994f717e" in sha1s
 
@@ -414,7 +414,7 @@ class TestObjectsCase(unittest.TestCase):
                      '666777f9dd5dc46ee476a8be155ab049994f717e':
                        {'sha1': '666777f9dd5dc46ee476a8be155ab049994f717e',
                         'type': 'commit',
-                        'content': 'commit content'}}  # noqa
+                        'content': 'commit content'}}
         json_payload_2 = json.dumps(payload_2)
 
         rv = self.app.put('/objects/', data=json_payload_2,
