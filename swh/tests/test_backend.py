@@ -429,6 +429,6 @@ class TestObjectsCase(unittest.TestCase):
         assert rv.status_code == 200
 
         json_result = json.loads(rv.data.decode('utf-8'))
-        print(json_result)
+
         assert len(json_result.keys()) is 1
         assert len(json_result['sha1s']) is 0  # all sha1s are now knowns
