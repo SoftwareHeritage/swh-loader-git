@@ -10,7 +10,7 @@ NOSE = nosetests3
 TESTFLAGS = -s
 TESTDIR = ./swh/tests
 
-DB=swhgitloader
+DB=softwareheritage-dev
 DB_TEST=swhgitloader-test
 
 SWH_LOADER=$(BINDIR)/swh-git-loader
@@ -84,13 +84,11 @@ test-create-db:
 connect-db:
 	psql -d $(DB)
 
-drop-db:
-	dropdb $(DB)
-
 create-db:
-	createdb -O $(USER) $(DB)
+	cd ../swh-sql && make clean initdb
 
-create-db-dev:
+drop-db:
+	cd ../swh-sql && make clean dropdb
 
 check-meta:
 	@echo "Repository: $(REPO_PATH)"
