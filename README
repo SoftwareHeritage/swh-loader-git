@@ -33,7 +33,8 @@ Test
 
 -   python3-nose
 
--   Requirements
+Requirements
+============
 
 Functional
 ----------
@@ -134,7 +135,6 @@ backend_url = http://localhost:5000
 ```
 
 Note:
-
 -   [DB url
     DSL](http://initd.org/psycopg/docs/module.html#psycopg2.connect)
 -   the configuration file can be changed in the CLI with the flag \`-c
@@ -159,7 +159,7 @@ object_content_storage_dir = swh-git-loader/object-content-storage
 # Where to store the logs
 log_dir = swh-git-loader/log
 
-# url access to db
+# url access to db: dbname=<host> (port=<port> user=<user> pass=<pass>)
 db_url = dbname=swhgitloader
 
 # activate the compression for each blob object
@@ -305,7 +305,6 @@ information in the following format: \<action-verb\> \<nature-object\>
 \<sha1-name-or-path\>
 
 where: \<action-verb\>
-
 -   walk walk a tree or a reference
 -   skip skip an already saved/visited object or unknown object (e.g.
     commit submodule)
@@ -315,7 +314,6 @@ where: \<action-verb\>
 -   clean Clean the db's data
 
 \<nature-object\>
-
 -   tree
 -   commit
 -   blob
@@ -324,7 +322,6 @@ where: \<action-verb\>
 -   unknown-action An unknown action from swhgitloader's cli
 
 \<sha1-name-or-path\>
-
 -   sha1 git or swh's sha1
 -   name object name
 -   path object's content storage path
@@ -334,4 +331,3 @@ Folder
 
 The different tools can be configured in their respective .ini file.
 They, by default, log inside the swh-git-loader/log folder.
-

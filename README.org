@@ -132,7 +132,7 @@ object_content_storage_dir = swh-git-loader/object-content-storage
 # Where to store the logs
 log_dir = swh-git-loader/log
 
-# url access to db
+# url access to db: dbname=<host> (port=<port> user=<user> pass=<pass>)
 db_url = dbname=swhgitloader
 
 # activate the compression for each blob object
