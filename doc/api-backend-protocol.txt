@@ -27,7 +27,7 @@ communicate. Can be used in `backend`'s stead.
 # Scenario
 
 In the following, we will describe with different granularities what will
-happen between workers and backend.
+happen between 1 worker and the backend api.
 
 ## 1
 
@@ -40,13 +40,117 @@ The server store what it receives.
 
 ## 2
 
-1. Worker parses local repository and build a memory model of the repository.
-2. Worker sends repository's list of all encountered sha1s to the backend.
-3. Backend replies with unknown sha1.
-4. Worker sends all blob's data and metadata through 1 (or more) request(s).
-5. Backend stores them and finish the transaction.
-6. Worker sends all trees' data and metadata through 1 (or more) request(s).
-7. Backend stores them and finish the transaction.
-8. Worker sends all commits' data and metadata through 1 (or more) request(s).
-9. Backend stores them and finish the transaction.
+01. Worker parses local repository and build a memory model of the repository.
+02. Worker sends repository's list of all encountered sha1s to the backend.
+03. Backend replies with unknown sha1.
+04. Worker sends all `content` data and metadata through 1 (or more) request(s).
+05. Backend stores them and finish the transaction.
+06. Worker sends all `directory`s' data and metadata through 1 (or more) request(s).
+07. Backend stores them and finish the transaction.
+08. Worker sends all `revision`s' data and metadata through 1 (or more) request(s).
+09. Backend stores them and finish the transaction.
 10. Worker is done.
+
+## 3
+
+1. Worker parses local repository in mixed top-down/bottom-up (cf.
+git-loading-design.txt) traversal approach and builds a data memory model.
+The data memory model has the following structure:
+- sha1s set (no duplicates)
+- sha1s map indexed by sha1, the nature representation of revision, directory,
+content, release is kept.
+
+2. Worker sends in the api backend's protocol the sha1s.
+
+3. Api Backend receives the list of sha1s, filters out
+unknown sha1s and replies to the worker.
+
+4. Worker receives the list of unknown sha1s.
+Builds the `content`'s structure:
+- git's sha1 (when parsing git repository)
+- sha1 content (as per content's sha1)
+- sha256 content
+- content's size
+- content
+
+And sends it to the api's backend.
+
+5. Backend receives the data and:
+- computes from the `content` the checksums (sha1, sha256).
+- checks the checksums match the client's data
+- Stores the content on the file storage
+- Persist in the db the received data
+If any errors is detected during the process (checksum do not match, writing
+error, ...), the db transaction is rollbacked and a failure is sent to the
+client.
+Otherwise, the db transaction is committed and a success is sent back  to the
+client.
+
+*Note* Optimization possible: slice in multiple queries.
+
+6. Worker receives the result from the api.
+If failure, worker stops. The task is done.
+Otherwise, the worker continues by building the list of `directory` structure.
+
+for each directory:
+- sha1
+- directory's content
+- list of directory entries:
+  - name     : relative path to parent entry or root
+  - sha1     : sha1 of the objected pointed to by this entry
+  - type     : whether entry is a file or a dir
+  - perms    : unix-like permissions
+  - atime    : time of last access
+  - mtime    : time of last modification
+  - ctime    : time of last status change
+  - directory: parent directory sha1
+
+And sends it to the api's backend.
+
+*Note* Optimization possible: slice in multiple queries.
+
+7. Api backend receives the data.
+Persists the directory's content on the file storage.
+Persist the directory and directory entries on the db's side in respect to the
+previous directories and contents stored.
+*Meaning* backend is in charge of retrieving internal ids instead of sha1 to
+respect the foreign key constraint.
+
+If any error is raised, the transaction is rollbacked and an error is sent back
+to the client (worker).
+Otherwise, the transaction is committed and the success is sent back to the
+client.
+
+8. Worker receives the result from the api.
+If failure, worker stops. The task is done.
+Otherwise, the worker continues by building the list of `revision` structure.
+
+A list of revisions, for each revision:
+- sha1, the revision's sha1
+- revision's parent sha1s, the list of revision parents
+- content, the revision's content
+- revision's date
+- directory id the revision points to
+- message, the revision's message
+- author
+- committer
+
+And sends it to the api's backend.
+
+*Note* Optimization possible: slice in multiple queries.
+
+9. Api backend receives data.
+Persists the revisions' content on the file storage.
+Persist the directory and directory entries on the db's side in respect to the
+previous directories and contents stored.
+
+*Meaning* backend is in charge of retrieving internal ids instead of sha1 to
+respect the foreign key constraint.
+
+If any error is raised, the transaction is rollbacked and an error is sent back
+to the client (worker).
+Otherwise, the transaction is committed and the success is sent back to the
+client.
+
+10. Worker receives the result and stops anyway.
+The task is done.
