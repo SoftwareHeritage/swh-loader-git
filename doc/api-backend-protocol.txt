@@ -1,0 +1,52 @@
+Design considerations
+=====================
+
+# Goal
+
+Load the representation of a git,svn, csv, tarball, et al. repository in software
+heritage's backend.
+
+# Nomenclature
+
+## Infrastructure
+
+- swh: software heritage
+- worker: an instance in charge of loading a repository in swh's backend
+- backend: the software heritage storage mechanism used (at the moment,
+postgresql db + file storage) and by extension its api.
+- backend api: internal private api used to by worker and backend to
+communicate. Can be used in `backend`'s stead.
+
+## Object
+
+- revision: A snapshot of a software project at a specific point in time. Ex: git commit
+- directory: A file-system directory. Ex: git tree
+- content: Checksums about actual file content. Ex: git blob's checksum.
+- release: A "memorable" point in the development history of a project. Ex: git's annotated tag
+
+# Scenario
+
+In the following, we will describe with different granularities what will
+happen between workers and backend.
+
+## 1
+
+A worker parses a repository.
+It sends the parsing result to the backend.
+First, the worker sends a complete list of all sha1s encountered.
+The server responds with a complete list of unknowns sha1s.
+The worker sends those sha1s and their associated data to the server.
+The server store what it receives.
+
+## 2
+
+1. Worker parses local repository and build a memory model of the repository.
+2. Worker sends repository's list of all encountered sha1s to the backend.
+3. Backend replies with unknown sha1.
+4. Worker sends all blob's data and metadata through 1 (or more) request(s).
+5. Backend stores them and finish the transaction.
+6. Worker sends all trees' data and metadata through 1 (or more) request(s).
+7. Backend stores them and finish the transaction.
+8. Worker sends all commits' data and metadata through 1 (or more) request(s).
+9. Backend stores them and finish the transaction.
+10. Worker is done.
