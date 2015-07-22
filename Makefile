@@ -34,10 +34,10 @@ deps:
 		ipython3
 
 prepare:
-	mkdir -p swh-git-loader/log swh-git-loader/file-content-storage swh-git-loader/object-content-storage
+	mkdir -p /tmp/swh-git-loader/log /tmp/swh-git-loader/content-storage
 
 clean:
-	rm -rf swh-git-loader/log swh-git-loader/file-content-storage swh-git-loader/object-content-storage
+	rm -rf /tmp/swh-git-loader/log /tmp/swh-git-loader/content-storage
 
 cleandb: clean prepare
 	PYTHONPATH=`pwd` $(SWH_DB_MANAGER) $(FLAG) cleandb

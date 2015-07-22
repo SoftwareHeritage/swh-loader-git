@@ -151,10 +151,7 @@ Create a configuration file in **\~/.config/swh/back.ini**:
 [main]
 
 # where to store blob on disk
-file_content_storage_dir = swh-git-loader/file-content-storage
-
-# where to store commit/tree on disk
-object_content_storage_dir = swh-git-loader/object-content-storage
+content_storage_dir = /tmp/swh-git-loader/content-storage
 
 # Where to store the logs
 log_dir = swh-git-loader/log

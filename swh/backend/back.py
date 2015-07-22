@@ -143,8 +143,7 @@ def run(conf):
     """Run the api's server.
     conf is a dictionary of keywords:
     - 'db_url' the db url's access (through psycopg2 format)
-    - 'file_content_storage_dir'   where to store blobs on disk
-    - 'object_content_storage_dir' where to store commits/trees on disk
+    - 'content_storage_dir'   where to store commits/trees/blobs on disk
     - 'port'   to override the default of 5000 (from the underlying layer:
     flask)
     - 'debug'  activate the verbose logs

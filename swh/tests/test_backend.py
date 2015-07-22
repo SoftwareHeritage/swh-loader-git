@@ -21,10 +21,8 @@ def app_client(db_url="dbname=swhgitloader-test"):
     """Setup the application ready for testing.
     """
     back.app.config['conf'] = {'db_url': db_url,
-                               'file_content_storage_dir':
-                                   'swh-git-loader/file-content-storage',
-                               'object_content_storage_dir':
-                                   'swh-git-loader/object-content-storage',
+                               'content_storage_dir':
+                                   '/tmp/swh-git-loader/file-content-storage',
                                'folder_depth': 2,
                                'blob_compression': None}
     back.app.config['TESTING'] = True

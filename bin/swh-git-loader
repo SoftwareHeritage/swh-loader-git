@@ -20,8 +20,7 @@ DEFAULT_CONF_FILE = '~/.config/swh/git-loader.ini'
 
 # default configuration (can be overriden by the DEFAULT_CONF_FILE)
 DEFAULT_CONF = {
-    'file_content_storage_dir': '/tmp/swh-git-loader/file-content-storage',
-    'object_content_storage_dir': '/tmp/swh-git-loader/git-object-storage',
+    'content_storage_dir': '/tmp/swh-git-loader/content-storage',
     'log_dir': '/tmp/swh-git-loader/log',
     'backend_url': 'http://localhost:5000',
     'blob_compression': None,
@@ -74,11 +73,9 @@ def read_conf(args):
                               if 'folder_depth' not in conf \
                               else int(conf['folder_depth'])
 
-    if 'blob_compression' not in conf:
-        conf['blob_compression'] = DEFAULT_CONF['blob_compression']
-
-    if 'backend_url' not in conf:
-        conf['backend_url'] = DEFAULT_CONF['backend_url']
+    # remaining missing default configuration key are set
+    for key in DEFAULT_CONF:
+        conf[key] = conf.get(key, DEFAULT_CONF[key])
 
     return conf
 

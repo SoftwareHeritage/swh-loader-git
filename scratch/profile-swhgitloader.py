@@ -15,8 +15,7 @@ conf = {
     'db_url': 'dbname=swhgitloader',
     # 'repository': os.path.expanduser('./test-repo'),
     'repository': os.path.expanduser('../debsources'),
-    'file_content_storage_dir':  'swh-git-loader/file-content-storage',
-    'object_content_storage_dir':  'swh-git-loader/object-content-storage',
+    'content_storage_dir':  '/tmp/swh-git-loader/content-storage',
     'folder_depth':  4,
     'blob_compression': None,
 }

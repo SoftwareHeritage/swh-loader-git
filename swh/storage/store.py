@@ -57,7 +57,7 @@ def _add_blob(db_conn, config, git_object, sha1_hex):
     """
     obj_git_sha1 = git_object['git-sha1']
 
-    res = fs.write_object(config['file_content_storage_dir'],
+    res = fs.write_object(config['content_storage_dir'],
                           obj_git_sha1,
                           git_object['content'],
                           config['folder_depth'],
@@ -80,7 +80,7 @@ def _add_object(db_conn, config, git_object, sha1_hex):
     folder_depth = config['folder_depth']
     sha1 = git_object['sha1']
     content = git_object.get('content', '')
-    res = fs.write_object(config['object_content_storage_dir'],
+    res = fs.write_object(config['content_storage_dir'],
                           sha1,
                           content,
                           folder_depth)

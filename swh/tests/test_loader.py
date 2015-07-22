@@ -75,18 +75,15 @@ class FuncUseCase(unittest.TestCase):
 
         # trigger the script
         repo_path = self.tmpGitRepo.workdir
-        file_content_storage_dir = os.path.join(repo_path, "file-storage")
-        object_content_storage_dir = os.path.join(repo_path, "object-storage")
+        content_storage_dir = os.path.join(repo_path, "content-storage")
 
-        os.makedirs(file_content_storage_dir, exist_ok=True)
-        os.makedirs(object_content_storage_dir, exist_ok=True)
+        os.makedirs(content_storage_dir, exist_ok=True)
 
         self.db_url = "dbname=swhgitloader-test"
         self.conf = {
             'db_url': self.db_url,
             'repository': repo_path,
-            'file_content_storage_dir': file_content_storage_dir,
-            'object_content_storage_dir': object_content_storage_dir,
+            'content_storage_dir': content_storage_dir,
             'blob_compression': None,
             'folder_depth': 2,
             }

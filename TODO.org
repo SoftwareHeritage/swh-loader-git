@@ -39,14 +39,15 @@ CLOSED: [2015-07-22 Wed 12:20]
 
 * swh implementation
 
+- [X] One content storage (2 were used, one for content, one for revision/directory)
 - [ ] Improve api backend to use the `real` schema
 - [ ] Adapt loader to speak the api backend the dummy way
 - [ ] Improve protocol communication between loader and api backend (drop json)
 
 * Global enhancement
 
+- [ ] Drop json as api backend communication and use a simpler message protocol `<size><content-msg>` for example
 - [ ] Use future computations?
-- [ ] Drop json as api backend communication and use a simpler message protocol `<size><content-msg>`
 
 * Discussion
 

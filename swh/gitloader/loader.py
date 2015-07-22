@@ -18,12 +18,11 @@ from swh.http import client
 
 def load_repo(baseurl,
               repo_path,
-              file_content_storage_dir,
-              object_content_storage_dir,
+              content_storage_dir,
               folder_depth,
               blob_compress_flag):
     """Parse git repository `repo_path` and flush
-    blobs on disk in `file_content_storage_dir`.
+    git objects on disk in `content_storage_dir`.
     """
 
     def treewalk(repo, tree, topdown=False):
@@ -129,8 +128,7 @@ def load(conf):
     used configuration keys:
     - action: requested action
     - repository: git repository path ('load' action only)
-    - file_content_storage_dir: path to file content storage
-    - object_content_storage_dir: path to git object content storage
+    - content_storage_dir: path to object (blob, tree, commit) content storage
     """
     action = conf['action']
 
@@ -138,8 +136,7 @@ def load(conf):
         logging.info('load repository %s' % conf['repository'])
         load_repo(conf['backend_url'],
                   conf['repository'],
-                  conf['file_content_storage_dir'],
-                  conf['object_content_storage_dir'],
+                  conf['content_storage_dir'],
                   conf['folder_depth'],
                   conf['blob_compression'])
     else:
