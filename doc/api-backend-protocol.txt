@@ -113,8 +113,6 @@ And sends it to the api's backend.
 Persists the directory's content on the file storage.
 Persist the directory and directory entries on the db's side in respect to the
 previous directories and contents stored.
-*Meaning* backend is in charge of retrieving internal ids instead of sha1 to
-respect the foreign key constraint.
 
 If any error is raised, the transaction is rollbacked and an error is sent back
 to the client (worker).
@@ -143,9 +141,6 @@ And sends it to the api's backend.
 Persists the revisions' content on the file storage.
 Persist the directory and directory entries on the db's side in respect to the
 previous directories and contents stored.
-
-*Meaning* backend is in charge of retrieving internal ids instead of sha1 to
-respect the foreign key constraint.
 
 If any error is raised, the transaction is rollbacked and an error is sent back
 to the client (worker).
