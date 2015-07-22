@@ -32,18 +32,12 @@ DEFAULT_CONF = {
 
 def parse_args():
     """Parse the configuration for the cli.
-
     """
-
     cli = argparse.ArgumentParser(
         description='Parse git repository objects to load them into DB.')
     cli.add_argument('--verbose', '-v', action='store_true',
                      help='Verbosity level in log file.')
     cli.add_argument('--config', '-c', help='configuration file path')
-
-    subcli = cli.add_subparsers(dest='action')
-    subcli.add_parser('initdb', help='initialize DB')
-    subcli.add_parser('cleandb', help='clean DB')
 
     args = cli.parse_args()
 
@@ -59,9 +53,6 @@ def read_conf(args):
     conf_file = args.config or DEFAULT_CONF_FILE
     config.read(os.path.expanduser(conf_file))
     conf = config._sections['main']
-
-    # propagate CLI arguments to conf dictionary
-    conf['action'] = args.action
 
     conf['folder_depth'] = DEFAULT_CONF['folder_depth'] \
                               if 'folder_depth' not in conf \
