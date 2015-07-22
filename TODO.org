@@ -1,7 +1,8 @@
 #+title: TODO
 #+author: swh team
 
-* First implementation
+* DONE First implementation
+CLOSED: [2015-07-22 Wed 12:20]
 
 - [X] Push on remote git repository
 - [X] All git objects must be written in storage (at the moment only blobs)
@@ -34,9 +35,18 @@
 - [X] Enforce retrying disk writing policy
 - [X] Use blob's git sha1 as key on disk
 - [X] Enforce retrying policy on http client requests
-- [ ] Use future computations
-- [ ] Enforce retrying policy on db transactions
-- [ ] Share http connection throughout the git repository parsing
+- [X] Share http connection throughout the git repository parsing
+
+* swh implementation
+
+- [ ] Improve api backend to use the `real` schema
+- [ ] Adapt loader to speak the api backend the dummy way
+- [ ] Improve protocol communication between loader and api backend (drop json)
+
+* Global enhancement
+
+- [ ] Use future computations?
+- [ ] Drop json as api backend communication and use a simpler message protocol `<size><content-msg>`
 
 * Discussion
 
