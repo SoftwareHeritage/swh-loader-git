@@ -28,9 +28,7 @@ DEFAULT_CONF = {
 
 def parse_args():
     """Parse the configuration for the cli.
-
     """
-
     cli = argparse.ArgumentParser(
         description='Parse git repository objects to load them into DB.')
     cli.add_argument('--verbose', '-v', action='store_true',
@@ -50,10 +48,7 @@ def parse_args():
 
 def read_conf(args):
     """Read the user's configuration file.
-
     args contains the repo to parse.
-    Transmit to the result.
-
     """
 
     config = configparser.ConfigParser(defaults=DEFAULT_CONF)

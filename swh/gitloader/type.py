@@ -35,6 +35,7 @@ class SWHObj():
         """Return the current object's data."""
         return self.obj.data
 
+
 # Structure with:
 # - list of sha1s
 # - swh objects map (indexed by sha1)

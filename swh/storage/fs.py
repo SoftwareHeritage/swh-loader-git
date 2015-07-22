@@ -35,3 +35,16 @@ def write_object(dataset_dir, hashv, data, folder_depth, compress_flag=None):
     filepath = os.path.join(folder_in_storage, hashv)
     logging.debug('write object %s' % filepath)
     return file.write_data(data, filepath, compress_flag)
+
+def write_content(dataset_dir, hashv, data, folder_depth, compress_flag=None):
+    """Write object with data and hashv on disk in dataset_dir.
+       - storage_dir:   prefix folder path to store data
+       - hashv:         hash value to use as suffix-folder
+       - data:          data to store on disk
+       - depth:         depth to extract suffix from hashv
+       - compress_flag: is the data to be compressed (gzipped) or not
+    """
+    folder_in_storage = create_dir_from_hash(dataset_dir, hashv, folder_depth)
+    filepath = os.path.join(folder_in_storage, hashv)
+    logging.debug('write object %s' % filepath)
+    return file.write_data(data, filepath, compress_flag)

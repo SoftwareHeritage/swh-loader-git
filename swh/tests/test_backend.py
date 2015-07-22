@@ -24,7 +24,7 @@ def app_client(db_url="dbname=swhgitloader-test"):
                                'content_storage_dir':
                                    '/tmp/swh-git-loader/file-content-storage',
                                'folder_depth': 2,
-                               'blob_compression': None}
+                               'storage_compression': None}
     back.app.config['TESTING'] = True
     app = back.app.test_client()
     test_initdb.prepare_db(db_url)
@@ -56,7 +56,7 @@ class HomeTestCase(unittest.TestCase):
     @istest
     def get_bad_request(self):
         # when
-        rv = self.app.get('/git/not-a-good-type/1')
+        rv = self.app.get('/vcs/not-a-good-type/1')
 
         # then
         assert rv.status_code == 400
@@ -64,73 +64,73 @@ class HomeTestCase(unittest.TestCase):
 
 
 @attr('slow')
-class CommitTestCase(unittest.TestCase):
+class RevisionTestCase(unittest.TestCase):
     def setUp(self):
         self.app, db_url = app_client()
 
-        self.commit_sha1_hex = '000000f6dd5dc46ee476a8be155ab049994f717e'
+        self.revision_sha1_hex = '000000f6dd5dc46ee476a8be155ab049994f717e'
         with db.connect(db_url) as db_conn:
             models.add_object(db_conn,
-                              self.commit_sha1_hex,
-                              models.Type.commit.value)
+                              self.revision_sha1_hex,
+                              models.Type.revision.value)
 
     @istest
-    def get_commit_ok(self):
+    def get_revision_ok(self):
         # when
-        rv = self.app.get('/git/commits/%s' % self.commit_sha1_hex)
+        rv = self.app.get('/vcs/revisions/%s' % self.revision_sha1_hex)
 
         # then
         assert rv.status_code == 200
         assert rv.data == b'{\n  "sha1": "000000f6dd5dc46ee476a8be155ab049994f717e"\n}'
 
     @istest
-    def get_commit_not_found(self):
+    def get_revision_not_found(self):
         # when
-        rv = self.app.get('/git/commits/000000f6dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.get('/vcs/revisions/000000f6dd5dc46ee476a8be155ab049994f7170')
         # then
         assert rv.status_code == 404
         assert rv.data == b'Not found!'
 
     @istest
-    def get_commit_not_found_with_bad_format(self):
+    def get_revision_not_found_with_bad_format(self):
         # when
-        rv = self.app.get('/git/commits/1')
+        rv = self.app.get('/vcs/revisions/1')
         # then
         assert rv.status_code == 404
         assert rv.data == b'Not found!'
 
     @istest
-    def put_commit_create_and_update(self):
+    def put_revision_create_and_update(self):
         # does not exist
-        rv = self.app.get('/git/commits/000000f6dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.get('/vcs/revisions/000000f6dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 404
         assert rv.data == b'Not found!'
 
         # we create it
-        rv = self.app.put('/git/commits/000000f6dd5dc46ee476a8be155ab049994f7170',
-                          data={'content': 'commit-foo'})
+        rv = self.app.put('/vcs/revisions/000000f6dd5dc46ee476a8be155ab049994f7170',
+                          data={'content': 'revision-foo'})
 
         assert rv.status_code == 204
         assert rv.data == b''
 
         # now it exists
-        rv = self.app.get('/git/commits/000000f6dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.get('/vcs/revisions/000000f6dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 200
         assert rv.data == b'{\n  "sha1": "000000f6dd5dc46ee476a8be155ab049994f7170"\n}'
 
         # we update it
-        rv = self.app.put('/git/commits/000000f6dd5dc46ee476a8be155ab049994f7170',
-                          data={'content': 'commit-foo'})
+        rv = self.app.put('/vcs/revisions/000000f6dd5dc46ee476a8be155ab049994f7170',
+                          data={'content': 'revision-foo'})
 
         assert rv.status_code == 200
         assert rv.data == b'Successful update!'
 
         # still the same
-        rv = self.app.get('/git/commits/000000f6dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.get('/vcs/revisions/000000f6dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 200
@@ -138,72 +138,72 @@ class CommitTestCase(unittest.TestCase):
 
 
 @attr('slow')
-class TreeTestCase(unittest.TestCase):
+class DirectoryTestCase(unittest.TestCase):
     def setUp(self):
         self.app, db_url = app_client()
 
-        self.tree_sha1_hex = '111111f9dd5dc46ee476a8be155ab049994f717e'
+        self.directory_sha1_hex = '111111f9dd5dc46ee476a8be155ab049994f717e'
         with db.connect(db_url) as db_conn:
-            models.add_object(db_conn, self.tree_sha1_hex,
-                              models.Type.tree.value)
+            models.add_object(db_conn, self.directory_sha1_hex,
+                              models.Type.directory.value)
 
     @istest
-    def get_tree_ok(self):
+    def get_directory_ok(self):
         # when
-        rv = self.app.get('/git/trees/%s' % self.tree_sha1_hex)
+        rv = self.app.get('/vcs/directories/%s' % self.directory_sha1_hex)
 
         # then
         assert rv.status_code == 200
         assert rv.data == b'{\n  "sha1": "111111f9dd5dc46ee476a8be155ab049994f717e"\n}'
 
     @istest
-    def get_tree_not_found(self):
+    def get_directory_not_found(self):
         # when
-        rv = self.app.get('/git/trees/111111f9dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.get('/vcs/directories/111111f9dd5dc46ee476a8be155ab049994f7170')
         # then
         assert rv.status_code == 404
         assert rv.data == b'Not found!'
 
     @istest
-    def get_tree_not_found_with_bad_format(self):
+    def get_directory_not_found_with_bad_format(self):
         # when
-        rv = self.app.get('/git/trees/1')
+        rv = self.app.get('/vcs/directories/1')
         # then
         assert rv.status_code == 404
         assert rv.data == b'Not found!'
 
     @istest
-    def put_tree_create_and_update(self):
+    def put_directory_create_and_update(self):
         # does not exist
-        rv = self.app.get('/git/trees/111111f9dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.get('/vcs/directories/111111f9dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 404
         assert rv.data == b'Not found!'
 
         # we create it
-        rv = self.app.put('/git/trees/111111f9dd5dc46ee476a8be155ab049994f7170',
-                          data={'content': 'tree-bar'})
+        rv = self.app.put('/vcs/directories/111111f9dd5dc46ee476a8be155ab049994f7170',
+                          data={'content': 'directory-bar'})
 
         assert rv.status_code == 204
         assert rv.data == b''
 
         # now it exists
-        rv = self.app.get('/git/trees/111111f9dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.get('/vcs/directories/111111f9dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 200
         assert rv.data == b'{\n  "sha1": "111111f9dd5dc46ee476a8be155ab049994f7170"\n}'
 
         # we update it
-        rv = self.app.put('/git/trees/111111f9dd5dc46ee476a8be155ab049994f7170',
-                          data={'content': 'tree-bar'})
+        rv = self.app.put('/vcs/directories/111111f9dd5dc46ee476a8be155ab049994f7170',
+                          data={'content': 'directory-bar'})
 
         assert rv.status_code == 200
         assert rv.data == b'Successful update!'
 
         # still the same
-        rv = self.app.get('/git/trees/111111f9dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.get('/vcs/directories/111111f9dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 200
@@ -211,36 +211,36 @@ class TreeTestCase(unittest.TestCase):
 
 
 @attr('slow')
-class BlobTestCase(unittest.TestCase):
+class ContentTestCase(unittest.TestCase):
     def setUp(self):
         self.app, db_url = app_client()
 
-        self.blob_sha1_hex = '222222f9dd5dc46ee476a8be155ab049994f717e'
+        self.content_sha1_hex = '222222f9dd5dc46ee476a8be155ab049994f717e'
         blog_git_sha1 = '22222200000011111176a8be155ab049994f717e'
         with db.connect(db_url) as db_conn:
-            models.add_blob(db_conn, self.blob_sha1_hex, 10, blog_git_sha1)
+            models.add_content(db_conn, self.content_sha1_hex, 10, blog_git_sha1)
 
     @istest
-    def get_blob_ok(self):
+    def get_content_ok(self):
         # when
-        rv = self.app.get('/git/blobs/%s' % self.blob_sha1_hex)
+        rv = self.app.get('/vcs/contents/%s' % self.content_sha1_hex)
 
         # then
         assert rv.status_code == 200
         assert rv.data == b'{\n  "sha1": "222222f9dd5dc46ee476a8be155ab049994f717e"\n}'
 
     @istest
-    def get_blob_not_found(self):
+    def get_content_not_found(self):
         # when
-        rv = self.app.get('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.get('/vcs/contents/222222f9dd5dc46ee476a8be155ab049994f7170')
         # then
         assert rv.status_code == 404
         assert rv.data == b'Not found!'
 
     @istest
-    def get_blob_not_found_with_bad_format(self):
+    def get_content_not_found_with_bad_format(self):
         # when
-        rv = self.app.get('/git/blobs/1')
+        rv = self.app.get('/vcs/contents/1')
         # then
         assert rv.status_code == 404
         assert rv.data == b'Not found!'
@@ -250,10 +250,10 @@ class BlobTestCase(unittest.TestCase):
     # We assume this will be done by the db.
     #
     # @istest
-    # def put_blob_bad_request_bad_payload(self):
+    # def put_content_bad_request_bad_payload(self):
     #     # when
     #     # we create it
-    #     rv = self.app.put('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170',
+    #     rv = self.app.put('/vcs/contents/222222f9dd5dc46ee476a8be155ab049994f7170',
     #                       data = {'size': 99,
     #                               'git-sha1': 'bad-payload',
     #                               'content': 'foo'})
@@ -263,9 +263,9 @@ class BlobTestCase(unittest.TestCase):
     #     assert rv.data == b'Bad request!'
 
     @istest
-    def put_blob_create_and_update(self):
+    def put_content_create_and_update(self):
         # does not exist
-        rv = self.app.get('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.get('/vcs/contents/222222f9dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 404
@@ -275,14 +275,14 @@ class BlobTestCase(unittest.TestCase):
         body = {'size': 99,
                 'git-sha1': '222222f9dd5dc46ee476a8be155ab03333333333',
                 'content': 'bar'}
-        rv = self.app.put('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170',
+        rv = self.app.put('/vcs/contents/222222f9dd5dc46ee476a8be155ab049994f7170',
                           data=body)
 
         assert rv.status_code == 204
         assert rv.data == b''
 
         # now it exists
-        rv = self.app.get('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.get('/vcs/contents/222222f9dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 200
@@ -292,14 +292,14 @@ class BlobTestCase(unittest.TestCase):
         body = {'size': 99,
                 'git-sha1': '222222f9dd5dc46ee476a8be155ab03333333333',
                 'content': 'foobar'}
-        rv = self.app.put('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170',
+        rv = self.app.put('/vcs/contents/222222f9dd5dc46ee476a8be155ab049994f7170',
                           data=body)
 
         assert rv.status_code == 200
         assert rv.data == b'Successful update!'
 
         # still the same
-        rv = self.app.get('/git/blobs/222222f9dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.get('/vcs/contents/222222f9dd5dc46ee476a8be155ab049994f7170')
 
         # then
         assert rv.status_code == 200
@@ -312,35 +312,35 @@ class TestObjectsCase(unittest.TestCase):
         self.app, self.db_url = app_client()
 
         with db.connect(self.db_url) as db_conn:
-            self.blob_sha1_hex = '000000111111c46ee476a8be155ab049994f717e'
+            self.content_sha1_hex = '000000111111c46ee476a8be155ab049994f717e'
             blog_git_sha1 = '00000011111122222276a8be155ab049994f717e'
-            models.add_blob(db_conn, self.blob_sha1_hex, 10, blog_git_sha1)
+            models.add_content(db_conn, self.content_sha1_hex, 10, blog_git_sha1)
 
-            self.tree_sha1_hex = '111111f9dd5dc46ee476a8be155ab049994f717e'
-            models.add_object(db_conn, self.tree_sha1_hex,
-                              store.Type.tree.value)
+            self.directory_sha1_hex = '111111f9dd5dc46ee476a8be155ab049994f717e'
+            models.add_object(db_conn, self.directory_sha1_hex,
+                              store.Type.directory.value)
 
-            self.commit_sha1_hex = '222222f9dd5dc46ee476a8be155ab049994f717e'
-            models.add_object(db_conn, self.commit_sha1_hex,
-                              store.Type.commit.value)
+            self.revision_sha1_hex = '222222f9dd5dc46ee476a8be155ab049994f717e'
+            models.add_object(db_conn, self.revision_sha1_hex,
+                              store.Type.revision.value)
 
         # check the insertion went ok!
         with db.connect(self.db_url) as db_conn:
-            assert models.find_blob(db_conn, self.blob_sha1_hex) is not None
-            assert models.find_object(db_conn, self.tree_sha1_hex,
-                                      models.Type.tree.value) is not None
-            assert models.find_object(db_conn, self.commit_sha1_hex,
-                                      models.Type.commit.value) is not None
+            assert models.find_content(db_conn, self.content_sha1_hex) is not None
+            assert models.find_object(db_conn, self.directory_sha1_hex,
+                                      models.Type.directory.value) is not None
+            assert models.find_object(db_conn, self.revision_sha1_hex,
+                                      models.Type.revision.value) is not None
 
     @istest
     def get_non_presents_objects(self):
         # given
 
         # when
-        payload = {'sha1s': [self.blob_sha1_hex,
-                             self.tree_sha1_hex,
-                             self.commit_sha1_hex,
-                             self.commit_sha1_hex,
+        payload = {'sha1s': [self.content_sha1_hex,
+                             self.directory_sha1_hex,
+                             self.revision_sha1_hex,
+                             self.revision_sha1_hex,
                              '555444f9dd5dc46ee476a8be155ab049994f717e',
                              '555444f9dd5dc46ee476a8be155ab049994f717e',
                              '666777f9dd5dc46ee476a8be155ab049994f717e']}
@@ -377,10 +377,10 @@ class TestObjectsCase(unittest.TestCase):
     @istest
     def put_non_presents_objects(self):
         # given
-        payload_1 = {'sha1s': [self.blob_sha1_hex,
-                               self.tree_sha1_hex,
-                               self.commit_sha1_hex,
-                               self.commit_sha1_hex,
+        payload_1 = {'sha1s': [self.content_sha1_hex,
+                               self.directory_sha1_hex,
+                               self.revision_sha1_hex,
+                               self.revision_sha1_hex,
                                '555444f9dd5dc46ee476a8be155ab049994f717e',
                                '555444f9dd5dc46ee476a8be155ab049994f717e',
                                '666777f9dd5dc46ee476a8be155ab049994f717e']}
@@ -403,16 +403,16 @@ class TestObjectsCase(unittest.TestCase):
                        {'sha1': '555444f9dd5dc46ee476a8be155ab049994f717e',
                         'size': 20,
                         'git-sha1': '555444f9dd5dc46ee476a8be155ab049994f717e',
-                        'type': 'blob',
-                        'content': 'blob\'s content'},
+                        'type': 'content',
+                        'content': 'content\'s content'},
                      '555444f9dd5dc46ee476a8be155ab049994f717e':
                        {'sha1': '555444f9dd5dc46ee476a8be155ab049994f717e',
-                        'content': 'tree content',
-                        'type': 'tree'},
+                        'content': 'directory content',
+                        'type': 'directory'},
                      '666777f9dd5dc46ee476a8be155ab049994f717e':
                        {'sha1': '666777f9dd5dc46ee476a8be155ab049994f717e',
-                        'type': 'commit',
-                        'content': 'commit content'}}
+                        'type': 'revision',
+                        'content': 'revision content'}}
         json_payload_2 = json.dumps(payload_2)
 
         rv = self.app.put('/objects/', data=json_payload_2,

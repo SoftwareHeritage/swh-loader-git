@@ -24,7 +24,7 @@ DEFAULT_CONF = {
     'object_content_storage_dir': '/tmp/swh-git-loader/git-object-storage',
     'log_dir': '/tmp/swh-git-loader/log',
     'db_url': 'dbname=softwareheritage-dev',
-    'blob_compression': None,
+    'storage_compression': None,
     'folder_depth': 4,
     'debug': None
 }

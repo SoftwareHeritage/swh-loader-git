@@ -16,19 +16,22 @@ app = Flask(__name__)
 
 @app.route('/')
 def hello():
+    """A simple api to define what the server is all about.
+    FIXME: A redirect towards a static page defining the routes would be nice.
+    """
     return 'Dev SWH API'
 
 
-def lookup(config, git_object):
+def lookup(config, vcs_object):
     """Looking up type object with sha1.
     - predicate_fn is a lookup function taking in this order a db_conn, binary
     sha1 and optionally a type to look for in the backend.
-    - type is of models.Type (commit, tree, blob)
+    - type is of models.Type (revision, directory, content)
     This function returns an http response
     """
-    sha1_hex = git_object['sha1']
-    logging.debug('read %s %s' % (git_object['type'], sha1_hex))
-    res = store.find(config, git_object)
+    sha1_hex = vcs_object['sha1']
+    logging.debug('read %s %s' % (vcs_object['type'], sha1_hex))
+    res = store.find(config, vcs_object)
     if res:
         return json.jsonify(sha1=sha1_hex)  # 200
     return make_response('Not found!', 404)
@@ -44,9 +47,9 @@ def _build_object(sha1_hex, type, content=None, size=None, git_sha1=None):
             'git-sha1': git_sha1}
 
 
-_uri_types = {'commits': store.Type.commit,
-              'blobs': store.Type.blob,
-              'trees': store.Type.tree}
+_uri_types = {'revisions': store.Type.revision,
+              'directories': store.Type.directory,
+              'contents': store.Type.content}
 
 
 def _do_action(action_fn, uri_type, sha1_hex):
@@ -55,27 +58,27 @@ def _do_action(action_fn, uri_type, sha1_hex):
         return make_response('Bad request!', 400)
 
     payload = request.form
-    git_object = _build_object(sha1_hex,
+    vcs_object = _build_object(sha1_hex,
                                uri_type_ok,
                                payload.get('content', None),
                                payload.get('size', None),
                                payload.get('git-sha1', None))
-    return action_fn(app.config['conf'], git_object)
+    return action_fn(app.config['conf'], vcs_object)
 
 
-def add_object(config, git_object):
+def add_object(config, vcs_object):
     """Add object in storage.
     """
-    type = git_object['type']
-    sha1_hex = git_object['sha1']
+    type = vcs_object['type']
+    sha1_hex = vcs_object['sha1']
     logging.debug('store %s %s' % (type, sha1_hex))
 
-    if store.find(config, git_object):
+    if store.find(config, vcs_object):
         logging.debug('update %s %s' % (sha1_hex, type))
         return make_response('Successful update!', 200)  # immutable
     else:
         logging.debug('store %s %s' % (sha1_hex, type))
-        res = store.add(config, git_object)
+        res = store.add(config, vcs_object)
 
         if res is None:
             return make_response('Bad request!', 400)
@@ -88,7 +91,7 @@ def add_object(config, git_object):
 
 @app.route('/objects/', methods=['POST'])
 def filter_unknowns_objects():
-    """Return the given commit or not.
+    """Filters unknown sha1 to the backend and returns them.
     """
     if request.headers.get('Content-Type') != 'application/json':
         return make_response('Bad request. Expected json data!', 400)
@@ -110,7 +113,7 @@ def filter_unknowns_objects():
 
 @app.route('/objects/', methods=['PUT'])
 def put_all():
-    """Return the given commit or not.
+    """Store or update the given objects (content, directory, revision).
     """
     if request.headers.get('Content-Type') != 'application/json':
         return make_response('Bad request. Expected json data!', 400)
@@ -126,13 +129,14 @@ def put_all():
     return make_response('Successful creation!', 204)
 
 
-@app.route('/git/<uri_type>/<sha1_hex>')
+@app.route('/vcs/<uri_type>/<sha1_hex>')
 def object_exists_p(uri_type, sha1_hex):
-    """Return the given commit or not."""
+    """Assert if the given object type exists.
+    """
     return _do_action(lookup, uri_type, sha1_hex)
 
 
-@app.route('/git/<uri_type>/<sha1_hex>', methods=['PUT'])
+@app.route('/vcs/<uri_type>/<sha1_hex>', methods=['PUT'])
 def put_object(uri_type, sha1_hex):
     """Put an object in storage.
     """
@@ -143,7 +147,7 @@ def run(conf):
     """Run the api's server.
     conf is a dictionary of keywords:
     - 'db_url' the db url's access (through psycopg2 format)
-    - 'content_storage_dir'   where to store commits/trees/blobs on disk
+    - 'content_storage_dir' revisions/directories/contents storage on disk
     - 'port'   to override the default of 5000 (from the underlying layer:
     flask)
     - 'debug'  activate the verbose logs

@@ -97,7 +97,7 @@ for each directory:
 - directory's content
 - list of directory entries:
   - name     : relative path to parent entry or root
-  - sha1     : sha1 of the objected pointed to by this entry
+  - sha1     : pointer to the object this directory points to
   - type     : whether entry is a file or a dir
   - perms    : unix-like permissions
   - atime    : time of last access

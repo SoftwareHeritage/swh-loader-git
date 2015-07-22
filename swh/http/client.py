@@ -15,17 +15,7 @@ from swh.storage import models
 from swh.retry import policy
 
 
-_api_url = {models.Type.blob: '/git/blobs/',
-            models.Type.commit: '/git/commits/',
-            models.Type.tree: '/git/trees/'}
-
 session_swh = requests.Session()
-
-
-def compute_url(baseurl, type, sha1hex):
-    """Compute the api url.
-    """
-    return '%s%s%s' % (baseurl, _api_url[type], sha1hex)
 
 
 def compute_simple_url(baseurl, type):
@@ -42,7 +32,7 @@ def to_unicode(s):
     return str(s) if isinstance(s, bytes) else s
 
 
-def data_object(sha1hex, obj):
+def serialize_object(sha1hex, obj):
     """Given a sha1hex and an swh object, build query data structure for backend.
     """
     obj_type = obj.type()
@@ -58,27 +48,6 @@ def data_object(sha1hex, obj):
         return {'type': type_value,
                 'sha1': sha1hex,
                 'content': raw_data}
-
-
-@retry(retry_on_exception=policy.retry_if_connection_error,
-       wrap_exception=True,
-       stop_max_attempt_number=3)
-def get(baseurl, type, sha1hex):
-    """Retrieve the objects of type type with sha1 sha1hex.
-    """
-    r = session_swh.get(compute_url(baseurl, type, sha1hex))
-    return r.ok
-
-
-@retry(retry_on_exception=policy.retry_if_connection_error,
-       wrap_exception=True,
-       stop_max_attempt_number=3)
-def put(baseurl, type, sha1hex, data=None):
-    """Retrieve the objects of type type with sha1 sha1hex.
-    """
-    r = session_swh.put(compute_url(baseurl, type, sha1hex),
-                        [] if data is None else data)
-    return r.ok
 
 
 @retry(retry_on_exception=policy.retry_if_connection_error,
@@ -103,8 +72,7 @@ def put_all(baseurl, sha1s_hex, sha1s_map):
     json_payload = {}
     for sha1_hex in sha1s_hex:
         obj = sha1s_map.get_obj(sha1_hex)
-        data = data_object(sha1_hex, obj)
-        json_payload[sha1_hex] = data
+        json_payload[sha1_hex] = serialize_object(sha1_hex, obj)
 
     url = compute_simple_url(baseurl, "/objects/")
     session_swh.put(url,

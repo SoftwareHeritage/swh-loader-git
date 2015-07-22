@@ -55,14 +55,14 @@ def load_repo(baseurl, repo_path):
             for blob_ref in blobs_ref:
                 data = blob_ref.data
                 blob_data_sha1hex = hash.hashkey_sha1(data).hexdigest()
-                sha1s_map.add(store.Type.blob, blob_ref, blob_data_sha1hex)
+                sha1s_map.add(store.Type.content, blob_ref, blob_data_sha1hex)
 
             for tree_ref in trees_ref:
-                sha1s_map.add(store.Type.tree, tree_ref)
+                sha1s_map.add(store.Type.directory, tree_ref)
 
-            sha1s_map.add(store.Type.tree, ori_tree_ref)
+            sha1s_map.add(store.Type.directory, ori_tree_ref)
 
-        sha1s_map.add(store.Type.commit, commit)
+        sha1s_map.add(store.Type.revision, commit)
 
         return sha1s_map
 

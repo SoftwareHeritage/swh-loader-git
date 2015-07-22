@@ -84,7 +84,7 @@ class FuncUseCase(unittest.TestCase):
             'db_url': self.db_url,
             'repository': repo_path,
             'content_storage_dir': content_storage_dir,
-            'blob_compression': None,
+            'storage_compression': None,
             'folder_depth': 2,
             }
 
@@ -126,7 +126,7 @@ class FuncUseCase(unittest.TestCase):
                 5,
                 "Should be 5 trees")
             self.assertEquals(
-                models.count_files(db_conn),
+                models.count_contents(db_conn),
                 4,
                 "Should be 4 blobs as we created one commit without data!")
 
@@ -153,7 +153,7 @@ class FuncUseCase(unittest.TestCase):
                 8,
                 "Should be 5+3 == 8 trees")
             self.assertEquals(
-                models.count_files(db_conn),
+                models.count_contents(db_conn),
                 7,
                 "Should be 4+3 == 7 blobs")
 
@@ -175,6 +175,6 @@ class FuncUseCase(unittest.TestCase):
                 8,
                 "Should be 8 trees (new commit without blob so no new tree)")
             self.assertEquals(
-                models.count_files(db_conn),
+                models.count_contents(db_conn),
                 7,
                 "Should be 7 blobs (new commit without new blob)")

@@ -120,8 +120,8 @@ log_dir = swh-git-loader/log
 # url access to db: dbname=<host> (port=<port> user=<user> pass=<pass>)
 db_url = dbname=swhgitloader
 
-# activate the compression for each blob object
-# blob_compression = true
+# activate the compression for each vcs stored object
+# storage_compression = true
 
 # compute folder's depth on disk aa/bb/cc/dd
 # folder_depth = 2

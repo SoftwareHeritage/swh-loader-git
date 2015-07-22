@@ -12,78 +12,88 @@ from swh.storage import db
 class Type(Enum):
     """Types of git objects.
     """
-    commit = 'commit'
-    tree = 'tree'
-    blob = 'blob'
-    tag = 'tag'
+    # git specific
+    commit = 'commit' # useless
+    tree = 'tree'     # useless
+    blob = 'blob'     # useless
+    tag = 'tag'       # useless
+    # abstract type
+    revision = 'revision'
+    directory = 'directory'
+    content = 'content'
+    release = 'release'
 
 
-def cleandb(db_conn):
-    """Clean the database.
+def add_content(db_conn, obj_sha1, obj_sha1_content, obj_sha256_content, size):
+    """Insert a new content.
     """
-    db.queries_execute(db_conn, ['DROP TABLE IF EXISTS files;',
-                                 'DROP TABLE IF EXISTS git_objects;',
-                                 'DROP TYPE IF EXISTS type;'
-                                 'DROP TABLE IF EXISTS tmp_filter_sha1;'])
+    db.query_execute(db_conn,
+                     ("""INSERT INTO content (id, sha1, sha256, length)
+                         VALUES (%s, %s, %s, %s)""",
+                      (obj_sha1, obj_sha1_content, obj_sha256_content, size)))
 
 
-def initdb(db_conn):
-    """Initialize the database.
+def add_directory(db_conn, obj_sha, name, id, type, perms,
+                  atime, mtime, ctime, directory):
+    """Insert a new directory.
     """
-    db.queries_execute(db_conn, [
-        ("""CREATE TYPE type
-            AS ENUM(%s, %s, %s, %s);""",
-            (Type.commit.value,
-             Type.tree.value,
-             Type.blob.value,
-             Type.tag.value)),
-        """CREATE TABLE IF NOT EXISTS files
-              (id bigserial PRIMARY KEY,
-              ctime timestamp DEFAULT current_timestamp,
-              sha1 char(40) UNIQUE,
-              size integer CONSTRAINT no_null not null,
-              sha1_git char(40) CONSTRAINT no_null not null,
-              UNIQUE(sha1, size));""",
-        """CREATE TABLE IF NOT EXISTS git_objects
-               (id bigserial PRIMARY KEY,
-               ctime timestamp DEFAULT current_timestamp,
-               sha1 char(40),
-               type type CONSTRAINT no_null not null,
-               stored bool DEFAULT false);"""])
+    with db_conn.cursor() as cur:
+        db.query_execute(cur,
+                         ("""INSERT INTO directory (id)
+                             VALUES (%s)""",
+                          (obj_sha,)))
+
+        db.query_execute(cur,
+                         ("""INSERT INTO directory_entry
+                             (name, id, type, perms, atime, mtime, ctime,
+                              directory)
+                             VALUES (%s, %s, %s, %s, %s, %s, %s,
+                              %s)""",
+                          (name, id, type, perms, atime, mtime, ctime,
+                           directory)))
 
 
-def add_blob(db_conn, obj_sha, size, obj_git_sha):
-    """Insert a new file
+def add_revision(db_conn, obj_sha, date, directory, message, author, committer,
+                 parent_sha):
+    """Insert a new revision.
     """
-    db.query_execute(db_conn, ("""INSERT INTO files (sha1, size, sha1_git)
-                                  VALUES (%s, %s, %s);""",
-                               (obj_sha, size, obj_git_sha)))
+    with db_conn.cursor() as cur:
+        db.execute(cur,
+                   ("""INSERT INTO revision
+                       (id, date, directory, message, author, committer)
+                       VALUES (%s, %s, %s, %s, %s, %s)""",
+                    (obj_sha, date, directory, message, author, committer)))
+
+        db.execute(cur,
+                   ("""INSERT INTO revision_history
+                       (id, parent_id)
+                       VALUES (%s, %s)""",
+                    (obj_sha, parent_sha)))
 
 
-def add_object(db_conn, obj_sha, obj_type):
-    """Insert a new object
+def find_revision(db_conn, obj_sha):
+    """Find a revision by its obj_sha.
     """
-    db.query_execute(db_conn, ("""INSERT INTO git_objects (sha1, type)
-                                  VALUES (%s, %s);""",
-                               (obj_sha, obj_type)))
+    return _find_object(db_conn, obj_sha, Type.revision)
 
 
-def find_blob(db_conn, obj_sha, obj_type=None):
-    """Find a file by its hash.
-obj_type is not used (implementation detail).
+def find_directory(db_conn, obj_sha):
+    """Find a directory by its obj_sha.
     """
-    return db.query_fetchone(db_conn, ("""SELECT sha1 FROM files
-                                          WHERE sha1=%s;""",
-                                       (obj_sha,)))
+    return _find_object(db_conn, obj_sha, Type.directory)
 
 
-def find_object(db_conn, obj_sha, obj_type):
-    """Find an object by its hash.
+def find_content(db_conn, obj_sha):
+    """Find a content by its obj_sha.
     """
-    return db.query_fetchone(db_conn, ("""SELECT sha1 FROM git_objects
-                                          WHERE sha1=%s
-                                          AND type=%s;""",
-                                       (obj_sha, obj_type)))
+    return _find_object(db_conn, obj_sha, Type.content)
+
+
+def _find_object(db_conn, obj_sha, obj_type):
+    """Find an object of obj_type by its obj_sha.
+    """
+    query = 'select id from ' + obj_type.value + ' where sha1=%s'
+    return db.query_fetchone(db_conn, (query, (obj_sha,)))
 
 
 def find_unknowns(db_conn, file_sha1s):
@@ -94,31 +104,40 @@ def find_unknowns(db_conn, file_sha1s):
         # explicit is better than implicit
         # simply creating the temporary table seems to be enough
         # (no drop, nor truncate) but this is not explained in documentation
-        db.execute(cur, """CREATE TEMPORARY TABLE IF NOT EXISTS filter_sha1(sha1 char(40))
+        db.execute(cur, """CREATE TEMPORARY TABLE IF NOT EXISTS filter_sha1(
+                             id git_object_id)
                            ON COMMIT DELETE ROWS;""")
         db.copy_from(cur, file_sha1s, 'filter_sha1')
         db.execute(cur, ("""WITH sha1_union as (
-                                 SELECT sha1 FROM git_objects
+                                 SELECT id FROM revision
                                  UNION
-                                 SELECT sha1 FROM files
+                                 SELECT id FROM directory
+                                 UNION
+                                 SELECT id FROM content
                               )
-                            (SELECT sha1 FROM filter_sha1)
+                            (SELECT id FROM filter_sha1)
                             EXCEPT
-                            (SELECT sha1 FROM sha1_union);"""))
+                            (SELECT id FROM sha1_union);"""))
         return cur.fetchall()
 
 
-def count_files(db_conn):
-    """Count the number of blobs.
-    """
-    row = db.query_fetchone(db_conn, "SELECT count(*) FROM files;")
-    return row[0]
+def _count_objects(db_conn, type):
+    return db.query_fetchone(db_conn, 'SELECT count(*) FROM ' + type.value)[0]
 
 
-def count_objects(db_conn, obj_type):
-    """Count the number of objects with obj_type.
+def count_revisions(db_conn):
+    """Count the number of revisions.
     """
-    row = db.query_fetchone(db_conn, ("""SELECT count(*) FROM git_objects
-                                         WHERE type=%s;""",
-                                      (obj_type.value,)))
-    return row[0]
+    return _count_objects(db_conn, Type.revision)
+
+
+def count_directories(db_conn, obj_type):
+    """Count the number of directories.
+    """
+    return _count_objects(db_conn, Type.directory)
+
+
+def count_contents(db_conn):
+    """Count the number of contents.
+    """
+    return _count_objects(db_conn, Type.content)
