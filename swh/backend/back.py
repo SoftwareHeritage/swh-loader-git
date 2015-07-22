@@ -150,5 +150,4 @@ def run(conf):
     """
     app.config['conf'] = conf  # app.config is the app's state (accessible)
 
-    app.run(port=conf['port'] if 'port' in conf else None,
-            debug=True if conf['debug'] == 'true' else False)
+    app.run(port=conf.get('port', None), debug=conf['debug'] == 'true')
