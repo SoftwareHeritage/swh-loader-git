@@ -16,15 +16,10 @@ from swh.storage import store
 from swh.gitloader.type import SWHMap
 from swh.http import client
 
-def load_repo(baseurl,
-              repo_path,
-              content_storage_dir,
-              folder_depth,
-              blob_compress_flag):
-    """Parse git repository `repo_path` and flush
-    git objects on disk in `content_storage_dir`.
+def load_repo(baseurl, repo_path):
+    """Parse git repository `repo_path` and discuss with backend to store the
+    parsing result.
     """
-
     def treewalk(repo, tree, topdown=False):
         """Walk a tree with the same implementation as `os.path`.
         Returns: tree, trees, blobs
@@ -50,8 +45,7 @@ def load_repo(baseurl,
             yield tree, trees, blobs
 
     def store_tree_from(repo, commit):
-        """Walk the tree and save the blobs in file content storage
-        (if not already present).
+        """Walk the tree and send the encountered objects to api backend.
         """
         sha1s_map = SWHMap()
 
@@ -128,16 +122,12 @@ def load(conf):
     used configuration keys:
     - action: requested action
     - repository: git repository path ('load' action only)
-    - content_storage_dir: path to object (blob, tree, commit) content storage
-    """
+    - backend_url: url access to backend api
+   """
     action = conf['action']
 
     if action == 'load':
         logging.info('load repository %s' % conf['repository'])
-        load_repo(conf['backend_url'],
-                  conf['repository'],
-                  conf['content_storage_dir'],
-                  conf['folder_depth'],
-                  conf['blob_compression'])
+        load_repo(conf['backend_url'], conf['repository'])
     else:
         logging.warn('skip unknown-action %s' % action)
