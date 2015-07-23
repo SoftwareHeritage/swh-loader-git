@@ -33,7 +33,7 @@ def copy_from(cur, file, table):
     cur.copy_from(file, table)
 
 
-def query_execute(db_conn, query_params):
+def query_execute(db_conn, query_params, trace=None):
     """Execute one query.
     Type of sql queries: insert, delete, drop, create...
     query_params is expected to be either:
@@ -41,7 +41,7 @@ def query_execute(db_conn, query_params):
     - a tuple (sql query, params)
     """
     with db_conn.cursor() as cur:
-        execute(cur, query_params)
+        execute(cur, query_params, trace)
 
 
 def queries_execute(db_conn, queries_params, trace=None):
@@ -63,8 +63,14 @@ def query_fetchone(db_conn, query_params):
     - a tuple (sql query, params)
     """
     with db_conn.cursor() as cur:
-        execute(cur, query_params)
-        return cur.fetchone()
+        return fetchone(cur, query_params)
+
+
+def fetchone(cur, query_params):
+    """Execute sql query and returns one result.
+    """
+    execute(cur, query_params)
+    return cur.fetchone()
 
 
 def query_fetch(db_conn, query_params, trace=None):

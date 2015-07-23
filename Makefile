@@ -11,7 +11,7 @@ TESTFLAGS = -s
 TESTDIR = ./swh/tests
 
 DB=softwareheritage-dev
-DB_TEST=swhgitloader-test
+DB_TEST=$(DB)-test
 
 SWH_LOADER=$(BINDIR)/swh-git-loader
 SWH_DB_MANAGER=$(BINDIR)/swh-db-manager
@@ -72,15 +72,6 @@ test-loader:
 test-api:
 	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_backend.py
 
-test-connect-db:
-	psql -d $(DB_TEST)
-
-test-drop-db:
-	dropdb $(DB_TEST)
-
-test-create-db:
-	createdb -O $(USER) $(DB_TEST)
-
 connect-db:
 	psql -d $(DB)
 
@@ -89,6 +80,15 @@ create-db:
 
 drop-db:
 	cd ../swh-sql && make clean dropdb
+
+test-connect-db:
+	psql -d $(DB_TEST)
+
+test-create-db:
+	cd ../swh-sql && make clean initdb DBNAME=$(DB_TEST)
+
+test-drop-db:
+	cd ../swh-sql && make clean dropdb DBNAME=$(DB_TEST)
 
 check-meta:
 	@echo "Repository: $(REPO_PATH)"

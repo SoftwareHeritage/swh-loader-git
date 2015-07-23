@@ -4,6 +4,8 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import logging
+
 from io import StringIO
 from swh.storage import db, models, fs
 
@@ -11,19 +13,14 @@ from swh.storage import db, models, fs
 Type = models.Type
 
 
-_find_fn = {Type.content.value: models.find_blob,
-            Type.revision.value: models.find_object,
-            Type.directory.value: models.find_object}
-
-
 def find(config, vcs_object):
-    """Find an object according to its sha1_hex and type.
+    """Find an object according to its sha1hex and type.
     """
-    sha1_hex = vcs_object['sha1']
+    sha1hex = vcs_object['sha1']
     type = vcs_object['type']
 
     with db.connect(config['db_url']) as db_conn:
-        return _find_fn[type](db_conn, sha1_hex, type)
+        return models.find_object(db_conn, sha1hex, type)
 
 
 def find_unknowns(config, sha1s_hex):
@@ -45,7 +42,7 @@ def find_unknowns(config, sha1s_hex):
         return list(map(row_to_sha1, unknowns))
 
 
-def _add_content(db_conn, config, vcs_object, sha1_hex):
+def _add_content(db_conn, vcs_object, sha1hex):
     """Add a blob to storage.
     Designed to be wrapped in a db transaction.
     Returns:
@@ -54,22 +51,15 @@ def _add_content(db_conn, config, vcs_object, sha1_hex):
     Writing exceptions can also be raised and expected to be handled by the
     caller.
     """
-    res = fs.write_object(config['content_storage_dir'],
-                          sha1_hex,
-                          vcs_object['content'],
-                          config['folder_depth'],
-                          config['storage_compression'])
-    if res is not None:
-        models.add_content(db_conn,
-                           sha1_hex,
-                           vcs_object['sha1'],
-                           vcs_object['sha256'],
-                           vcs_object['size'])
-        return sha1_hex
-    return None
+    models.add_content(db_conn,
+                       sha1hex,
+                       vcs_object['content-sha1'],
+                       vcs_object['content-sha256'],
+                       vcs_object['size'])
+    return sha1hex
 
 
-def _add_directory(db_conn, config, vcs_object, sha1_hex):
+def _add_directory(db_conn, vcs_object, sha1hex):
     """Add a directory to storage.
     Designed to be wrapped in a db transaction.
     Returns:
@@ -78,27 +68,19 @@ def _add_directory(db_conn, config, vcs_object, sha1_hex):
     Writing exceptions can also be raised and expected to be handled by the
     caller.
     """
-    res = fs.write_object(config['content_storage_dir'],
-                          sha1_hex,
-                          vcs_object['content'],
-                          config['folder_depth'],
-                          config['storage_compression'])
-    if res is not None:
-        models.add_directory(db_conn,
-                             sha1_hex,
-                             vcs_object['target-sha1'],
-                             vcs_object['nature'],  # dir or file
-                             vcs_object['perms'],
-                             vcs_object['atime'],
-                             vcs_object['mtime'],
-                             vcs_object['ctime'],
-                             vcs_object['parent'])
-
-        return sha1_hex
-    return None
+    models.add_directory(db_conn,
+                         sha1hex,
+                         vcs_object['target-sha1'],
+                         vcs_object['nature'],  # dir or file
+                         vcs_object['perms'],
+                         vcs_object['atime'],
+                         vcs_object['mtime'],
+                         vcs_object['ctime'],
+                         vcs_object['parent'])
+    return sha1hex
 
 
-def _add_revision(db_conn, config, vcs_object, sha1_hex):
+def _add_revision(db_conn, vcs_object, sha1hex):
     """Add a revision to storage.
     Designed to be wrapped in a db transaction.
     Returns:
@@ -107,38 +89,65 @@ def _add_revision(db_conn, config, vcs_object, sha1_hex):
     Writing exceptions can also be raised and expected to be handled by the
     caller.
     """
-    res = fs.write_object(config['content_storage_dir'],
-                          sha1_hex,
-                          vcs_object['content'],
-                          config['folder_depth'],
-                          config['storage_compression'])
+    models.add_revision(db_conn,
+                        sha1hex,
+                        vcs_object['date'],
+                        vcs_object['directory'],
+                        vcs_object['message'],
+                        vcs_object['author'],
+                        vcs_object['committer'],
+                        vcs_object['parent-id'])
+    return sha1hex
 
-  if res is not None:
-        models.add_revision(db_conn,
-                            sha1_hex,
-                            vcs_object['date'],
-                            vcs_object['directory'],
-                            vcs_object['message'],
-                            vcs_object['author'],
-                            vcs_object['committer'],
-                            vcs_object['parent-id'])
-        return sha1_hex
-    return None
 
-_store_fn = {Type.content.value: _add_content,
-             Type.directory.value: _add_directory,
-             Type.revision.value: _add_revision}
+def _add_release(db_conn, vcs_object, sha1hex):
+    """Add a release.
+    """
+    models.add_release(db_conn,
+                       sha1hex,
+                       vcs_object['revision'],
+                       vcs_object['date'],
+                       vcs_object['name'],
+                       vcs_object['comment'])
+    return sha1hex
+
+
+def _add_occurence(db_conn, vcs_object, sha1hex):
+    """Add an occurence.
+    """
+    models.add_occurence(db_conn,
+                         sha1hex,
+                         vcs_object['name'],
+                         vcs_object['revision'],
+                         vcs_object['date'],
+                         vcs_object['name'],
+                         vcs_object['comment'])
+    return sha1hex
+
+
+_store_fn = {Type.content:   _add_content,
+             Type.directory: _add_directory,
+             Type.revision:  _add_revision,
+             Type.release:   _add_release,
+             Type.occurence: _add_occurence}
 
 
 def add(config, vcs_object):
-    """Given a sha1_hex, type and content, store a given object in the store.
+    """Given a sha1hex, type and content, store a given object in the store.
     """
     type = vcs_object['type']
-    sha1_hex = vcs_object['sha1']
+    sha1hex = vcs_object['sha1']
 
     with db.connect(config['db_url']) as db_conn:
         try:
-            return _store_fn[type](db_conn, config, vcs_object, sha1_hex)
+            res = fs.write_object(config['content_storage_dir'],
+                                  sha1hex,
+                                  vcs_object['content'],
+                                  config['folder_depth'],
+                                  config['storage_compression'])
+            if res is not None:
+                return _store_fn[type](db_conn, vcs_object, sha1hex)
         except:  # all kinds of error break the transaction
             db_conn.rollback()
-            return False
+
+        return False

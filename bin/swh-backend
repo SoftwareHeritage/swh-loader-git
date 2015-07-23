@@ -20,8 +20,7 @@ DEFAULT_CONF_FILE = '~/.config/swh/back.ini'
 
 # default configuration (can be overriden by the DEFAULT_CONF_FILE)
 DEFAULT_CONF = {
-    'file_content_storage_dir': '/tmp/swh-git-loader/file-content-storage',
-    'object_content_storage_dir': '/tmp/swh-git-loader/git-object-storage',
+    'content_storage_dir': '/tmp/swh-git-loader/content-storage',
     'log_dir': '/tmp/swh-git-loader/log',
     'db_url': 'dbname=softwareheritage-dev',
     'storage_compression': None,

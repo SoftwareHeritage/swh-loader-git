@@ -29,40 +29,97 @@ def lookup(config, vcs_object):
     - type is of models.Type (revision, directory, content)
     This function returns an http response
     """
-    sha1_hex = vcs_object['sha1']
-    logging.debug('read %s %s' % (vcs_object['type'], sha1_hex))
+    sha1hex = vcs_object['sha1']
+    logging.debug('read %s %s' % (vcs_object['type'], sha1hex))
     res = store.find(config, vcs_object)
     if res:
-        return json.jsonify(sha1=sha1_hex)  # 200
+        return json.jsonify(sha1=sha1hex)  # 200
     return make_response('Not found!', 404)
 
 
-def _build_object(sha1_hex, type, content=None, size=None, git_sha1=None):
-    """Build the object.
+def build_content(sha1hex, payload):
+    """Build a content object from the payload.
     """
-    return {'sha1': sha1_hex,
-            'type': type.value,
-            'content': content,
-            'size': size,
-            'git-sha1': git_sha1}
+    return {'sha1': sha1hex,
+            'type': store.Type.content,
+            'content-sha1': payload.get('content-sha1'),
+            'content-sha256': payload.get('content-sha256'),
+            'content': payload.get('content'),
+            'size': payload.get('size')}
 
 
+def build_directory(sha1hex, payload):
+    """Build a directory object from the payload.
+    """
+    return {'sha1': sha1hex,
+            'type': store.Type.directory,
+            'target-sha1': payload['target-sha1'],
+            'nature': payload['nature'],
+            'perms': payload['perms'],
+            'atime': payload['atime'],
+            'mtime': payload['mtime'],
+            'ctime': payload['ctime'],
+            'parent': payload['parent']}
+
+
+def build_revision(sha1hex, payload):
+    """Build a revision object from the payload.
+    """
+    return {'sha1': sha1hex,
+            'type': store.Type.revision,
+            'date': payload['date'],
+            'directory': payload['directory'],
+            'message': payload['message'],
+            'author': payload['author'],
+            'committer': payload['committer'],
+            'parent-id': payload['parent-id']}
+
+
+def build_release(sha1hex, payload):
+    """Build a release object from the payload.
+    """
+    return {'sha1': payload['sha1'],
+            'type': store.Type.release,
+            'revision': payload['revision'],
+            'date': payload['date'],
+            'name': payload['name'],
+            'comment': payload['comment']}
+
+
+def build_occurence(sha1hex, payload):
+    """Build a content object from the payload.
+    """
+    return {'name': payload['name'],
+            'type': store.Type.occurence,
+            'revision': payload['revision'],
+            'date': payload['date'],
+            'name': payload['name'],
+            'comment': payload['comment']}
+
+
+# dispatch on build object function for the right type
+_build_object_fn = {store.Type.revision: build_revision,
+                    store.Type.directory: build_directory,
+                    store.Type.content: build_content,
+                    store.Type.release: build_release,
+                    store.Type.occurence: build_occurence}
+
+
+# from uri to type
 _uri_types = {'revisions': store.Type.revision,
               'directories': store.Type.directory,
-              'contents': store.Type.content}
+              'contents': store.Type.content,
+              'releases': store.Type.release,
+              'occurences': store.Type.occurence}
 
 
-def _do_action(action_fn, uri_type, sha1_hex):
+def _do_action(action_fn, uri_type, sha1hex):
     uri_type_ok = _uri_types.get(uri_type, None)
     if uri_type_ok is None:
         return make_response('Bad request!', 400)
 
     payload = request.form
-    vcs_object = _build_object(sha1_hex,
-                               uri_type_ok,
-                               payload.get('content', None),
-                               payload.get('size', None),
-                               payload.get('git-sha1', None))
+    vcs_object = _build_object_fn[uri_type_ok](sha1hex, payload)
     return action_fn(app.config['conf'], vcs_object)
 
 
@@ -70,20 +127,19 @@ def add_object(config, vcs_object):
     """Add object in storage.
     """
     type = vcs_object['type']
-    sha1_hex = vcs_object['sha1']
-    logging.debug('store %s %s' % (type, sha1_hex))
+    sha1hex = vcs_object['sha1']
+    logging.debug('store %s %s' % (type, sha1hex))
 
     if store.find(config, vcs_object):
-        logging.debug('update %s %s' % (sha1_hex, type))
+        logging.debug('update %s %s' % (sha1hex, type))
         return make_response('Successful update!', 200)  # immutable
     else:
-        logging.debug('store %s %s' % (sha1_hex, type))
+        logging.debug('store %s %s' % (sha1hex, type))
         res = store.add(config, vcs_object)
-
         if res is None:
             return make_response('Bad request!', 400)
         elif res is False:
-            logging.error('store %s %s' % (sha1_hex, type))
+            logging.error('store %s %s' % (sha1hex, type))
             return make_response('Internal server error!', 500)
         else:
             return make_response('Successful creation!', 204)
@@ -129,18 +185,18 @@ def put_all():
     return make_response('Successful creation!', 204)
 
 
-@app.route('/vcs/<uri_type>/<sha1_hex>')
-def object_exists_p(uri_type, sha1_hex):
+@app.route('/vcs/<uri_type>/<sha1hex>')
+def object_exists_p(uri_type, sha1hex):
     """Assert if the given object type exists.
     """
-    return _do_action(lookup, uri_type, sha1_hex)
+    return _do_action(lookup, uri_type, sha1hex)
 
 
-@app.route('/vcs/<uri_type>/<sha1_hex>', methods=['PUT'])
-def put_object(uri_type, sha1_hex):
+@app.route('/vcs/<uri_type>/<sha1hex>', methods=['PUT'])
+def put_object(uri_type, sha1hex):
     """Put an object in storage.
     """
-    return _do_action(add_object, uri_type, sha1_hex)
+    return _do_action(add_object, uri_type, sha1hex)
 
 
 def run(conf):

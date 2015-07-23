@@ -12,25 +12,38 @@ from swh.storage import db
 class Type(Enum):
     """Types of git objects.
     """
-    # git specific
-    commit = 'commit' # useless
-    tree = 'tree'     # useless
-    blob = 'blob'     # useless
-    tag = 'tag'       # useless
+    # # git specific
+    # commit = 'commit' # useless
+    # tree = 'tree'     # useless
+    # blob = 'blob'     # useless
+    # tag = 'tag'       # useless
     # abstract type
-    revision = 'revision'
-    directory = 'directory'
-    content = 'content'
-    release = 'release'
+    occurence = 'occurence'       # ~git branch
+    release = 'release'           # ~git annotated tag
+    revision = 'revision'         # ~git commit
+    directory = 'directory'       # ~git tree
+    content = 'content'           # ~git blob
+
+def initdb(db_conn):
+    """For retrocompatibility.
+    """
+    pass
 
 
-def add_content(db_conn, obj_sha1, obj_sha1_content, obj_sha256_content, size):
+def cleandb(db_conn):
+    db.queries_execute(db_conn, ['TRUNCATE TABLE release CASCADE',
+                                 'TRUNCATE TABLE revision CASCADE',
+                                 'TRUNCATE TABLE directory CASCADE',
+                                 'TRUNCATE TABLE content CASCADE'])
+
+
+def add_content(db_conn, sha1, sha1_content, sha256_content, size):
     """Insert a new content.
     """
     db.query_execute(db_conn,
                      ("""INSERT INTO content (id, sha1, sha256, length)
                          VALUES (%s, %s, %s, %s)""",
-                      (obj_sha1, obj_sha1_content, obj_sha256_content, size)))
+                      (sha1, sha1_content, sha256_content, size)))
 
 
 def add_directory(db_conn, obj_sha, name, id, type, perms,
@@ -38,19 +51,19 @@ def add_directory(db_conn, obj_sha, name, id, type, perms,
     """Insert a new directory.
     """
     with db_conn.cursor() as cur:
-        db.query_execute(cur,
-                         ("""INSERT INTO directory (id)
-                             VALUES (%s)""",
-                          (obj_sha,)))
+        db.execute(cur,
+                   ("""INSERT INTO directory (id)
+                       VALUES (%s)""",
+                    (obj_sha,)))
 
-        db.query_execute(cur,
-                         ("""INSERT INTO directory_entry
-                             (name, id, type, perms, atime, mtime, ctime,
-                              directory)
-                             VALUES (%s, %s, %s, %s, %s, %s, %s,
-                              %s)""",
-                          (name, id, type, perms, atime, mtime, ctime,
-                           directory)))
+        db.execute(cur,
+                   ("""INSERT INTO directory_entry
+                       (name, id, type, perms, atime, mtime, ctime,
+                       directory)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s,
+                               %s)""",
+                    (name, id, type, perms, atime, mtime, ctime,
+                     directory)))
 
 
 def add_revision(db_conn, obj_sha, date, directory, message, author, committer,
@@ -71,28 +84,64 @@ def add_revision(db_conn, obj_sha, date, directory, message, author, committer,
                     (obj_sha, parent_sha)))
 
 
+def add_release(db_conn, obj_sha, revision, date, name, comment):
+    """Insert a release.
+    """
+    db.query_execute(db_conn,
+                     ("""INSERT INTO release (id, revision, date, name, comment)
+                         VALUES (%s, %s, %s, %s, %s)""",
+                      (obj_sha, revision, date, name, comment)))
+
+
+def add_occurence(db_conn, reference, revision, date):
+    """Insert an occurence.
+       Check if occurence history already present.
+       If present do nothing, otherwise insert
+    """
+    with db_conn.cursor() as cur:
+        occ = find_occurence(cur, reference, revision, date)
+        if occ is None:
+            db.execute(cur,
+                       ("""INSERT INTO occurence_history
+                           (reference, revision, validity)
+                           VALUES (%s, %s, %s)""",
+                        (reference, revision, date)))
+
+
 def find_revision(db_conn, obj_sha):
     """Find a revision by its obj_sha.
     """
-    return _find_object(db_conn, obj_sha, Type.revision)
+    return find_object(db_conn, obj_sha, Type.revision)
 
 
 def find_directory(db_conn, obj_sha):
     """Find a directory by its obj_sha.
     """
-    return _find_object(db_conn, obj_sha, Type.directory)
+    return find_object(db_conn, obj_sha, Type.directory)
 
 
 def find_content(db_conn, obj_sha):
     """Find a content by its obj_sha.
     """
-    return _find_object(db_conn, obj_sha, Type.content)
+    return find_object(db_conn, obj_sha, Type.content)
 
 
-def _find_object(db_conn, obj_sha, obj_type):
+def find_occurence(cur, reference, revision, date):
+    """Find an ocurrence with reference reference pointing on revision revision
+    still valid for date.
+    """
+    return db.fetchone(cur, (""" SELECT id FROM occurence_history
+                                 WHERE reference=%
+                                 AND revision=%s
+                                 AND validity >= %s""",
+                             (reference, revision, date)))
+
+
+def find_object(db_conn, obj_sha, obj_type):
     """Find an object of obj_type by its obj_sha.
     """
-    query = 'select id from ' + obj_type.value + ' where sha1=%s'
+    table = obj_type if isinstance(obj_type, str) else obj_type.value
+    query = 'select id from ' + table + ' where id=%s'
     return db.query_fetchone(db_conn, (query, (obj_sha,)))
 
 
@@ -141,3 +190,15 @@ def count_contents(db_conn):
     """Count the number of contents.
     """
     return _count_objects(db_conn, Type.content)
+
+
+def count_occurence(db_conn):
+    """Count the number of occurence.
+    """
+    return _count_objects(db_conn, Type.occurence)
+
+
+def count_release(db_conn):
+    """Count the number of occurence.
+    """
+    return _count_objects(db_conn, Type.release)
