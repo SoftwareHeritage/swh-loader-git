@@ -6,6 +6,7 @@
 # See top-level LICENSE file for more information
 
 import logging
+from datetime import datetime
 
 from flask import Flask, make_response, json, request
 
@@ -40,6 +41,7 @@ def lookup(config, vcs_object):
 def build_content(sha1hex, payload):
     """Build a content object from the payload.
     """
+    payload = payload if payload else {}
     return {'sha1': sha1hex,
             'type': store.Type.content,
             'content-sha1': payload.get('content-sha1'),
@@ -51,15 +53,37 @@ def build_content(sha1hex, payload):
 def build_directory(sha1hex, payload):
     """Build a directory object from the payload.
     """
-    return {'sha1': sha1hex,
-            'type': store.Type.directory,
-            'target-sha1': payload['target-sha1'],
-            'nature': payload['nature'],
-            'perms': payload['perms'],
-            'atime': payload['atime'],
-            'mtime': payload['mtime'],
-            'ctime': payload['ctime'],
-            'parent': payload['parent']}
+    payload = payload if payload else {}  # FIXME get hack -> split get-post/put
+    directory = {'sha1': sha1hex,
+                 'type': store.Type.directory,
+                 'content': payload.get('content')}
+
+    directory_entries = []
+    for entry in payload.get('entries', []):
+        directory_entry = build_directory_entry(sha1hex, entry)
+        directory_entries.append(directory_entry)
+
+    directory.update({'entries': directory_entries})
+    return directory
+
+
+def date_from_string(str_date):
+    """Convert a string date with format '%a, %d %b %Y %H:%M:%S +0000'.
+    """
+    return datetime.strptime(str_date, '%a, %d %b %Y %H:%M:%S +0000')
+
+
+def build_directory_entry(parent_sha1hex, entry):
+    """Build a directory object from the entry.
+    """
+    return {'name': entry['name'],
+            'target-sha1': entry['target-sha1'],
+            'nature': entry['nature'],
+            'perms': entry['perms'],
+            'atime': date_from_string(entry['atime']),
+            'mtime': date_from_string(entry['mtime']),
+            'ctime': date_from_string(entry['ctime']),
+            'parent': entry['parent']}
 
 
 def build_revision(sha1hex, payload):
@@ -118,7 +142,7 @@ def _do_action(action_fn, uri_type, sha1hex):
     if uri_type_ok is None:
         return make_response('Bad request!', 400)
 
-    payload = request.form
+    payload = request.get_json()
     vcs_object = _build_object_fn[uri_type_ok](sha1hex, payload)
     return action_fn(app.config['conf'], vcs_object)
 
@@ -152,7 +176,7 @@ def filter_unknowns_objects():
     if request.headers.get('Content-Type') != 'application/json':
         return make_response('Bad request. Expected json data!', 400)
 
-    payload = request.json
+    payload = request.get_json()
     sha1s = payload.get('sha1s')
     if sha1s is None:
         return make_response(

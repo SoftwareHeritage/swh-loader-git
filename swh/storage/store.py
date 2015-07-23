@@ -62,22 +62,34 @@ def _add_content(db_conn, vcs_object, sha1hex):
 def _add_directory(db_conn, vcs_object, sha1hex):
     """Add a directory to storage.
     Designed to be wrapped in a db transaction.
+    """
+    models.add_directory(db_conn, sha1hex)
+    for directory_entry in vcs_object['entries']:
+        _add_directory_entry(db_conn, directory_entry)
+    return sha1hex
+
+
+def _add_directory_entry(db_conn, vcs_object):
+    """Add a directory to storage.
+    Designed to be wrapped in a db transaction.
     Returns:
     - the sha1 if everything went alright.
     - None if something went wrong
     Writing exceptions can also be raised and expected to be handled by the
     caller.
     """
-    models.add_directory(db_conn,
-                         sha1hex,
-                         vcs_object['target-sha1'],
-                         vcs_object['nature'],  # dir or file
-                         vcs_object['perms'],
-                         vcs_object['atime'],
-                         vcs_object['mtime'],
-                         vcs_object['ctime'],
-                         vcs_object['parent'])
-    return sha1hex
+    name = vcs_object['name']
+    parent = vcs_object['parent']
+    models.add_directory_entry(db_conn,
+                               name,
+                               vcs_object['target-sha1'],
+                               vcs_object['nature'],
+                               vcs_object['perms'],
+                               vcs_object['atime'],
+                               vcs_object['mtime'],
+                               vcs_object['ctime'],
+                               parent)
+    return name, parent
 
 
 def _add_revision(db_conn, vcs_object, sha1hex):

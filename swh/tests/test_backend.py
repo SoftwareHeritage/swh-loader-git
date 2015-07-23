@@ -6,6 +6,7 @@
 
 import unittest
 import json
+import time
 
 from nose.tools import istest
 from nose.plugins.attrib import attr
@@ -70,20 +71,20 @@ class ContentTestCase(unittest.TestCase):
     def setUp(self):
         self.app, db_url = app_client()
 
-        self.content_sha1_hex = '222222f9dd5dc46ee476a8be155ab049994f717e'
-        content_sha1 = 'blabliblablo'
+        self.content_sha1_id = '222222f9dd5dc46ee476a8be155ab049994f717e'
+        content_sha1_id = 'blabliblablo'
         self.content_sha256_hex = '222222f9dd5dc46ee476a8be155ab049994f717e'
         with db.connect(db_url) as db_conn:
             models.add_content(db_conn,
-                               self.content_sha1_hex,
-                               content_sha1,
+                               self.content_sha1_id,
+                               content_sha1_id,
                                self.content_sha256_hex,
                                10)
 
     @istest
     def get_content_ok(self):
         # when
-        rv = self.app.get('/vcs/contents/%s' % self.content_sha1_hex)
+        rv = self.app.get('/vcs/contents/%s' % self.content_sha1_id)
 
         # then
         assert rv.status_code == 200
@@ -105,71 +106,163 @@ class ContentTestCase(unittest.TestCase):
         assert rv.status_code == 404
         assert rv.data == b'Not found!'
 
-    # NOTE:
-    # As we store the sha1 as hexadecimal now. we no longer check this.
-    # We assume this will be done by the db.
-
-    # @istest
-    # def put_content_bad_request_bad_payload(self):
-    #     # when
-    #     # we create it
-    #     rv = self.app.put('/vcs/contents/222222f9dd5dc46ee476a8be155ab049994f7170',
-    #                       data = {'size': 99,
-    #                               'git-sha1': 'bad-payload',
-    #                               'content': 'foo'})
-
-    #     # then
-    #     assert rv.status_code == 400
-    #     assert rv.data == b'Bad request!'
-
     @istest
     def put_content_create_and_update(self):
+        content_sha1 = 'sha1-contentc46ee476a8be155ab03333333333'
+
         # does not exist
-        rv = self.app.get('/vcs/contents/222222f9dd5dc46ee476a8be155ab049994f7170')
+        rv = self.app.get('/vcs/contents/%s' % content_sha1)
 
         # then
         assert rv.status_code == 404
         assert rv.data == b'Not found!'
 
         # we create it
-        body = {'sha1': 'git-sha1dd5dc46ee476a8be155ab03333333333',
+        body = {'sha1': content_sha1,
                 'content-sha1': 'content-sha1c46ee476a8be155ab03333333333',
                 'content-sha256': 'content-sha2566ee476a8be155ab03333333333',
                 'content': 'bar',
                 'size': '3'}
 
-        rv = self.app.put('/vcs/contents/git-sha1dd5dc46ee476a8be155ab03333333333',
-                          data=body)
+        rv = self.app.put('/vcs/contents/%s' % content_sha1,
+                          data=json.dumps(body),
+                          headers={'Content-Type': 'application/json'})
 
         assert rv.status_code == 204
         assert rv.data == b''
 
         # now it exists
-        rv = self.app.get('/vcs/contents/git-sha1dd5dc46ee476a8be155ab03333333333')
+        rv = self.app.get('/vcs/contents/%s' % content_sha1)
 
         # then
         assert rv.status_code == 200
-        assert rv.data == b'{\n  "sha1": "git-sha1dd5dc46ee476a8be155ab03333333333"\n}'
+        assert rv.data == b'{\n  "sha1": "sha1-contentc46ee476a8be155ab03333333333"\n}'
 
         # # we update it
-        body = {'sha1': 'git-sha1dd5dc46ee476a8be155ab03333333333',
+        body = {'sha1': content_sha1,
                 'content-sha1': 'content-sha1c46ee476a8be155ab03333333333',
                 'content-sha256': 'content-sha2566ee476a8be155ab03333333333',
                 'content': 'bar',
                 'size': '3'}
 
-        rv = self.app.put('/vcs/contents/git-sha1dd5dc46ee476a8be155ab03333333333',
+        rv = self.app.put('/vcs/contents/%s' % content_sha1,
                           data=body)
 
         assert rv.status_code == 200
         assert rv.data == b'Successful update!'
 
         # still the same
-        rv = self.app.get('/vcs/contents/git-sha1dd5dc46ee476a8be155ab03333333333')
+        rv = self.app.get('/vcs/contents/%s' % content_sha1)
 
         # then
         assert rv.status_code == 200
-        assert rv.data == b'{\n  "sha1": "git-sha1dd5dc46ee476a8be155ab03333333333"\n}'
+        assert rv.data == b'{\n  "sha1": "sha1-contentc46ee476a8be155ab03333333333"\n}'
+
+
+@attr('slow')
+class DirectoryTestCase(unittest.TestCase):
+    def setUp(self):
+        self.app, db_url = app_client()
+
+        self.content_sha1_id = 'content-sha1c46ee476a8be155ab049994f717e'
+        content_sha1_hex = 'content-sha1c46ee476a8be155ab049994f717e'
+        content_sha256_hex = 'content-sha2566ee476a8be155ab049994f717e'
+        with db.connect(db_url) as db_conn:
+            models.add_content(db_conn,
+                               self.content_sha1_id,
+                               content_sha1_hex,
+                               content_sha256_hex,
+                               10)
+
+        self.directory_sha1_hex = 'directory-sha16ee476a8be155ab049994f717e'
+        with db.connect(db_url) as db_conn:
+            models.add_directory(db_conn, self.directory_sha1_hex)
+
+    @istest
+    def get_directory_ok(self):
+        # when
+        rv = self.app.get('/vcs/directories/%s' % self.directory_sha1_hex)
+
+        # then
+        assert rv.status_code == 200
+        assert rv.data == b'{\n  "sha1": "directory-sha16ee476a8be155ab049994f717e"\n}'
+
+    @istest
+    def get_directory_not_found(self):
+        # when
+        rv = self.app.get('/vcs/directories/111111f9dd5dc46ee476a8be155ab049994f7170')
+        # then
+        assert rv.status_code == 404
+        assert rv.data == b'Not found!'
+
+    @istest
+    def get_directory_not_found_with_bad_format(self):
+        # when
+        rv = self.app.get('/vcs/directories/1')
+        # then
+        assert rv.status_code == 404
+        assert rv.data == b'Not found!'
+
+    @istest
+    def put_directory_create_and_update(self):
+        directory_sha1='directory-sha16ee476a8be155ab049994f7170'
+
+        # does not exist
+        rv = self.app.get('/vcs/directories/%s' % directory_sha1)
+
+        # then
+        assert rv.status_code == 404
+        assert rv.data == b'Not found!'
+
+        date_str = time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime())
+
+        # we create it
+        body = json.dumps({'content': 'directory has content too.',
+                           'entries': [{'name': 'filename',
+                                        'target-sha1': self.content_sha1_id,
+                                        'nature': 'file',
+                                        'perms': '000',
+                                        'atime': date_str,
+                                        'mtime': date_str,
+                                        'ctime': date_str,
+                                        'parent': directory_sha1},
+                                       {'name': 'dirname',
+                                        'target-sha1': self.directory_sha1_hex,
+                                        'nature': 'directory',
+                                        'perms': '012',
+                                        'atime': date_str,
+                                        'mtime': date_str,
+                                        'ctime': date_str,
+                                        'parent': directory_sha1}
+                                      ]})
+
+        rv = self.app.put('/vcs/directories/%s' % directory_sha1,
+                           data=body,
+                           headers={'Content-Type': 'application/json'})
+
+        assert rv.status_code == 204
+        assert rv.data == b''
+
+        # now it exists
+        rv = self.app.get('/vcs/directories/%s' % directory_sha1)
+
+        # then
+        assert rv.status_code == 200
+        assert rv.data == b'{\n  "sha1": "directory-sha16ee476a8be155ab049994f7170"\n}'
+
+        # we update it
+        rv = self.app.put('/vcs/directories/directory-sha16ee476a8be155ab049994f7170',
+                          data={'entry': 'directory-bar'})
+
+        assert rv.status_code == 200
+        assert rv.data == b'Successful update!'
+
+        # still the same
+        rv = self.app.get('/vcs/directories/directory-sha16ee476a8be155ab049994f7170')
+
+        # then
+        assert rv.status_code == 200
+        assert rv.data == b'{\n  "sha1": "directory-sha16ee476a8be155ab049994f7170"\n}'
 
 
 # @attr('slow')
@@ -246,77 +339,6 @@ class ContentTestCase(unittest.TestCase):
 #         assert rv.data == b'{\n  "sha1": "000000f6dd5dc46ee476a8be155ab049994f7170"\n}'
 
 
-# @attr('slow')
-# class DirectoryTestCase(unittest.TestCase):
-#     def setUp(self):
-#         self.app, db_url = app_client()
-
-#         self.directory_sha1_hex = '111111f9dd5dc46ee476a8be155ab049994f717e'
-#         with db.connect(db_url) as db_conn:
-#             models.add_object(db_conn, self.directory_sha1_hex,
-#                               models.Type.directory.value)
-
-#     @istest
-#     def get_directory_ok(self):
-#         # when
-#         rv = self.app.get('/vcs/directories/%s' % self.directory_sha1_hex)
-
-#         # then
-#         assert rv.status_code == 200
-#         assert rv.data == b'{\n  "sha1": "111111f9dd5dc46ee476a8be155ab049994f717e"\n}'
-
-#     @istest
-#     def get_directory_not_found(self):
-#         # when
-#         rv = self.app.get('/vcs/directories/111111f9dd5dc46ee476a8be155ab049994f7170')
-#         # then
-#         assert rv.status_code == 404
-#         assert rv.data == b'Not found!'
-
-#     @istest
-#     def get_directory_not_found_with_bad_format(self):
-#         # when
-#         rv = self.app.get('/vcs/directories/1')
-#         # then
-#         assert rv.status_code == 404
-#         assert rv.data == b'Not found!'
-
-#     @istest
-#     def put_directory_create_and_update(self):
-#         # does not exist
-#         rv = self.app.get('/vcs/directories/111111f9dd5dc46ee476a8be155ab049994f7170')
-
-#         # then
-#         assert rv.status_code == 404
-#         assert rv.data == b'Not found!'
-
-#         # we create it
-#         rv = self.app.put('/vcs/directories/111111f9dd5dc46ee476a8be155ab049994f7170',
-#                           data={'content': 'directory-bar'})
-
-#         assert rv.status_code == 204
-#         assert rv.data == b''
-
-#         # now it exists
-#         rv = self.app.get('/vcs/directories/111111f9dd5dc46ee476a8be155ab049994f7170')
-
-#         # then
-#         assert rv.status_code == 200
-#         assert rv.data == b'{\n  "sha1": "111111f9dd5dc46ee476a8be155ab049994f7170"\n}'
-
-#         # we update it
-#         rv = self.app.put('/vcs/directories/111111f9dd5dc46ee476a8be155ab049994f7170',
-#                           data={'content': 'directory-bar'})
-
-#         assert rv.status_code == 200
-#         assert rv.data == b'Successful update!'
-
-#         # still the same
-#         rv = self.app.get('/vcs/directories/111111f9dd5dc46ee476a8be155ab049994f7170')
-
-#         # then
-#         assert rv.status_code == 200
-#         assert rv.data == b'{\n  "sha1": "111111f9dd5dc46ee476a8be155ab049994f7170"\n}'
 
 
 # @attr('slow')
@@ -325,9 +347,9 @@ class ContentTestCase(unittest.TestCase):
 #         self.app, self.db_url = app_client()
 
 #         with db.connect(self.db_url) as db_conn:
-#             self.content_sha1_hex = '000000111111c46ee476a8be155ab049994f717e'
+#             self.content_sha1_id = '000000111111c46ee476a8be155ab049994f717e'
 #             blog_git_sha1 = '00000011111122222276a8be155ab049994f717e'
-#             models.add_content(db_conn, self.content_sha1_hex, 10, blog_git_sha1)
+#             models.add_content(db_conn, self.content_sha1_id, 10, blog_git_sha1)
 
 #             self.directory_sha1_hex = '111111f9dd5dc46ee476a8be155ab049994f717e'
 #             models.add_object(db_conn, self.directory_sha1_hex,
@@ -339,7 +361,7 @@ class ContentTestCase(unittest.TestCase):
 
 #         # check the insertion went ok!
 #         with db.connect(self.db_url) as db_conn:
-#             assert models.find_content(db_conn, self.content_sha1_hex) is not None
+#             assert models.find_content(db_conn, self.content_sha1_id) is not None
 #             assert models.find_object(db_conn, self.directory_sha1_hex,
 #                                       models.Type.directory.value) is not None
 #             assert models.find_object(db_conn, self.revision_sha1_hex,
@@ -350,7 +372,7 @@ class ContentTestCase(unittest.TestCase):
 #         # given
 
 #         # when
-#         payload = {'sha1s': [self.content_sha1_hex,
+#         payload = {'sha1s': [self.content_sha1_id,
 #                              self.directory_sha1_hex,
 #                              self.revision_sha1_hex,
 #                              self.revision_sha1_hex,
@@ -390,7 +412,7 @@ class ContentTestCase(unittest.TestCase):
 #     @istest
 #     def put_non_presents_objects(self):
 #         # given
-#         payload_1 = {'sha1s': [self.content_sha1_hex,
+#         payload_1 = {'sha1s': [self.content_sha1_id,
 #                                self.directory_sha1_hex,
 #                                self.revision_sha1_hex,
 #                                self.revision_sha1_hex,

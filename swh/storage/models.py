@@ -18,11 +18,12 @@ class Type(Enum):
     # blob = 'blob'     # useless
     # tag = 'tag'       # useless
     # abstract type
-    occurence = 'occurence'       # ~git branch
-    release = 'release'           # ~git annotated tag
-    revision = 'revision'         # ~git commit
-    directory = 'directory'       # ~git tree
-    content = 'content'           # ~git blob
+    occurence = 'occurence'             # ~git branch
+    release = 'release'                 # ~git annotated tag
+    revision = 'revision'               # ~git commit
+    directory = 'directory'             # ~git tree
+    directory_entry = 'directory_entry' # ~git tree_entry
+    content = 'content'                 # ~git blob
 
 def initdb(db_conn):
     """For retrocompatibility.
@@ -46,24 +47,27 @@ def add_content(db_conn, sha1, sha1_content, sha256_content, size):
                       (sha1, sha1_content, sha256_content, size)))
 
 
-def add_directory(db_conn, obj_sha, name, id, type, perms,
-                  atime, mtime, ctime, directory):
+def add_directory(db_conn, obj_sha):
     """Insert a new directory.
     """
-    with db_conn.cursor() as cur:
-        db.execute(cur,
-                   ("""INSERT INTO directory (id)
-                       VALUES (%s)""",
-                    (obj_sha,)))
+    db.query_execute(db_conn,
+                     ("""INSERT INTO directory (id)
+                         VALUES (%s)""",
+                      (obj_sha,)))
 
-        db.execute(cur,
-                   ("""INSERT INTO directory_entry
-                       (name, id, type, perms, atime, mtime, ctime,
-                       directory)
-                       VALUES (%s, %s, %s, %s, %s, %s, %s,
-                               %s)""",
-                    (name, id, type, perms, atime, mtime, ctime,
-                     directory)))
+
+def add_directory_entry(db_conn, name, sha, type, perms,
+                        atime, mtime, ctime, parent):
+    """Insert a new directory.
+    """
+    db.query_execute(db_conn,
+                     ("""INSERT INTO directory_entry
+                         (name, id, type, perms, atime, mtime, ctime,
+                         directory)
+                         VALUES (%s, %s, %s, %s, %s, %s, %s,
+                                 %s)""",
+                      (name, sha, type, perms, atime, mtime, ctime,
+                       parent)))
 
 
 def add_revision(db_conn, obj_sha, date, directory, message, author, committer,
