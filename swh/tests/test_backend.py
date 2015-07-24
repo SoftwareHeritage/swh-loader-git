@@ -8,6 +8,8 @@ import unittest
 import json
 import time
 
+from datetime import datetime
+
 from nose.tools import istest
 from nose.plugins.attrib import attr
 
@@ -16,6 +18,10 @@ from swh.storage import db, models
 from swh.storage import store
 
 import test_initdb
+
+def now():
+    "Build the date as of now in the api's format."
+    return time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime())
 
 
 def app_client(db_url="dbname=softwareheritage-dev-test"):
@@ -71,10 +77,10 @@ class ContentTestCase(unittest.TestCase):
     def setUp(self):
         self.app, db_url = app_client()
 
-        self.content_sha1_id = '222222f9dd5dc46ee476a8be155ab049994f717e'
-        content_sha1_id = 'blabliblablo'
-        self.content_sha256_hex = '222222f9dd5dc46ee476a8be155ab049994f717e'
         with db.connect(db_url) as db_conn:
+            self.content_sha1_id = '222222f9dd5dc46ee476a8be155ab049994f717e'
+            content_sha1_id = 'blabliblablo'
+            self.content_sha256_hex = '222222f9dd5dc46ee476a8be155ab049994f717e'
             models.add_content(db_conn,
                                self.content_sha1_id,
                                content_sha1_id,
@@ -164,18 +170,17 @@ class DirectoryTestCase(unittest.TestCase):
     def setUp(self):
         self.app, db_url = app_client()
 
-        self.content_sha1_id = 'content-sha1c46ee476a8be155ab049994f717e'
-        content_sha1_hex = 'content-sha1c46ee476a8be155ab049994f717e'
-        content_sha256_hex = 'content-sha2566ee476a8be155ab049994f717e'
         with db.connect(db_url) as db_conn:
+            self.content_sha1_id = 'content-sha1c46ee476a8be155ab049994f717e'
+            content_sha1_hex = 'content-sha1c46ee476a8be155ab049994f717e'
+            content_sha256_hex = 'content-sha2566ee476a8be155ab049994f717e'
             models.add_content(db_conn,
                                self.content_sha1_id,
                                content_sha1_hex,
                                content_sha256_hex,
                                10)
 
-        self.directory_sha1_hex = 'directory-sha16ee476a8be155ab049994f717e'
-        with db.connect(db_url) as db_conn:
+            self.directory_sha1_hex = 'directory-sha16ee476a8be155ab049994f717e'
             models.add_directory(db_conn, self.directory_sha1_hex)
 
     @istest
@@ -214,25 +219,23 @@ class DirectoryTestCase(unittest.TestCase):
         assert rv.status_code == 404
         assert rv.data == b'Not found!'
 
-        date_str = time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime())
-
         # we create it
         body = json.dumps({'content': 'directory has content too.',
                            'entries': [{'name': 'filename',
                                         'target-sha1': self.content_sha1_id,
                                         'nature': 'file',
                                         'perms': '000',
-                                        'atime': date_str,
-                                        'mtime': date_str,
-                                        'ctime': date_str,
+                                        'atime': now(),
+                                        'mtime': now(),
+                                        'ctime': now(),
                                         'parent': directory_sha1},
                                        {'name': 'dirname',
                                         'target-sha1': self.directory_sha1_hex,
                                         'nature': 'directory',
                                         'perms': '012',
-                                        'atime': date_str,
-                                        'mtime': date_str,
-                                        'ctime': date_str,
+                                        'atime': now(),
+                                        'mtime': now(),
+                                        'ctime': now(),
                                         'parent': directory_sha1}
                                       ]})
 
@@ -265,79 +268,95 @@ class DirectoryTestCase(unittest.TestCase):
         assert rv.data == b'{\n  "sha1": "directory-sha16ee476a8be155ab049994f7170"\n}'
 
 
-# @attr('slow')
-# class RevisionTestCase(unittest.TestCase):
-#     def setUp(self):
-#         self.app, db_url = app_client()
+@attr('slow')
+class RevisionTestCase(unittest.TestCase):
+    def setUp(self):
+        self.app, db_url = app_client()
 
-#         self.revision_sha1_hex = '000000f6dd5dc46ee476a8be155ab049994f717e'
-#         with db.connect(db_url) as db_conn:
-#             models.add_object(db_conn,
-#                               self.revision_sha1_hex,
-#                               models.Type.revision.value)
+        with db.connect(db_url) as db_conn:
+            self.directory_sha1_hex = 'directory-sha16ee476a8be155ab049994f717e'
+            models.add_directory(db_conn, self.directory_sha1_hex)
 
-#     @istest
-#     def get_revision_ok(self):
-#         # when
-#         rv = self.app.get('/vcs/revisions/%s' % self.revision_sha1_hex)
+            self.revision_sha1_hex = 'revision-sha1-to-test-existence9994f717e'
+            models.add_revision(db_conn,
+                                self.revision_sha1_hex,
+                                now(),
+                                self.directory_sha1_hex,
+                                "revision message",
+                                "ardumont",
+                                "ardumont")
 
-#         # then
-#         assert rv.status_code == 200
-#         assert rv.data == b'{\n  "sha1": "000000f6dd5dc46ee476a8be155ab049994f717e"\n}'
+    @istest
+    def get_revision_ok(self):
+        # when
+        rv = self.app.get('/vcs/revisions/%s' % self.revision_sha1_hex)
 
-#     @istest
-#     def get_revision_not_found(self):
-#         # when
-#         rv = self.app.get('/vcs/revisions/000000f6dd5dc46ee476a8be155ab049994f7170')
-#         # then
-#         assert rv.status_code == 404
-#         assert rv.data == b'Not found!'
+        # then
+        assert rv.status_code == 200
+        assert rv.data.decode('utf-8') == '{\n  "sha1": "%s"\n}' % self.revision_sha1_hex
 
-#     @istest
-#     def get_revision_not_found_with_bad_format(self):
-#         # when
-#         rv = self.app.get('/vcs/revisions/1')
-#         # then
-#         assert rv.status_code == 404
-#         assert rv.data == b'Not found!'
+    @istest
+    def get_revision_not_found(self):
+        # when
+        rv = self.app.get('/vcs/revisions/inexistant-sha1')
+        # then
+        assert rv.status_code == 404
+        assert rv.data == b'Not found!'
 
-#     @istest
-#     def put_revision_create_and_update(self):
-#         # does not exist
-#         rv = self.app.get('/vcs/revisions/000000f6dd5dc46ee476a8be155ab049994f7170')
+    @istest
+    def get_revision_not_found_with_bad_format(self):
+        # when
+        rv = self.app.get('/vcs/revisions/1')
+        # then
+        assert rv.status_code == 404
+        assert rv.data == b'Not found!'
 
-#         # then
-#         assert rv.status_code == 404
-#         assert rv.data == b'Not found!'
+    @istest
+    def put_revision_create_and_update(self):
+        revision_sha1_hex = 'sha1-revision46ee476a8be155ab049994f717e'
 
-#         # we create it
-#         rv = self.app.put('/vcs/revisions/000000f6dd5dc46ee476a8be155ab049994f7170',
-#                           data={'content': 'revision-foo'})
+        rv = self.app.get('/vcs/revisions/%s' % revision_sha1_hex)
 
-#         assert rv.status_code == 204
-#         assert rv.data == b''
+        # then
+        assert rv.status_code == 404
+        assert rv.data == b'Not found!'
 
-#         # now it exists
-#         rv = self.app.get('/vcs/revisions/000000f6dd5dc46ee476a8be155ab049994f7170')
+        # we create it
+        body = json.dumps({'content': 'revision has content too.',
+                           'date': now(),
+                           'directory': self.directory_sha1_hex,
+                           'message': 'revision message describing it',
+                           'committer': 'ardumont',
+                           'author': 'ardumont'})
 
-#         # then
-#         assert rv.status_code == 200
-#         assert rv.data == b'{\n  "sha1": "000000f6dd5dc46ee476a8be155ab049994f7170"\n}'
+        rv = self.app.put('/vcs/revisions/%s' % revision_sha1_hex,
+                          data=body,
+                          headers={'Content-Type': 'application/json'})
 
-#         # we update it
-#         rv = self.app.put('/vcs/revisions/000000f6dd5dc46ee476a8be155ab049994f7170',
-#                           data={'content': 'revision-foo'})
+        assert rv.status_code == 204
+        assert rv.data == b''
 
-#         assert rv.status_code == 200
-#         assert rv.data == b'Successful update!'
+        # now it exists
+        rv = self.app.get('/vcs/revisions/%s' % revision_sha1_hex)
 
-#         # still the same
-#         rv = self.app.get('/vcs/revisions/000000f6dd5dc46ee476a8be155ab049994f7170')
+        # then
+        assert rv.status_code == 200
+        assert rv.data.decode('utf-8') == '{\n  "sha1": "%s"\n}' % revision_sha1_hex
 
-#         # then
-#         assert rv.status_code == 200
-#         assert rv.data == b'{\n  "sha1": "000000f6dd5dc46ee476a8be155ab049994f7170"\n}'
+        # we update it
+        rv = self.app.put('/vcs/revisions/%s' % revision_sha1_hex,
+                          data=body,
+                          headers={'Content-Type': 'application/json'})
 
+        assert rv.status_code == 200
+        assert rv.data == b'Successful update!'
+
+        # still the same
+        rv = self.app.get('/vcs/revisions/%s' % revision_sha1_hex)
+
+        # then
+        assert rv.status_code == 200
+        assert rv.data.decode('utf-8') == '{\n  "sha1": "%s"\n}' % revision_sha1_hex
 
 
 

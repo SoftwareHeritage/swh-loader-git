@@ -108,7 +108,7 @@ def _add_revision(db_conn, vcs_object, sha1hex):
                         vcs_object['message'],
                         vcs_object['author'],
                         vcs_object['committer'],
-                        vcs_object['parent-id'])
+                        vcs_object.get('parent-id'))
     return sha1hex
 
 
@@ -158,7 +158,8 @@ def add(config, vcs_object):
                                   config['folder_depth'],
                                   config['storage_compression'])
             if res is not None:
-                return _store_fn[type](db_conn, vcs_object, sha1hex)
+                 res = _store_fn[type](db_conn, vcs_object, sha1hex)
+                 return res
         except:  # all kinds of error break the transaction
             db_conn.rollback()
 

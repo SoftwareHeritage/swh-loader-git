@@ -70,8 +70,8 @@ def add_directory_entry(db_conn, name, sha, type, perms,
                        parent)))
 
 
-def add_revision(db_conn, obj_sha, date, directory, message, author, committer,
-                 parent_sha):
+def add_revision(db_conn, sha, date, directory, message, author, committer,
+                 parent_sha=None):
     """Insert a new revision.
     """
     with db_conn.cursor() as cur:
@@ -79,13 +79,14 @@ def add_revision(db_conn, obj_sha, date, directory, message, author, committer,
                    ("""INSERT INTO revision
                        (id, date, directory, message, author, committer)
                        VALUES (%s, %s, %s, %s, %s, %s)""",
-                    (obj_sha, date, directory, message, author, committer)))
+                    (sha, date, directory, message, author, committer)))
 
-        db.execute(cur,
+        if parent_sha:  # initial commit has no parent
+            db.execute(cur,
                    ("""INSERT INTO revision_history
                        (id, parent_id)
                        VALUES (%s, %s)""",
-                    (obj_sha, parent_sha)))
+                    (sha, parent_sha)))
 
 
 def add_release(db_conn, obj_sha, revision, date, name, comment):

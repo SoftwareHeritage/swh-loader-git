@@ -89,14 +89,16 @@ def build_directory_entry(parent_sha1hex, entry):
 def build_revision(sha1hex, payload):
     """Build a revision object from the payload.
     """
-    return {'sha1': sha1hex,
-            'type': store.Type.revision,
-            'date': payload['date'],
-            'directory': payload['directory'],
-            'message': payload['message'],
-            'author': payload['author'],
-            'committer': payload['committer'],
-            'parent-id': payload['parent-id']}
+    obj = {'sha1': sha1hex,
+           'type': store.Type.revision}
+    if payload:
+        obj.update({'content': payload['content'],
+                    'date': date_from_string(payload['date']),
+                    'directory': payload['directory'],
+                    'message': payload['message'],
+                    'author': payload['author'],
+                    'committer': payload['committer']})
+    return obj
 
 
 def build_release(sha1hex, payload):
