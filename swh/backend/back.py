@@ -116,23 +116,25 @@ def build_release(sha1hex, payload):
     return obj
 
 
-def build_occurence(sha1hex, payload):
+def build_occurrence(sha1hex, payload):
     """Build a content object from the payload.
     """
-    return {'name': payload['name'],
-            'type': store.Type.occurence,
-            'revision': payload['revision'],
-            'date': payload['date'],
-            'name': payload['name'],
-            'comment': payload['comment']}
-
+    obj = {'sha1': sha1hex,
+           'type': store.Type.occurrence}
+    if payload:
+        obj.update({'content': payload['content'],
+                    'reference': payload['reference'],
+                    'type': store.Type.occurrence,
+                    'revision': sha1hex,
+                    'url-origin': payload['url-origin']})
+    return obj
 
 # dispatch on build object function for the right type
 _build_object_fn = {store.Type.revision: build_revision,
                     store.Type.directory: build_directory,
                     store.Type.content: build_content,
                     store.Type.release: build_release,
-                    store.Type.occurence: build_occurence}
+                    store.Type.occurrence: build_occurrence}
 
 
 # from uri to type
@@ -140,7 +142,7 @@ _uri_types = {'revisions': store.Type.revision,
               'directories': store.Type.directory,
               'contents': store.Type.content,
               'releases': store.Type.release,
-              'occurences': store.Type.occurence}
+              'occurrences': store.Type.occurrence}
 
 
 def _do_action(action_fn, uri_type, sha1hex):

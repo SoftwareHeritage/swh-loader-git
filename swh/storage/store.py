@@ -4,13 +4,13 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import logging
-
 from io import StringIO
 from swh.storage import db, models, fs
 
 
 Type = models.Type
+
+_find_object = {Type.occurrence: models.find_occurrences_for_revision}
 
 
 def find(config, vcs_object):
@@ -20,7 +20,8 @@ def find(config, vcs_object):
     type = vcs_object['type']
 
     with db.connect(config['db_url']) as db_conn:
-        return models.find_object(db_conn, sha1hex, type)
+        find_fn  = _find_object.get(type, models.find_object)
+        return find_fn(db_conn, sha1hex, type)
 
 
 def find_unknowns(config, sha1s_hex):
@@ -124,16 +125,13 @@ def _add_release(db_conn, vcs_object, sha1hex):
     return sha1hex
 
 
-def _add_occurence(db_conn, vcs_object, sha1hex):
-    """Add an occurence.
+def _add_occurrence(db_conn, vcs_object, sha1hex):
+    """Add an occurrence.
     """
-    models.add_occurence(db_conn,
-                         sha1hex,
-                         vcs_object['name'],
-                         vcs_object['revision'],
-                         vcs_object['date'],
-                         vcs_object['name'],
-                         vcs_object['comment'])
+    models.add_occurrence(db_conn,
+                          vcs_object['url-origin'],
+                          vcs_object['reference'],
+                          vcs_object['revision'])
     return sha1hex
 
 
@@ -141,7 +139,7 @@ _store_fn = {Type.content:   _add_content,
              Type.directory: _add_directory,
              Type.revision:  _add_revision,
              Type.release:   _add_release,
-             Type.occurence: _add_occurence}
+             Type.occurrence: _add_occurrence}
 
 
 def add(config, vcs_object):
@@ -158,8 +156,7 @@ def add(config, vcs_object):
                                   config['folder_depth'],
                                   config['storage_compression'])
             if res is not None:
-                 res = _store_fn[type](db_conn, vcs_object, sha1hex)
-                 return res
+                 return _store_fn[type](db_conn, vcs_object, sha1hex)
         except:  # all kinds of error break the transaction
             db_conn.rollback()
 

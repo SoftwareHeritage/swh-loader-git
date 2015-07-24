@@ -56,20 +56,20 @@ def queries_execute(db_conn, queries_params, trace=None):
             execute(cur, query_params, trace)
 
 
-def query_fetchone(db_conn, query_params):
+def query_fetchone(db_conn, query_params, trace=None):
     """Execute sql query which returns one result.
     query_params is expected to be either:
     - a sql query (string)
     - a tuple (sql query, params)
     """
     with db_conn.cursor() as cur:
-        return fetchone(cur, query_params)
+        return fetchone(cur, query_params, trace)
 
 
-def fetchone(cur, query_params):
+def fetchone(cur, query_params, trace=None):
     """Execute sql query and returns one result.
     """
-    execute(cur, query_params)
+    execute(cur, query_params, trace)
     return cur.fetchone()
 
 

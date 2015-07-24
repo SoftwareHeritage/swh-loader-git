@@ -18,12 +18,13 @@ class Type(Enum):
     # blob = 'blob'     # useless
     # tag = 'tag'       # useless
     # abstract type
-    occurence = 'occurence'             # ~git branch
+    occurrence = 'occurrence'             # ~git branch
     release = 'release'                 # ~git annotated tag
     revision = 'revision'               # ~git commit
     directory = 'directory'             # ~git tree
     directory_entry = 'directory_entry' # ~git tree_entry
     content = 'content'                 # ~git blob
+    origin = 'origin'
 
 def initdb(db_conn):
     """For retrocompatibility.
@@ -35,8 +36,19 @@ def cleandb(db_conn):
     db.queries_execute(db_conn, ['TRUNCATE TABLE release CASCADE',
                                  'TRUNCATE TABLE revision CASCADE',
                                  'TRUNCATE TABLE directory CASCADE',
-                                 'TRUNCATE TABLE content CASCADE'])
+                                 'TRUNCATE TABLE content CASCADE',
+                                 'TRUNCATE TABLE occurrence_history CASCADE',
+                                 'TRUNCATE TABLE occurrence CASCADE',
+                                 'TRUNCATE TABLE origin CASCADE',
+                                 ])
 
+def add_origin(db_conn, type, url, parent=None):
+    """Insert an origin.
+    """
+    db.query_execute(db_conn,
+                     ("""INSERT INTO origin (type, url, parent_id)
+                         VALUES (%s, %s, %s)""",
+                      (type, url, parent)))
 
 def add_content(db_conn, sha1, sha1_content, sha256_content, size):
     """Insert a new content.
@@ -98,19 +110,19 @@ def add_release(db_conn, obj_sha, revision, date, name, comment):
                       (obj_sha, revision, date, name, comment)))
 
 
-def add_occurence(db_conn, reference, revision, date):
-    """Insert an occurence.
-       Check if occurence history already present.
+def add_occurrence(db_conn, url_origin, reference, revision):
+    """Insert an occurrence.
+       Check if occurrence history already present.
        If present do nothing, otherwise insert
     """
     with db_conn.cursor() as cur:
-        occ = find_occurence(cur, reference, revision, date)
-        if occ is None:
+        occ = find_occurrence(cur, reference, revision, url_origin)
+        if not occ:
             db.execute(cur,
-                       ("""INSERT INTO occurence_history
-                           (reference, revision, validity)
-                           VALUES (%s, %s, %s)""",
-                        (reference, revision, date)))
+                   ("""INSERT INTO occurrence
+                       (origin, reference, revision)
+                       VALUES ((select id from origin where url=%s), %s, %s)""",
+                    (url_origin, reference, revision)))
 
 
 def find_revision(db_conn, obj_sha):
@@ -131,15 +143,25 @@ def find_content(db_conn, obj_sha):
     return find_object(db_conn, obj_sha, Type.content)
 
 
-def find_occurence(cur, reference, revision, date):
-    """Find an ocurrence with reference reference pointing on revision revision
-    still valid for date.
+def find_occurrences_for_revision(db_conn, revision, type):
+    """Find all occurences for a specific revisions.
+    type is not used (implementation detail).
     """
-    return db.fetchone(cur, (""" SELECT id FROM occurence_history
-                                 WHERE reference=%
-                                 AND revision=%s
-                                 AND validity >= %s""",
-                             (reference, revision, date)))
+    return db.query_fetch(db_conn, ("""SELECT *
+                                       FROM occurrence
+                                       WHERE revision=%s""",
+                                    (revision,)))
+
+
+def find_occurrence(cur, reference, revision, url_origin):
+    """Find an ocurrence with reference pointing on valid revision for date.
+    """
+    return db.fetchone(cur, ("""SELECT *
+                                FROM occurrence oc
+                                WHERE reference=%s
+                                AND revision=%s
+                                AND origin = (select id from origin where url = %s)""",
+                             (reference, revision, url_origin)))
 
 
 def find_object(db_conn, obj_sha, obj_type):
@@ -197,13 +219,13 @@ def count_contents(db_conn):
     return _count_objects(db_conn, Type.content)
 
 
-def count_occurence(db_conn):
-    """Count the number of occurence.
+def count_occurrence(db_conn):
+    """Count the number of occurrence.
     """
-    return _count_objects(db_conn, Type.occurence)
+    return _count_objects(db_conn, Type.occurrence)
 
 
 def count_release(db_conn):
-    """Count the number of occurence.
+    """Count the number of occurrence.
     """
     return _count_objects(db_conn, Type.release)
