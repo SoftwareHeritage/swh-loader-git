@@ -564,127 +564,137 @@ class OccurrenceTestCase(unittest.TestCase):
         assert rv.data.decode('utf-8') == '{\n  "sha1": "%s"\n}' % occ_revision_sha1_hex
 
 
-# @attr('slow')
-# class TestObjectsCase(unittest.TestCase):
-#     def setUp(self):
-#         self.app, self.db_url = app_client()
+@attr('slow')
+class TestObjectsCase(unittest.TestCase):
+    def setUp(self):
+        self.app, self.db_url = app_client()
 
-#         with db.connect(self.db_url) as db_conn:
-#             self.content_sha1_id = '000000111111c46ee476a8be155ab049994f717e'
-#             blog_git_sha1 = '00000011111122222276a8be155ab049994f717e'
-#             models.add_content(db_conn, self.content_sha1_id, 10, blog_git_sha1)
+        with db.connect(self.db_url) as db_conn:
+            self.content_sha1_id = 'sha1-content0-6ee476a8be155ab049994f717e'
+            self.content_sha256_hex = 'sha256-content0-e476a8be155ab049994f717e'
+            models.add_content(db_conn,
+                               self.content_sha1_id,
+                               self.content_sha1_id,
+                               self.content_sha256_hex,
+                               10)
 
-#             self.directory_sha1_hex = '111111f9dd5dc46ee476a8be155ab049994f717e'
-#             models.add_object(db_conn, self.directory_sha1_hex,
-#                               store.Type.directory.value)
+            self.directory_sha1_hex = 'directory-sha1-ee476a8be155ab049994f717e'
+            models.add_directory(db_conn, self.directory_sha1_hex)
 
-#             self.revision_sha1_hex = '222222f9dd5dc46ee476a8be155ab049994f717e'
-#             models.add_object(db_conn, self.revision_sha1_hex,
-#                               store.Type.revision.value)
+            self.revision_sha1_hex = 'revision-sha1-to-test-existence9994f717e'
+            models.add_revision(db_conn,
+                                self.revision_sha1_hex,
+                                now(),
+                                self.directory_sha1_hex,
+                                "revision message",
+                                "ardumont",
+                                "ardumont")
 
-#         # check the insertion went ok!
-#         with db.connect(self.db_url) as db_conn:
-#             assert models.find_content(db_conn, self.content_sha1_id) is not None
-#             assert models.find_object(db_conn, self.directory_sha1_hex,
-#                                       models.Type.directory.value) is not None
-#             assert models.find_object(db_conn, self.revision_sha1_hex,
-#                                       models.Type.revision.value) is not None
+            self.release_sha1_hex = 'release-sha1-to-test-existence1234567901'
+            models.add_release(db_conn,
+                               self.release_sha1_hex,
+                               self.revision_sha1_hex,
+                               now(),
+                               "0.0.1",
+                               "Super release tagged by tony")
 
-#     @istest
-#     def get_non_presents_objects(self):
-#         # given
+    # @istest
+    # def get_non_presents_objects(self):
+    #     # given
 
-#         # when
-#         payload = {'sha1s': [self.content_sha1_id,
-#                              self.directory_sha1_hex,
-#                              self.revision_sha1_hex,
-#                              self.revision_sha1_hex,
-#                              '555444f9dd5dc46ee476a8be155ab049994f717e',
-#                              '555444f9dd5dc46ee476a8be155ab049994f717e',
-#                              '666777f9dd5dc46ee476a8be155ab049994f717e']}
-#         json_payload = json.dumps(payload)
+    #     # when
+    #     payload = {'sha1s': [self.content_sha1_id,
+    #                          self.directory_sha1_hex,
+    #                          self.revision_sha1_hex,
+    #                          self.revision_sha1_hex,
+    #                          self.release_sha1_hex,
+    #                          '555444f9dd5dc46ee476a8be155ab049994f717e',
+    #                          '555444f9dd5dc46ee476a8be155ab049994f717e',
+    #                          '666777f9dd5dc46ee476a8be155ab049994f717e']}
+    #     json_payload = json.dumps(payload)
 
-#         rv = self.app.post('/objects/',
-#                            data=json_payload,
-#                            headers={'Content-Type': 'application/json'})
+    #     rv = self.app.post('/objects/',
+    #                        data=json_payload,
+    #                        headers={'Content-Type': 'application/json'})
 
-#         # then
-#         assert rv.status_code == 200
+    #     # then
+    #     assert rv.status_code == 200
 
-#         json_result = json.loads(rv.data.decode('utf-8'))
-#         assert len(json_result.keys()) is 1                                       # only 1 key
-#         assert len(json_result['sha1s']) is 2                                     # only 2 sha1s
-#         sha1s = json_result['sha1s']
-#         assert "666777f9dd5dc46ee476a8be155ab049994f717e" in sha1s
-#         assert "555444f9dd5dc46ee476a8be155ab049994f717e" in sha1s
+    #     json_result = json.loads(rv.data.decode('utf-8'))
+    #     assert len(json_result.keys()) is 1                                       # only 1 key
+    #     assert len(json_result['sha1s']) is 2                                     # only 2 sha1s
+    #     sha1s = json_result['sha1s']
+    #     assert "666777f9dd5dc46ee476a8be155ab049994f717e" in sha1s
+    #     assert "555444f9dd5dc46ee476a8be155ab049994f717e" in sha1s
 
-#     @istest
-#     def get_non_presents_objects_bad_requests(self):
-#         # given
+    # @istest
+    # def get_non_presents_objects_bad_requests(self):
+    #     # given
 
-#         # when
-#         bad_payload = json.dumps({})
+    #     # when
+    #     bad_payload = json.dumps({})
 
-#         rv = self.app.post('/objects/', data=bad_payload,
-#                            headers={'Content-Type': 'application/json'})
+    #     rv = self.app.post('/objects/', data=bad_payload,
+    #                        headers={'Content-Type': 'application/json'})
 
-#         # then
-#         assert rv.status_code == 400
-#         assert rv.data == b"Bad request! Expects 'sha1s' key with list of hexadecimal sha1s."
+    #     # then
+    #     assert rv.status_code == 400
+    #     assert rv.data == b"Bad request! Expects 'sha1s' key with list of hexadecimal sha1s."
 
-#     @istest
-#     def put_non_presents_objects(self):
-#         # given
-#         payload_1 = {'sha1s': [self.content_sha1_id,
-#                                self.directory_sha1_hex,
-#                                self.revision_sha1_hex,
-#                                self.revision_sha1_hex,
-#                                '555444f9dd5dc46ee476a8be155ab049994f717e',
-#                                '555444f9dd5dc46ee476a8be155ab049994f717e',
-#                                '666777f9dd5dc46ee476a8be155ab049994f717e']}
-#         json_payload_1 = json.dumps(payload_1)
+    # @istest
+    # def put_non_presents_objects(self):
+    #     # given
+    #     payload_1 = {'sha1s': [self.content_sha1_id,
+    #                            self.directory_sha1_hex,
+    #                            self.revision_sha1_hex,
+    #                            self.revision_sha1_hex,
+    #                            self.release_sha1_hex,
+    #                            '555444f9dd5dc46ee476a8be155ab049994f717e',
+    #                            '555444f9dd5dc46ee476a8be155ab049994f717e',
+    #                            '666777f9dd5dc46ee476a8be155ab049994f717e']}
+    #     json_payload_1 = json.dumps(payload_1)
 
-#         rv = self.app.post('/objects/', data=json_payload_1,
-#                            headers={'Content-Type': 'application/json'})
+    #     rv = self.app.post('/objects/', data=json_payload_1,
+    #                        headers={'Content-Type': 'application/json'})
 
-#         assert rv.status_code == 200
+    #     assert rv.status_code == 200
 
-#         json_result = json.loads(rv.data.decode('utf-8'))
-#         assert len(json_result.keys()) is 1                         # only 1 key
-#         sha1s = json_result['sha1s']
-#         assert len(sha1s) is 2                                      # only 2 sha1s
-#         assert "666777f9dd5dc46ee476a8be155ab049994f717e" in sha1s
-#         assert "555444f9dd5dc46ee476a8be155ab049994f717e" in sha1s
+    #     json_result = json.loads(rv.data.decode('utf-8'))
+    #     assert len(json_result.keys()) is 1                         # only 1 key
+    #     sha1s = json_result['sha1s']
+    #     assert len(sha1s) is 2                                      # only 2 sha1s
+    #     assert "666777f9dd5dc46ee476a8be155ab049994f717e" in sha1s
+    #     assert "555444f9dd5dc46ee476a8be155ab049994f717e" in sha1s
 
-#         # when
-#         payload_2 = {'555444f9dd5dc46ee476a8be155ab049994f717e':
-#                        {'sha1': '555444f9dd5dc46ee476a8be155ab049994f717e',
-#                         'size': 20,
-#                         'git-sha1': '555444f9dd5dc46ee476a8be155ab049994f717e',
-#                         'type': 'content',
-#                         'content': 'content\'s content'},
-#                      '555444f9dd5dc46ee476a8be155ab049994f717e':
-#                        {'sha1': '555444f9dd5dc46ee476a8be155ab049994f717e',
-#                         'content': 'directory content',
-#                         'type': 'directory'},
-#                      '666777f9dd5dc46ee476a8be155ab049994f717e':
-#                        {'sha1': '666777f9dd5dc46ee476a8be155ab049994f717e',
-#                         'type': 'revision',
-#                         'content': 'revision content'}}
-#         json_payload_2 = json.dumps(payload_2)
+    #     # when
+    #     payload_2 = {'555444f9dd5dc46ee476a8be155ab049994f717e':
+    #                    {'sha1': '555444f9dd5dc46ee476a8be155ab049994f717e',
+    #                     'size': 20,
+    #                     'git-sha1': '555444f9dd5dc46ee476a8be155ab049994f717e',
+    #                     'type': 'content',
+    #                     'content': 'content\'s content'},
+    #                  '555444f9dd5dc46ee476a8be155ab049994f717e':
+    #                    {'sha1': '555444f9dd5dc46ee476a8be155ab049994f717e',
+    #                     'content': 'directory content',
+    #                     'type': 'directory'},
+    #                  '666777f9dd5dc46ee476a8be155ab049994f717e':
+    #                    {'sha1': '666777f9dd5dc46ee476a8be155ab049994f717e',
+    #                     'type': 'revision',
+    #                     'content': 'revision content'}}
+    #     json_payload_2 = json.dumps(payload_2)
 
-#         rv = self.app.put('/objects/', data=json_payload_2,
-#                           headers={'Content-Type': 'application/json'})
+    #     rv = self.app.put('/objects/', data=json_payload_2,
+    #                       headers={'Content-Type': 'application/json'})
 
-#         # then
-#         assert rv.status_code == 204
+    #     # then
+    #     assert rv.status_code == 204
 
-#         rv = self.app.post('/objects/', data=json_payload_1,
-#                            headers={'Content-Type': 'application/json'})
+    #     rv = self.app.post('/objects/', data=json_payload_1,
+    #                        headers={'Content-Type': 'application/json'})
 
-#         assert rv.status_code == 200
+    #     assert rv.status_code == 200
 
-#         json_result = json.loads(rv.data.decode('utf-8'))
+    #     json_result = json.loads(rv.data.decode('utf-8'))
 
-#         assert len(json_result.keys()) is 1
-#         assert len(json_result['sha1s']) is 0  # all sha1s are now knowns
+    #     assert len(json_result.keys()) is 1
+    #     assert len(json_result['sha1s']) is 0  # all sha1s are now knowns

@@ -190,6 +190,8 @@ def find_unknowns(db_conn, file_sha1s):
                                  SELECT id FROM directory
                                  UNION
                                  SELECT id FROM content
+                                 UNION
+                                 SELECT id FROM release
                               )
                             (SELECT id FROM filter_sha1)
                             EXCEPT
