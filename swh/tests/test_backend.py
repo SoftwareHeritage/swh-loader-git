@@ -643,17 +643,22 @@ class TestObjectsCase(unittest.TestCase):
 
     @istest
     def put_non_presents_objects(self):
+        content_sha1_unknown1 = 'content-sha1-46ee476a8be155ab049994f717e'
+        content_sha1_unknown2 = 'content-sha1-2-ee476a8be155ab049994f717e'
+        directory_sha1_unknown = 'directory-sha1-46ee476a8be155ab049994f717e'
+        release_sha1_unknown = 'release-sha1-46ee476a8be155ab049994f717e'
+
         # given
         payload_1 = {'sha1s': [self.content_sha1_id,
                                self.directory_sha1_hex,
                                self.revision_sha1_hex,
                                self.revision_sha1_hex,
                                self.release_sha1_hex,
-                               'content-sha1-46ee476a8be155ab049994f717e',
-                               'content-sha1-46ee476a8be155ab049994f717e',
-                               'content-sha1-2-ee476a8be155ab049994f717e',
-                               'directory-sha1-46ee476a8be155ab049994f717e',
-                               'release-sha1-46ee476a8be155ab049994f717e']}
+                               content_sha1_unknown1,
+                               content_sha1_unknown1,  # duplicates is not a concern
+                               content_sha1_unknown2,
+                               directory_sha1_unknown,
+                               release_sha1_unknown]}
 
         json_payload_1 = json.dumps(payload_1)
 
@@ -666,31 +671,33 @@ class TestObjectsCase(unittest.TestCase):
         assert len(json_result.keys()) is 1                         # only 1 key
         sha1s = json_result['sha1s']
         assert len(sha1s) is 4                                      # only 4 sha1s
-        assert "content-sha1-46ee476a8be155ab049994f717e" in sha1s
-        assert "content-sha1-46ee476a8be155ab049994f717e" in sha1s
-        assert "directory-sha1-46ee476a8be155ab049994f717e" in sha1s
-        assert "release-sha1-46ee476a8be155ab049994f717e" in sha1s
+        assert content_sha1_unknown1 in sha1s
+        assert content_sha1_unknown2 in sha1s
+        assert directory_sha1_unknown in sha1s
+        assert release_sha1_unknown in sha1s
 
         # when
-        payload_contents = [{'sha1': 'content-sha1-46ee476a8be155ab049994f717e',
+        payload_contents = [{'sha1': content_sha1_unknown1,
                              'content-sha1': 'content-sha1c46ee476a8be155ab03333333333',
                              'content-sha256': 'content-sha2566ee476a8be155ab03333333333',
                              'content': 'bar',
                              'size': '3'},
-                            {'sha1': 'content-sha1-2-ee476a8be155ab049994f717e',
+                            {'sha1': content_sha1_unknown2,
                              'content-sha1': '555444f9dd5dc46ee476a8be155ab049994f717e',
                              'content-sha256': '555444f9dd5dc46ee476a8be155ab049994f717e',
                              'content': 'foobar',
                              'size': 6}]
-        json_payload_2 = json.dumps(payload_contents)
+        json_payload_contents = json.dumps(payload_contents)
 
-        rv = self.app.put('/vcs/contents/', data=json_payload_2,
+        rv = self.app.put('/vcs/contents/',
+                          data=json_payload_contents,
                           headers={'Content-Type': 'application/json'})
 
         # then
         assert rv.status_code == 204
 
-        # Sent back the first requests and see that we now have less unknown sha1s
+        # Sent back the first requests and see that we now have less unknown
+        # sha1s (no more missed contents )
         rv = self.app.post('/objects/', data=json_payload_1,
                            headers={'Content-Type': 'application/json'})
 
@@ -700,10 +707,55 @@ class TestObjectsCase(unittest.TestCase):
         assert len(json_result.keys()) is 1                         # only 1 key
         sha1s = json_result['sha1s']
         assert len(sha1s) is 2                                      # only 2 sha1s
-        assert "directory-sha1-46ee476a8be155ab049994f717e" in sha1s
-        assert "release-sha1-46ee476a8be155ab049994f717e" in sha1s
+        assert directory_sha1_unknown in sha1s
+        assert release_sha1_unknown in sha1s
 
 
+        # when
+        payload_directories = [{'sha1': directory_sha1_unknown,
+                               'content': 'directory has content too.',
+                               'entries': [{'name': 'filename',
+                                            'target-sha1': self.content_sha1_id,
+                                            'nature': 'file',
+                                            'perms': '000',
+                                            'atime': now(),
+                                            'mtime': now(),
+                                            'ctime': now(),
+                                            'parent': directory_sha1_unknown},
+                                            {'name': 'dirname',
+                                             'target-sha1': self.directory_sha1_hex,
+                                             'nature': 'directory',
+                                             'perms': '012',
+                                             'atime': now(),
+                                             'mtime': now(),
+                                             'ctime': now(),
+                                             'parent': directory_sha1_unknown}]
+                               }]
+
+        json_payload_directories = json.dumps(payload_directories)
+
+        rv = self.app.put('/vcs/directories/',
+                          data=json_payload_directories,
+                          headers={'Content-Type': 'application/json'})
+
+        # then
+        assert rv.status_code == 204
+
+        # Sent back the first requests and see that we now have less unknown
+        # sha1s (no more missed directories)
+        rv = self.app.post('/objects/',
+                           data=json_payload_1,
+                           headers={'Content-Type': 'application/json'})
+
+        print ('rv: ', rv)
+        print ('rv.data: ', rv.data)
+        assert rv.status_code == 200
+
+        json_result = json.loads(rv.data.decode('utf-8'))
+        assert len(json_result.keys()) is 1                         # only 1 key
+        sha1s = json_result['sha1s']
+        assert len(sha1s) is 1                                      # only 2 sha1s
+        assert release_sha1_unknown in sha1s
 
         # rv = self.app.post('/objects/', data=json_payload_1,
         #                    headers={'Content-Type': 'application/json'})
