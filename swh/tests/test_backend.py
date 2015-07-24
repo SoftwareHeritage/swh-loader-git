@@ -8,14 +8,11 @@ import unittest
 import json
 import time
 
-from datetime import datetime
-
 from nose.tools import istest
 from nose.plugins.attrib import attr
 
 from swh.backend import back
 from swh.storage import db, models
-from swh.storage import store
 
 import test_initdb
 
@@ -590,6 +587,15 @@ class TestObjectsCase(unittest.TestCase):
                                 "ardumont",
                                 "ardumont")
 
+            self.revision_sha1_hex2 = 'revision-sha1-2-for-testing-put-occurr'
+            models.add_revision(db_conn,
+                                self.revision_sha1_hex2,
+                                now(),
+                                self.directory_sha1_hex,
+                                "revision message",
+                                "ardumont",
+                                "ardumont")
+
             self.release_sha1_hex = 'release-sha1-to-test-existence1234567901'
             models.add_release(db_conn,
                                self.release_sha1_hex,
@@ -597,6 +603,14 @@ class TestObjectsCase(unittest.TestCase):
                                now(),
                                "0.0.1",
                                "Super release tagged by tony")
+
+            self.origin_url = "https://github.com/user/repo"
+            models.add_origin(db_conn, "git", self.origin_url)
+
+            models.add_occurrence(db_conn,
+                                  self.origin_url,
+                                  'master',
+                                  self.revision_sha1_hex)
 
     @istest
     def get_non_presents_objects(self):
@@ -646,6 +660,8 @@ class TestObjectsCase(unittest.TestCase):
         content_sha1_unknown1 = 'content-sha1-46ee476a8be155ab049994f717e'
         content_sha1_unknown2 = 'content-sha1-2-ee476a8be155ab049994f717e'
         directory_sha1_unknown = 'directory-sha1-46ee476a8be155ab049994f717e'
+        revision_sha1_unknown = 'revision-sha1-46ee476a8be155ab049994f717e'
+        revision_sha1_unknown2 = 'revision-sha1-2-46ee476a8be155ab049994f717e'
         release_sha1_unknown = 'release-sha1-46ee476a8be155ab049994f717e'
 
         # given
@@ -658,6 +674,8 @@ class TestObjectsCase(unittest.TestCase):
                                content_sha1_unknown1,  # duplicates is not a concern
                                content_sha1_unknown2,
                                directory_sha1_unknown,
+                               revision_sha1_unknown,
+                               revision_sha1_unknown2,
                                release_sha1_unknown]}
 
         json_payload_1 = json.dumps(payload_1)
@@ -670,11 +688,13 @@ class TestObjectsCase(unittest.TestCase):
         json_result = json.loads(rv.data.decode('utf-8'))
         assert len(json_result.keys()) is 1                         # only 1 key
         sha1s = json_result['sha1s']
-        assert len(sha1s) is 4                                      # only 4 sha1s
+        assert len(sha1s) is 6                                      # only 6 sha1s
         assert content_sha1_unknown1 in sha1s
         assert content_sha1_unknown2 in sha1s
         assert directory_sha1_unknown in sha1s
         assert release_sha1_unknown in sha1s
+        assert revision_sha1_unknown in sha1s
+        assert revision_sha1_unknown2 in sha1s
 
         # when
         payload_contents = [{'sha1': content_sha1_unknown1,
@@ -706,9 +726,11 @@ class TestObjectsCase(unittest.TestCase):
         json_result = json.loads(rv.data.decode('utf-8'))
         assert len(json_result.keys()) is 1                         # only 1 key
         sha1s = json_result['sha1s']
-        assert len(sha1s) is 2                                      # only 2 sha1s
+        assert len(sha1s) is 4                                      # only 2 sha1s
         assert directory_sha1_unknown in sha1s
         assert release_sha1_unknown in sha1s
+        assert revision_sha1_unknown in sha1s
+        assert revision_sha1_unknown2 in sha1s
 
         # when
         payload_directories = [{'sha1': directory_sha1_unknown,
@@ -751,8 +773,10 @@ class TestObjectsCase(unittest.TestCase):
         json_result = json.loads(rv.data.decode('utf-8'))
         assert len(json_result.keys()) is 1                         # only 1 key
         sha1s = json_result['sha1s']
-        assert len(sha1s) is 1                                      # only 1 sha1 unknown
+        assert len(sha1s) is 3                                      # only 1 sha1 unknown
         assert release_sha1_unknown in sha1s
+        assert revision_sha1_unknown in sha1s
+        assert revision_sha1_unknown2 in sha1s
 
         # when
         payload_releases = [{'sha1': release_sha1_unknown,
@@ -788,4 +812,76 @@ class TestObjectsCase(unittest.TestCase):
         json_result = json.loads(rv.data.decode('utf-8'))
         assert len(json_result.keys()) is 1                         # only 1 key
         sha1s = json_result['sha1s']
+        assert len(sha1s) is 2
+        assert revision_sha1_unknown in sha1s
+        assert revision_sha1_unknown2 in sha1s
+
+        # when
+        payload_revisions = [{'sha1': revision_sha1_unknown,
+                              'content': 'some content',
+                              'date': now(),
+                              'directory': directory_sha1_unknown,
+                              'message': "commit message",
+                              'author': "author",
+                              'committer': "committer"},
+                             {'sha1': revision_sha1_unknown2,
+                              'content': 'some other content',
+                              'date': now(),
+                              'directory': directory_sha1_unknown,
+                              'message': "some other commit message",
+                              'author': "author",
+                              'committer': "committer"},
+        ]
+
+        json_payload_revisions = json.dumps(payload_revisions)
+
+        rv = self.app.put('/vcs/revisions/',
+                          data=json_payload_revisions,
+                          headers={'Content-Type': 'application/json'})
+
+        # then
+        assert rv.status_code == 204
+
+        # Sent back the first requests and see that we now have less unknown
+        # sha1s (no more missed directories)
+        rv = self.app.post('/objects/',
+                           data=json_payload_1,
+                           headers={'Content-Type': 'application/json'})
+
+        assert rv.status_code == 200
+
+        json_result = json.loads(rv.data.decode('utf-8'))
+        assert len(json_result.keys()) is 1                         # only 1 key
+        sha1s = json_result['sha1s']
         assert len(sha1s) is 0
+
+
+    @istest
+    def put_all_occurrences(self):
+        # when
+        rv = self.app.get('/vcs/occurrences/%s' % self.revision_sha1_hex2)
+        # then
+        assert rv.status_code == 404
+
+        # when
+        payload_occurrences = [{'sha1': self.revision_sha1_hex2,
+                                'content': 'some content',
+                                'reference': 'master',
+                                'url-origin': self.origin_url},
+                               {'sha1': self.revision_sha1_hex2,
+                                'content': 'some content',
+                                'reference': 'puppets',
+                                'url-origin': self.origin_url}]
+
+        json_payload_occurrences = json.dumps(payload_occurrences)
+
+        rv = self.app.put('/vcs/occurrences/',
+                          data=json_payload_occurrences,
+                          headers={'Content-Type': 'application/json'})
+
+        assert rv.status_code == 204
+
+        # when
+        rv = self.app.get('/vcs/occurrences/%s' % self.revision_sha1_hex2)
+        # then
+        assert rv.status_code == 200
