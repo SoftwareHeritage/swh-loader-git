@@ -199,20 +199,22 @@ def filter_unknowns_objects():
         return json.jsonify(sha1s=unknowns_sha1s)
 
 
-@app.route('/objects/', methods=['PUT'])
-def put_all():
-    """Store or update the given objects (content, directory, revision).
+@app.route('/vcs/<uri_type>/', methods=['PUT'])
+def put_all(uri_type):
+    """Store or update given objects (uri_type in {contents, directories, revisions, releases).
     """
     if request.headers.get('Content-Type') != 'application/json':
         return make_response('Bad request. Expected json data!', 400)
 
     payload = request.json
+    obj_type = _uri_types[uri_type]
 
-    for sha1hex in payload.keys():  # iterate over objects
-        obj = payload.get(sha1hex)
-        obj_found = store.find(app.config['conf'], obj)
-        if obj_found is None:
-            store.add(app.config['conf'], obj)
+    for obj in payload:  # iterate over objects of type uri_type
+        obj_to_store = _build_object_fn[obj_type](obj['sha1'], obj)
+
+        obj_found = store.find(app.config['conf'], obj_to_store)
+        if not obj_found:
+            store.add(app.config['conf'], obj_to_store)
 
     return make_response('Successful creation!', 204)
 
