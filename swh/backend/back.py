@@ -104,12 +104,16 @@ def build_revision(sha1hex, payload):
 def build_release(sha1hex, payload):
     """Build a release object from the payload.
     """
-    return {'sha1': payload['sha1'],
-            'type': store.Type.release,
-            'revision': payload['revision'],
-            'date': payload['date'],
-            'name': payload['name'],
-            'comment': payload['comment']}
+    obj = {'sha1': sha1hex,
+           'type': store.Type.release}
+    if payload:
+        obj.update({'sha1': sha1hex,
+                    'content': payload['content'],
+                    'revision': payload['revision'],
+                    'date': payload['date'],
+                    'name': payload['name'],
+                    'comment': payload['comment']})
+    return obj
 
 
 def build_occurence(sha1hex, payload):
