@@ -4,6 +4,10 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+
+from datetime import datetime
+
+
 # Wrapper of pygit2 object
 class SWHObj():
     """Wrapper object around pygit2.
@@ -45,6 +49,32 @@ class SWHMap():
     def __init__(self):
         self.sha1s_hex = set()
         self.sha1s_map = {}
+        self.origin = {}
+        self.releases = []
+        self.occurrences = []
+
+    def add_origin(self, type, url):
+        self.origin = {'type': type,
+                       'url': url}
+
+    def get_origin(self):
+        return self.origin
+
+    def add_release(self, revision, name):
+        self.releases.append({'revision': revision,
+                              'name': name,
+                              'date': datetime.utcnow()})
+
+    def get_releases(self):
+        return self.releases
+
+    def add_occurrence(self, revision, name):
+        self.occurrences.append({'revision': revision,
+                                 'reference': name,
+                                 'date': datetime.utcnow()})
+
+    def get_occurrences(self):
+        return self.occurrences
 
     def add(self, obj_type, obj, sha1=None):
         """Add obj with type obj_type.
@@ -63,3 +93,14 @@ class SWHMap():
         """Return the detailed object with sha1.
         """
         return self.sha1s_map.get(sha1)
+
+    def __str__(self):
+        return """SWHMap({
+origin: %s,
+occurrences: %s,
+releases: %s,
+map: %s
+})""" % (self.origin,
+                                          self.occurrences,
+                                          self.releases,
+                                          self.sha1s_map)

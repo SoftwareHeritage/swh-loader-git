@@ -6,14 +6,14 @@
 
 import logging
 import pygit2
-
+import os
 
 from pygit2 import GIT_REF_OID
 from pygit2 import GIT_OBJ_COMMIT, GIT_OBJ_TREE
 
 from swh import hash
 from swh.storage import store
-from swh.gitloader.type import SWHMap
+from swh.data import swhmap
 from swh.http import client
 
 def load_repo(baseurl, repo_path):
@@ -47,7 +47,7 @@ def load_repo(baseurl, repo_path):
     def store_tree_from(repo, commit):
         """Walk the tree and send the encountered objects to api backend.
         """
-        sha1s_map = SWHMap()
+        sha1s_map = swhmap.SWHMap()
 
         for ori_tree_ref, trees_ref, blobs_ref in \
                 treewalk(repo, commit.tree):
@@ -75,13 +75,13 @@ def load_repo(baseurl, repo_path):
 
         client.put_all(baseurl, unknown_ref_sha1s, sha1s_map)
 
-    def walk_revision_from(repo, head_commit, visited):
-        """Walk the revision from commit head_commit.
+    def walk_revision_from(repo, head_revision, visited):
+        """Walk the revision from commit head_revision.
         - repo is the current repository
-        - head_commit is the latest commit to start from
+        - head_revision is the latest commit to start from
         - visited is a memory cache of visited node (implemented as set)
         """
-        to_visits = [head_commit]  # the nodes to visit topologically
+        to_visits = [head_revision]  # the nodes to visit topologically
         to_store = []              # the nodes to store in files + db
 
         while to_visits:
@@ -108,12 +108,45 @@ def load_repo(baseurl, repo_path):
         for ref_name in repo.listall_references():
             logging.info('walk reference %s' % ref_name)
             ref = repo.lookup_reference(ref_name)
-            head_commit = repo[ref.target] \
+            head_revision = repo[ref.target] \
                           if ref.type is GIT_REF_OID \
                           else ref.peel(GIT_OBJ_COMMIT)  # noqa
-            walk_revision_from(repo, head_commit, visited)
+            walk_revision_from(repo, head_revision, visited)
 
     walk_references_from(pygit2.Repository(repo_path))
+
+
+def parse(repo):
+    """Given a repository path, parse and return a memory model of such
+    repository."""
+    sha1s_map = swhmap.SWHMap()
+
+    sha1s_map.add_origin('git', repo.path)
+
+    for ref_name in repo.listall_references():
+        logging.info('walk reference %s' % ref_name)
+
+        ref = repo.lookup_reference(ref_name)
+
+        head_revision = repo[ref.target] \
+                        if ref.type is GIT_REF_OID \
+                        else ref.peel(GIT_OBJ_COMMIT)
+
+        if isinstance(head_revision, pygit2.Tag):
+            sha1s_map.add_release(head_revision.hex, ref_name)
+        else:
+            sha1s_map.add_occurrence(head_revision.hex, ref_name)
+
+        # walk_revision_from(repo, head_revision, visited)
+
+
+    return sha1s_map
+
+
+def load_to_back(backend_url, sha1s_map):
+    """Load to the backend_url the repository sha1s_map.
+    """
+    print(sha1s_map)
 
 
 def load(conf):
@@ -128,6 +161,14 @@ def load(conf):
 
     if action == 'load':
         logging.info('load repository %s' % conf['repository'])
-        load_repo(conf['backend_url'], conf['repository'])
+
+        repo_path = conf['repository']
+        if not os.path.exists(repo_path):
+            logging.error('Repository %s does not exist.' % repo_path)
+            raise Exception('Repository %s does not exist.' % repo_path)
+
+        repo = pygit2.Repository(repo_path)
+        sha1s_map = parse(repo)
+        load_to_back(conf['backend_url'], sha1s_map)
     else:
         logging.warn('skip unknown-action %s' % action)
