@@ -6,8 +6,9 @@
 
 # Wrapper of pygit2 object
 class SWHObj():
+    """Wrapper object around pygit2.
+    """
     def __init__(self, obj_type, obj):
-        """"""
         self.obj_type = obj_type
         self.obj = obj
 
@@ -36,12 +37,13 @@ class SWHObj():
         return self.obj.data
 
 
-# Structure with:
-# - list of sha1s
-# - swh objects map (indexed by sha1)
 class SWHMap():
+    """Structure with:
+    - sha1s as list (FIXME: set)
+    - swh objects map (indexed by sha1)
+    """
     def __init__(self):
-        self.sha1s_hex = []
+        self.sha1s_hex = set()
         self.sha1s_map = {}
 
     def add(self, obj_type, obj, sha1=None):
