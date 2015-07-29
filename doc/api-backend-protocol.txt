@@ -19,33 +19,42 @@ happen between 1 worker and the backend api.
 ## 1
 
 A worker parses a repository.
-It sends the parsing result to the backend.
-First, the worker sends a complete list of all sha1s encountered.
-The server responds with a complete list of unknowns sha1s.
+It sends the parsing result to the backend in muliple requests/responses.
+The worker sends list of sha1s (git sha1s) encountered.
+The server responds with an unknowns sha1s list.
 The worker sends those sha1s and their associated data to the server.
 The server store what it receives.
 
 ## 2
 
+From the following section, `checksums` means the git sha1s, the sha1 and sha256
+of the object's content.
+
 01. Worker parses local repository and build a memory model of the repository.
-02. Worker sends repository's list of all encountered sha1s to the backend.
-03. Backend replies with unknown sha1.
-04. Worker sends all `content` data and metadata through 1 (or more) request(s).
-05. Backend stores them and finish the transaction.
-06. Worker sends all `directory`s' data and metadata through 1 (or more) request(s).
-07. Backend stores them and finish the transaction.
-08. Worker sends all `revision`s' data and metadata through 1 (or more) request(s).
-09. Backend stores them and finish the transaction.
-10. Worker is done.
+
+02. Worker sends repository's contents checksums to the backend for it to filter.
+03. Backend replies with unknown contents sha1s.
+04. Worker sends all `content` data through 1 (or more) request(s).
+05. Backend stores them and finish the transaction(s).
+
+06. Worker sends repository's directories' checksums to the backend for it to filter.
+07. Backend replies with unknown directory sha1s.
+08. Worker sends all `directory`s' data through 1 (or more) request(s).
+09. Backend stores them and finish the transaction(s).
+
+10. Worker sends repository's revisions' checksums to the backend.
+11. Backend replies with unknown revisions' sha1s.
+12. Worker sends the `revision`s' data through 1 (or more) request(s).
+13. Backend stores them and finish the transaction(s).
+14. Worker is done.
 
 ## 3
 
-1. Worker parses local repository in mixed top-down/bottom-up (cf.
-git-loading-design.txt) traversal approach and builds a data memory model.
+1. Worker parses repository and builds a data memory model.
 The data memory model has the following structure:
-- sha1s set (no duplicates)
-- sha1s map indexed by sha1, the nature representation of revision, directory,
-content, release is kept.
+- checksums set (no duplicates)
+- checksums map indexed by git sha1, object representation.
+Type of object ; content, directory, revision, release, occurence is kept.
 
 2. Worker sends in the api backend's protocol the sha1s.
 
