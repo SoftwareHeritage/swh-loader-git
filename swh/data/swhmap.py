@@ -40,6 +40,13 @@ class SWHObj():
         """Return the current object's data."""
         return self.obj.data
 
+    def __str__(self):
+        return """SWHObj({
+type: %s,
+sha1: %s,
+})""" % (self.type(),
+         self.sha1())
+
 
 class SWHMap():
     """Structure with:
@@ -47,7 +54,7 @@ class SWHMap():
     - swh objects map (indexed by sha1)
     """
     def __init__(self):
-        self.sha1s_hex = set()
+        self.sha1s_hex = []
         self.sha1s_map = {}
         self.origin = {}
         self.releases = []
@@ -101,6 +108,6 @@ occurrences: %s,
 releases: %s,
 map: %s
 })""" % (self.origin,
-                                          self.occurrences,
-                                          self.releases,
-                                          self.sha1s_map)
+         self.occurrences,
+         self.releases,
+         self.sha1s_map)

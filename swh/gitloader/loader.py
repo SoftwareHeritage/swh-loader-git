@@ -16,10 +16,9 @@ from swh.storage import store
 from swh.data import swhmap
 from swh.http import client
 
-def load_repo(baseurl, repo_path):
-    """Parse git repository `repo_path` and discuss with backend to store the
-    parsing result.
-    """
+def parse(repo):
+    """Given a repository path, parse and return a memory model of such
+    repository."""
     def treewalk(repo, tree, topdown=False):
         """Walk a tree with the same implementation as `os.path`.
         Returns: tree, trees, blobs
@@ -28,7 +27,7 @@ def load_repo(baseurl, repo_path):
         for tree_entry in tree:
             obj = repo.get(tree_entry.oid)
             if obj is None:
-                logging.warn('skip submodule-commit %s' % tree_entry.hex)
+                logging.warn('skip submodule-head_revision %s' % tree_entry.hex)
                 continue  # submodule!
 
             if obj.type == GIT_OBJ_TREE:
@@ -44,85 +43,33 @@ def load_repo(baseurl, repo_path):
         if not topdown:
             yield tree, trees, blobs
 
-    def store_tree_from(repo, commit):
-        """Walk the tree and send the encountered objects to api backend.
+    def walk_revision_from(repo, sha1s_map, head_revision):
+        """Walk the revision from head_revision.
+        - repo is the current repository
+        - head_revision is the latest revision to start from.
         """
-        sha1s_map = swhmap.SWHMap()
-
         for ori_tree_ref, trees_ref, blobs_ref in \
-                treewalk(repo, commit.tree):
+                treewalk(repo, head_revision.tree):
 
-            for blob_ref in blobs_ref:
+             for blob_ref in blobs_ref:
                 data = blob_ref.data
                 blob_data_sha1hex = hash.hashkey_sha1(data).hexdigest()
                 sha1s_map.add(store.Type.content, blob_ref, blob_data_sha1hex)
 
-            for tree_ref in trees_ref:
+             for tree_ref in trees_ref:
                 sha1s_map.add(store.Type.directory, tree_ref)
 
-            sha1s_map.add(store.Type.directory, ori_tree_ref)
+             sha1s_map.add(store.Type.directory, ori_tree_ref)
 
-        sha1s_map.add(store.Type.revision, commit)
+        sha1s_map.add(store.Type.revision, head_revision)
 
         return sha1s_map
 
-    def store_commit(repo, commit_to_store):
-        """Store a commit in swh storage.
-        """
-        sha1s_map = store_tree_from(repo, commit_to_store)
-        sha1s_hex = sha1s_map.get_all_sha1s()
-        unknown_ref_sha1s = client.post(baseurl, {'sha1s': sha1s_hex})
-
-        client.put_all(baseurl, unknown_ref_sha1s, sha1s_map)
-
-    def walk_revision_from(repo, head_revision, visited):
-        """Walk the revision from commit head_revision.
-        - repo is the current repository
-        - head_revision is the latest commit to start from
-        - visited is a memory cache of visited node (implemented as set)
-        """
-        to_visits = [head_revision]  # the nodes to visit topologically
-        to_store = []              # the nodes to store in files + db
-
-        while to_visits:
-            commit = to_visits.pop()
-
-            if commit.type is not GIT_OBJ_COMMIT:
-                continue
-
-            commit_sha1_hex = commit.hex
-            if commit_sha1_hex not in visited \
-               and not client.get(baseurl, store.Type.commit, commit_sha1_hex):
-                visited.add(commit_sha1_hex)
-                to_visits.extend(commit.parents)
-                to_store.append(commit)
-
-        while to_store:
-            store_commit(repo, to_store.pop())
-
-    def walk_references_from(repo):
-        """Walk the references from the repository repo_path.
-        """
-        visited = set()  # global set of visited commits from such repository
-
-        for ref_name in repo.listall_references():
-            logging.info('walk reference %s' % ref_name)
-            ref = repo.lookup_reference(ref_name)
-            head_revision = repo[ref.target] \
-                          if ref.type is GIT_REF_OID \
-                          else ref.peel(GIT_OBJ_COMMIT)  # noqa
-            walk_revision_from(repo, head_revision, visited)
-
-    walk_references_from(pygit2.Repository(repo_path))
-
-
-def parse(repo):
-    """Given a repository path, parse and return a memory model of such
-    repository."""
+    # memory model
     sha1s_map = swhmap.SWHMap()
-
+    # add origin
     sha1s_map.add_origin('git', repo.path)
-
+    # add references and crawl them
     for ref_name in repo.listall_references():
         logging.info('walk reference %s' % ref_name)
 
@@ -134,11 +81,13 @@ def parse(repo):
 
         if isinstance(head_revision, pygit2.Tag):
             sha1s_map.add_release(head_revision.hex, ref_name)
+            head_start = head_revision.get_object()
         else:
             sha1s_map.add_occurrence(head_revision.hex, ref_name)
+            head_start = head_revision
 
-        # walk_revision_from(repo, head_revision, visited)
-
+        # crawl commits and trees
+        walk_revision_from(repo, sha1s_map, head_start)
 
     return sha1s_map
 
