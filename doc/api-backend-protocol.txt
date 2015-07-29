@@ -8,21 +8,8 @@ heritage's backend.
 
 # Nomenclature
 
-## Infrastructure
-
-- swh: software heritage
-- worker: an instance in charge of loading a repository in swh's backend
-- backend: the software heritage storage mechanism used (at the moment,
-postgresql db + file storage) and by extension its api.
-- backend api: internal private api used to by worker and backend to
-communicate. Can be used in `backend`'s stead.
-
-## Object
-
-- revision: A snapshot of a software project at a specific point in time. Ex: git commit
-- directory: A file-system directory. Ex: git tree
-- content: Checksums about actual file content. Ex: git blob's checksum.
-- release: A "memorable" point in the development history of a project. Ex: git's annotated tag
+cf. swh-sql/swh.sql comments
+-> FIXME: find a means to compute docs from sql
 
 # Scenario
 
