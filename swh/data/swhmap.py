@@ -4,8 +4,11 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import pygit2
 
 from datetime import datetime
+
+from swh import hash
 
 
 # Wrapper of pygit2 object
@@ -49,16 +52,42 @@ sha1: %s,
 
 
 class SWHMap():
-    """Structure with:
-    - sha1s as list (FIXME: set)
-    - swh objects map (indexed by sha1)
+    """Data structure that ensures easy access to current keys.
     """
     def __init__(self):
         self.sha1s_hex = []
         self.sha1s_map = {}
+
+    def add(self, sha1, obj):
+        """Add obj with type obj_type and sha1.
+        """
+        self.sha1s_hex.append(sha1)
+        self.sha1s_map[sha1] = obj
+
+    def keys(self):
+        return self.sha1s_hex
+
+    def objects(self):
+        return self.sha1s_map
+
+    def __str__(self):
+        return """SWHMap({
+sha1s: %s,
+map: %s})""" % (self.sha1s_hex.__str__(), self.sha1s_map.__str__())
+
+
+class SWHRepo():
+    """Structure with:
+    - sha1s as list
+    - swh objects map (indexed by sha1)
+    """
+    def __init__(self):
         self.origin = {}
         self.releases = []
         self.occurrences = []
+        self.contents = SWHMap()
+        self.directories = SWHMap()
+        self.revisions = SWHMap()
 
     def add_origin(self, type, url):
         self.origin = {'type': type,
@@ -83,31 +112,35 @@ class SWHMap():
     def get_occurrences(self):
         return self.occurrences
 
-    def add(self, obj_type, obj, sha1=None):
-        """Add obj with type obj_type.
-           If sha1 is specified, use it otherwise takes the obj's sha1.
-        """
-        sha1 = sha1 if sha1 is not None else obj.hex
-        self.sha1s_hex.append(sha1)
-        self.sha1s_map[sha1] = SWHObj(obj_type, obj)
+    def add_content(self, content_ref):
+        self.contents.add(content_ref['sha1'], content_ref)
 
-    def get_all_sha1s(self):
-        """Return the current list of sha1s.
-        """
-        return self.sha1s_hex
+    def get_contents(self):
+        return self.contents
 
-    def get_obj(self, sha1):
-        """Return the detailed object with sha1.
-        """
-        return self.sha1s_map.get(sha1)
+    def add_directory(self, directory):
+        self.directories.add(directory['sha1'], directory)
+
+    def get_directories(self):
+        return self.directories
+
+    def add_revision(self, revision):
+        self.revisions.add(revision['sha1'], revision)
+
+    def get_revisions(self):
+        return self.revisions
 
     def __str__(self):
-        return """SWHMap({
+        return """SWHRepo({
 origin: %s,
 occurrences: %s,
 releases: %s,
-map: %s
+contents: %s,
+directories: %s,
+revisions: %s,
 })""" % (self.origin,
          self.occurrences,
          self.releases,
-         self.sha1s_map)
+         self.contents.__str__(),
+         self.directories.__str__(),
+         self.revisions.__str__())

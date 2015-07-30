@@ -11,6 +11,8 @@ import os
 from pygit2 import GIT_REF_OID
 from pygit2 import GIT_OBJ_COMMIT, GIT_OBJ_TREE
 
+from datetime import datetime
+
 from swh import hash
 from swh.storage import store
 from swh.data import swhmap
@@ -19,60 +21,75 @@ from swh.http import client
 def parse(repo):
     """Given a repository path, parse and return a memory model of such
     repository."""
-    def treewalk(repo, tree, topdown=False):
+    def treewalk(repo, tree):
         """Walk a tree with the same implementation as `os.path`.
         Returns: tree, trees, blobs
         """
-        trees, blobs = [], []
+        trees, blobs, directory_entries = [], [], []
         for tree_entry in tree:
             obj = repo.get(tree_entry.oid)
             if obj is None:
-                logging.warn('skip submodule-head_revision %s' % tree_entry.hex)
+                logging.warn('skip submodule-commit %s' % tree_entry.hex)
                 continue  # submodule!
 
             if obj.type == GIT_OBJ_TREE:
-                trees.append(obj)
+                nature = 'directory'
+                trees.append(tree_entry)
             else:
-                blobs.append(obj)
+                data = obj.data
+                nature = 'file'
+                blobs.append({'sha1': obj.hex,
+                              'content-sha1': hash.hash1(data).hexdigest(),
+                              'content-sha256': hash.hash256(data).hexdigest(),
+                              'content': data,
+                              'size': obj.size,
+                              'obj': obj})
 
-        if topdown:
-            yield tree, trees, blobs
+            directory_entries.append({'name': tree_entry.name,
+                                      'target-sha1': obj.hex,
+                                      'nature': nature,
+                                      'perms': tree_entry.filemode,
+                                      'atime': datetime.utcnow(),  # FIXME use real time
+                                      'mtime': datetime.utcnow(),  # FIXME use real time
+                                      'ctime': datetime.utcnow(),  # FIXME use real time
+                                      'parent': tree.hex})
+
+        yield tree, directory_entries, trees, blobs
         for tree_entry in trees:
-            for x in treewalk(repo, repo[tree_entry.oid], topdown):
+            for x in treewalk(repo, repo[tree_entry.oid]):
                 yield x
-        if not topdown:
-            yield tree, trees, blobs
 
-    def walk_revision_from(repo, sha1s_map, head_revision):
-        """Walk the revision from head_revision.
+    def walk_revision_from(repo, swhrepo, revision):
+        """Walk the revision from revision.
         - repo is the current repository
-        - head_revision is the latest revision to start from.
+        - revision is the latest revision to start from.
         """
-        for ori_tree_ref, trees_ref, blobs_ref in \
-                treewalk(repo, head_revision.tree):
+        for directory_root, directory_entries, _, contents_ref in \
+            treewalk(repo, revision.tree):
+            for content_ref in contents_ref:
+                swhrepo.add_content(content_ref)
 
-             for blob_ref in blobs_ref:
-                data = blob_ref.data
-                blob_data_sha1hex = hash.hashkey_sha1(data).hexdigest()
-                sha1s_map.add(store.Type.content, blob_ref, blob_data_sha1hex)
+            swhrepo.add_directory({'sha1': directory_root.hex,
+                                   'content': directory_root.read_raw(),
+                                   'entries': directory_entries})
 
-             for tree_ref in trees_ref:
-                sha1s_map.add(store.Type.directory, tree_ref)
+        swhrepo.add_revision({'sha1': revision.hex,
+                              'content': revision.read_raw(),
+                              'date': datetime.utcnow(),
+                              'directory': revision.tree.hex,
+                              'message': revision.message,
+                              'committer': revision.committer.name,
+                              'author': revision.author.name})
 
-             sha1s_map.add(store.Type.directory, ori_tree_ref)
-
-        sha1s_map.add(store.Type.revision, head_revision)
-
-        return sha1s_map
+        return swhrepo
 
     # memory model
-    sha1s_map = swhmap.SWHMap()
+    swhrepo = swhmap.SWHRepo()
     # add origin
-    sha1s_map.add_origin('git', repo.path)
+    swhrepo.add_origin('git', repo.path)
     # add references and crawl them
     for ref_name in repo.listall_references():
         logging.info('walk reference %s' % ref_name)
-
         ref = repo.lookup_reference(ref_name)
 
         head_revision = repo[ref.target] \
@@ -80,22 +97,22 @@ def parse(repo):
                         else ref.peel(GIT_OBJ_COMMIT)
 
         if isinstance(head_revision, pygit2.Tag):
-            sha1s_map.add_release(head_revision.hex, ref_name)
+            swhrepo.add_release(head_revision.hex, ref_name)
             head_start = head_revision.get_object()
         else:
-            sha1s_map.add_occurrence(head_revision.hex, ref_name)
+            swhrepo.add_occurrence(head_revision.hex, ref_name)
             head_start = head_revision
 
         # crawl commits and trees
-        walk_revision_from(repo, sha1s_map, head_start)
+        walk_revision_from(repo, swhrepo, head_start)
 
-    return sha1s_map
+    return swhrepo
 
 
-def load_to_back(backend_url, sha1s_map):
-    """Load to the backend_url the repository sha1s_map.
+def load_to_back(backend_url, swhrepo):
+    """Load to the backend_url the repository swhrepo.
     """
-    print(sha1s_map)
+    print(swhrepo)
 
 
 def load(conf):
@@ -117,7 +134,7 @@ def load(conf):
             raise Exception('Repository %s does not exist.' % repo_path)
 
         repo = pygit2.Repository(repo_path)
-        sha1s_map = parse(repo)
-        load_to_back(conf['backend_url'], sha1s_map)
+        swhrepo = parse(repo)
+        load_to_back(conf['backend_url'], swhrepo)
     else:
         logging.warn('skip unknown-action %s' % action)

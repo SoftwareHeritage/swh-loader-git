@@ -18,7 +18,7 @@ class TestHash(unittest.TestCase):
     def compute_sha1_data(self):
         # given
         # when
-        actual_sha1 = hash.hashkey_sha1(b'some data')
+        actual_sha1 = hash.hash1(b'some data')
 
         # then
         self.assertEquals(
@@ -30,7 +30,7 @@ class TestHash(unittest.TestCase):
     def compute_sha1_data2(self):
         # given
         # when
-        actual_sha1 = hash.hashkey_sha1(b'some other data')
+        actual_sha1 = hash.hash1(b'some other data')
 
         # then
         self.assertEquals(

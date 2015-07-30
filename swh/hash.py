@@ -20,13 +20,22 @@ def sha1_hex(binsha1):
     return binascii.hexlify(binsha1)
 
 
-def hashkey_sha1(data):
+def hash1(data):
     """Given some data, compute the hash ready object of such data.
     Return the reference object but not the computation.
     """
     sha1 = hashlib.sha1()
     sha1.update(data)
     return sha1
+
+
+def hash256(data):
+    """Given some data, compute the hash ready object of such data.
+    Return the reference object but not the computation.
+    """
+    sha2 = hashlib.sha256()
+    sha2.update(data)
+    return sha2
 
 
 def blob_sha1(blob_data):
@@ -47,4 +56,4 @@ def sha1(type, data):
     """
     git_format_data = ('%s %d\0%s' % (type, len(data), data)).encode()
 
-    return hashkey_sha1(git_format_data)
+    return hash1(git_format_data)
