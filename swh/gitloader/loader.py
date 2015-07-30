@@ -42,8 +42,7 @@ def parse(repo):
                               'content-sha1': hash.hash1(data).hexdigest(),
                               'content-sha256': hash.hash256(data).hexdigest(),
                               'content': data,
-                              'size': obj.size,
-                              'obj': obj})
+                              'size': obj.size})
 
             directory_entries.append({'name': tree_entry.name,
                                       'target-sha1': obj.hex,
@@ -75,11 +74,11 @@ def parse(repo):
 
         swhrepo.add_revision({'sha1': revision.hex,
                               'content': revision.read_raw(),
-                              'date': datetime.utcnow(),
+                              'date': revision.commit_time,
                               'directory': revision.tree.hex,
                               'message': revision.message,
-                              'committer': revision.committer.name,
-                              'author': revision.author.name})
+                              'committer': revision.committer.email,
+                              'author': revision.author.email})
 
         return swhrepo
 
