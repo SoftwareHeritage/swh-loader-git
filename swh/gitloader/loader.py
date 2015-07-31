@@ -116,6 +116,24 @@ def parse(repo):
 
     return swhrepo
 
+def store_objects(backend_url, obj_type, swhmap):
+    """Load objects to the backend.
+    """
+    # have: filter obj
+    unknown_obj_sha1s = client.post(backend_url,
+                                    obj_type,
+                                    swhmap.keys(),
+                                    key_result='sha1s')
+
+    # seen: now create the data for the backend to store
+    obj_to_store = []
+    obj_map = swhmap.objects()
+    for unknown_ref in unknown_obj_sha1s:
+        obj_to_store.append(obj_map.get(unknown_ref))
+
+    # store unknown objects
+    client.put_all(backend_url, obj_type, obj_to_store)
+
 
 def load_to_back(backend_url, swhrepo):
     """Load to the backend_url the repository swhrepo.
@@ -130,51 +148,9 @@ def load_to_back(backend_url, swhrepo):
 
     print("origin id: ", origin_id)
 
-    ##### contents
+    store_objects(backend_url, store.Type.content, swhrepo.get_contents())
+    store_objects(backend_url, store.Type.directory, swhrepo.get_directories())
 
-    # have: filter contents
-    unknown_content_sha1s = client.post(backend_url,
-                                        store.Type.content,
-                                        swhrepo.get_contents().keys(),
-                                        key_result='sha1s')
-
-    # seen: contents to store in backend
-    contents_to_store = []
-    contents_map = swhrepo.get_contents().objects()
-    for unknown_ref in unknown_content_sha1s:
-        contents_to_store.append(contents_map.get(unknown_ref))
-
-    # store unknown contents
-    client.put_all(backend_url, store.Type.content, contents_to_store)
-
-    ##### directories
-
-    # have: filter contents
-    unknown_directory_sha1s = client.post(backend_url,
-                                          store.Type.directory,
-                                          swhrepo.get_directories().keys(),
-                                          key_result='sha1s')
-    print(unknown_directory_sha1s)
-
-    # seen: contents to store in backend
-    directories_to_store = []
-    directories_map = swhrepo.get_directories().objects()
-    for unknown_ref in unknown_directory_sha1s:
-        obj = directories_map.get(unknown_ref)
-        directories_to_store.append(obj)
-
-    # store unknown directories
-    client.put_all(backend_url, store.Type.directory, directories_to_store)
-
-    # have filter directories...
-
-    ##### directories
-
-    # have: filter occurrences...
-
-    ##### releases
-
-    # have: filter releases...
 
 def load(conf):
     """According to action, load the repository.
