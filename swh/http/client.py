@@ -11,7 +11,6 @@ import json
 
 from retrying import retry
 
-from swh.storage import models
 from swh.retry import policy
 from swh.storage import store
 
@@ -72,7 +71,9 @@ def put(baseurl, obj_type, obj, key_result='sha1s'):
 
 url_store_per_type = {store.Type.origin: "/origins/",
                       store.Type.content: "/vcs/contents/",
-                      store.Type.directory: "/vcs/directories/"}
+                      store.Type.directory: "/vcs/directories/",
+                      store.Type.revision: "/vcs/revisions/",
+                     }
 
 
 # @retry(retry_on_exception=policy.retry_if_connection_error,

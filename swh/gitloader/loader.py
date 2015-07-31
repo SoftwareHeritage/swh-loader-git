@@ -9,6 +9,7 @@ import pygit2
 import os
 import time
 
+from datetime import datetime
 from pygit2 import GIT_REF_OID
 from pygit2 import GIT_OBJ_COMMIT, GIT_OBJ_TREE
 
@@ -17,9 +18,21 @@ from swh.storage import store
 from swh.data import swhmap
 from swh.http import client
 
+def date_format(d):
+    """d is expected to be a datetime object.
+    """
+    return time.strftime("%a, %d %b %Y %H:%M:%S +0000", d.timetuple())
+
+
 def now():
     """Cheat time values."""
-    return time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime())
+    return date_format(datetime.utcnow())
+
+
+def timestamp_to_string(timestamp):
+    """Convert a timestamps to string.
+    """
+    return date_format(datetime.utcfromtimestamp(timestamp))
 
 
 def parse(repo):
@@ -83,7 +96,7 @@ def parse(repo):
 
         swhrepo.add_revision({'sha1': revision.hex,
                               'content': revision.read_raw().decode('utf-8'),
-                              'date': revision.commit_time,
+                              'date': timestamp_to_string(revision.commit_time),
                               'directory': revision.tree.hex,
                               'message': revision.message,
                               'committer': revision.committer.email,
@@ -150,6 +163,7 @@ def load_to_back(backend_url, swhrepo):
 
     store_objects(backend_url, store.Type.content, swhrepo.get_contents())
     store_objects(backend_url, store.Type.directory, swhrepo.get_directories())
+    store_objects(backend_url, store.Type.revision, swhrepo.get_revisions())
 
 
 def load(conf):
