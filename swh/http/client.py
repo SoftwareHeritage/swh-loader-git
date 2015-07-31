@@ -32,67 +32,55 @@ def to_unicode(s):
     return str(s) if isinstance(s, bytes) else s
 
 
-def serialize_object(sha1hex, obj):
-    """Given a sha1hex and an swh object, build query data structure for backend.
-    """
-    obj_type = obj.type()
-    raw_data = to_unicode(obj.read_raw())
-    type_value = obj_type.value
-    if obj_type == models.Type.blob:
-        return {'type': type_value,
-                'content': raw_data,
-                'sha1': sha1hex,
-                'size': obj.size(),
-                'git-sha1': obj.sha1()}
-    else:
-        return {'type': type_value,
-                'sha1': sha1hex,
-                'content': raw_data}
+# url mapping
+url_lookup_per_type = {store.Type.origin: "/origins/",
+                       # store.Type.content: "/vcs/contents/"  # not yet this api
+                       }
 
 
-@retry(retry_on_exception=policy.retry_if_connection_error,
-       wrap_exception=True,
-       stop_max_attempt_number=3)
-def post(baseurl, sha1s):
+# @retry(retry_on_exception=policy.retry_if_connection_error,
+#        wrap_exception=True,
+#        stop_max_attempt_number=3)
+def post(baseurl, obj_type, obj_sha1s, key_result='sha1s'):
     """Retrieve the objects of type type with sha1 sha1hex.
     """
-    url = compute_simple_url(baseurl, "/objects/")
+    url = compute_simple_url(baseurl, url_lookup_per_type.get(obj_type, '/objects/'))
+    body = json.dumps({'sha1s': obj_sha1s})
     r = session_swh.post(url,
-                         data=json.dumps(sha1s),
-                         headers={'Content-type': 'application/json'})
+                         data=body,
+                         headers={'Content-Type': 'application/json'})
     result = r.json()
-    return result['sha1s']
-
-
-# url mapping
-_url_fn = {store.Type.origin: "/origins/"}
+    return result[key_result]
 
 
 # @retry(retry_on_exception=policy.retry_if_connection_error,
 #        wrap_exception=True,
 #        stop_max_attempt_number=3)
 def put(baseurl, obj_type, obj, key_result='sha1s'):
-    """Put """
-    url = compute_simple_url(baseurl, _url_fn[obj_type])
+    """Store the obj of type obj_type in backend.
+       Return the identifier held in the key 'key_result' of the server's
+       response.
+    """
+    url = compute_simple_url(baseurl, url_store_per_type[obj_type])
     body = json.dumps(obj)
     r = session_swh.put(url,
                         data=body,
-                        headers={'Content-type': 'application/json'})
+                        headers={'Content-Type': 'application/json'})
     result = r.json()
     return result[key_result]
 
 
-@retry(retry_on_exception=policy.retry_if_connection_error,
-       wrap_exception=True,
-       stop_max_attempt_number=3)
-def put_all(baseurl, sha1s_hex, sha1s_map):
-    """Given a list of sha1s, put them in the backend."""
-    json_payload = {}
-    for sha1_hex in sha1s_hex:
-        obj = sha1s_map.get_obj(sha1_hex)
-        json_payload[sha1_hex] = serialize_object(sha1_hex, obj)
+url_store_per_type = {store.Type.origin: "/origins/",
+                       store.Type.content: "/vcs/contents/"}
 
-    url = compute_simple_url(baseurl, "/objects/")
+
+# @retry(retry_on_exception=policy.retry_if_connection_error,
+#        wrap_exception=True,
+#        stop_max_attempt_number=3)
+def put_all(baseurl, obj_type, objs_map):
+    """Given a list of sha1s, put them in the backend."""
+    body = json.dumps(objs_map)
+    url = compute_simple_url(baseurl, url_store_per_type.get(obj_type, "/objects/"))
     session_swh.put(url,
-                    data=json.dumps(json_payload),
+                    data=body,
                     headers={'Content-type': 'application/json'})

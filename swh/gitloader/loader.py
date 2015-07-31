@@ -41,7 +41,7 @@ def parse(repo):
                 blobs.append({'sha1': obj.hex,
                               'content-sha1': hash.hash1(data).hexdigest(),
                               'content-sha256': hash.hash256(data).hexdigest(),
-                              'content': data,
+                              'content': data.decode('utf-8'),
                               'size': obj.size})
 
             directory_entries.append({'name': tree_entry.name,
@@ -111,11 +111,47 @@ def parse(repo):
 def load_to_back(backend_url, swhrepo):
     """Load to the backend_url the repository swhrepo.
     """
-    # first, store/retrieve the origin identifier
-    origin_id = client.put(backend_url, store.Type.origin, swhrepo.get_origin(), 'id')
+    ##### origins
 
-    print(origin_id)
-    print(swhrepo)
+    # first, store/retrieve the origin identifier
+    origin_id = client.put(backend_url,
+                           obj_type=store.Type.origin,
+                           obj=swhrepo.get_origin(),
+                           key_result='id')
+
+    print("origin id: ", origin_id)
+
+    ##### contents
+
+
+    # have: filter contents
+    unknown_content_sha1s = client.post(backend_url,
+                                        store.Type.content,
+                                        swhrepo.get_contents().keys(),
+                                        key_result='sha1s')
+
+    # seen: contents to store in backend
+    contents_to_store = []
+    contents_map = swhrepo.get_contents().objects()
+    for unknown_ref in unknown_content_sha1s:
+        contents_to_store.append(contents_map.get(unknown_ref))
+
+    # store unknown contents
+    client.put_all(backend_url, store.Type.content, contents_to_store)
+
+    ##### directories
+
+
+
+    # have filter directories...
+
+    ##### directories
+
+    # have: filter occurrences...
+
+    ##### releases
+
+    # have: filter releases...
 
 def load(conf):
     """According to action, load the repository.
