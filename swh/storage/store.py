@@ -121,7 +121,8 @@ def _add_release(db_conn, vcs_object, sha1hex):
                        vcs_object['revision'],
                        vcs_object['date'],
                        vcs_object['name'],
-                       vcs_object['comment'])
+                       vcs_object['comment'],
+                       vcs_object['author'])
     return sha1hex
 
 

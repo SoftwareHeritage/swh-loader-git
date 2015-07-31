@@ -112,7 +112,8 @@ def build_release(sha1hex, payload):
                     'revision': payload['revision'],
                     'date': payload['date'],
                     'name': payload['name'],
-                    'comment': payload['comment']})
+                    'comment': payload['comment'],
+                    'author': payload['author']})
     return obj
 
 

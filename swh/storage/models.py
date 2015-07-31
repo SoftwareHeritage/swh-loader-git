@@ -104,13 +104,13 @@ def add_revision(db_conn, sha, date, directory, message, author, committer,
                     (sha, parent_sha)))
 
 
-def add_release(db_conn, obj_sha, revision, date, name, comment):
+def add_release(db_conn, obj_sha, revision, date, name, comment, author):
     """Insert a release.
     """
     db.query_execute(db_conn,
-                     ("""INSERT INTO release (id, revision, date, name, comment)
-                         VALUES (%s, %s, %s, %s, %s)""",
-                      (obj_sha, revision, date, name, comment)))
+                     ("""INSERT INTO release (id, revision, date, name, comment, author)
+                         VALUES (%s, %s, %s, %s, %s, %s)""",
+                      (obj_sha, revision, date, name, comment, author)))
 
 
 def add_occurrence(db_conn, url_origin, reference, revision):

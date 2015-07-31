@@ -473,7 +473,8 @@ class ReleaseTestCase(unittest.TestCase):
                                self.revision_sha1_hex,
                                now(),
                                "0.0.1",
-                               "Super release tagged by tony")
+                               "Super release tagged by tony",
+                               "tony")
 
     @istest
     def get_release_ok(self):
@@ -516,7 +517,8 @@ class ReleaseTestCase(unittest.TestCase):
                            'revision': self.revision_sha1_hex,
                            'date': now(),
                            'name': '0.0.1',
-                           'comment': 'super release tagged by ardumont'})
+                           'comment': 'super release tagged by ardumont',
+                           'author': "me, myself and me again"})
 
         rv = self.app.put('/vcs/releases/%s' % release_sha1_hex,
                           data=body,
@@ -695,7 +697,8 @@ class TestObjectsCase(unittest.TestCase):
                                self.revision_sha1_hex,
                                now(),
                                "0.0.1",
-                               "Super release tagged by tony")
+                               "Super release tagged by tony",
+                               "tony")
 
             self.origin_url = "https://github.com/user/repo"
             models.add_origin(db_conn, self.origin_url, 'git')
@@ -877,13 +880,15 @@ class TestObjectsCase(unittest.TestCase):
                              'revision': self.revision_sha1_hex,
                              'date': now(),
                              'name': '0.0.1',
-                             'comment': 'super release tagged by ardumont'},
+                             'comment': 'super release tagged by ardumont',
+                             'author': 'ardumont'},
                             {'sha1': 'another-sha1',
                              'content': 'some content',
                              'revision': self.revision_sha1_hex,
                              'date': now(),
                              'name': '0.0.2',
-                             'comment': 'fix bugs release by zack and olasd'}]
+                             'comment': 'fix bugs release by zack and olasd',
+                             'author': 'the Dude'}]
 
         json_payload_releases = json.dumps(payload_releases)
 
