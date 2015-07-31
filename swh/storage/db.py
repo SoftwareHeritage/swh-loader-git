@@ -19,11 +19,11 @@ def execute(cur, query_params, trace=None):
     - a sql query (string)
     - a tuple (sql query, params)
     """
+    if trace:
+        print("query: ", cur.mogrify(*query_params).decode())
     if isinstance(query_params, str):
         cur.execute(query_params)
     else:
-        if trace is not None:
-            print("mogrify: ", cur.mogrify(*query_params).decode())
         cur.execute(*query_params)
 
 
@@ -39,7 +39,7 @@ def insert(db_conn, query_params, trace=None):
     No check is done.
     """
     with db_conn.cursor() as cur:
-        execute(cur, query_params)
+        execute(cur, query_params, trace)
         result = cur.fetchone()
         return result[0]
 
