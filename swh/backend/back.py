@@ -129,13 +129,20 @@ def build_occurrence(sha1hex, payload):
                     'url-origin': payload['url-origin']})
     return obj
 
+
+def build_origin(sha1hex, payload):
+    """Build an origin.
+    """
+    obj = {'id': payload['url'],
+           'origin-type': payload['type']}
+    return obj
+
 # dispatch on build object function for the right type
 _build_object_fn = {store.Type.revision: build_revision,
                     store.Type.directory: build_directory,
                     store.Type.content: build_content,
                     store.Type.release: build_release,
                     store.Type.occurrence: build_occurrence}
-
 
 # from uri to type
 _uri_types = {'revisions': store.Type.revision,
@@ -197,6 +204,25 @@ def filter_unknowns_objects():
         return make_response('Bad request!', 400)
     else:
         return json.jsonify(sha1s=unknowns_sha1s)
+
+
+@app.route('/origins/', methods=['POST'])
+def post_origin():
+    """Post an origin.
+    """
+    if request.headers.get('Content-Type') != 'application/json':
+        return make_response('Bad request. Expected json data!', 400)
+
+    origin = request.json
+
+    try:
+        origin_found = store.find_origin(app.config['conf'], origin)
+        if origin_found:
+            return json.jsonify(id=origin_found[0])
+        else:
+            return make_response('Origin not found!', 404)
+    except:
+        return make_response('Bad request!', 400)
 
 
 @app.route('/vcs/<uri_type>/', methods=['PUT'])

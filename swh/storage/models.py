@@ -42,7 +42,7 @@ def cleandb(db_conn):
                                  'TRUNCATE TABLE origin CASCADE',
                                  ])
 
-def add_origin(db_conn, type, url, parent=None):
+def add_origin(db_conn, url, type, parent=None):
     """Insert an origin.
     """
     db.query_execute(db_conn,
@@ -152,6 +152,14 @@ def find_occurrences_for_revision(db_conn, revision, type):
                                        WHERE revision=%s""",
                                     (revision,)))
 
+def find_origin(db_conn, url, origin_type):
+    """Find all origins matching an url and an origin type.
+    """
+    return db.query_fetchone(db_conn, ("""SELECT *
+                                       FROM origin
+                                       WHERE url=%s
+                                       AND type=%s""",
+                                       (url, origin_type)))
 
 def find_occurrence(cur, reference, revision, url_origin):
     """Find an ocurrence with reference pointing on valid revision for date.

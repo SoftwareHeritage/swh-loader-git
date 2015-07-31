@@ -16,12 +16,12 @@ _find_object = {Type.occurrence: models.find_occurrences_for_revision}
 def find(config, vcs_object):
     """Find an object according to its sha1hex and type.
     """
-    sha1hex = vcs_object['sha1']
+    id = vcs_object['sha1']   # sha1 for every object except for origin (url)
     type = vcs_object['type']
 
     with db.connect(config['db_url']) as db_conn:
         find_fn  = _find_object.get(type, models.find_object)
-        return find_fn(db_conn, sha1hex, type)
+        return find_fn(db_conn, id, type)
 
 
 def find_unknowns(config, sha1s_hex):
@@ -140,6 +140,20 @@ _store_fn = {Type.content:   _add_content,
              Type.revision:  _add_revision,
              Type.release:   _add_release,
              Type.occurrence: _add_occurrence}
+
+
+def add_origin(config, origin):
+    """A a new origin and returns its id.
+    """
+    with db.connect(config['db_url']) as db_conn:
+        return models.add_origin(db_conn, origin['url'], origin['type'])
+
+
+def find_origin(config, origin):
+    """Find an existing origin.
+    """
+    with db.connect(config['db_url']) as db_conn:
+        return models.find_origin(db_conn, origin['url'], origin['type'])
 
 
 def add(config, vcs_object):

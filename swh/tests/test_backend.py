@@ -38,6 +38,56 @@ def app_client(db_url="dbname=softwareheritage-dev-test"):
 
 
 @attr('slow')
+class OriginTestCase(unittest.TestCase):
+    def setUp(self):
+        self.app, db_url = app_client()
+
+        with db.connect(db_url) as db_conn:
+            self.origin_url = 'https://github.com/torvalds/linux.git'
+            self.origin_type = 'git'
+            models.add_origin(db_conn, self.origin_url, self.origin_type)
+
+    @istest
+    def get_origin_ok(self):
+        # when
+        payload = {'url': self.origin_url,
+                   'type': self.origin_type}
+        rv = self.app.post('/origins/',
+                           data=json.dumps(payload),
+                           headers={'Content-Type': 'application/json'})
+
+        # then
+        assert rv.status_code == 200
+        json_result = json.loads(rv.data.decode('utf-8'))
+        assert json_result['id']
+
+    @istest
+    def get_origin_not_found(self):
+        # when
+        payload = {'url': 'unknown',
+                   'type': 'blah'}
+        rv = self.app.post('/origins/',
+                           data=json.dumps(payload),
+                           headers={'Content-Type': 'application/json'})
+        # then
+        assert rv.status_code == 404
+        assert rv.data == b'Origin not found!'
+
+    @istest
+    def get_origin_not_found_with_bad_format(self):
+        payload = {'url': 'unknown'}  # url and type are mandatory
+        rv = self.app.post('/origins/',
+                           data=json.dumps(payload),
+                           headers={'Content-Type': 'application/json'})
+        # when
+        rv = self.app.post('/origins/',
+                           data=json.dumps(payload),
+                           headers={'Content-Type': 'application/json'})
+        # then
+        assert rv.status_code == 400
+
+
+@attr('slow')
 class HomeTestCase(unittest.TestCase):
     def setUp(self):
         self.app, _ = app_client()
@@ -474,7 +524,7 @@ class OccurrenceTestCase(unittest.TestCase):
                                 "ardumont")
 
             self.origin_url = "https://github.com/user/repo"
-            models.add_origin(db_conn, "git", self.origin_url)
+            models.add_origin(db_conn, self.origin_url, 'git')
 
             models.add_occurrence(db_conn,
                                  self.origin_url,
@@ -605,7 +655,7 @@ class TestObjectsCase(unittest.TestCase):
                                "Super release tagged by tony")
 
             self.origin_url = "https://github.com/user/repo"
-            models.add_origin(db_conn, "git", self.origin_url)
+            models.add_origin(db_conn, self.origin_url, 'git')
 
             models.add_occurrence(db_conn,
                                   self.origin_url,
