@@ -71,7 +71,8 @@ def put(baseurl, obj_type, obj, key_result='sha1s'):
 
 
 url_store_per_type = {store.Type.origin: "/origins/",
-                       store.Type.content: "/vcs/contents/"}
+                      store.Type.content: "/vcs/contents/",
+                      store.Type.directory: "/vcs/directories/"}
 
 
 # @retry(retry_on_exception=policy.retry_if_connection_error,

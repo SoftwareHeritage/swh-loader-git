@@ -7,16 +7,20 @@
 import logging
 import pygit2
 import os
+import time
 
 from pygit2 import GIT_REF_OID
 from pygit2 import GIT_OBJ_COMMIT, GIT_OBJ_TREE
-
-from datetime import datetime
 
 from swh import hash
 from swh.storage import store
 from swh.data import swhmap
 from swh.http import client
+
+def now():
+    """Cheat time values."""
+    return time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime())
+
 
 def parse(repo):
     """Given a repository path, parse and return a memory model of such
@@ -33,31 +37,32 @@ def parse(repo):
                 continue  # submodule!
 
             if obj.type == GIT_OBJ_TREE:
-                nature = 'directory'
+                nature = 'directory'  # FIXME use enum
                 trees.append(tree_entry)
             else:
                 data = obj.data
-                nature = 'file'
+                nature = 'file'  # FIXME use enum
                 blobs.append({'sha1': obj.hex,
                               'content-sha1': hash.hash1(data).hexdigest(),
                               'content-sha256': hash.hash256(data).hexdigest(),
                               'content': data.decode('utf-8'),
                               'size': obj.size})
 
-            directory_entries.append({'name': tree_entry.name,
-                                      'target-sha1': obj.hex,
-                                      'nature': nature,
-                                      'perms': tree_entry.filemode,
-                                      'atime': datetime.utcnow(),  # FIXME use real time
-                                      'mtime': datetime.utcnow(),  # FIXME use real time
-                                      'ctime': datetime.utcnow(),  # FIXME use real time
-                                      'parent': tree.hex})
+                directory_entries.append({'name': tree_entry.name,
+                                          'target-sha1': obj.hex,
+                                          'nature': nature,
+                                          'perms': tree_entry.filemode,
+                                          'atime': now(),  # FIXME use real data
+                                          'mtime': now(),  # FIXME use real data
+                                          'ctime': now(),  # FIXME use real data
+                                          'parent': tree.hex})
 
         yield tree, directory_entries, trees, blobs
         for tree_entry in trees:
             for x in treewalk(repo, repo[tree_entry.oid]):
                 yield x
 
+    # FIXME check all commits are walked
     def walk_revision_from(repo, swhrepo, revision):
         """Walk the revision from revision.
         - repo is the current repository
@@ -68,12 +73,16 @@ def parse(repo):
             for content_ref in contents_ref:
                 swhrepo.add_content(content_ref)
 
+            directory_content = str(directory_root.read_raw())
+            # .decode('utf-8')
+            # FIXME hack to avoid UnicodeDecodeError: 'utf-8' codec can't decode
+            # byte 0x8b in position 17: invalid start byte
             swhrepo.add_directory({'sha1': directory_root.hex,
-                                   'content': directory_root.read_raw(),
+                                   'content': directory_content,
                                    'entries': directory_entries})
 
         swhrepo.add_revision({'sha1': revision.hex,
-                              'content': revision.read_raw(),
+                              'content': revision.read_raw().decode('utf-8'),
                               'date': revision.commit_time,
                               'directory': revision.tree.hex,
                               'message': revision.message,
@@ -123,7 +132,6 @@ def load_to_back(backend_url, swhrepo):
 
     ##### contents
 
-
     # have: filter contents
     unknown_content_sha1s = client.post(backend_url,
                                         store.Type.content,
@@ -141,7 +149,22 @@ def load_to_back(backend_url, swhrepo):
 
     ##### directories
 
+    # have: filter contents
+    unknown_directory_sha1s = client.post(backend_url,
+                                          store.Type.directory,
+                                          swhrepo.get_directories().keys(),
+                                          key_result='sha1s')
+    print(unknown_directory_sha1s)
 
+    # seen: contents to store in backend
+    directories_to_store = []
+    directories_map = swhrepo.get_directories().objects()
+    for unknown_ref in unknown_directory_sha1s:
+        obj = directories_map.get(unknown_ref)
+        directories_to_store.append(obj)
+
+    # store unknown directories
+    client.put_all(backend_url, store.Type.directory, directories_to_store)
 
     # have filter directories...
 
