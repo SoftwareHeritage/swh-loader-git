@@ -33,6 +33,17 @@ def copy_from(cur, file, table):
     cur.copy_from(file, table)
 
 
+def insert(db_conn, query_params, trace=None):
+    """Execute an insertion and returns the identifier.
+    Expect an insert query with the right returning clause.
+    No check is done.
+    """
+    with db_conn.cursor() as cur:
+        execute(cur, query_params)
+        result = cur.fetchone()
+        return result[0]
+
+
 def query_execute(db_conn, query_params, trace=None):
     """Execute one query.
     Type of sql queries: insert, delete, drop, create...
@@ -41,7 +52,7 @@ def query_execute(db_conn, query_params, trace=None):
     - a tuple (sql query, params)
     """
     with db_conn.cursor() as cur:
-        execute(cur, query_params, trace)
+        return execute(cur, query_params, trace)
 
 
 def queries_execute(db_conn, queries_params, trace=None):

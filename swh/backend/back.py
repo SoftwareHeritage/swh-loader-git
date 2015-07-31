@@ -225,6 +225,27 @@ def post_origin():
         return make_response('Bad request!', 400)
 
 
+@app.route('/origins/', methods=['PUT'])
+def put_origin():
+    """Create an origin or returns it if already existing.
+    """
+    if request.headers.get('Content-Type') != 'application/json':
+        return make_response('Bad request. Expected json data!', 400)
+
+    origin = request.json
+
+    try:
+        origin_found = store.find_origin(app.config['conf'], origin)
+        if origin_found:
+            return json.jsonify(id=origin_found[0])  # FIXME 204
+        else:
+            origin_id = store.add_origin(app.config['conf'], origin)
+            return json.jsonify(id=origin_id)  # FIXME 201
+
+    except:
+        return make_response('Bad request!', 400)
+
+
 @app.route('/vcs/<uri_type>/', methods=['PUT'])
 def put_all(uri_type):
     """Store or update given objects (uri_type in {contents, directories, revisions, releases).

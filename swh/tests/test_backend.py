@@ -86,6 +86,49 @@ class OriginTestCase(unittest.TestCase):
         # then
         assert rv.status_code == 400
 
+    @istest
+    def put_origin(self):
+        # when
+        payload = {'url': 'unknown',
+                   'type': 'blah'}
+        rv = self.app.post('/origins/',
+                           data=json.dumps(payload),
+                           headers={'Content-Type': 'application/json'})
+        # then
+        assert rv.status_code == 404
+        assert rv.data == b'Origin not found!'
+
+        # when
+        rv = self.app.put('/origins/',
+                          data=json.dumps(payload),
+                          headers={'Content-Type': 'application/json'})
+
+        # then
+        assert rv.status_code == 200  # fixme 201
+        json_result = json.loads(rv.data.decode('utf-8'))
+        origin_id = json_result['id']
+        assert origin_id
+
+        payload = {'url': 'unknown',
+                   'type': 'blah'}
+        rv = self.app.post('/origins/',
+                           data=json.dumps(payload),
+                           headers={'Content-Type': 'application/json'})
+        # then
+        assert rv.status_code == 200
+        json_result = json.loads(rv.data.decode('utf-8'))
+        assert json_result['id'] == origin_id
+
+        # when
+        rv = self.app.put('/origins/',
+                          data=json.dumps(payload),
+                          headers={'Content-Type': 'application/json'})
+
+        # then
+        assert rv.status_code == 200  # fixme 204
+        json_result = json.loads(rv.data.decode('utf-8'))
+        assert json_result['id'] == origin_id
+
 
 @attr('slow')
 class HomeTestCase(unittest.TestCase):

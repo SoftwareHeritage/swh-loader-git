@@ -42,13 +42,16 @@ def cleandb(db_conn):
                                  'TRUNCATE TABLE origin CASCADE',
                                  ])
 
+
 def add_origin(db_conn, url, type, parent=None):
-    """Insert an origin.
+    """Insert origin and returns the newly inserted id.
     """
-    db.query_execute(db_conn,
+    return db.insert(db_conn,
                      ("""INSERT INTO origin (type, url, parent_id)
-                         VALUES (%s, %s, %s)""",
+                             VALUES (%s, %s, %s)
+                             RETURNING id""",
                       (type, url, parent)))
+
 
 def add_content(db_conn, sha1, sha1_content, sha256_content, size):
     """Insert a new content.
