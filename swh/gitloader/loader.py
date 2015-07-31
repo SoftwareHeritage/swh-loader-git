@@ -111,8 +111,11 @@ def parse(repo):
 def load_to_back(backend_url, swhrepo):
     """Load to the backend_url the repository swhrepo.
     """
-    print(swhrepo)
+    # first, store/retrieve the origin identifier
+    origin_id = client.put(backend_url, store.Type.origin, swhrepo.get_origin(), 'id')
 
+    print(origin_id)
+    print(swhrepo)
 
 def load(conf):
     """According to action, load the repository.

@@ -13,7 +13,7 @@ from retrying import retry
 
 from swh.storage import models
 from swh.retry import policy
-
+from swh.storage import store
 
 session_swh = requests.Session()
 
@@ -62,6 +62,24 @@ def post(baseurl, sha1s):
                          headers={'Content-type': 'application/json'})
     result = r.json()
     return result['sha1s']
+
+
+# url mapping
+_url_fn = {store.Type.origin: "/origins/"}
+
+
+# @retry(retry_on_exception=policy.retry_if_connection_error,
+#        wrap_exception=True,
+#        stop_max_attempt_number=3)
+def put(baseurl, obj_type, obj, key_result='sha1s'):
+    """Put """
+    url = compute_simple_url(baseurl, _url_fn[obj_type])
+    body = json.dumps(obj)
+    r = session_swh.put(url,
+                        data=body,
+                        headers={'Content-type': 'application/json'})
+    result = r.json()
+    return result[key_result]
 
 
 @retry(retry_on_exception=policy.retry_if_connection_error,
