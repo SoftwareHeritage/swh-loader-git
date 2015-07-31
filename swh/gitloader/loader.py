@@ -38,6 +38,9 @@ def timestamp_to_string(timestamp):
 def parse(repo):
     """Given a repository path, parse and return a memory model of such
     repository."""
+    def read_signature(signature):
+        return '%s <%s>' % (signature.name, signature.email)
+
     def treewalk(repo, tree):
         """Walk a tree with the same implementation as `os.path`.
         Returns: tree, trees, blobs
@@ -99,16 +102,17 @@ def parse(repo):
                               'date': timestamp_to_string(revision.commit_time),
                               'directory': revision.tree.hex,
                               'message': revision.message,
-                              'committer': revision.committer.email,
-                              'author': revision.author.email})
+                              'committer': read_signature(revision.committer),
+                              'author': read_signature(revision.author)})
 
         return swhrepo
 
     # memory model
     swhrepo = swhmap.SWHRepo()
     # add origin
-    swhrepo.add_origin({'type': 'git',
-                        'url': 'file://' + repo.path})
+    origin = {'type': 'git',
+              'url': 'file://' + repo.path}
+    swhrepo.add_origin(origin)
     # add references and crawl them
     for ref_name in repo.listall_references():
         logging.info('walk reference %s' % ref_name)
@@ -125,11 +129,14 @@ def parse(repo):
                        'revision': head_revision.target.hex,
                        'name': ref_name,
                        'date': now(),  # FIXME find the tag's date,
-                       'author':  '%s <%s>' % (head_revision.tagger.name, head_revision.tagger.email),
+                       'author':  read_signature(head_revision.tagger),
                        'comment': head_revision.message}
             swhrepo.add_release(release)
         else:
-            swhrepo.add_occurrence(head_revision.hex, ref_name)
+            swhrepo.add_occurrence({'sha1': head_revision.hex,
+                                    'content': '',
+                                    'reference': ref_name,
+                                    'url-origin': origin['url']})
             head_start = head_revision
 
         # crawl commits and trees
@@ -160,16 +167,18 @@ def load_to_back(backend_url, swhrepo):
     """Load to the backend_url the repository swhrepo.
     """
     # first, store/retrieve the origin identifier
-    origin_id = client.put(backend_url,
-                           obj_type=store.Type.origin,
-                           obj=swhrepo.get_origin(),
-                           key_result='id')
-
-    print("origin id: ", origin_id)
+    client.put(backend_url,
+               obj_type=store.Type.origin,
+               obj=swhrepo.get_origin(),
+               key_result='id')
 
     store_objects(backend_url, store.Type.content, swhrepo.get_contents())
     store_objects(backend_url, store.Type.directory, swhrepo.get_directories())
     store_objects(backend_url, store.Type.revision, swhrepo.get_revisions())
+
+    client.put_all(backend_url,
+                   store.Type.occurrence,
+                   swhrepo.get_occurrences())
 
     client.put_all(backend_url,
                    store.Type.release,

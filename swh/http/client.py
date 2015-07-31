@@ -74,6 +74,7 @@ url_store_per_type = {store.Type.origin: "/origins/",
                       store.Type.directory: "/vcs/directories/",
                       store.Type.revision: "/vcs/revisions/",
                       store.Type.release: "/vcs/releases/",
+                      store.Type.occurrence: "/vcs/occurrences/",
                      }
 
 
