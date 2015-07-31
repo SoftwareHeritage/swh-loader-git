@@ -107,7 +107,8 @@ def parse(repo):
     # memory model
     swhrepo = swhmap.SWHRepo()
     # add origin
-    swhrepo.add_origin('git', repo.path)
+    swhrepo.add_origin({'type': 'git',
+                        'url': 'file://' + repo.path})
     # add references and crawl them
     for ref_name in repo.listall_references():
         logging.info('walk reference %s' % ref_name)
@@ -118,8 +119,15 @@ def parse(repo):
                         else ref.peel(GIT_OBJ_COMMIT)
 
         if isinstance(head_revision, pygit2.Tag):
-            swhrepo.add_release(head_revision.hex, ref_name)
             head_start = head_revision.get_object()
+            release = {'sha1': head_revision.hex,
+                       'content': head_revision.read_raw().decode('utf-8'),
+                       'revision': head_revision.target.hex,
+                       'name': ref_name,
+                       'date': now(),  # FIXME find the tag's date,
+                       'author':  '%s <%s>' % (head_revision.tagger.name, head_revision.tagger.email),
+                       'comment': head_revision.message}
+            swhrepo.add_release(release)
         else:
             swhrepo.add_occurrence(head_revision.hex, ref_name)
             head_start = head_revision
@@ -151,8 +159,6 @@ def store_objects(backend_url, obj_type, swhmap):
 def load_to_back(backend_url, swhrepo):
     """Load to the backend_url the repository swhrepo.
     """
-    ##### origins
-
     # first, store/retrieve the origin identifier
     origin_id = client.put(backend_url,
                            obj_type=store.Type.origin,
@@ -164,6 +170,10 @@ def load_to_back(backend_url, swhrepo):
     store_objects(backend_url, store.Type.content, swhrepo.get_contents())
     store_objects(backend_url, store.Type.directory, swhrepo.get_directories())
     store_objects(backend_url, store.Type.revision, swhrepo.get_revisions())
+
+    client.put_all(backend_url,
+                   store.Type.release,
+                   swhrepo.get_releases())
 
 
 def load(conf):

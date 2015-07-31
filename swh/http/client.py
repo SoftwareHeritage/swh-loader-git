@@ -73,6 +73,7 @@ url_store_per_type = {store.Type.origin: "/origins/",
                       store.Type.content: "/vcs/contents/",
                       store.Type.directory: "/vcs/directories/",
                       store.Type.revision: "/vcs/revisions/",
+                      store.Type.release: "/vcs/releases/",
                      }
 
 
@@ -85,4 +86,4 @@ def put_all(baseurl, obj_type, objs_map):
     url = compute_simple_url(baseurl, url_store_per_type.get(obj_type, "/objects/"))
     session_swh.put(url,
                     data=body,
-                    headers={'Content-type': 'application/json'})
+                    headers={'Content-Type': 'application/json'})

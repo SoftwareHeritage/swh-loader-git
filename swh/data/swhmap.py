@@ -4,13 +4,6 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import pygit2
-
-from datetime import datetime
-
-from swh import hash
-
-
 # Wrapper of pygit2 object
 class SWHObj():
     """Wrapper object around pygit2.
@@ -89,25 +82,20 @@ class SWHRepo():
         self.directories = SWHMap()
         self.revisions = SWHMap()
 
-    def add_origin(self, type, url):
-        self.origin = {'type': type,
-                       'url': url}
+    def add_origin(self, origin):
+        self.origin = origin
 
     def get_origin(self):
         return self.origin
 
-    def add_release(self, revision, name):
-        self.releases.append({'revision': revision,
-                              'name': name,
-                              'date': datetime.utcnow()})
+    def add_release(self, release):
+        self.releases.append(release)
 
     def get_releases(self):
         return self.releases
 
-    def add_occurrence(self, revision, name):
-        self.occurrences.append({'revision': revision,
-                                 'reference': name,
-                                 'date': datetime.utcnow()})
+    def add_occurrence(self, occurrence):
+        self.occurrences.append(occurrence)
 
     def get_occurrences(self):
         return self.occurrences
