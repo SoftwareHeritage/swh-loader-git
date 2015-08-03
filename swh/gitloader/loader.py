@@ -164,11 +164,8 @@ def store_objects(backend_url, obj_type, swhmap):
                                     key_result='sha1s')
 
     # seen: now create the data for the backend to store
-    obj_to_store = []
     obj_map = swhmap.objects()
-    for unknown_ref in unknown_obj_sha1s:
-        obj_to_store.append(obj_map.get(unknown_ref))
-
+    obj_to_store = list(map(obj_map.get, unknown_obj_sha1s))  # FIXME: force list for json
     # store unknown objects
     client.put_all(backend_url, obj_type, obj_to_store)
 
