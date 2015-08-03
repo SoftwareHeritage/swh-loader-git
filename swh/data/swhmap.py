@@ -4,46 +4,6 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-# Wrapper of pygit2 object
-class SWHObj():
-    """Wrapper object around pygit2.
-    """
-    def __init__(self, obj_type, obj):
-        self.obj_type = obj_type
-        self.obj = obj
-
-    def type(self):
-        """Return the current obj's swh type.
-        """
-        return self.obj_type
-
-    def read_raw(self):
-        """Return the wrapped pygit2 object.
-        """
-        return self.obj.read_raw()
-
-    def sha1(self):
-       """Return the current object's sha1.
-       """
-       return self.obj.hex
-
-    def size(self):
-       """Return the current object's size.
-       """
-       return self.obj.size
-
-    def data(self):
-        """Return the current object's data."""
-        return self.obj.data
-
-    def __str__(self):
-        return """SWHObj({
-type: %s,
-sha1: %s,
-})""" % (self.type(),
-         self.sha1())
-
-
 class SWHMap():
     """Data structure that ensures easy access to current keys.
     """
