@@ -1,16 +1,24 @@
 #!/usr/bin/env bash
 
+# Use: $0 <DB-name>
+# will compute the number of revision, directory, content from db respectively.
+
+DB=$1
+
 count() {
-    QUERY=$1
-    psql -d swhgitloader --command "$QUERY;" | tail -3 | head -1
+    DB=$1
+    QUERY=$2
+    psql -d $1 --command "$QUERY;" | tail -3 | head -1
 }
 
-NB_COMMITS=$(count "select count(*) from git_objects where type='commit';")
-NB_TREES=$(count "select count(*) from git_objects where type='tree';")
-NB_BLOB=$(count "select count(*) from files;")
+NB_CONTENTS=$(count $DB "select count(*) from content;")
+NB_DIRECTORIES=$(count $DB "select count(*) from directory;")
+NB_REVISIONS=$(count $DB "select count(*) from revision;")
+NB_RELEASES=$(count $DB "select count(*) from release;")
 
 cat<<EOF
-commit $NB_COMMITS
-tree $NB_TREES
-blob $NB_BLOB
+content   $NB_CONTENTS
+directory $NB_DIRECTORIES
+revision  $NB_REVISIONS
+release   $NB_RELEASES
 EOF

@@ -98,7 +98,7 @@ check-meta:
 	@echo
 
 	@echo "DB metadata:"
-	@$(BINDIR)/db-git-repo-meta.sh $(REPO_PATH)
+	@$(BINDIR)/db-git-repo-meta.sh $(DB) $(REPO_PATH)
 	@echo
 
 readme:

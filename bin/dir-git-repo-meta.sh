@@ -15,15 +15,15 @@ data() {
 cd $REPO
 
 if [ "$TYPE" = "all" ]; then
-    NB_COMMITS=$(data "commit")
-    NB_TREES=$(data "tree")
     NB_BLOBS=$(data "blob")
+    NB_TREES=$(data "tree")
+    NB_COMMITS=$(data "commit")
     NB_TAGS=$(data "tag")
     cat <<EOC
+blob   $NB_BLOBS
+tree   $NB_TREES
 commit $NB_COMMITS
-tree $NB_TREES
-blob $NB_BLOBS
-tag $NB_TAGS
+tag    $NB_TAGS
 EOC
 else
     NUM=$(data $TYPE)
