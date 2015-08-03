@@ -166,20 +166,30 @@ def store_objects(backend_url, obj_type, swhmap):
 def load_to_back(backend_url, swhrepo):
     """Load to the backend_url the repository swhrepo.
     """
-    # first, store/retrieve the origin identifier
+    # First, store/retrieve the origin identifier
+    # FIXME: should be done by the cloner worker (which is not yet plugged on the
+    # right swh db ftm)
     client.put(backend_url,
                obj_type=store.Type.origin,
                obj=swhrepo.get_origin(),
                key_result='id')
 
+    # let the backend and api discuss what's really needed
+    # - first this worker sends the checksums
+    # - then the backend answers the checksums it does not know
+    # - then the worker sends only what the backend does not know per
+    # object type basis
     store_objects(backend_url, store.Type.content, swhrepo.get_contents())
     store_objects(backend_url, store.Type.directory, swhrepo.get_directories())
     store_objects(backend_url, store.Type.revision, swhrepo.get_revisions())
 
+    # brutally send all remaining occurrences
     client.put_all(backend_url,
                    store.Type.occurrence,
                    swhrepo.get_occurrences())
 
+    # and releases (the idea here is that compared to existing other objects,
+    # the quantity is less)
     client.put_all(backend_url,
                    store.Type.release,
                    swhrepo.get_releases())
