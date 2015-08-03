@@ -78,7 +78,6 @@ def parse(repo):
             for x in treewalk(repo, repo[tree_entry.oid]):
                 yield x
 
-    # FIXME check all commits are walked
     def walk_revision_from(repo, swhrepo, revision):
         """Walk the revision from revision.
         - repo is the current repository
