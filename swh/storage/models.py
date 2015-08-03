@@ -86,7 +86,7 @@ def add_directory_entry(db_conn, name, sha, type, perms,
 
 
 def add_revision(db_conn, sha, date, directory, message, author, committer,
-                 parent_sha=None):
+                 parent_shas=None):
     """Insert a new revision.
     """
     with db_conn.cursor() as cur:
@@ -96,11 +96,12 @@ def add_revision(db_conn, sha, date, directory, message, author, committer,
                        VALUES (%s, %s, %s, %s, %s, %s)""",
                     (sha, date, directory, message, author, committer)))
 
-        if parent_sha:  # initial commit has no parent
-            db.execute(cur,
-                   ("""INSERT INTO revision_history
-                       (id, parent_id)
-                       VALUES (%s, %s)""",
+        if parent_shas:  # initial commit has no parent
+            for parent_sha in parent_shas:  # FIXME: use one sql query instead
+                db.execute(cur,
+                           ("""INSERT INTO revision_history
+                               (id, parent_id)
+                               VALUES (%s, %s)""",
                     (sha, parent_sha)))
 
 

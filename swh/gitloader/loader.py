@@ -100,7 +100,10 @@ def parse(repo):
                               'directory': revision.tree.hex,
                               'message': revision.message,
                               'committer': read_signature(revision.committer),
-                              'author': read_signature(revision.author)})
+                              'author': read_signature(revision.author),
+                              'parent-sha1s': revision_parent_sha1s  # from oid to string
+                              })
+
         return swhrepo
 
     def walk_revision_from(repo, swhrepo, head_revision):

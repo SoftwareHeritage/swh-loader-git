@@ -97,7 +97,8 @@ def build_revision(sha1hex, payload):
                     'directory': payload['directory'],
                     'message': payload['message'],
                     'author': payload['author'],
-                    'committer': payload['committer']})
+                    'committer': payload['committer'],
+                    'parent-sha1s': payload['parent-sha1s']})
     return obj
 
 
