@@ -109,7 +109,7 @@ def _add_revision(db_conn, vcs_object, sha1hex):
                         vcs_object['message'],
                         vcs_object['author'],
                         vcs_object['committer'],
-                        vcs_object.get('parent-id'))
+                        vcs_object['parent-sha1s'])
     return sha1hex
 
 

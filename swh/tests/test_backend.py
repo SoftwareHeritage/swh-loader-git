@@ -417,7 +417,8 @@ class RevisionTestCase(unittest.TestCase):
                            'directory': self.directory_sha1_hex,
                            'message': 'revision message describing it',
                            'committer': 'ardumont',
-                           'author': 'ardumont'})
+                           'author': 'ardumont',
+                           'parent-sha1s': [self.revision_sha1_hex]})
 
         rv = self.app.put('/vcs/revisions/%s' % revision_sha1_hex,
                           data=body,
@@ -689,7 +690,8 @@ class TestObjectsCase(unittest.TestCase):
                                 self.directory_sha1_hex,
                                 "revision message",
                                 "ardumont",
-                                "ardumont")
+                                "ardumont",
+                                parent_shas=['revision-sha1-to-test-existence9994f717e'])
 
             self.release_sha1_hex = 'release-sha1-to-test-existence1234567901'
             models.add_release(db_conn,

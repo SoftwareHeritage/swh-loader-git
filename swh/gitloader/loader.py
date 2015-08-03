@@ -11,7 +11,7 @@ import time
 
 from datetime import datetime
 from pygit2 import GIT_REF_OID
-from pygit2 import GIT_OBJ_COMMIT, GIT_OBJ_TREE
+from pygit2 import GIT_OBJ_COMMIT, GIT_OBJ_TREE, GIT_SORT_TOPOLOGICAL
 
 from swh import hash
 from swh.storage import store
@@ -78,10 +78,8 @@ def parse(repo):
             for x in treewalk(repo, repo[tree_entry.oid]):
                 yield x
 
-    def walk_revision_from(repo, swhrepo, revision):
-        """Walk the revision from revision.
-        - repo is the current repository
-        - revision is the latest revision to start from.
+    def walk_tree(repo, swhrepo, revision):
+        """Walk the revision's directories.
         """
         for directory_root, directory_entries, _, contents_ref in \
             treewalk(repo, revision.tree):
@@ -103,6 +101,16 @@ def parse(repo):
                               'message': revision.message,
                               'committer': read_signature(revision.committer),
                               'author': read_signature(revision.author)})
+        return swhrepo
+
+    def walk_revision_from(repo, swhrepo, head_revision):
+        """Walk the revision history log from revision.
+        - repo is the current repository
+        - revision is the latest revision to start from.
+        """
+        for revision in repo.walk(head_revision.id, GIT_SORT_TOPOLOGICAL):
+            print("revision_sha1: %s " % revision.hex)
+            swhrepo = walk_tree(repo, swhrepo, revision)
 
         return swhrepo
 
