@@ -923,14 +923,16 @@ class TestObjectsCase(unittest.TestCase):
                               'directory': directory_sha1_unknown,
                               'message': "commit message",
                               'author': "author",
-                              'committer': "committer"},
+                              'committer': "committer",
+                              'parent-sha1s': []},
                              {'sha1': revision_sha1_unknown2,
                               'content': 'some other content',
                               'date': now(),
                               'directory': directory_sha1_unknown,
                               'message': "some other commit message",
                               'author': "author",
-                              'committer': "committer"},
+                              'committer': "committer",
+                              'parent-sha1s': []},
         ]
 
         json_payload_revisions = json.dumps(payload_revisions)
