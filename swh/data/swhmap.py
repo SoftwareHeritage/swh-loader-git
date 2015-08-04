@@ -41,6 +41,7 @@ class SWHRepo():
         self.contents = SWHMap()
         self.directories = SWHMap()
         self.revisions = SWHMap()
+        self.visited = set()
 
     def add_origin(self, origin):
         self.origin = origin
@@ -62,18 +63,24 @@ class SWHRepo():
 
     def add_content(self, content_ref):
         self.contents.add(content_ref['sha1'], content_ref)
+        self.visited.add(content_ref['sha1'])
 
     def get_contents(self):
         return self.contents
 
     def add_directory(self, directory):
         self.directories.add(directory['sha1'], directory)
+        self.visited.add(directory['sha1'])
 
     def get_directories(self):
         return self.directories
 
     def add_revision(self, revision):
         self.revisions.add(revision['sha1'], revision)
+        self.visited.add(revision['sha1'])
+
+    def already_visited(self, sha1):
+        return sha1 in self.visited
 
     def get_revisions(self):
         return self.revisions

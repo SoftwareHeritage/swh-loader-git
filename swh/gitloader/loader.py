@@ -81,6 +81,9 @@ def parse(repo):
     def walk_tree(repo, swhrepo, revision):
         """Walk the revision's directories.
         """
+        if swhrepo.already_visited(revision.hex):
+            return swhrepo
+
         for directory_root, directory_entries, _, contents_ref in \
             treewalk(repo, revision.tree):
             for content_ref in contents_ref:
