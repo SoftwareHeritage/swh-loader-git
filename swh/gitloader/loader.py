@@ -97,6 +97,7 @@ def parse(repo):
                                    'content': directory_content,
                                    'entries': directory_entries})
 
+        revision_parent_sha1s = list(map(str, revision.parent_ids))
         swhrepo.add_revision({'sha1': revision.hex,
                               'content': revision.read_raw().decode('utf-8'),
                               'date': timestamp_to_string(revision.commit_time),
@@ -110,12 +111,11 @@ def parse(repo):
         return swhrepo
 
     def walk_revision_from(repo, swhrepo, head_revision):
-        """Walk the revision history log from revision.
+        """Walk the revision history log from head_revision.
         - repo is the current repository
         - revision is the latest revision to start from.
         """
         for revision in repo.walk(head_revision.id, GIT_SORT_TOPOLOGICAL):
-            print("revision_sha1: %s " % revision.hex)
             swhrepo = walk_tree(repo, swhrepo, revision)
 
         return swhrepo
@@ -160,10 +160,11 @@ def parse(repo):
 def store_objects(backend_url, obj_type, swhmap):
     """Load objects to the backend.
     """
-    # have: filter obj
+    sha1s = swhmap.keys()
+    # have: filter unknown obj
     unknown_obj_sha1s = client.post(backend_url,
                                     obj_type,
-                                    swhmap.keys(),
+                                    sha1s,
                                     key_result='sha1s')
 
     # seen: now create the data for the backend to store
