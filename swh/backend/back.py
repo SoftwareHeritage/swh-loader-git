@@ -200,7 +200,29 @@ def filter_unknowns_objects():
             "Bad request! Expects 'sha1s' key with list of hexadecimal sha1s.",
             400)
 
-    unknowns_sha1s = store.find_unknowns(app.config['conf'], sha1s)
+    unknowns_sha1s = store.find_unknowns(app.config['conf'], None, sha1s)
+
+    if unknowns_sha1s is None:
+        return make_response('Bad request!', 400)
+    else:
+        return json.jsonify(sha1s=unknowns_sha1s)
+
+
+@app.route('/vcs/<uri_type>/', methods=['POST'])
+def filter_unknowns_type(uri_type):
+    """Filters unknown sha1 to the backend and returns them.
+    """
+    if request.headers.get('Content-Type') != 'application/json':
+        return make_response('Bad request. Expected json data!', 400)
+
+    payload = request.get_json()
+    sha1s = payload.get('sha1s')
+    if sha1s is None:
+        return make_response(
+            "Bad request! Expects 'sha1s' key with list of hexadecimal sha1s.",
+            400)
+
+    unknowns_sha1s = store.find_unknowns(app.config['conf'], _uri_types[uri_type], sha1s)
 
     if unknowns_sha1s is None:
         return make_response('Bad request!', 400)

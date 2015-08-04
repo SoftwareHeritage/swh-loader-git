@@ -24,7 +24,12 @@ def find(config, vcs_object):
         return find_fn(db_conn, id, type)
 
 
-def find_unknowns(config, sha1s_hex):
+_find_unknown = {Type.revision: models.find_unknown_revisions,
+                 Type.content: models.find_unknown_contents,
+                 Type.directory: models.find_unknown_directories}
+
+
+def find_unknowns(config, obj_type, sha1s_hex):
     """Given a list of sha1s, return the non presents one in storage.
     """
     def row_to_sha1(row):
@@ -37,8 +42,9 @@ def find_unknowns(config, sha1s_hex):
     cpy_data_buffer.write(vals)
     cpy_data_buffer.seek(0)  # move file cursor back at start of file
 
+    find_unknown_fn = _find_unknown.get(obj_type, models.find_unknowns)
     with db.connect(config['db_url']) as db_conn:
-        unknowns = models.find_unknowns(db_conn, cpy_data_buffer)
+        unknowns = find_unknown_fn(db_conn, cpy_data_buffer)
         cpy_data_buffer.close()
         return list(map(row_to_sha1, unknowns))
 

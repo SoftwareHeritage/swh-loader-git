@@ -33,7 +33,9 @@ def to_unicode(s):
 
 # url mapping
 url_lookup_per_type = {store.Type.origin: "/origins/",
-                       # store.Type.content: "/vcs/contents/"  # not yet this api
+                       store.Type.content: "/vcs/contents/",
+                       store.Type.directory: "/vcs/directories/",
+                       store.Type.revision: "/vcs/revisions/"
                        }
 
 
@@ -43,7 +45,7 @@ url_lookup_per_type = {store.Type.origin: "/origins/",
 def post(baseurl, obj_type, obj_sha1s, key_result='sha1s'):
     """Retrieve the objects of type type with sha1 sha1hex.
     """
-    url = compute_simple_url(baseurl, url_lookup_per_type.get(obj_type, '/objects/'))
+    url = compute_simple_url(baseurl, url_lookup_per_type[obj_type])
     body = json.dumps({'sha1s': obj_sha1s})
     r = session_swh.post(url,
                          data=body,
