@@ -13,15 +13,14 @@ Type = models.Type
 _find_object = {Type.occurrence: models.find_occurrences_for_revision}
 
 
-def find(config, vcs_object):
+def find(db_conn, vcs_object):
     """Find an object according to its sha1hex and type.
     """
     id = vcs_object['sha1']   # sha1 for every object except for origin (url)
     type = vcs_object['type']
 
-    with db.connect(config['db_url']) as db_conn:
-        find_fn  = _find_object.get(type, models.find_object)
-        return find_fn(db_conn, id, type)
+    find_fn  = _find_object.get(type, models.find_object)
+    return find_fn(db_conn, id, type)
 
 
 _find_unknown = {Type.revision: models.find_unknown_revisions,
@@ -163,22 +162,25 @@ def find_origin(config, origin):
         return models.find_origin(db_conn, origin['url'], origin['type'])
 
 
-def add(config, vcs_object):
+def add(db_conn, config, vcs_object):
     """Given a sha1hex, type and content, store a given object in the store.
     """
     type = vcs_object['type']
     sha1hex = vcs_object['sha1']
 
-    with db.connect(config['db_url']) as db_conn:
-        try:
-            res = fs.write_object(config['content_storage_dir'],
-                                  sha1hex,
-                                  vcs_object['content'],
-                                  config['folder_depth'],
-                                  config['storage_compression'])
-            if res is not None:
-                 return _store_fn[type](db_conn, vcs_object, sha1hex)
-        except:  # all kinds of error break the transaction
-            db_conn.rollback()
+    res = fs.write_object(config['content_storage_dir'],
+                          sha1hex,
+                          vcs_object['content'],
+                          config['folder_depth'],
+                          config['storage_compression'])
+    if res is not None:
+        return _store_fn[type](db_conn, vcs_object, sha1hex)
 
-        return False
+    return False
+
+
+def add_revision_history(db_conn, couple_parents):
+    """Given a list of tuple (sha, parent_sha), store in revision_history.
+    """
+    if len(couple_parents) > 0:
+        models.add_revision_history(db_conn, couple_parents)

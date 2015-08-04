@@ -6,11 +6,11 @@
 # See top-level LICENSE file for more information
 
 import logging
-from datetime import datetime
 
+from datetime import datetime
 from flask import Flask, make_response, json, request
 
-from swh.storage import store
+from swh.storage import store, db
 
 app = Flask(__name__)
 
@@ -32,10 +32,12 @@ def lookup(config, vcs_object):
     """
     sha1hex = vcs_object['sha1']
     logging.debug('read %s %s' % (vcs_object['type'], sha1hex))
-    res = store.find(config, vcs_object)
-    if res:
-        return json.jsonify(sha1=sha1hex)  # 200
-    return make_response('Not found!', 404)
+
+    with db.connect(config['db_url']) as db_conn:
+        res = store.find(db_conn, vcs_object)
+        if res:
+            return json.jsonify(sha1=sha1hex)  # 200
+        return make_response('Not found!', 404)
 
 
 def build_content(sha1hex, payload):
@@ -171,19 +173,20 @@ def add_object(config, vcs_object):
     sha1hex = vcs_object['sha1']  # FIXME: remove useless key and send direct list
     logging.debug('store %s %s' % (type, sha1hex))
 
-    if store.find(config, vcs_object):
-        logging.debug('update %s %s' % (sha1hex, type))
-        return make_response('Successful update!', 200)  # immutable
-    else:
-        logging.debug('store %s %s' % (sha1hex, type))
-        res = store.add(config, vcs_object)
-        if res is None:
-            return make_response('Bad request!', 400)
-        elif res is False:
-            logging.error('store %s %s' % (sha1hex, type))
-            return make_response('Internal server error!', 500)
+    with db.connect(config['db_url']) as db_conn:
+        if store.find(db_conn, vcs_object):
+            logging.debug('update %s %s' % (sha1hex, type))
+            return make_response('Successful update!', 200)  # immutable
         else:
-            return make_response('Successful creation!', 204)
+            logging.debug('store %s %s' % (sha1hex, type))
+            res = store.add(db_conn, config, vcs_object)
+            if res is None:
+                return make_response('Bad request!', 400)
+            elif res is False:
+                logging.error('store %s %s' % (sha1hex, type))
+                return make_response('Internal server error!', 500)
+            else:
+                return make_response('Successful creation!', 204)
 
 
 # FIXME: improve payload to have multiple type checksums list
@@ -260,35 +263,77 @@ def put_origin():
         return make_response('Bad request. Expected json data!', 400)
 
     origin = request.json
+    config = app.config['conf']
 
     try:
-        origin_found = store.find_origin(app.config['conf'], origin)
+        origin_found = store.find_origin(config, origin)
         if origin_found:
             return json.jsonify(id=origin_found[0])  # FIXME 204
         else:
-            origin_id = store.add_origin(app.config['conf'], origin)
+            origin_id = store.add_origin(config, origin)
             return json.jsonify(id=origin_id)  # FIXME 201
 
     except:
         return make_response('Bad request!', 400)
 
 
-@app.route('/vcs/<uri_type>/', methods=['PUT'])
-def put_all(uri_type):
-    """Store or update given objects (uri_type in {contents, directories, revisions, releases).
+@app.route('/vcs/revisions/', methods=['PUT'])
+def put_all_revisions():
+    """Store or update given revisions.
     """
     if request.headers.get('Content-Type') != 'application/json':
         return make_response('Bad request. Expected json data!', 400)
 
     payload = request.json
+    obj_type = store.Type.revision
+
+    config = app.config['conf']
+
+    with db.connect(config['db_url']) as db_conn:
+        try:
+            couple_parents = []
+            for obj in payload:  # iterate over objects of type uri_type
+                obj_to_store = _build_object_fn[obj_type](obj['sha1'], obj)
+
+                obj_found = store.find(db_conn, obj_to_store)
+                if not obj_found:
+                    store.add(db_conn, config, obj_to_store)
+
+                    # deal with revision history
+                    parent_shas = obj_to_store.get('parent-sha1s', None)
+                    if parent_shas:
+                        couple_parents.extend([(obj_to_store['sha1'], p) for p in parent_shas])
+
+            store.add_revision_history(db_conn, couple_parents)
+        except:  # all kinds of error break the transaction
+            db_conn.rollback()
+            return make_response('Failure', 500)
+
+    return make_response('Successful creation!', 204)
+
+
+@app.route('/vcs/<uri_type>/', methods=['PUT'])
+def put_all(uri_type):
+    """Store or update given objects (uri_type in {contents, directories, releases).
+    """
+    if request.headers.get('Content-Type') != 'application/json':
+        return make_response('Bad request. Expected json data!', 400)
+    payload = request.json
     obj_type = _uri_types[uri_type]
 
-    for obj in payload:  # iterate over objects of type uri_type
-        obj_to_store = _build_object_fn[obj_type](obj['sha1'], obj)
+    config = app.config['conf']
 
-        obj_found = store.find(app.config['conf'], obj_to_store)
-        if not obj_found:
-            store.add(app.config['conf'], obj_to_store)
+    with db.connect(config['db_url']) as db_conn:
+        try:
+            for obj in payload:  # iterate over objects of type uri_type
+                obj_to_store = _build_object_fn[obj_type](obj['sha1'], obj)
+
+                obj_found = store.find(db_conn, obj_to_store)
+                if not obj_found:
+                    store.add(db_conn, config, obj_to_store)
+        except:  # all kinds of error break the transaction
+            db_conn.rollback()
+            return make_response('Failure', 500)
 
     return make_response('Successful creation!', 204)
 

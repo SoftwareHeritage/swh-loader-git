@@ -87,19 +87,21 @@ def add_directory_entry(db_conn, name, sha, type, perms,
 
 def add_revision(db_conn, sha, date, directory, message, author, committer,
                  parent_shas=None):
-    """Insert a new revision.
+    """Insert a revision.
     """
-    with db_conn.cursor() as cur:
-        db.execute(cur,
-                   ("""INSERT INTO revision
-                       (id, date, directory, message, author, committer)
-                       VALUES (%s, %s, %s, %s, %s, %s)""",
-                    (sha, date, directory, message, author, committer)))
+    db.query_execute(db_conn, ("""INSERT INTO revision
+                                  (id, date, directory, message, author, committer)
+                                  VALUES (%s, %s, %s, %s, %s, %s)""",
+                               (sha, date, directory, message, author, committer)))
 
-        if parent_shas:
-            tuples = ','.join(["('%s','%s')" % (sha, p) for p in parent_shas])
-            query = 'INSERT INTO revision_history (id, parent_id) VALUES ' + tuples
-            db.execute(cur, query)
+
+
+def add_revision_history(db_conn, couple_parents):
+    """Store the revision history graph.
+    """
+    tuples = ','.join(["('%s','%s')" % couple for couple in couple_parents])
+    query = 'INSERT INTO revision_history (id, parent_id) VALUES ' + tuples
+    db.query_execute(db_conn, query)
 
 
 def add_release(db_conn, obj_sha, revision, date, name, comment, author):
