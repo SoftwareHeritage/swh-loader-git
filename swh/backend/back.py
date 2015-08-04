@@ -168,7 +168,7 @@ def add_object(config, vcs_object):
     """Add object in storage.
     """
     type = vcs_object['type']
-    sha1hex = vcs_object['sha1']
+    sha1hex = vcs_object['sha1']  # FIXME: remove useless key and send direct list
     logging.debug('store %s %s' % (type, sha1hex))
 
     if store.find(config, vcs_object):
@@ -186,6 +186,8 @@ def add_object(config, vcs_object):
             return make_response('Successful creation!', 204)
 
 
+# FIXME: improve payload to have multiple type checksums list
+# and return in symmetry in the result with filtered checksums
 @app.route('/objects/', methods=['POST'])
 def filter_unknowns_objects():
     """Filters unknown sha1 to the backend and returns them.
@@ -208,6 +210,7 @@ def filter_unknowns_objects():
         return json.jsonify(sha1s=unknowns_sha1s)
 
 
+#FIXME: add integration tests in backend
 @app.route('/vcs/<uri_type>/', methods=['POST'])
 def filter_unknowns_type(uri_type):
     """Filters unknown sha1 to the backend and returns them.
