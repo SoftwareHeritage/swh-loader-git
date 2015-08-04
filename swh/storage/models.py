@@ -96,13 +96,10 @@ def add_revision(db_conn, sha, date, directory, message, author, committer,
                        VALUES (%s, %s, %s, %s, %s, %s)""",
                     (sha, date, directory, message, author, committer)))
 
-        if parent_shas:  # initial commit has no parent
-            for parent_sha in parent_shas:  # FIXME: use one sql query instead
-                db.execute(cur,
-                           ("""INSERT INTO revision_history
-                               (id, parent_id)
-                               VALUES (%s, %s)""",
-                    (sha, parent_sha)))
+        if parent_shas:
+            tuples = ','.join(["('%s','%s')" % (sha, p) for p in parent_shas])
+            query = 'INSERT INTO revision_history (id, parent_id) VALUES ' + tuples
+            db.execute(cur, query)
 
 
 def add_release(db_conn, obj_sha, revision, date, name, comment, author):
