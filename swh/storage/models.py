@@ -89,7 +89,6 @@ def add_revision(db_conn, sha, date, directory, message, author, committer,
                                (sha, date, directory, message, author, committer)))
 
 
-
 def add_revision_history(db_conn, couple_parents):
     """Store the revision history graph.
     """
