@@ -16,7 +16,7 @@ from test_utils import now, app_client
 
 
 @attr('slow')
-class TestObjectsPerTypeCase(unittest.TestCase):
+class TestPostObjectsPerTypeCase(unittest.TestCase):
     def setUp(self):
         self.app, self.db_url = app_client()
 
@@ -191,13 +191,28 @@ class TestObjectsPerTypeCase(unittest.TestCase):
         assert rv.data  == b'Bad request. Type not supported!'
 
     @istest
-    def post_non_presents_objects_bad_requests(self):
+    def post_non_presents_objects_bad_requests_bad_payload(self):
         # given
 
         # when
-        rv = self.app.post('/vcs/releases/',
-                           data=json.dumps({}),
-                           headers={'Content-Type': 'application/json'})
+        for api in ['contents', 'directories', 'revisions', 'releases']:
+            rv = self.app.post('/vcs/%s/' % api,
+                               data=json.dumps({}),
+                               headers={'Content-Type': 'application/json'})
 
-        # then
-        assert rv.status_code == 400
+            # then
+            assert rv.status_code == 400
+            assert rv.data == b"Bad request! Expects 'sha1s' key with list of hexadecimal sha1s."
+
+    @istest
+    def post_non_presents_objects_bad_requests_format_json(self):
+        # given
+
+        # when
+        for api in ['contents', 'directories', 'revisions', 'releases']:
+            rv = self.app.post('/vcs/%s/' % api,
+                               data="not a json should fail")
+
+            # then
+            assert rv.status_code == 400
+            assert rv.data == b'Bad request. Expected json data!'
