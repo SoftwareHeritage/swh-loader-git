@@ -37,7 +37,7 @@ class ContentTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data == b'{\n  "sha1": "222222f9dd5dc46ee476a8be155ab049994f717e"\n}'
+        assert rv.data == b'{"id": "222222f9dd5dc46ee476a8be155ab049994f717e"}'
 
     @istest
     def get_content_not_found(self):
@@ -85,7 +85,7 @@ class ContentTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data == b'{\n  "sha1": "sha1-contentc46ee476a8be155ab03333333333"\n}'
+        assert rv.data == b'{"id": "sha1-contentc46ee476a8be155ab03333333333"}'
 
         # # we update it
         body = {'sha1': content_sha1,
@@ -105,4 +105,4 @@ class ContentTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data == b'{\n  "sha1": "sha1-contentc46ee476a8be155ab03333333333"\n}'
+        assert rv.data == b'{"id": "sha1-contentc46ee476a8be155ab03333333333"}'

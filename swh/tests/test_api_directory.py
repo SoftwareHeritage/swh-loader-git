@@ -39,7 +39,7 @@ class DirectoryTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data == b'{\n  "sha1": "directory-sha16ee476a8be155ab049994f717e"\n}'
+        assert rv.data == b'{"id": "directory-sha16ee476a8be155ab049994f717e"}'
 
     @istest
     def get_directory_not_found(self):
@@ -100,7 +100,7 @@ class DirectoryTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data == b'{\n  "sha1": "directory-sha16ee476a8be155ab049994f7170"\n}'
+        assert rv.data == b'{"id": "directory-sha16ee476a8be155ab049994f7170"}'
 
         # we update it
         rv = self.app.put('/vcs/directories/directory-sha16ee476a8be155ab049994f7170',
@@ -114,7 +114,7 @@ class DirectoryTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data == b'{\n  "sha1": "directory-sha16ee476a8be155ab049994f7170"\n}'
+        assert rv.data == b'{"id": "directory-sha16ee476a8be155ab049994f7170"}'
 
 
 @attr('slow')
@@ -142,7 +142,7 @@ class RevisionTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data.decode('utf-8') == '{\n  "sha1": "%s"\n}' % self.revision_sha1_hex
+        assert rv.data.decode('utf-8') == '{"id": "%s"}' % self.revision_sha1_hex
 
     @istest
     def get_revision_not_found(self):
@@ -191,7 +191,7 @@ class RevisionTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data.decode('utf-8') == '{\n  "sha1": "%s"\n}' % revision_sha1_hex
+        assert rv.data.decode('utf-8') == '{"id": "%s"}' % revision_sha1_hex
 
         # we update it
         rv = self.app.put('/vcs/revisions/%s' % revision_sha1_hex,
@@ -206,7 +206,7 @@ class RevisionTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data.decode('utf-8') == '{\n  "sha1": "%s"\n}' % revision_sha1_hex
+        assert rv.data.decode('utf-8') == '{"id": "%s"}' % revision_sha1_hex
 
 
 @attr('slow')
@@ -243,7 +243,7 @@ class ReleaseTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data.decode('utf-8') == '{\n  "sha1": "%s"\n}' % self.release_sha1_hex
+        assert rv.data.decode('utf-8') == '{"id": "%s"}' % self.release_sha1_hex
 
     @istest
     def get_release_not_found(self):
@@ -292,7 +292,7 @@ class ReleaseTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data.decode('utf-8') == '{\n  "sha1": "%s"\n}' % release_sha1_hex
+        assert rv.data.decode('utf-8') == '{"id": "%s"}' % release_sha1_hex
 
         # we update it
         rv = self.app.put('/vcs/releases/%s' % release_sha1_hex,
@@ -307,7 +307,7 @@ class ReleaseTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data.decode('utf-8') == '{\n  "sha1": "%s"\n}' % release_sha1_hex
+        assert rv.data.decode('utf-8') == '{"id": "%s"}' % release_sha1_hex
 
 
 @attr('slow')
@@ -398,7 +398,7 @@ class OccurrenceTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data.decode('utf-8') == '{\n  "sha1": "%s"\n}' % occ_revision_sha1_hex
+        assert rv.data.decode('utf-8') == '{"id": "%s"}' % occ_revision_sha1_hex
 
         # we update it
         rv = self.app.put('/vcs/occurrences/%s' % occ_revision_sha1_hex,
@@ -413,7 +413,7 @@ class OccurrenceTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data.decode('utf-8') == '{\n  "sha1": "%s"\n}' % occ_revision_sha1_hex
+        assert rv.data.decode('utf-8') == '{"id": "%s"}' % occ_revision_sha1_hex
 
 
 @attr('slow')
@@ -474,14 +474,14 @@ class TestObjectsCase(unittest.TestCase):
         # given
 
         # when
-        payload = {'sha1s': [self.content_sha1_id,
-                             self.directory_sha1_hex,
-                             self.revision_sha1_hex,
-                             self.revision_sha1_hex,
-                             self.release_sha1_hex,
-                             '555444f9dd5dc46ee476a8be155ab049994f717e',
-                             '555444f9dd5dc46ee476a8be155ab049994f717e',
-                             '666777f9dd5dc46ee476a8be155ab049994f717e']}
+        payload = [self.content_sha1_id,
+                   self.directory_sha1_hex,
+                   self.revision_sha1_hex,
+                   self.revision_sha1_hex,
+                   self.release_sha1_hex,
+                   '555444f9dd5dc46ee476a8be155ab049994f717e',
+                   '555444f9dd5dc46ee476a8be155ab049994f717e',
+                   '666777f9dd5dc46ee476a8be155ab049994f717e']
         json_payload = json.dumps(payload)
 
         rv = self.app.post('/objects/',
@@ -491,26 +491,23 @@ class TestObjectsCase(unittest.TestCase):
         # then
         assert rv.status_code == 200
 
-        json_result = json.loads(rv.data.decode('utf-8'))
-        assert len(json_result.keys()) is 1                                       # only 1 key
-        assert len(json_result['sha1s']) is 2                                     # only 2 sha1s
-        sha1s = json_result['sha1s']
+        sha1s = json.loads(rv.data.decode('utf-8'))
+        assert len(sha1s) is 2                                       # only 1 key
         assert "666777f9dd5dc46ee476a8be155ab049994f717e" in sha1s
         assert "555444f9dd5dc46ee476a8be155ab049994f717e" in sha1s
 
     @istest
-    def get_non_presents_objects_bad_requests(self):
+    def get_non_presents_objects_empty_payload_empty_result(self):
         # given
 
         # when
-        bad_payload = json.dumps({})
-
-        rv = self.app.post('/objects/', data=bad_payload,
+        rv = self.app.post('/objects/',
+                           data=json.dumps({}),
                            headers={'Content-Type': 'application/json'})
 
         # then
-        assert rv.status_code == 400
-        assert rv.data == b"Bad request! Expects 'sha1s' key with list of hexadecimal sha1s."
+        assert rv.status_code == 200
+        assert rv.data == b'[]'
 
     @istest
     def put_non_presents_objects(self):
@@ -522,18 +519,18 @@ class TestObjectsCase(unittest.TestCase):
         release_sha1_unknown = 'release-sha1-46ee476a8be155ab049994f717e'
 
         # given
-        payload_1 = {'sha1s': [self.content_sha1_id,
-                               self.directory_sha1_hex,
-                               self.revision_sha1_hex,
-                               self.revision_sha1_hex,
-                               self.release_sha1_hex,
-                               content_sha1_unknown1,
-                               content_sha1_unknown1,  # duplicates is not a concern
-                               content_sha1_unknown2,
-                               directory_sha1_unknown,
-                               revision_sha1_unknown,
-                               revision_sha1_unknown2,
-                               release_sha1_unknown]}
+        payload_1 = [self.content_sha1_id,
+                     self.directory_sha1_hex,
+                     self.revision_sha1_hex,
+                     self.revision_sha1_hex,
+                     self.release_sha1_hex,
+                     content_sha1_unknown1,
+                     content_sha1_unknown1,  # duplicates is not a concern
+                     content_sha1_unknown2,
+                     directory_sha1_unknown,
+                     revision_sha1_unknown,
+                     revision_sha1_unknown2,
+                     release_sha1_unknown]
 
         json_payload_1 = json.dumps(payload_1)
 
@@ -542,9 +539,7 @@ class TestObjectsCase(unittest.TestCase):
 
         assert rv.status_code == 200
 
-        json_result = json.loads(rv.data.decode('utf-8'))
-        assert len(json_result.keys()) is 1                         # only 1 key
-        sha1s = json_result['sha1s']
+        sha1s = json.loads(rv.data.decode('utf-8'))
         assert len(sha1s) is 6                                      # only 6 sha1s
         assert content_sha1_unknown1 in sha1s
         assert content_sha1_unknown2 in sha1s
@@ -580,9 +575,7 @@ class TestObjectsCase(unittest.TestCase):
 
         assert rv.status_code == 200
 
-        json_result = json.loads(rv.data.decode('utf-8'))
-        assert len(json_result.keys()) is 1                         # only 1 key
-        sha1s = json_result['sha1s']
+        sha1s = json.loads(rv.data.decode('utf-8'))
         assert len(sha1s) is 4                                      # only 2 sha1s
         assert directory_sha1_unknown in sha1s
         assert release_sha1_unknown in sha1s
@@ -627,9 +620,7 @@ class TestObjectsCase(unittest.TestCase):
 
         assert rv.status_code == 200
 
-        json_result = json.loads(rv.data.decode('utf-8'))
-        assert len(json_result.keys()) is 1                         # only 1 key
-        sha1s = json_result['sha1s']
+        sha1s = json.loads(rv.data.decode('utf-8'))
         assert len(sha1s) is 3                                      # only 1 sha1 unknown
         assert release_sha1_unknown in sha1s
         assert revision_sha1_unknown in sha1s
@@ -668,9 +659,7 @@ class TestObjectsCase(unittest.TestCase):
 
         assert rv.status_code == 200
 
-        json_result = json.loads(rv.data.decode('utf-8'))
-        assert len(json_result.keys()) is 1                         # only 1 key
-        sha1s = json_result['sha1s']
+        sha1s = json.loads(rv.data.decode('utf-8'))
         assert len(sha1s) is 2
         assert revision_sha1_unknown in sha1s
         assert revision_sha1_unknown2 in sha1s
@@ -711,9 +700,7 @@ class TestObjectsCase(unittest.TestCase):
 
         assert rv.status_code == 200
 
-        json_result = json.loads(rv.data.decode('utf-8'))
-        assert len(json_result.keys()) is 1                         # only 1 key
-        sha1s = json_result['sha1s']
+        sha1s = json.loads(rv.data.decode('utf-8'))
         assert len(sha1s) is 0
 
 

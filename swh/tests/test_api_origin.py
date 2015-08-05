@@ -23,7 +23,7 @@ class OriginTestCase(unittest.TestCase):
         with db.connect(db_url) as db_conn:
             self.origin_url = 'https://github.com/torvalds/linux.git'
             self.origin_type = 'git'
-            models.add_origin(db_conn, self.origin_url, self.origin_type)
+            self.origin_id = models.add_origin(db_conn, self.origin_url, self.origin_type)
 
     @istest
     def get_origin_ok(self):
@@ -36,8 +36,7 @@ class OriginTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        json_result = json.loads(rv.data.decode('utf-8'))
-        assert json_result['id']
+        assert int(rv.data.decode('utf-8')) == self.origin_id
 
     @istest
     def get_origin_not_found(self):
@@ -83,9 +82,7 @@ class OriginTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200  # fixme 201
-        json_result = json.loads(rv.data.decode('utf-8'))
-        origin_id = json_result['id']
-        assert origin_id
+        assert rv.data
 
         payload = {'url': 'unknown',
                    'type': 'blah'}
@@ -94,8 +91,8 @@ class OriginTestCase(unittest.TestCase):
                            headers={'Content-Type': 'application/json'})
         # then
         assert rv.status_code == 200
-        json_result = json.loads(rv.data.decode('utf-8'))
-        assert json_result['id'] == origin_id
+        origin_id = rv.data.decode('utf-8')
+        assert rv.data
 
         # when
         rv = self.app.put('/origins/',
@@ -104,5 +101,4 @@ class OriginTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200  # fixme 204
-        json_result = json.loads(rv.data.decode('utf-8'))
-        assert json_result['id'] == origin_id
+        assert rv.data.decode('utf-8') == origin_id

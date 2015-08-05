@@ -42,22 +42,21 @@ url_lookup_per_type = {store.Type.origin: "/origins/",
 # @retry(retry_on_exception=policy.retry_if_connection_error,
 #        wrap_exception=True,
 #        stop_max_attempt_number=3)
-def post(baseurl, obj_type, obj_sha1s, key_result='sha1s'):
+def post(baseurl, obj_type, obj_sha1s):
     """Retrieve the objects of type type with sha1 sha1hex.
     """
     url = compute_simple_url(baseurl, url_lookup_per_type[obj_type])
-    body = json.dumps({'sha1s': obj_sha1s})
+    body = json.dumps(obj_sha1s)
     r = session_swh.post(url,
                          data=body,
                          headers={'Content-Type': 'application/json'})
-    result = r.json()
-    return result[key_result]
+    return r.json()
 
 
 # @retry(retry_on_exception=policy.retry_if_connection_error,
 #        wrap_exception=True,
 #        stop_max_attempt_number=3)
-def put(baseurl, obj_type, obj, key_result='sha1s'):
+def put(baseurl, obj_type, obj):
     """Store the obj of type obj_type in backend.
        Return the identifier held in the key 'key_result' of the server's
        response.
@@ -67,8 +66,7 @@ def put(baseurl, obj_type, obj, key_result='sha1s'):
     r = session_swh.put(url,
                         data=body,
                         headers={'Content-Type': 'application/json'})
-    result = r.json()
-    return result[key_result]
+    return r.json()
 
 
 url_store_per_type = {store.Type.origin: "/origins/",

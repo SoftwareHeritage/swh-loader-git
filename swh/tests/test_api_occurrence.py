@@ -103,7 +103,7 @@ class OccurrenceTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data.decode('utf-8') == '{\n  "sha1": "%s"\n}' % occ_revision_sha1_hex
+        assert rv.data.decode('utf-8') == '{"id": "%s"}' % occ_revision_sha1_hex
 
         # we update it
         rv = self.app.put('/vcs/occurrences/%s' % occ_revision_sha1_hex,
@@ -118,4 +118,4 @@ class OccurrenceTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data.decode('utf-8') == '{\n  "sha1": "%s"\n}' % occ_revision_sha1_hex
+        assert rv.data.decode('utf-8') == '{"id": "%s"}' % occ_revision_sha1_hex

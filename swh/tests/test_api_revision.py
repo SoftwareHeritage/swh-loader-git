@@ -40,7 +40,7 @@ class RevisionTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data.decode('utf-8') == '{\n  "sha1": "%s"\n}' % self.revision_sha1_hex
+        assert rv.data.decode('utf-8') == '{"id": "%s"}' % self.revision_sha1_hex
 
     @istest
     def get_revision_not_found(self):
@@ -89,7 +89,7 @@ class RevisionTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data.decode('utf-8') == '{\n  "sha1": "%s"\n}' % revision_sha1_hex
+        assert rv.data.decode('utf-8') == '{"id": "%s"}' % revision_sha1_hex
 
         # we update it
         rv = self.app.put('/vcs/revisions/%s' % revision_sha1_hex,
@@ -104,4 +104,4 @@ class RevisionTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data.decode('utf-8') == '{\n  "sha1": "%s"\n}' % revision_sha1_hex
+        assert rv.data.decode('utf-8') == '{"id": "%s"}' % revision_sha1_hex

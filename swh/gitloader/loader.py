@@ -164,8 +164,7 @@ def store_objects(backend_url, obj_type, swhmap):
     # have: filter unknown obj
     unknown_obj_sha1s = client.post(backend_url,
                                     obj_type,
-                                    sha1s,
-                                    key_result='sha1s')
+                                    sha1s)
 
     # seen: now create the data for the backend to store
     obj_map = swhmap.objects()
@@ -182,8 +181,7 @@ def load_to_back(backend_url, swhrepo):
     # right swh db ftm)
     client.put(backend_url,
                obj_type=store.Type.origin,
-               obj=swhrepo.get_origin(),
-               key_result='id')
+               obj=swhrepo.get_origin())
 
     # let the backend and api discuss what's really needed
     # - first this worker sends the checksums

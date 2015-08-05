@@ -49,7 +49,7 @@ class ReleaseTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data.decode('utf-8') == '{\n  "sha1": "%s"\n}' % self.release_sha1_hex
+        assert rv.data.decode('utf-8') == '{"id": "%s"}' % self.release_sha1_hex
 
     @istest
     def get_release_not_found(self):
@@ -98,7 +98,7 @@ class ReleaseTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data.decode('utf-8') == '{\n  "sha1": "%s"\n}' % release_sha1_hex
+        assert rv.data.decode('utf-8') == '{"id": "%s"}' % release_sha1_hex
 
         # we update it
         rv = self.app.put('/vcs/releases/%s' % release_sha1_hex,
@@ -113,4 +113,4 @@ class ReleaseTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data.decode('utf-8') == '{\n  "sha1": "%s"\n}' % release_sha1_hex
+        assert rv.data.decode('utf-8') == '{"id": "%s"}' % release_sha1_hex

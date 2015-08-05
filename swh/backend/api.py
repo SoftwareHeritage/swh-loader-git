@@ -6,9 +6,10 @@
 # See top-level LICENSE file for more information
 
 import logging
+import json
 
 from datetime import datetime
-from flask import Flask, make_response, json, request
+from flask import Flask, make_response, request
 
 from swh.storage import store, db
 
@@ -36,7 +37,7 @@ def lookup(config, vcs_object):
     with db.connect(config['db_url']) as db_conn:
         res = store.find(db_conn, vcs_object)
         if res:
-            return json.jsonify(sha1=sha1hex)  # 200
+            return json.dumps({'id': sha1hex})  # 200
         return make_response('Not found!', 404)
 
 
@@ -198,18 +199,12 @@ def filter_unknowns_objects():
     if request.headers.get('Content-Type') != 'application/json':
         return make_response('Bad request. Expected json data!', 400)
 
-    payload = request.get_json()
-    sha1s = payload.get('sha1s')
-    if sha1s is None:
-        return make_response(
-            "Bad request! Expects 'sha1s' key with list of hexadecimal sha1s.",
-            400)
-
+    sha1s = request.get_json()
     unknowns_sha1s = store.find_unknowns(app.config['conf'], None, sha1s)
     if unknowns_sha1s is None:
         return make_response('Bad request!', 400)
     else:
-        return json.jsonify(sha1s=unknowns_sha1s)
+        return json.dumps(unknowns_sha1s)
 
 
 # occurrence type is not dealt the same way
@@ -230,17 +225,12 @@ def filter_unknowns_type(uri_type):
     if obj_type is None:
         return make_response('Bad request. Type not supported!', 400)
 
-    sha1s = request.get_json().get('sha1s')
-    if sha1s is None:
-        return make_response(
-            "Bad request! Expects 'sha1s' key with list of hexadecimal sha1s.",
-            400)
-
+    sha1s = request.get_json()
     unknowns_sha1s = store.find_unknowns(app.config['conf'], obj_type, sha1s)
     if unknowns_sha1s is None:
         return make_response('Bad request!', 400)
     else:
-        return json.jsonify(sha1s=unknowns_sha1s)
+        return json.dumps(unknowns_sha1s)
 
 
 @app.route('/origins/', methods=['POST'])
@@ -255,7 +245,7 @@ def post_origin():
     try:
         origin_found = store.find_origin(app.config['conf'], origin)
         if origin_found:
-            return json.jsonify(id=origin_found[0])
+            return json.dumps(origin_found[0])
         else:
             return make_response('Origin not found!', 404)
     except:
@@ -275,10 +265,10 @@ def put_origin():
     try:
         origin_found = store.find_origin(config, origin)
         if origin_found:
-            return json.jsonify(id=origin_found[0])  # FIXME 204
+            return json.dumps(origin_found[0])  # FIXME 204
         else:
             origin_id = store.add_origin(config, origin)
-            return json.jsonify(id=origin_id)  # FIXME 201
+            return json.dumps(origin_id)  # FIXME 201
 
     except:
         return make_response('Bad request!', 400)

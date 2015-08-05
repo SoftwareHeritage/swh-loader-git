@@ -73,10 +73,10 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
         # given
 
         # when
-        payload = {'sha1s': [self.content_sha1_id,
-                             '555444f9dd5dc46ee476a8be155ab049994f717e',
-                             '555444f9dd5dc46ee476a8be155ab049994f717e',
-                             '666777f9dd5dc46ee476a8be155ab049994f717e']}
+        payload = [self.content_sha1_id,
+                   '555444f9dd5dc46ee476a8be155ab049994f717e',
+                   '555444f9dd5dc46ee476a8be155ab049994f717e',
+                   '666777f9dd5dc46ee476a8be155ab049994f717e']
         json_payload = json.dumps(payload)
 
         rv = self.app.post('/vcs/contents/',
@@ -86,10 +86,8 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
         # then
         assert rv.status_code == 200
 
-        json_result = json.loads(rv.data.decode('utf-8'))
-        assert len(json_result.keys()) is 1                                       # only 1 key
-        assert len(json_result['sha1s']) is 2                                     # only 2 sha1s
-        sha1s = json_result['sha1s']
+        sha1s = json.loads(rv.data.decode('utf-8'))
+        assert len(sha1s) is 2                                     # only 2 sha1s
         assert "666777f9dd5dc46ee476a8be155ab049994f717e" in sha1s
         assert "555444f9dd5dc46ee476a8be155ab049994f717e" in sha1s
 
@@ -98,10 +96,10 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
         # given
 
         # when
-        payload = {'sha1s': [self.directory_sha1_hex,
-                             '555444f9dd5dc46ee476a8be155ab049994f717e',
-                             '555444f9dd5dc46ee476a8be155ab049994f717e',
-                             '666777f9dd5dc46ee476a8be155ab049994f717e']}
+        payload = [self.directory_sha1_hex,
+                   '555444f9dd5dc46ee476a8be155ab049994f717e',
+                   '555444f9dd5dc46ee476a8be155ab049994f717e',
+                   '666777f9dd5dc46ee476a8be155ab049994f717e']
         json_payload = json.dumps(payload)
 
         rv = self.app.post('/vcs/directories/',
@@ -111,10 +109,8 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
         # then
         assert rv.status_code == 200
 
-        json_result = json.loads(rv.data.decode('utf-8'))
-        assert len(json_result.keys()) is 1                                       # only 1 key
-        assert len(json_result['sha1s']) is 2                                     # only 2 sha1s
-        sha1s = json_result['sha1s']
+        sha1s = json.loads(rv.data.decode('utf-8'))
+        assert len(sha1s) is 2                                     # only 2 sha1s
         assert "666777f9dd5dc46ee476a8be155ab049994f717e" in sha1s
         assert "555444f9dd5dc46ee476a8be155ab049994f717e" in sha1s
 
@@ -123,11 +119,11 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
         # given
 
         # when
-        payload = {'sha1s': [self.revision_sha1_hex,
-                             self.revision_sha1_hex,
-                             '555444f9dd5dc46ee476a8be155ab049994f717e',
-                             '555444f9dd5dc46ee476a8be155ab049994f717e',
-                             '666777f9dd5dc46ee476a8be155ab049994f717e']}
+        payload = [self.revision_sha1_hex,
+                   self.revision_sha1_hex,
+                   '555444f9dd5dc46ee476a8be155ab049994f717e',
+                   '555444f9dd5dc46ee476a8be155ab049994f717e',
+                   '666777f9dd5dc46ee476a8be155ab049994f717e']
         json_payload = json.dumps(payload)
 
         rv = self.app.post('/vcs/revisions/',
@@ -137,10 +133,8 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
         # then
         assert rv.status_code == 200
 
-        json_result = json.loads(rv.data.decode('utf-8'))
-        assert len(json_result.keys()) is 1                                       # only 1 key
-        assert len(json_result['sha1s']) is 2                                     # only 2 sha1s
-        sha1s = json_result['sha1s']
+        sha1s = json.loads(rv.data.decode('utf-8'))
+        assert len(sha1s) is 2                                     # only 2 sha1s
         assert "666777f9dd5dc46ee476a8be155ab049994f717e" in sha1s
         assert "555444f9dd5dc46ee476a8be155ab049994f717e" in sha1s
 
@@ -149,11 +143,11 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
         # given
 
         # when
-        payload = {'sha1s': [self.release_sha1_hex,
-                             self.release_sha1_hex,
-                             '555444f9dd5dc46ee476a8be155ab049994f717e',
-                             '555444f9dd5dc46ee476a8be155ab049994f717e',
-                             '666777f9dd5dc46ee476a8be155ab049994f717e']}
+        payload = [self.release_sha1_hex,
+                   self.release_sha1_hex,
+                   '555444f9dd5dc46ee476a8be155ab049994f717e',
+                   '555444f9dd5dc46ee476a8be155ab049994f717e',
+                   '666777f9dd5dc46ee476a8be155ab049994f717e']
         json_payload = json.dumps(payload)
 
         rv = self.app.post('/vcs/releases/',
@@ -163,10 +157,8 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
         # then
         assert rv.status_code == 200
 
-        json_result = json.loads(rv.data.decode('utf-8'))
-        assert len(json_result.keys()) is 1                                       # only 1 key
-        assert len(json_result['sha1s']) is 2                                     # only 2 sha1s
-        sha1s = json_result['sha1s']
+        sha1s = json.loads(rv.data.decode('utf-8'))
+        assert len(sha1s) is 2                                     # only 2 sha1s
         assert "666777f9dd5dc46ee476a8be155ab049994f717e" in sha1s
         assert "555444f9dd5dc46ee476a8be155ab049994f717e" in sha1s
 
@@ -175,11 +167,11 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
         # given
 
         # when
-        payload = {'sha1s': [self.revision_sha1_hex,
-                             self.revision_sha1_hex,
-                             '555444f9dd5dc46ee476a8be155ab049994f717e',
-                             '555444f9dd5dc46ee476a8be155ab049994f717e',
-                             '666777f9dd5dc46ee476a8be155ab049994f717e']}
+        payload = [self.revision_sha1_hex,
+                   self.revision_sha1_hex,
+                   '555444f9dd5dc46ee476a8be155ab049994f717e',
+                   '555444f9dd5dc46ee476a8be155ab049994f717e',
+                   '666777f9dd5dc46ee476a8be155ab049994f717e']
         json_payload = json.dumps(payload)
 
         rv = self.app.post('/vcs/occurrences/',
@@ -191,7 +183,7 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
         assert rv.data  == b'Bad request. Type not supported!'
 
     @istest
-    def post_non_presents_objects_bad_requests_bad_payload(self):
+    def post_non_presents_objects_empty_payload_so_empty_results(self):
         # given
 
         # when
@@ -201,8 +193,8 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
                                headers={'Content-Type': 'application/json'})
 
             # then
-            assert rv.status_code == 400
-            assert rv.data == b"Bad request! Expects 'sha1s' key with list of hexadecimal sha1s."
+            assert rv.status_code == 200
+            assert rv.data == b'[]'
 
     @istest
     def post_non_presents_objects_bad_requests_format_json(self):
@@ -211,7 +203,7 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
         # when
         for api in ['contents', 'directories', 'revisions', 'releases']:
             rv = self.app.post('/vcs/%s/' % api,
-                               data="not a json should fail")
+                               data="not json -> fail")
 
             # then
             assert rv.status_code == 400

@@ -75,6 +75,29 @@ test-api:
 test-api-post-per-type:
 	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_api_post_*.py
 
+test-api-object:
+	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_api_object.py
+
+test-api-content:
+	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_api_content.py
+
+test-api-directory:
+	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_api_directory.py
+
+test-api-revision:
+	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_api_revision.py
+
+test-api-release:
+	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_api_release.py
+
+test-api-occurrence:
+	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_api_occurrence.py
+
+test-api-home:
+	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_api_home.py
+
+test-api-origin:
+	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_api_origin.py
 
 connect-db:
 	psql -d $(DB)
