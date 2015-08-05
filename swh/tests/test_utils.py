@@ -4,15 +4,10 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import unittest
-import json
 import time
 
-from nose.tools import istest
-from nose.plugins.attrib import attr
 
-from swh.backend import back
-from swh.storage import db, models
+from swh.backend import api
 
 import test_initdb
 
@@ -24,14 +19,14 @@ def now():
 def app_client(db_url="dbname=softwareheritage-dev-test"):
     """Setup the application ready for testing.
     """
-    back.app.config['conf'] = {'db_url': db_url,
+    api.app.config['conf'] = {'db_url': db_url,
                                'content_storage_dir': '/tmp/swh-git-loader/content-storage',
                                'log_dir': '/tmp/swh-git-loader/log',
                                'folder_depth': 2,
                                'storage_compression': None,
                                'debug': 'true'}
 
-    back.app.config['TESTING'] = True
-    app = back.app.test_client()
+    api.app.config['TESTING'] = True
+    app = api.app.test_client()
     test_initdb.prepare_db(db_url)
     return app, db_url
