@@ -206,7 +206,6 @@ def filter_unknowns_objects():
             400)
 
     unknowns_sha1s = store.find_unknowns(app.config['conf'], None, sha1s)
-
     if unknowns_sha1s is None:
         return make_response('Bad request!', 400)
     else:
