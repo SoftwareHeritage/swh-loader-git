@@ -70,7 +70,7 @@ test-loader:
 	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_loader.py
 
 test-api:
-	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_backend.py
+	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_api*.py
 
 connect-db:
 	psql -d $(DB)
