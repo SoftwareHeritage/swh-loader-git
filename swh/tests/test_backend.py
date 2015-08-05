@@ -6,35 +6,13 @@
 
 import unittest
 import json
-import time
 
 from nose.tools import istest
 from nose.plugins.attrib import attr
 
-from swh.backend import back
 from swh.storage import db, models
 
-import test_initdb
-
-def now():
-    "Build the date as of now in the api's format."
-    return time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime())
-
-
-def app_client(db_url="dbname=softwareheritage-dev-test"):
-    """Setup the application ready for testing.
-    """
-    back.app.config['conf'] = {'db_url': db_url,
-                               'content_storage_dir': '/tmp/swh-git-loader/content-storage',
-                               'log_dir': '/tmp/swh-git-loader/log',
-                               'folder_depth': 2,
-                               'storage_compression': None,
-                               'debug': 'true'}
-
-    back.app.config['TESTING'] = True
-    app = back.app.test_client()
-    test_initdb.prepare_db(db_url)
-    return app, db_url
+from test_utils import now, app_client
 
 
 @attr('slow')
