@@ -12,13 +12,7 @@ from swh.storage import db
 class Type(Enum):
     """Types of git objects.
     """
-    # # git specific
-    # commit = 'commit' # useless
-    # tree = 'tree'     # useless
-    # blob = 'blob'     # useless
-    # tag = 'tag'       # useless
-    # abstract type
-    occurrence = 'occurrence'             # ~git branch
+    occurrence = 'occurrence'           # ~git branch
     release = 'release'                 # ~git annotated tag
     revision = 'revision'               # ~git commit
     directory = 'directory'             # ~git tree
