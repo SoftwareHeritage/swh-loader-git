@@ -176,58 +176,42 @@ def find_object(db_conn, obj_sha, obj_type):
     return db.query_fetchone(db_conn, (query, (obj_sha,)))
 
 
-def find_unknown_revisions(db_conn, file_sha1s):  # FIXME: refactor find_unknown_{revisions,directories,contents}
-    """Given a list of revision sha1s (inside the file_sha1s reference),
-    returns the objects list of sha1 non-presents in db.
+def filter_unknown_objects(db_conn, file_sha1s, table_to_filter, table_temp_filter_name):
+    """Given a list of sha1s, filter the unknown object between this list and
+    the content of the table table_to_filter.
+    table_temp_filter_name is the temporary table used to filter.
     """
     with db_conn.cursor() as cur:
         # explicit is better than implicit
         # simply creating the temporary table seems to be enough
-        # (no drop, nor truncate) but this is not explained in documentation
-        db.execute(cur, """CREATE TEMPORARY TABLE IF NOT EXISTS filter_sha1_revision(
+        db.execute(cur, """CREATE TEMPORARY TABLE IF NOT EXISTS %s(
                              id git_object_id)
-                           ON COMMIT DELETE ROWS;""")
-        db.copy_from(cur, file_sha1s, 'filter_sha1_revision')
-        db.execute(cur, ("""(SELECT id FROM filter_sha1_revision)
-                            EXCEPT
-                            (SELECT id FROM revision);"""))
+                           ON COMMIT DELETE ROWS;""" % table_temp_filter_name)
+        db.copy_from(cur, file_sha1s, table_temp_filter_name)
+        db.execute(cur, '(SELECT id FROM %s) EXCEPT (SELECT id FROM %s);' %
+                   (table_temp_filter_name, table_to_filter))
         return cur.fetchall()
+
+
+def find_unknown_revisions(db_conn, file_sha1s):
+    """Filter unknown revisions from file_sha1s.
+    """
+    return filter_unknown_objects(db_conn, file_sha1s, 'revision',
+                                  'filter_sha1_revision')
 
 
 def find_unknown_directories(db_conn, file_sha1s):
-    """Given a list of directory sha1s (inside the file_sha1s reference),
-    returns the objects list of sha1 non-presents in db.
+    """Filter unknown directories from file_sha1s.
     """
-    with db_conn.cursor() as cur:
-        # explicit is better than implicit
-        # simply creating the temporary table seems to be enough
-        # (no drop, nor truncate) but this is not explained in documentation
-        db.execute(cur, """CREATE TEMPORARY TABLE IF NOT EXISTS filter_sha1_directory(
-                             id git_object_id)
-                           ON COMMIT DELETE ROWS;""")
-        db.copy_from(cur, file_sha1s, 'filter_sha1_directory')
-        db.execute(cur, ("""(SELECT id FROM filter_sha1_directory)
-                            EXCEPT
-                            (SELECT id FROM directory);"""))
-        return cur.fetchall()
+    return filter_unknown_objects(db_conn, file_sha1s, 'directory',
+                                  'filter_sha1_directory')
 
 
 def find_unknown_contents(db_conn, file_sha1s):
-    """Given a list of content sha1s (inside the file_sha1s reference),
-    returns the objects list of sha1 non-presents in db.
+    """Filter unknown contents from file_sha1s.
     """
-    with db_conn.cursor() as cur:
-        # explicit is better than implicit
-        # simply creating the temporary table seems to be enough
-        # (no drop, nor truncate) but this is not explained in documentation
-        db.execute(cur, """CREATE TEMPORARY TABLE IF NOT EXISTS filter_sha1_content(
-                             id git_object_id)
-                           ON COMMIT DELETE ROWS;""")
-        db.copy_from(cur, file_sha1s, 'filter_sha1_content')
-        db.execute(cur, ("""(SELECT id FROM filter_sha1_content)
-                            EXCEPT
-                            (SELECT id FROM content);"""))
-        return cur.fetchall()
+    return filter_unknown_objects(db_conn, file_sha1s, 'content',
+                                  'filter_sha1_content')
 
 
 def find_unknowns(db_conn, file_sha1s):  # FIXME obsolete?
@@ -237,7 +221,6 @@ def find_unknowns(db_conn, file_sha1s):  # FIXME obsolete?
     with db_conn.cursor() as cur:
         # explicit is better than implicit
         # simply creating the temporary table seems to be enough
-        # (no drop, nor truncate) but this is not explained in documentation
         db.execute(cur, """CREATE TEMPORARY TABLE IF NOT EXISTS filter_sha1(
                              id git_object_id)
                            ON COMMIT DELETE ROWS;""")
