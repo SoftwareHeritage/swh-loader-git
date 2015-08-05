@@ -72,6 +72,9 @@ test-loader:
 test-api:
 	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_api*.py
 
+test-api-per-type:
+	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_api_post_put_*.py
+
 connect-db:
 	psql -d $(DB)
 

@@ -190,7 +190,7 @@ def add_object(config, vcs_object):
 
 
 # FIXME: improve payload to have multiple type checksums list
-# and return in symmetry in the result with filtered checksums
+# and return symmetrically the result with filtered checksums per type
 @app.route('/objects/', methods=['POST'])
 def filter_unknowns_objects():
     """Filters unknown sha1 to the backend and returns them.
@@ -213,7 +213,13 @@ def filter_unknowns_objects():
         return json.jsonify(sha1s=unknowns_sha1s)
 
 
-#FIXME: add integration tests in backend
+# occurrence type is not dealt the same way
+_post_all_uri_types = {'revisions': store.Type.revision,
+                       'directories': store.Type.directory,
+                       'contents': store.Type.content,
+                       'releases': store.Type.release}
+
+
 @app.route('/vcs/<uri_type>/', methods=['POST'])
 def filter_unknowns_type(uri_type):
     """Filters unknown sha1 to the backend and returns them.
@@ -221,15 +227,17 @@ def filter_unknowns_type(uri_type):
     if request.headers.get('Content-Type') != 'application/json':
         return make_response('Bad request. Expected json data!', 400)
 
-    payload = request.get_json()
-    sha1s = payload.get('sha1s')
+    obj_type = _post_all_uri_types.get(uri_type)
+    if obj_type is None:
+        return make_response('Bad request. Type not supported!', 400)
+
+    sha1s = request.get_json().get('sha1s')
     if sha1s is None:
         return make_response(
             "Bad request! Expects 'sha1s' key with list of hexadecimal sha1s.",
             400)
 
-    unknowns_sha1s = store.find_unknowns(app.config['conf'], _uri_types[uri_type], sha1s)
-
+    unknowns_sha1s = store.find_unknowns(app.config['conf'], obj_type, sha1s)
     if unknowns_sha1s is None:
         return make_response('Bad request!', 400)
     else:
