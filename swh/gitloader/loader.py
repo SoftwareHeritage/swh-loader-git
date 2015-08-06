@@ -12,12 +12,20 @@ import time
 from datetime import datetime
 from pygit2 import GIT_REF_OID
 from pygit2 import GIT_OBJ_COMMIT, GIT_OBJ_TREE, GIT_SORT_TOPOLOGICAL
+from enum import Enum
 
 from swh import hash
 from swh.storage import store
 from swh.data import swhmap
 from swh.http import client
 
+class DirectoryTypeEntry(Enum):
+    """Types of git objects.
+    """
+    file = 'file'
+    directory = 'directory'
+
+    
 def date_format(d):
     """d is expected to be a datetime object.
     """
@@ -53,11 +61,11 @@ def parse(repo):
                 continue  # submodule!
 
             if obj.type == GIT_OBJ_TREE:
-                nature = 'directory'  # FIXME use enum
+                nature = DirectoryTypeEntry.directory.value
                 trees.append(tree_entry)
             else:
                 data = obj.data
-                nature = 'file'  # FIXME use enum
+                nature = DirectoryTypeEntry.file.value
                 blobs.append({'sha1': obj.hex,
                               'content-sha1': hash.hash1(data).hexdigest(),
                               'content-sha256': hash.hash256(data).hexdigest(),
