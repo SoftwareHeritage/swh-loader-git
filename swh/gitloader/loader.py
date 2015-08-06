@@ -87,14 +87,14 @@ def parse(repo):
                               'content': convert_problematic_data(data),
                               'size': obj.size})
 
-                directory_entries.append({'name': tree_entry.name,
-                                          'target-sha1': obj.hex,
-                                          'nature': nature,
-                                          'perms': tree_entry.filemode,
-                                          'atime': now(),  # FIXME use real data
-                                          'mtime': now(),  # FIXME use real data
-                                          'ctime': now(),  # FIXME use real data
-                                          'parent': tree.hex})
+            directory_entries.append({'name': tree_entry.name,
+                                      'target-sha1': obj.hex,
+                                      'nature': nature,
+                                      'perms': tree_entry.filemode,
+                                      'atime': now(),  # FIXME use real data
+                                      'mtime': now(),  # FIXME use real data
+                                      'ctime': now(),  # FIXME use real data
+                                      'parent': tree.hex})
 
         yield tree, directory_entries, trees, blobs
         for tree_entry in trees:
