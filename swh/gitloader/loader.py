@@ -76,9 +76,11 @@ def parse(repo):
                 continue  # submodule!
 
             if obj.type == GIT_OBJ_TREE:
+                logging.debug('found tree %s' % tree_entry.hex)
                 nature = DirectoryTypeEntry.directory.value
                 trees.append(tree_entry)
             else:
+                logging.debug('found content %s' % tree_entry.hex)
                 data = obj.data
                 nature = DirectoryTypeEntry.file.value
                 blobs.append({'sha1': obj.hex,
@@ -87,6 +89,7 @@ def parse(repo):
                               'content': convert_problematic_data(data),
                               'size': obj.size})
 
+            logging.debug('(name: %s, target: %s, nat: %s, perms: %s, parent: %s) ' % (tree_entry.name, obj.hex, nature, tree_entry.filemode, tree.hex))
             directory_entries.append({'name': tree_entry.name,
                                       'target-sha1': obj.hex,
                                       'nature': nature,
@@ -105,6 +108,7 @@ def parse(repo):
         """Walk the revision's directories.
         """
         if swhrepo.already_visited(revision.hex):
+            logging.debug('commit %s already visited, skipped' % revision.hex)
             return swhrepo
 
         for directory_root, directory_entries, _, contents_ref in \
