@@ -42,26 +42,14 @@ def timestamp_to_string(timestamp):
     """
     return date_format(datetime.utcfromtimestamp(timestamp))
 
-import zlib
 
-    
-def convert_problematic_data(obj_type, data):
+def convert_problematic_data(data):
     """Convert data to the right format.
     # FIXME: use data.decode('utf-8')), -> fails with
     # UnicodeDecodeError: 'utf-8' codec can't decode byte 0xa8 in position 14: invalid start byte
     # when fixed, remove this function and use `convert_data` instead.
     """
-    try:
-        return convert_data(data)
-    except:
-        try:
-            return data.decode('unicode-escape')
-        except:
-            if obj_type is store.Type.content:
-                return str(data)
-            else:
-                print('real oops data for %s: %s' % (obj_type, data))
-                return zlib.decompress(data).decode('unicode-escape')
+    return str(data)
 
 
 def convert_data(data):
@@ -98,7 +86,7 @@ def parse(repo):
                 blobs.append({'sha1': obj.hex,
                               'content-sha1': hash.hash1(data).hexdigest(),
                               'content-sha256': hash.hash256(data).hexdigest(),
-                              'content': convert_problematic_data(store.Type.content, data),
+                              'content': convert_problematic_data(data),
                               'size': obj.size})
 
             logging.debug('(name: %s, target: %s, nat: %s, perms: %s, parent: %s) ' % (tree_entry.name, obj.hex, nature, tree_entry.filemode, tree.hex))
@@ -128,7 +116,7 @@ def parse(repo):
             for content_ref in contents_ref:
                 swhrepo.add_content(content_ref)
 
-            directory_content = convert_problematic_data(store.Type.directory, directory_root.read_raw())
+            directory_content = convert_problematic_data(directory_root.read_raw())
             swhrepo.add_directory({'sha1': directory_root.hex,
                                    'content': directory_content,
                                    'entries': directory_entries})
