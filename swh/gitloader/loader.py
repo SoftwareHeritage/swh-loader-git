@@ -21,14 +21,16 @@ def load(conf):
     action = conf['action']
 
     if action == 'load':
-        logging.info('load repository %s' % conf['repository'])
-
         repo_path = conf['repository']
+        backend_url = conf['backend_url']
+        logging.info('load repository %s' % repo_path)
+
         if not os.path.exists(repo_path):
-            logging.error('Repository %s does not exist.' % repo_path)
-            raise Exception('Repository %s does not exist.' % repo_path)
+            error_msg = 'Repository %s does not exist.' % repo_path
+            logging.error(error_msg)
+            raise Exception(error_msg)
 
         swhrepo = git.parse(repo_path)
-        store.load_to_back(conf['backend_url'], swhrepo)
+        store.load_to_back(backend_url, swhrepo)
     else:
         logging.warn('skip unknown-action %s' % action)
