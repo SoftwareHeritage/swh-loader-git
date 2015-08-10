@@ -31,18 +31,21 @@ url_lookup_per_type = {store.Type.origin: "/origins/",
                        }
 
 
-@retry(retry_on_exception=policy.retry_if_connection_error,
-       wrap_exception=True,
-       stop_max_attempt_number=3)
+# @retry(retry_on_exception=policy.retry_if_connection_error,
+#        wrap_exception=True,
+#        stop_max_attempt_number=3)
 def post(baseurl, obj_type, obj_sha1s):
     """Retrieve the objects of type type with sha1 sha1hex.
     """
+    if not obj_sha1s:
+        return []
+
     url = compute_simple_url(baseurl, url_lookup_per_type[obj_type])
     body = serial.dumps(obj_sha1s)
     r = session_swh.post(url,
                          data=body,
                          headers={'Content-Type': serial.MIMETYPE})
-    return serial.json(r.data)
+    return serial.loads(r.content)
 
 
 # @retry(retry_on_exception=policy.retry_if_connection_error,
@@ -53,12 +56,15 @@ def put(baseurl, obj_type, obj):
        Return the identifier held in the key 'key_result' of the server's
        response.
     """
+    if not obj:
+        return None
+
     url = compute_simple_url(baseurl, url_store_per_type[obj_type])
-    body = json.dumps(obj)
+    body = serial.dumps(obj)
     r = session_swh.put(url,
-                        data=body,
-                        headers={'Content-Type': 'application/json'})
-    return r.json()
+                           data=body,
+                           headers={'Content-Type': serial.MIMETYPE})
+    return serial.loads(r.content)
 
 
 url_store_per_type = {store.Type.origin: "/origins/",
@@ -70,14 +76,17 @@ url_store_per_type = {store.Type.origin: "/origins/",
                      }
 
 
-@retry(retry_on_exception=policy.retry_if_connection_error,
-       wrap_exception=True,
-       stop_max_attempt_number=3)
+# @retry(retry_on_exception=policy.retry_if_connection_error,
+#        wrap_exception=True,
+#        stop_max_attempt_number=3)
 def put_all(baseurl, obj_type, objs_map):
     """Given a list of sha1s, put them in the backend."""
+    if not objs_map:
+        return []
+
     url = compute_simple_url(baseurl, url_store_per_type.get(obj_type, "/objects/"))
     body = serial.dumps(objs_map)
     r = session_swh.put(url,
                         data=body,
                         headers={'Content-Type': serial.MIMETYPE})
-    return serial.json(r.data)
+    return serial.loads(r.content)
