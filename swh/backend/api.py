@@ -7,6 +7,7 @@
 
 import logging
 import json
+import pickle
 
 from datetime import datetime
 from flask import Flask, make_response, request
@@ -22,6 +23,17 @@ def hello():
     FIXME: A redirect towards a static page defining the routes would be nice.
     """
     return 'Dev SWH API'
+
+
+@app.route('/pickle', methods=['POST'])
+def pickle_tryout():
+    """Test pickle.
+    """
+    stream = request.stream
+    print("stream: %s" % stream)
+    unpickled = pickle.load(stream)
+    print("unpickled data: %s" % unpickled)
+    return make_response('Received!', 200)
 
 
 def lookup(config, vcs_object):

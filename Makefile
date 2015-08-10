@@ -99,6 +99,9 @@ test-api-home:
 test-api-origin:
 	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_api_origin.py
 
+test-api-pickle:
+	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_api_pickle.py
+
 connect-db:
 	psql -d $(DB)
 
