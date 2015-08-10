@@ -20,6 +20,8 @@ def load(file_or_handle):
 def loads(obj):
     """Read a pickled object from bytes object.
     """
+    if obj == b'':
+        return obj
     return pickle.loads(obj)
 
 
