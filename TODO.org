@@ -37,13 +37,13 @@ CLOSED: [2015-07-22 Wed 12:20]
 - [X] Enforce retrying policy on http client requests
 - [X] Share http connection throughout the git repository parsing
 
-* swh implementation
+* IN-PROGRESS swh implementation
 
 - [X] One content storage (2 were used, one for content, one for revision/directory)
-- [ ] Improve api backend to use the `real` schema
-- [ ] Adapt loader to speak the api backend the dummy way (~json)
-- [ ] Improve protocol communication between loader and api backend (drop json)
-- [ ] Clean up dead code (db-manager no longer useful since db init/drop in swh-sql repo)
+- [X] Improve api backend to use the `real` schema
+- [X] Adapt loader to speak the api backend the dummy way (~json)
+- [X] Clean up some db-manager code + adapt makefile to use swh-sql
+- [ ] Improve protocol communication between loader and api backend (drop json) > pickle
 
 * Global enhancement
 
