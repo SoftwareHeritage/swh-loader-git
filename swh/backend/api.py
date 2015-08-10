@@ -20,7 +20,6 @@ app = Flask(__name__)
 def read_request_payload(request):
     """Read the request's payload."""  # FIXME: Check the signed pickled data?
     payload = serial.load(request.stream)
-    print("payload: ", payload)
     return payload
 
 
