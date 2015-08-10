@@ -19,8 +19,9 @@ app = Flask(__name__)
 
 def read_request_payload(request):
     """Read the request's payload."""  # FIXME: Check the signed pickled data?
-    stream = request.stream
-    return serial.load(stream)
+    payload = serial.load(request.stream)
+    print("payload: ", payload)
+    return payload
 
 
 def write_response(data):
@@ -45,23 +46,6 @@ def pickle_tryout():
     return make_response('Received!', 200)
 
 
-def lookup(config, vcs_object):
-    """Looking up type object with sha1.
-    - predicate_fn is a lookup function taking in this order a db_conn, binary
-    sha1 and optionally a type to look for in the backend.
-    - type is of models.Type (revision, directory, content)
-    This function returns an http response
-    """
-    sha1hex = vcs_object['sha1']
-    logging.debug('read %s %s' % (vcs_object['type'], sha1hex))
-
-    with db.connect(config['db_url']) as db_conn:
-        res = store.find(db_conn, vcs_object)
-        if res:
-            return write_response({'id': sha1hex})  # 200
-        return make_response('Not found!', 404)
-
-
 # dispatch on build object function for the right type
 _build_object_fn = {store.Type.revision: mapping.build_revision,
                     store.Type.directory: mapping.build_directory,
@@ -77,46 +61,23 @@ _uri_types = {'revisions': store.Type.revision,
               'occurrences': store.Type.occurrence}
 
 
-def _do_action(action_fn, uri_type, sha1hex):
+def _do_action(action_fn, uri_type, sha1hex, map_result_fn):
     uri_type_ok = _uri_types.get(uri_type, None)
-    if uri_type_ok is None:
+    if not uri_type_ok:
         return make_response('Bad request!', 400)
 
     vcs_object = _build_object_fn[uri_type_ok](sha1hex, None)
-    return action_fn(app.config['conf'], vcs_object)
+    return action_fn(app.config['conf'], vcs_object, map_result_fn)
 
 
-def _do_action_with_payload(action_fn, uri_type, sha1hex):
+def _do_action_with_payload(action_fn, uri_type, sha1hex, map_result_fn):
     uri_type_ok = _uri_types.get(uri_type, None)
     if uri_type_ok is None:
         return make_response('Bad request!', 400)
 
     payload = read_request_payload(request)
     vcs_object = _build_object_fn[uri_type_ok](sha1hex, payload)
-    return action_fn(app.config['conf'], vcs_object)
-
-
-def add_object(config, vcs_object):
-    """Add object in storage.
-    """
-    type = vcs_object['type']
-    sha1hex = vcs_object['sha1']  # FIXME: remove useless key and send direct list
-    logging.debug('store %s %s' % (type, sha1hex))
-
-    with db.connect(config['db_url']) as db_conn:
-        if store.find(db_conn, vcs_object):
-            logging.debug('update %s %s' % (sha1hex, type))
-            return make_response('Successful update!', 200)  # immutable
-        else:
-            logging.debug('store %s %s' % (sha1hex, type))
-            res = store.add(db_conn, config, vcs_object)
-            if res is None:
-                return make_response('Bad request!', 400)
-            elif res is False:
-                logging.error('store %s %s' % (sha1hex, type))
-                return make_response('Internal server error!', 500)
-            else:
-                return make_response('Successful creation!', 204)
+    return action_fn(app.config['conf'], vcs_object, map_result_fn)
 
 
 # FIXME: improve payload to have multiple type checksums list
@@ -244,6 +205,7 @@ def put_all(uri_type):
     """
     if request.headers.get('Content-Type') != serial.MIMETYPE:
         return make_response('Bad request. Expected %s data!' % serial.MIMETYPE, 400)
+
     payload = read_request_payload(request)
     obj_type = _uri_types[uri_type]
 
@@ -263,19 +225,86 @@ def put_all(uri_type):
 
     return make_response('Successful creation!', 204)
 
+def lookup(config, vcs_object, map_result_fn):
+    """Looking up type object with sha1.
+    - config is the configuration needed for the backend to execute query
+    - vcs_object is the object to look for in the backend
+    - map_result_fn is a mapping function which takes the backend's result
+    and transform its output accordingly.
+
+    This function returns an http response of the result.
+    """
+    sha1hex = vcs_object['sha1']
+    logging.debug('read %s %s' % (vcs_object['type'], sha1hex))
+
+    with db.connect(config['db_url']) as db_conn:
+        res = store.find(db_conn, vcs_object)
+        if res:
+            return write_response(map_result_fn(sha1hex, res))  # 200
+        return make_response('Not found!', 404)
+
+
+def add_object(config, vcs_object, map_result_fn):
+    """Add object in storage.
+    - config is the configuration needed for the backend to execute query
+    - vcs_object is the object to look for in the backend
+    - map_result_fn is a mapping function which takes the backend's result
+    and transform its output accordingly.
+
+    This function returns an http response of the result.
+    """
+    type = vcs_object['type']
+    sha1hex = vcs_object['sha1']  # FIXME: remove useless key and send direct list
+    logging.debug('store %s %s' % (type, sha1hex))
+
+    with db.connect(config['db_url']) as db_conn:
+        if store.find(db_conn, vcs_object):
+            logging.debug('update %s %s' % (sha1hex, type))
+            return make_response('Successful update!', 200)  # immutable
+        else:
+            logging.debug('store %s %s' % (sha1hex, type))
+            res = store.add(db_conn, config, vcs_object)
+            if res is None:
+                return make_response('Bad request!', 400)
+            elif res is False:
+                logging.error('store %s %s' % (sha1hex, type))
+                return make_response('Internal server error!', 500)
+            else:
+                return make_response(map_result_fn(sha1hex, res), 204)
+
+
+@app.route('/vcs/occurrences/<sha1hex>')
+def list_occurrences_for(sha1hex):
+    """Return the occurrences pointing to the revision sha1hex.
+    """
+    return _do_action(lookup,
+                      'occurrences',
+                      sha1hex,
+                      lambda _, result: list(map(lambda col: col[1], result)))
+
+
+def result_map_id_with_sha1(sha1hex, result):
+    """A default mapping function to map the backend's result.
+    """
+    # FIXME: could do something more complicated given the result
+    return {'id': sha1hex}
+
 
 @app.route('/vcs/<uri_type>/<sha1hex>')
 def object_exists_p(uri_type, sha1hex):
-    """Assert if the given object type exists.
+    """Assert if the object with sha1 sha1hex, of type uri_type, exists.
     """
-    return _do_action(lookup, uri_type, sha1hex)
+    return _do_action(lookup, uri_type, sha1hex, result_map_id_with_sha1)
 
 
 @app.route('/vcs/<uri_type>/<sha1hex>', methods=['PUT'])
 def put_object(uri_type, sha1hex):
     """Put an object in storage.
     """
-    return _do_action_with_payload(add_object, uri_type, sha1hex)
+    return _do_action_with_payload(add_object,
+                                   uri_type,
+                                   sha1hex,
+                                   lambda _1, _2: 'Successful Creation!')  # FIXME use sha1hex or result instead
 
 
 def run(conf):

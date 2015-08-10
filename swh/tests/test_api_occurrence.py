@@ -35,9 +35,16 @@ class OccurrenceTestCase(unittest.TestCase):
             self.origin_url = "https://github.com/user/repo"
             models.add_origin(db_conn, self.origin_url, 'git')
 
+            self.reference_name = 'master'
             models.add_occurrence(db_conn,
                                  self.origin_url,
-                                 'master',
+                                 self.reference_name,
+                                 self.revision_sha1_hex)
+
+            self.reference_name2 = 'master2'
+            models.add_occurrence(db_conn,
+                                 self.origin_url,
+                                 self.reference_name2,
                                  self.revision_sha1_hex)
 
             self.revision_sha1_hex_2 = '2-revision-sha1-to-test-existence9994f71'
@@ -57,7 +64,7 @@ class OccurrenceTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        # assert rv.data.decode('utf-8') == '{\n  "names": ["master"]\n}'  # return the list of references pointing to the revision -> do not care for the moment
+        assert serial.loads(rv.data) == [self.reference_name, self.reference_name2]
 
     @istest
     def get_occurrence_not_found(self):
@@ -86,9 +93,9 @@ class OccurrenceTestCase(unittest.TestCase):
         assert rv.data == b'Not found!'
 
         # we create it
-        body = serial.dumps({'content': 'occurrence content',
-                           'reference': 'master',
-                           'url-origin': self.origin_url})
+        body = serial.dumps({'content': b'occurrence content',
+                             'reference': 'master',
+                             'url-origin': self.origin_url})
 
         rv = self.app.put('/vcs/occurrences/%s' % occ_revision_sha1_hex,
                           data=body,
@@ -102,7 +109,7 @@ class OccurrenceTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert serial.loads(rv.data)['id'] == occ_revision_sha1_hex
+        assert serial.loads(rv.data) == ['master']
 
         # we update it
         rv = self.app.put('/vcs/occurrences/%s' % occ_revision_sha1_hex,
@@ -117,4 +124,4 @@ class OccurrenceTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert serial.loads(rv.data)['id'] == occ_revision_sha1_hex
+        assert serial.loads(rv.data) == ['master']
