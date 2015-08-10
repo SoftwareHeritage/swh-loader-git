@@ -51,9 +51,9 @@ of the object's content.
 ## 3
 
 1. Worker parses repository and builds a data memory model.
-The data memory model has the following structure:
-- checksums set (no duplicates)
-- checksums map indexed by git sha1, object representation.
+The data memory model has a structure identifying each possible type of object:
+- list of checksums
+- map indexed by git sha1, object representation.
 Type of object ; content, directory, revision, release, occurence is kept.
 
 2. Worker sends in the api backend's protocol the sha1s.
