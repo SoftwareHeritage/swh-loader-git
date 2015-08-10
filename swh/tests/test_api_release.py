@@ -5,13 +5,13 @@
 # See top-level LICENSE file for more information
 
 import unittest
-import json
 
 from nose.tools import istest
 from nose.plugins.attrib import attr
 
+from swh.backend import api
 from swh.storage import db, models
-
+from swh.protocols import serial
 from test_utils import now, app_client
 
 
@@ -49,7 +49,7 @@ class ReleaseTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data.decode('utf-8') == '{"id": "%s"}' % self.release_sha1_hex
+        assert serial.loads(rv.data)['id'] == self.release_sha1_hex
 
     @istest
     def get_release_not_found(self):
@@ -78,17 +78,17 @@ class ReleaseTestCase(unittest.TestCase):
         assert rv.data == b'Not found!'
 
         # we create it
-        body = json.dumps({'sha1': release_sha1_hex,
-                           'content': 'release also has content',
-                           'revision': self.revision_sha1_hex,
-                           'date': now(),
-                           'name': '0.0.1',
-                           'comment': 'super release tagged by ardumont',
-                           'author': "me, myself and me again"})
+        body = serial.dumps({'sha1': release_sha1_hex,
+                             'content': 'release also has content',
+                             'revision': self.revision_sha1_hex,
+                             'date': now(),
+                             'name': '0.0.1',
+                             'comment': 'super release tagged by ardumont',
+                             'author': "me, myself and me again"})
 
         rv = self.app.put('/vcs/releases/%s' % release_sha1_hex,
                           data=body,
-                          headers={'Content-Type': 'application/json'})
+                          headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         assert rv.status_code == 204
         assert rv.data == b''
@@ -98,12 +98,12 @@ class ReleaseTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data.decode('utf-8') == '{"id": "%s"}' % release_sha1_hex
+        assert serial.loads(rv.data)['id'] == release_sha1_hex
 
         # we update it
         rv = self.app.put('/vcs/releases/%s' % release_sha1_hex,
                           data=body,
-                          headers={'Content-Type': 'application/json'})
+                          headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         assert rv.status_code == 200
         assert rv.data == b'Successful update!'
@@ -113,4 +113,4 @@ class ReleaseTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data.decode('utf-8') == '{"id": "%s"}' % release_sha1_hex
+        assert serial.loads(rv.data)['id'] == release_sha1_hex

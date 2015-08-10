@@ -5,7 +5,6 @@
 # See top-level LICENSE file for more information
 
 import unittest
-import pickle
 
 from nose.tools import istest
 from nose.plugins.attrib import attr
@@ -14,6 +13,7 @@ import time
 from datetime import datetime
 
 from test_utils import app_client
+from swh.protocols import serial
 
 @attr('slow')
 class PickleTestCase(unittest.TestCase):
@@ -31,14 +31,11 @@ class PickleTestCase(unittest.TestCase):
                 , 'size': '3'
                 , 'date-now': time.gmtime()
                 , 'date-now2': datetime.utcnow()
-        }
+                }
 
-        pickled_body = pickle.dumps(body, protocol=pickle.HIGHEST_PROTOCOL)
-
-        print('body: %s' % body)
-        print('pickled body: %s' % pickled_body)
-
-        rv = self.app.post('/pickle', data=pickled_body)
+        rv = self.app.post('/pickle'
+                           , data=serial.dumps(body)
+                           , headers={'Content-type': 'application/octet-stream'})
 
         # then
         print(rv, rv.status_code, rv.data)

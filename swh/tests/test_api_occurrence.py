@@ -5,13 +5,13 @@
 # See top-level LICENSE file for more information
 
 import unittest
-import json
 
 from nose.tools import istest
 from nose.plugins.attrib import attr
 
 from swh.storage import db, models
-
+from swh.backend import api
+from swh.protocols import serial
 from test_utils import now, app_client
 
 
@@ -87,13 +87,13 @@ class OccurrenceTestCase(unittest.TestCase):
         assert rv.data == b'Not found!'
 
         # we create it
-        body = json.dumps({'content': 'occurrence content',
+        body = serial.dumps({'content': 'occurrence content',
                            'reference': 'master',
                            'url-origin': self.origin_url})
 
         rv = self.app.put('/vcs/occurrences/%s' % occ_revision_sha1_hex,
                           data=body,
-                          headers={'Content-Type': 'application/json'})
+                          headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         assert rv.status_code == 204
         assert rv.data == b''
@@ -103,12 +103,12 @@ class OccurrenceTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data.decode('utf-8') == '{"id": "%s"}' % occ_revision_sha1_hex
+        assert serial.loads(rv.data)['id'] == occ_revision_sha1_hex
 
         # we update it
         rv = self.app.put('/vcs/occurrences/%s' % occ_revision_sha1_hex,
                           data=body,
-                          headers={'Content-Type': 'application/json'})
+                          headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         assert rv.status_code == 200
         assert rv.data == b'Successful update!'
@@ -118,4 +118,4 @@ class OccurrenceTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data.decode('utf-8') == '{"id": "%s"}' % occ_revision_sha1_hex
+        assert serial.loads(rv.data)['id'] == occ_revision_sha1_hex

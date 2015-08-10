@@ -5,13 +5,13 @@
 # See top-level LICENSE file for more information
 
 import unittest
-import json
 
 from nose.tools import istest
 from nose.plugins.attrib import attr
 
 from swh.storage import db, models
-
+from swh.backend import api
+from swh.protocols import serial
 from test_utils import now, app_client
 
 
@@ -77,16 +77,16 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
                    '555444f9dd5dc46ee476a8be155ab049994f717e',
                    '555444f9dd5dc46ee476a8be155ab049994f717e',
                    '666777f9dd5dc46ee476a8be155ab049994f717e']
-        json_payload = json.dumps(payload)
+        query_payload = serial.dumps(payload)
 
         rv = self.app.post('/vcs/contents/',
-                           data=json_payload,
-                           headers={'Content-Type': 'application/json'})
+                           data=query_payload,
+                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         # then
         assert rv.status_code == 200
 
-        sha1s = json.loads(rv.data.decode('utf-8'))
+        sha1s = serial.loads(rv.data)
         assert len(sha1s) is 2                                     # only 2 sha1s
         assert "666777f9dd5dc46ee476a8be155ab049994f717e" in sha1s
         assert "555444f9dd5dc46ee476a8be155ab049994f717e" in sha1s
@@ -100,16 +100,16 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
                    '555444f9dd5dc46ee476a8be155ab049994f717e',
                    '555444f9dd5dc46ee476a8be155ab049994f717e',
                    '666777f9dd5dc46ee476a8be155ab049994f717e']
-        json_payload = json.dumps(payload)
+        query_payload = serial.dumps(payload)
 
         rv = self.app.post('/vcs/directories/',
-                           data=json_payload,
-                           headers={'Content-Type': 'application/json'})
+                           data=query_payload,
+                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         # then
         assert rv.status_code == 200
 
-        sha1s = json.loads(rv.data.decode('utf-8'))
+        sha1s = serial.loads(rv.data)
         assert len(sha1s) is 2                                     # only 2 sha1s
         assert "666777f9dd5dc46ee476a8be155ab049994f717e" in sha1s
         assert "555444f9dd5dc46ee476a8be155ab049994f717e" in sha1s
@@ -124,16 +124,16 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
                    '555444f9dd5dc46ee476a8be155ab049994f717e',
                    '555444f9dd5dc46ee476a8be155ab049994f717e',
                    '666777f9dd5dc46ee476a8be155ab049994f717e']
-        json_payload = json.dumps(payload)
+        query_payload = serial.dumps(payload)
 
         rv = self.app.post('/vcs/revisions/',
-                           data=json_payload,
-                           headers={'Content-Type': 'application/json'})
+                           data=query_payload,
+                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         # then
         assert rv.status_code == 200
 
-        sha1s = json.loads(rv.data.decode('utf-8'))
+        sha1s = serial.loads(rv.data)
         assert len(sha1s) is 2                                     # only 2 sha1s
         assert "666777f9dd5dc46ee476a8be155ab049994f717e" in sha1s
         assert "555444f9dd5dc46ee476a8be155ab049994f717e" in sha1s
@@ -148,16 +148,16 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
                    '555444f9dd5dc46ee476a8be155ab049994f717e',
                    '555444f9dd5dc46ee476a8be155ab049994f717e',
                    '666777f9dd5dc46ee476a8be155ab049994f717e']
-        json_payload = json.dumps(payload)
+        query_payload = serial.dumps(payload)
 
         rv = self.app.post('/vcs/releases/',
-                           data=json_payload,
-                           headers={'Content-Type': 'application/json'})
+                           data=query_payload,
+                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         # then
         assert rv.status_code == 200
 
-        sha1s = json.loads(rv.data.decode('utf-8'))
+        sha1s = serial.loads(rv.data)
         assert len(sha1s) is 2                                     # only 2 sha1s
         assert "666777f9dd5dc46ee476a8be155ab049994f717e" in sha1s
         assert "555444f9dd5dc46ee476a8be155ab049994f717e" in sha1s
@@ -172,11 +172,11 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
                    '555444f9dd5dc46ee476a8be155ab049994f717e',
                    '555444f9dd5dc46ee476a8be155ab049994f717e',
                    '666777f9dd5dc46ee476a8be155ab049994f717e']
-        json_payload = json.dumps(payload)
+        query_payload = serial.dumps(payload)
 
         rv = self.app.post('/vcs/occurrences/',
-                           data=json_payload,
-                           headers={'Content-Type': 'application/json'})
+                           data=query_payload,
+                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         # then
         assert rv.status_code == 400
@@ -187,24 +187,24 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
         # given
 
         # when
-        for api in ['contents', 'directories', 'revisions', 'releases']:
-            rv = self.app.post('/vcs/%s/' % api,
-                               data=json.dumps({}),
-                               headers={'Content-Type': 'application/json'})
+        for api_type in ['contents', 'directories', 'revisions', 'releases']:
+            rv = self.app.post('/vcs/%s/' % api_type,
+                               data=serial.dumps({}),
+                               headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
             # then
             assert rv.status_code == 200
-            assert rv.data == b'[]'
+            assert serial.loads(rv.data) == []
 
     @istest
-    def post_non_presents_objects_bad_requests_format_json(self):
+    def post_non_presents_objects_bad_requests_format_pickle(self):
         # given
 
         # when
-        for api in ['contents', 'directories', 'revisions', 'releases']:
-            rv = self.app.post('/vcs/%s/' % api,
-                               data="not json -> fail")
+        for api_type in ['contents', 'directories', 'revisions', 'releases']:
+            rv = self.app.post('/vcs/%s/' % api_type,
+                               data="not pickle -> fail")
 
             # then
             assert rv.status_code == 400
-            assert rv.data == b'Bad request. Expected json data!'
+            assert rv.data == b'Bad request. Expected application/octet-stream data!'

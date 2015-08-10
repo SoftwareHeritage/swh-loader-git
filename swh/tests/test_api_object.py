@@ -5,13 +5,13 @@
 # See top-level LICENSE file for more information
 
 import unittest
-import json
 
 from nose.tools import istest
 from nose.plugins.attrib import attr
 
+from swh.protocols import serial
 from swh.storage import db, models
-
+from swh.backend import api
 from test_utils import now, app_client
 
 
@@ -81,16 +81,16 @@ class TestObjectsCase(unittest.TestCase):
                    '555444f9dd5dc46ee476a8be155ab049994f717e',
                    '555444f9dd5dc46ee476a8be155ab049994f717e',
                    '666777f9dd5dc46ee476a8be155ab049994f717e']
-        json_payload = json.dumps(payload)
+        query_payload = serial.dumps(payload)
 
         rv = self.app.post('/objects/',
-                           data=json_payload,
-                           headers={'Content-Type': 'application/json'})
+                           data=query_payload,
+                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         # then
         assert rv.status_code == 200
 
-        sha1s = json.loads(rv.data.decode('utf-8'))
+        sha1s = serial.loads(rv.data)
         assert len(sha1s) is 2                                     # only 2 sha1s
         assert "666777f9dd5dc46ee476a8be155ab049994f717e" in sha1s
         assert "555444f9dd5dc46ee476a8be155ab049994f717e" in sha1s
@@ -101,12 +101,12 @@ class TestObjectsCase(unittest.TestCase):
 
         # when
         rv = self.app.post('/objects/',
-                           data=json.dumps({}),
-                           headers={'Content-Type': 'application/json'})
+                           data=serial.dumps({}),
+                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         # then
         assert rv.status_code == 200
-        assert rv.data == b'[]'
+        assert serial.loads(rv.data) == []
 
     @istest
     def put_non_presents_objects(self):
@@ -131,14 +131,15 @@ class TestObjectsCase(unittest.TestCase):
                      revision_sha1_unknown2,
                      release_sha1_unknown]
 
-        json_payload_1 = json.dumps(payload_1)
+        query_payload_1 = serial.dumps(payload_1)
 
-        rv = self.app.post('/objects/', data=json_payload_1,
-                           headers={'Content-Type': 'application/json'})
+        rv = self.app.post('/objects/',
+                           data=query_payload_1,
+                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         assert rv.status_code == 200
 
-        sha1s = json.loads(rv.data.decode('utf-8'))
+        sha1s = serial.loads(rv.data)
         assert len(sha1s) is 6                                      # only 6 sha1s
         assert content_sha1_unknown1 in sha1s
         assert content_sha1_unknown2 in sha1s
@@ -158,23 +159,23 @@ class TestObjectsCase(unittest.TestCase):
                              'content-sha256': '555444f9dd5dc46ee476a8be155ab049994f717e',
                              'content': 'foobar',
                              'size': 6}]
-        json_payload_contents = json.dumps(payload_contents)
+        query_payload_contents = serial.dumps(payload_contents)
 
         rv = self.app.put('/vcs/contents/',
-                          data=json_payload_contents,
-                          headers={'Content-Type': 'application/json'})
+                          data=query_payload_contents,
+                          headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         # then
         assert rv.status_code == 204
 
         # Sent back the first requests and see that we now have less unknown
         # sha1s (no more missed contents )
-        rv = self.app.post('/objects/', data=json_payload_1,
-                           headers={'Content-Type': 'application/json'})
+        rv = self.app.post('/objects/', data=query_payload_1,
+                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         assert rv.status_code == 200
 
-        sha1s = json.loads(rv.data.decode('utf-8'))
+        sha1s = serial.loads(rv.data)
         assert len(sha1s) is 4                                      # only 6 sha1s
         assert directory_sha1_unknown in sha1s
         assert release_sha1_unknown in sha1s
@@ -202,11 +203,11 @@ class TestObjectsCase(unittest.TestCase):
                                              'parent': directory_sha1_unknown}]
         }]
 
-        json_payload_directories = json.dumps(payload_directories)
+        query_payload_directories = serial.dumps(payload_directories)
 
         rv = self.app.put('/vcs/directories/',
-                          data=json_payload_directories,
-                          headers={'Content-Type': 'application/json'})
+                          data=query_payload_directories,
+                          headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         # then
         assert rv.status_code == 204
@@ -214,12 +215,12 @@ class TestObjectsCase(unittest.TestCase):
         # Sent back the first requests and see that we now have less unknown
         # sha1s (no more missed directories)
         rv = self.app.post('/objects/',
-                           data=json_payload_1,
-                           headers={'Content-Type': 'application/json'})
+                           data=query_payload_1,
+                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         assert rv.status_code == 200
 
-        sha1s = json.loads(rv.data.decode('utf-8'))
+        sha1s = serial.loads(rv.data)
         assert len(sha1s) is 3                                      # only 1 sha1 unknown
         assert release_sha1_unknown in sha1s
         assert revision_sha1_unknown in sha1s
@@ -241,11 +242,11 @@ class TestObjectsCase(unittest.TestCase):
                              'comment': 'fix bugs release by zack and olasd',
                              'author': 'the Dude'}]
 
-        json_payload_releases = json.dumps(payload_releases)
+        query_payload_releases = serial.dumps(payload_releases)
 
         rv = self.app.put('/vcs/releases/',
-                          data=json_payload_releases,
-                          headers={'Content-Type': 'application/json'})
+                          data=query_payload_releases,
+                          headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         # then
         assert rv.status_code == 204
@@ -253,12 +254,12 @@ class TestObjectsCase(unittest.TestCase):
         # Sent back the first requests and see that we now have less unknown
         # sha1s (no more missed directories)
         rv = self.app.post('/objects/',
-                           data=json_payload_1,
-                           headers={'Content-Type': 'application/json'})
+                           data=query_payload_1,
+                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         assert rv.status_code == 200
 
-        sha1s = json.loads(rv.data.decode('utf-8'))
+        sha1s = serial.loads(rv.data)
         assert len(sha1s) is 2
         assert revision_sha1_unknown in sha1s
         assert revision_sha1_unknown2 in sha1s
@@ -282,11 +283,11 @@ class TestObjectsCase(unittest.TestCase):
                               'parent-sha1s': []},
         ]
 
-        json_payload_revisions = json.dumps(payload_revisions)
+        query_payload_revisions = serial.dumps(payload_revisions)
 
         rv = self.app.put('/vcs/revisions/',
-                          data=json_payload_revisions,
-                          headers={'Content-Type': 'application/json'})
+                          data=query_payload_revisions,
+                          headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         # then
         assert rv.status_code == 204
@@ -294,12 +295,12 @@ class TestObjectsCase(unittest.TestCase):
         # Sent back the first requests and see that we now have less unknown
         # sha1s (no more missed directories)
         rv = self.app.post('/objects/',
-                           data=json_payload_1,
-                           headers={'Content-Type': 'application/json'})
+                           data=query_payload_1,
+                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         assert rv.status_code == 200
 
-        sha1s = json.loads(rv.data.decode('utf-8'))
+        sha1s = serial.loads(rv.data)
         assert len(sha1s) is 0
 
 
@@ -320,11 +321,11 @@ class TestObjectsCase(unittest.TestCase):
                                 'reference': 'puppets',
                                 'url-origin': self.origin_url}]
 
-        json_payload_occurrences = json.dumps(payload_occurrences)
+        query_payload_occurrences = serial.dumps(payload_occurrences)
 
         rv = self.app.put('/vcs/occurrences/',
-                          data=json_payload_occurrences,
-                          headers={'Content-Type': 'application/json'})
+                          data=query_payload_occurrences,
+                          headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         assert rv.status_code == 204
 

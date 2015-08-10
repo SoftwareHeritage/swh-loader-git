@@ -19,7 +19,7 @@ def store_objects(backend_url, obj_type, swhmap):
 
     # seen: now create the data for the backend to store
     obj_map = swhmap.objects()
-    obj_to_store = list(map(obj_map.get, unknown_obj_sha1s))  # FIXME: force list for json
+    obj_to_store = list(map(obj_map.get, unknown_obj_sha1s))  # FIXME: check if still needed?
     # store unknown objects
     client.put_all(backend_url, obj_type, obj_to_store)
 

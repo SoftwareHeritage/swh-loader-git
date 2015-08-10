@@ -6,15 +6,31 @@
 # See top-level LICENSE file for more information
 
 import logging
-import json
-import pickle
 
 from datetime import datetime
-from flask import Flask, make_response, request
+from flask import Flask, Response, make_response, request
 
+from . import mapping
 from swh.storage import store, db
+from swh.protocols import serial
 
+# api's definition
 app = Flask(__name__)
+
+
+# Only accepted mime type is now byte (pickle)
+ACCEPTED_MIME_TYPE = 'application/octet-stream'
+
+
+def read_request_payload(request):
+    """Read the request's payload."""  # FIXME: Check the signed pickled data?
+    stream = request.stream
+    return serial.load(stream)
+
+
+def write_response(data):
+    """Write response from data."""
+    return Response(serial.dumps(data), mimetype=ACCEPTED_MIME_TYPE)
 
 
 @app.route('/')
@@ -29,9 +45,7 @@ def hello():
 def pickle_tryout():
     """Test pickle.
     """
-    stream = request.stream
-    print("stream: %s" % stream)
-    unpickled = pickle.load(stream)
+    unpickled = read_request_payload(request)
     print("unpickled data: %s" % unpickled)
     return make_response('Received!', 200)
 
@@ -49,117 +63,16 @@ def lookup(config, vcs_object):
     with db.connect(config['db_url']) as db_conn:
         res = store.find(db_conn, vcs_object)
         if res:
-            return json.dumps({'id': sha1hex})  # 200
+            return write_response({'id': sha1hex})  # 200
         return make_response('Not found!', 404)
 
 
-def build_content(sha1hex, payload):
-    """Build a content object from the payload.
-    """
-    payload = payload if payload else {}
-    return {'sha1': sha1hex,
-            'type': store.Type.content,
-            'content-sha1': payload.get('content-sha1'),
-            'content-sha256': payload.get('content-sha256'),
-            'content': payload.get('content'),
-            'size': payload.get('size')}
-
-
-def build_directory(sha1hex, payload):
-    """Build a directory object from the payload.
-    """
-    payload = payload if payload else {}  # FIXME get hack -> split get-post/put
-    directory = {'sha1': sha1hex,
-                 'type': store.Type.directory,
-                 'content': payload.get('content')}
-
-    directory_entries = []
-    for entry in payload.get('entries', []):
-        directory_entry = build_directory_entry(sha1hex, entry)
-        directory_entries.append(directory_entry)
-
-    directory.update({'entries': directory_entries})
-    return directory
-
-
-def date_from_string(str_date):
-    """Convert a string date with format '%a, %d %b %Y %H:%M:%S +0000'.
-    """
-    return datetime.strptime(str_date, '%a, %d %b %Y %H:%M:%S +0000')
-
-
-def build_directory_entry(parent_sha1hex, entry):
-    """Build a directory object from the entry.
-    """
-    return {'name': entry['name'],
-            'target-sha1': entry['target-sha1'],
-            'nature': entry['nature'],
-            'perms': entry['perms'],
-            'atime': date_from_string(entry['atime']),
-            'mtime': date_from_string(entry['mtime']),
-            'ctime': date_from_string(entry['ctime']),
-            'parent': entry['parent']}
-
-
-def build_revision(sha1hex, payload):
-    """Build a revision object from the payload.
-    """
-    obj = {'sha1': sha1hex,
-           'type': store.Type.revision}
-    if payload:
-        obj.update({'content': payload['content'],
-                    'date': date_from_string(payload['date']),
-                    'directory': payload['directory'],
-                    'message': payload['message'],
-                    'author': payload['author'],
-                    'committer': payload['committer'],
-                    'parent-sha1s': payload['parent-sha1s']})
-    return obj
-
-
-def build_release(sha1hex, payload):
-    """Build a release object from the payload.
-    """
-    obj = {'sha1': sha1hex,
-           'type': store.Type.release}
-    if payload:
-        obj.update({'sha1': sha1hex,
-                    'content': payload['content'],
-                    'revision': payload['revision'],
-                    'date': payload['date'],
-                    'name': payload['name'],
-                    'comment': payload['comment'],
-                    'author': payload['author']})
-    return obj
-
-
-def build_occurrence(sha1hex, payload):
-    """Build a content object from the payload.
-    """
-    obj = {'sha1': sha1hex,
-           'type': store.Type.occurrence}
-    if payload:
-        obj.update({'content': payload['content'],
-                    'reference': payload['reference'],
-                    'type': store.Type.occurrence,
-                    'revision': sha1hex,
-                    'url-origin': payload['url-origin']})
-    return obj
-
-
-def build_origin(sha1hex, payload):
-    """Build an origin.
-    """
-    obj = {'id': payload['url'],
-           'origin-type': payload['type']}
-    return obj
-
 # dispatch on build object function for the right type
-_build_object_fn = {store.Type.revision: build_revision,
-                    store.Type.directory: build_directory,
-                    store.Type.content: build_content,
-                    store.Type.release: build_release,
-                    store.Type.occurrence: build_occurrence}
+_build_object_fn = {store.Type.revision: mapping.build_revision,
+                    store.Type.directory: mapping.build_directory,
+                    store.Type.content: mapping.build_content,
+                    store.Type.release: mapping.build_release,
+                    store.Type.occurrence: mapping.build_occurrence}
 
 # from uri to type
 _uri_types = {'revisions': store.Type.revision,
@@ -174,7 +87,16 @@ def _do_action(action_fn, uri_type, sha1hex):
     if uri_type_ok is None:
         return make_response('Bad request!', 400)
 
-    payload = request.get_json()
+    vcs_object = _build_object_fn[uri_type_ok](sha1hex, None)
+    return action_fn(app.config['conf'], vcs_object)
+
+
+def _do_action_with_payload(action_fn, uri_type, sha1hex):
+    uri_type_ok = _uri_types.get(uri_type, None)
+    if uri_type_ok is None:
+        return make_response('Bad request!', 400)
+
+    payload = read_request_payload(request)
     vcs_object = _build_object_fn[uri_type_ok](sha1hex, payload)
     return action_fn(app.config['conf'], vcs_object)
 
@@ -208,15 +130,15 @@ def add_object(config, vcs_object):
 def filter_unknowns_objects():
     """Filters unknown sha1 to the backend and returns them.
     """
-    if request.headers.get('Content-Type') != 'application/json':
-        return make_response('Bad request. Expected json data!', 400)
+    if request.headers.get('Content-Type') != ACCEPTED_MIME_TYPE:
+        return make_response('Bad request. Expected %s data!' % ACCEPTED_MIME_TYPE, 400)
 
-    sha1s = request.get_json()
+    sha1s = read_request_payload(request)
     unknowns_sha1s = store.find_unknowns(app.config['conf'], None, sha1s)
     if unknowns_sha1s is None:
         return make_response('Bad request!', 400)
     else:
-        return json.dumps(unknowns_sha1s)
+        return write_response(unknowns_sha1s)
 
 
 # occurrence type is not dealt the same way
@@ -230,34 +152,34 @@ _post_all_uri_types = {'revisions': store.Type.revision,
 def filter_unknowns_type(uri_type):
     """Filters unknown sha1 to the backend and returns them.
     """
-    if request.headers.get('Content-Type') != 'application/json':
-        return make_response('Bad request. Expected json data!', 400)
+    if request.headers.get('Content-Type') != ACCEPTED_MIME_TYPE:
+        return make_response('Bad request. Expected %s data!' % ACCEPTED_MIME_TYPE, 400)
 
     obj_type = _post_all_uri_types.get(uri_type)
     if obj_type is None:
         return make_response('Bad request. Type not supported!', 400)
 
-    sha1s = request.get_json()
+    sha1s = read_request_payload(request)
     unknowns_sha1s = store.find_unknowns(app.config['conf'], obj_type, sha1s)
     if unknowns_sha1s is None:
         return make_response('Bad request!', 400)
     else:
-        return json.dumps(unknowns_sha1s)
+        return write_response(unknowns_sha1s)
 
 
 @app.route('/origins/', methods=['POST'])
 def post_origin():
     """Post an origin.
     """
-    if request.headers.get('Content-Type') != 'application/json':
-        return make_response('Bad request. Expected json data!', 400)
+    if request.headers.get('Content-Type') != ACCEPTED_MIME_TYPE:
+        return make_response('Bad request. Expected %s data!' % ACCEPTED_MIME_TYPE, 400)
 
-    origin = request.json
+    origin = read_request_payload(request)
 
     try:
         origin_found = store.find_origin(app.config['conf'], origin)
         if origin_found:
-            return json.dumps(origin_found[0])
+            return write_response(origin_found[0])
         else:
             return make_response('Origin not found!', 404)
     except:
@@ -268,19 +190,19 @@ def post_origin():
 def put_origin():
     """Create an origin or returns it if already existing.
     """
-    if request.headers.get('Content-Type') != 'application/json':
-        return make_response('Bad request. Expected json data!', 400)
+    if request.headers.get('Content-Type') != ACCEPTED_MIME_TYPE:
+        return make_response('Bad request. Expected %s data!' % ACCEPTED_MIME_TYPE, 400)
 
-    origin = request.json
+    origin = read_request_payload(request)
     config = app.config['conf']
 
     try:
         origin_found = store.find_origin(config, origin)
         if origin_found:
-            return json.dumps(origin_found[0])  # FIXME 204
+            return write_response(origin_found[0])  # FIXME 204
         else:
             origin_id = store.add_origin(config, origin)
-            return json.dumps(origin_id)  # FIXME 201
+            return write_response(origin_id)  # FIXME 201
 
     except:
         return make_response('Bad request!', 400)
@@ -290,10 +212,10 @@ def put_origin():
 def put_all_revisions():
     """Store or update given revisions.
     """
-    if request.headers.get('Content-Type') != 'application/json':
-        return make_response('Bad request. Expected json data!', 400)
+    if request.headers.get('Content-Type') != ACCEPTED_MIME_TYPE:
+        return make_response('Bad request. Expected %s data!' % ACCEPTED_MIME_TYPE, 400)
 
-    payload = request.json
+    payload = read_request_payload(request)
     obj_type = store.Type.revision
 
     config = app.config['conf']
@@ -325,9 +247,9 @@ def put_all_revisions():
 def put_all(uri_type):
     """Store or update given objects (uri_type in {contents, directories, releases).
     """
-    if request.headers.get('Content-Type') != 'application/json':
-        return make_response('Bad request. Expected json data!', 400)
-    payload = request.json
+    if request.headers.get('Content-Type') != ACCEPTED_MIME_TYPE:
+        return make_response('Bad request. Expected %s data!' % ACCEPTED_MIME_TYPE, 400)
+    payload = read_request_payload(request)
     obj_type = _uri_types[uri_type]
 
     config = app.config['conf']
@@ -358,7 +280,7 @@ def object_exists_p(uri_type, sha1hex):
 def put_object(uri_type, sha1hex):
     """Put an object in storage.
     """
-    return _do_action(add_object, uri_type, sha1hex)
+    return _do_action_with_payload(add_object, uri_type, sha1hex)
 
 
 def run(conf):

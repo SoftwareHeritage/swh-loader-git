@@ -5,13 +5,13 @@
 # See top-level LICENSE file for more information
 
 import unittest
-import json
 
 from nose.tools import istest
 from nose.plugins.attrib import attr
 
 from swh.storage import db, models
-
+from swh.backend import api
+from swh.protocols import serial
 from test_utils import now, app_client
 
 
@@ -40,7 +40,7 @@ class RevisionTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data.decode('utf-8') == '{"id": "%s"}' % self.revision_sha1_hex
+        assert serial.loads(rv.data)['id'] == self.revision_sha1_hex
 
     @istest
     def get_revision_not_found(self):
@@ -69,17 +69,17 @@ class RevisionTestCase(unittest.TestCase):
         assert rv.data == b'Not found!'
 
         # we create it
-        body = json.dumps({'content': 'revision has content too.',
-                           'date': now(),
-                           'directory': self.directory_sha1_hex,
-                           'message': 'revision message describing it',
-                           'committer': 'ardumont',
-                           'author': 'ardumont',
-                           'parent-sha1s': [self.revision_sha1_hex]})
+        body = serial.dumps({'content': 'revision has content too.',
+                             'date': now(),
+                             'directory': self.directory_sha1_hex,
+                             'message': 'revision message describing it',
+                             'committer': 'ardumont',
+                             'author': 'ardumont',
+                             'parent-sha1s': [self.revision_sha1_hex]})
 
         rv = self.app.put('/vcs/revisions/%s' % revision_sha1_hex,
                           data=body,
-                          headers={'Content-Type': 'application/json'})
+                          headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         assert rv.status_code == 204
         assert rv.data == b''
@@ -89,12 +89,12 @@ class RevisionTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data.decode('utf-8') == '{"id": "%s"}' % revision_sha1_hex
+        assert serial.loads(rv.data)['id'] == revision_sha1_hex
 
         # we update it
         rv = self.app.put('/vcs/revisions/%s' % revision_sha1_hex,
                           data=body,
-                          headers={'Content-Type': 'application/json'})
+                          headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         assert rv.status_code == 200
         assert rv.data == b'Successful update!'
@@ -104,4 +104,4 @@ class RevisionTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data.decode('utf-8') == '{"id": "%s"}' % revision_sha1_hex
+        assert serial.loads(rv.data)['id'] == revision_sha1_hex

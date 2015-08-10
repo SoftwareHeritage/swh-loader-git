@@ -11,6 +11,7 @@ from nose.plugins.attrib import attr
 
 from test_utils import app_client
 
+
 @attr('slow')
 class HomeTestCase(unittest.TestCase):
     def setUp(self):

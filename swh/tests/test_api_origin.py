@@ -5,13 +5,13 @@
 # See top-level LICENSE file for more information
 
 import unittest
-import json
 
 from nose.tools import istest
 from nose.plugins.attrib import attr
 
 from swh.storage import db, models
-
+from swh.backend import api
+from swh.protocols import serial
 from test_utils import app_client
 
 
@@ -31,12 +31,12 @@ class OriginTestCase(unittest.TestCase):
         payload = {'url': self.origin_url,
                    'type': self.origin_type}
         rv = self.app.post('/origins/',
-                           data=json.dumps(payload),
-                           headers={'Content-Type': 'application/json'})
+                           data=serial.dumps(payload),
+                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         # then
         assert rv.status_code == 200
-        assert int(rv.data.decode('utf-8')) == self.origin_id
+        assert int(serial.loads(rv.data)) == self.origin_id
 
     @istest
     def get_origin_not_found(self):
@@ -44,22 +44,18 @@ class OriginTestCase(unittest.TestCase):
         payload = {'url': 'unknown',
                    'type': 'blah'}
         rv = self.app.post('/origins/',
-                           data=json.dumps(payload),
-                           headers={'Content-Type': 'application/json'})
+                           data=serial.dumps(payload),
+                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
         # then
         assert rv.status_code == 404
         assert rv.data == b'Origin not found!'
 
     @istest
     def get_origin_not_found_with_bad_format(self):
-        payload = {'url': 'unknown'}  # url and type are mandatory
-        rv = self.app.post('/origins/',
-                           data=json.dumps(payload),
-                           headers={'Content-Type': 'application/json'})
         # when
         rv = self.app.post('/origins/',
-                           data=json.dumps(payload),
-                           headers={'Content-Type': 'application/json'})
+                           data=serial.dumps({'url': 'unknown'}),
+                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
         # then
         assert rv.status_code == 400
 
@@ -69,16 +65,16 @@ class OriginTestCase(unittest.TestCase):
         payload = {'url': 'unknown',
                    'type': 'blah'}
         rv = self.app.post('/origins/',
-                           data=json.dumps(payload),
-                           headers={'Content-Type': 'application/json'})
+                           data=serial.dumps(payload),
+                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
         # then
         assert rv.status_code == 404
         assert rv.data == b'Origin not found!'
 
         # when
         rv = self.app.put('/origins/',
-                          data=json.dumps(payload),
-                          headers={'Content-Type': 'application/json'})
+                          data=serial.dumps(payload),
+                          headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         # then
         assert rv.status_code == 200  # fixme 201
@@ -87,18 +83,18 @@ class OriginTestCase(unittest.TestCase):
         payload = {'url': 'unknown',
                    'type': 'blah'}
         rv = self.app.post('/origins/',
-                           data=json.dumps(payload),
-                           headers={'Content-Type': 'application/json'})
+                           data=serial.dumps(payload),
+                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
         # then
         assert rv.status_code == 200
-        origin_id = rv.data.decode('utf-8')
-        assert rv.data
+        origin_id = serial.loads(rv.data)
+        assert origin_id
 
         # when
         rv = self.app.put('/origins/',
-                          data=json.dumps(payload),
-                          headers={'Content-Type': 'application/json'})
+                          data=serial.dumps(payload),
+                          headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         # then
         assert rv.status_code == 200  # fixme 204
-        assert rv.data.decode('utf-8') == origin_id
+        assert serial.loads(rv.data) == origin_id

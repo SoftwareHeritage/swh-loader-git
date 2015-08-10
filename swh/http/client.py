@@ -7,12 +7,12 @@
 # See top-level LICENSE file for more information
 
 import requests
-import json
 
 from retrying import retry
 
 from swh.retry import policy
 from swh.storage import store
+from swh.protocols import serial
 
 session_swh = requests.Session()
 
@@ -31,18 +31,18 @@ url_lookup_per_type = {store.Type.origin: "/origins/",
                        }
 
 
-# @retry(retry_on_exception=policy.retry_if_connection_error,
-#        wrap_exception=True,
-#        stop_max_attempt_number=3)
+@retry(retry_on_exception=policy.retry_if_connection_error,
+       wrap_exception=True,
+       stop_max_attempt_number=3)
 def post(baseurl, obj_type, obj_sha1s):
     """Retrieve the objects of type type with sha1 sha1hex.
     """
     url = compute_simple_url(baseurl, url_lookup_per_type[obj_type])
-    body = json.dumps(obj_sha1s)
+    body = serial.dumps(obj_sha1s)
     r = session_swh.post(url,
                          data=body,
-                         headers={'Content-Type': 'application/json'})
-    return r.json()
+                         headers={'Content-Type': 'application/octet-stream'})
+    return r.stream
 
 
 # @retry(retry_on_exception=policy.retry_if_connection_error,
@@ -70,13 +70,14 @@ url_store_per_type = {store.Type.origin: "/origins/",
                      }
 
 
-# @retry(retry_on_exception=policy.retry_if_connection_error,
-#        wrap_exception=True,
-#        stop_max_attempt_number=3)
+@retry(retry_on_exception=policy.retry_if_connection_error,
+       wrap_exception=True,
+       stop_max_attempt_number=3)
 def put_all(baseurl, obj_type, objs_map):
     """Given a list of sha1s, put them in the backend."""
-    body = json.dumps(objs_map)
+    body = serial.dumps(objs_map)
     url = compute_simple_url(baseurl, url_store_per_type.get(obj_type, "/objects/"))
-    session_swh.put(url,
-                    data=body,
-                    headers={'Content-Type': 'application/json'})
+    r = session_swh.put(url,
+                        data=body,
+                        headers={'Content-Type': 'application/octet-stream'})
+    return r.stream

@@ -5,13 +5,13 @@
 # See top-level LICENSE file for more information
 
 import unittest
-import json
 
 from nose.tools import istest
 from nose.plugins.attrib import attr
 
 from swh.storage import db, models
-
+from swh.backend import api
+from swh.protocols import serial
 from test_utils import app_client
 
 
@@ -37,7 +37,7 @@ class ContentTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data == b'{"id": "222222f9dd5dc46ee476a8be155ab049994f717e"}'
+        assert serial.loads(rv.data)['id'] == '222222f9dd5dc46ee476a8be155ab049994f717e'
 
     @istest
     def get_content_not_found(self):
@@ -74,8 +74,8 @@ class ContentTestCase(unittest.TestCase):
                 'size': '3'}
 
         rv = self.app.put('/vcs/contents/%s' % content_sha1,
-                          data=json.dumps(body),
-                          headers={'Content-Type': 'application/json'})
+                          data=serial.dumps(body),
+                          headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         assert rv.status_code == 204
         assert rv.data == b''
@@ -85,7 +85,7 @@ class ContentTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data == b'{"id": "sha1-contentc46ee476a8be155ab03333333333"}'
+        assert serial.loads(rv.data)['id'] == 'sha1-contentc46ee476a8be155ab03333333333'
 
         # # we update it
         body = {'sha1': content_sha1,
@@ -95,7 +95,8 @@ class ContentTestCase(unittest.TestCase):
                 'size': '3'}
 
         rv = self.app.put('/vcs/contents/%s' % content_sha1,
-                          data=body)
+                          data=serial.dumps(body),
+                          headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
 
         assert rv.status_code == 200
         assert rv.data == b'Successful update!'
@@ -105,4 +106,4 @@ class ContentTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert rv.data == b'{"id": "sha1-contentc46ee476a8be155ab03333333333"}'
+        assert serial.loads(rv.data)['id'] == 'sha1-contentc46ee476a8be155ab03333333333'
