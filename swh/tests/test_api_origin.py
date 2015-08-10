@@ -35,7 +35,7 @@ class OriginTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert int(serial.loads(rv.data)) == self.origin_id
+        assert serial.loads(rv.data)['id'] == self.origin_id
 
     @istest
     def get_origin_not_found(self):
@@ -77,7 +77,7 @@ class OriginTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200  # fixme 201
-        assert rv.data
+        assert serial.loads(rv.data)['id']
 
         payload = {'url': 'unknown',
                    'type': 'blah'}
@@ -86,7 +86,7 @@ class OriginTestCase(unittest.TestCase):
                            headers={'Content-Type': serial.MIMETYPE})
         # then
         assert rv.status_code == 200
-        origin_id = serial.loads(rv.data)
+        origin_id = serial.loads(rv.data)['id']
         assert origin_id
 
         # when
@@ -96,4 +96,4 @@ class OriginTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200  # fixme 204
-        assert serial.loads(rv.data) == origin_id
+        assert serial.loads(rv.data)['id'] == origin_id

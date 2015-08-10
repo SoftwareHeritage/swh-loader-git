@@ -175,7 +175,7 @@ def post_origin():
     try:
         origin_found = store.find_origin(app.config['conf'], origin)
         if origin_found:
-            return write_response(origin_found[0])
+            return write_response({'id': origin_found[0]})
         else:
             return make_response('Origin not found!', 404)
     except:
@@ -195,10 +195,10 @@ def put_origin():
     try:
         origin_found = store.find_origin(config, origin)
         if origin_found:
-            return write_response(origin_found[0])  # FIXME 204
+            return write_response({'id': origin_found[0]})  # FIXME 204
         else:
             origin_id = store.add_origin(config, origin)
-            return write_response(origin_id)  # FIXME 201
+            return write_response({'id': origin_id})  # FIXME 201
 
     except:
         return make_response('Bad request!', 400)
