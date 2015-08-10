@@ -8,6 +8,8 @@
 import pickle
 from io import BytesIO
 
+MIMETYPE="application/octet-stream"
+
 
 def load(file_or_handle):
     """Read a pickled object from the opened file_or_handle object.

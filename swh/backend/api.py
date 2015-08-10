@@ -18,10 +18,6 @@ from swh.protocols import serial
 app = Flask(__name__)
 
 
-# Only accepted mime type is now byte (pickle)
-ACCEPTED_MIME_TYPE = 'application/octet-stream'
-
-
 def read_request_payload(request):
     """Read the request's payload."""  # FIXME: Check the signed pickled data?
     stream = request.stream
@@ -30,7 +26,7 @@ def read_request_payload(request):
 
 def write_response(data):
     """Write response from data."""
-    return Response(serial.dumps(data), mimetype=ACCEPTED_MIME_TYPE)
+    return Response(serial.dumps(data), mimetype=serial.MIMETYPE)
 
 
 @app.route('/')
@@ -130,8 +126,8 @@ def add_object(config, vcs_object):
 def filter_unknowns_objects():
     """Filters unknown sha1 to the backend and returns them.
     """
-    if request.headers.get('Content-Type') != ACCEPTED_MIME_TYPE:
-        return make_response('Bad request. Expected %s data!' % ACCEPTED_MIME_TYPE, 400)
+    if request.headers.get('Content-Type') != serial.MIMETYPE:
+        return make_response('Bad request. Expected %s data!' % serial.MIMETYPE, 400)
 
     sha1s = read_request_payload(request)
     unknowns_sha1s = store.find_unknowns(app.config['conf'], None, sha1s)
@@ -152,8 +148,8 @@ _post_all_uri_types = {'revisions': store.Type.revision,
 def filter_unknowns_type(uri_type):
     """Filters unknown sha1 to the backend and returns them.
     """
-    if request.headers.get('Content-Type') != ACCEPTED_MIME_TYPE:
-        return make_response('Bad request. Expected %s data!' % ACCEPTED_MIME_TYPE, 400)
+    if request.headers.get('Content-Type') != serial.MIMETYPE:
+        return make_response('Bad request. Expected %s data!' % serial.MIMETYPE, 400)
 
     obj_type = _post_all_uri_types.get(uri_type)
     if obj_type is None:
@@ -171,8 +167,8 @@ def filter_unknowns_type(uri_type):
 def post_origin():
     """Post an origin.
     """
-    if request.headers.get('Content-Type') != ACCEPTED_MIME_TYPE:
-        return make_response('Bad request. Expected %s data!' % ACCEPTED_MIME_TYPE, 400)
+    if request.headers.get('Content-Type') != serial.MIMETYPE:
+        return make_response('Bad request. Expected %s data!' % serial.MIMETYPE, 400)
 
     origin = read_request_payload(request)
 
@@ -190,8 +186,8 @@ def post_origin():
 def put_origin():
     """Create an origin or returns it if already existing.
     """
-    if request.headers.get('Content-Type') != ACCEPTED_MIME_TYPE:
-        return make_response('Bad request. Expected %s data!' % ACCEPTED_MIME_TYPE, 400)
+    if request.headers.get('Content-Type') != serial.MIMETYPE:
+        return make_response('Bad request. Expected %s data!' % serial.MIMETYPE, 400)
 
     origin = read_request_payload(request)
     config = app.config['conf']
@@ -212,8 +208,8 @@ def put_origin():
 def put_all_revisions():
     """Store or update given revisions.
     """
-    if request.headers.get('Content-Type') != ACCEPTED_MIME_TYPE:
-        return make_response('Bad request. Expected %s data!' % ACCEPTED_MIME_TYPE, 400)
+    if request.headers.get('Content-Type') != serial.MIMETYPE:
+        return make_response('Bad request. Expected %s data!' % serial.MIMETYPE, 400)
 
     payload = read_request_payload(request)
     obj_type = store.Type.revision
@@ -247,8 +243,8 @@ def put_all_revisions():
 def put_all(uri_type):
     """Store or update given objects (uri_type in {contents, directories, releases).
     """
-    if request.headers.get('Content-Type') != ACCEPTED_MIME_TYPE:
-        return make_response('Bad request. Expected %s data!' % ACCEPTED_MIME_TYPE, 400)
+    if request.headers.get('Content-Type') != serial.MIMETYPE:
+        return make_response('Bad request. Expected %s data!' % serial.MIMETYPE, 400)
     payload = read_request_payload(request)
     obj_type = _uri_types[uri_type]
 

@@ -10,7 +10,6 @@ from nose.tools import istest
 from nose.plugins.attrib import attr
 
 from swh.storage import db, models
-from swh.backend import api
 from swh.protocols import serial
 from test_utils import app_client
 
@@ -32,7 +31,7 @@ class OriginTestCase(unittest.TestCase):
                    'type': self.origin_type}
         rv = self.app.post('/origins/',
                            data=serial.dumps(payload),
-                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
+                           headers={'Content-Type': serial.MIMETYPE})
 
         # then
         assert rv.status_code == 200
@@ -45,7 +44,7 @@ class OriginTestCase(unittest.TestCase):
                    'type': 'blah'}
         rv = self.app.post('/origins/',
                            data=serial.dumps(payload),
-                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
+                           headers={'Content-Type': serial.MIMETYPE})
         # then
         assert rv.status_code == 404
         assert rv.data == b'Origin not found!'
@@ -55,7 +54,7 @@ class OriginTestCase(unittest.TestCase):
         # when
         rv = self.app.post('/origins/',
                            data=serial.dumps({'url': 'unknown'}),
-                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
+                           headers={'Content-Type': serial.MIMETYPE})
         # then
         assert rv.status_code == 400
 
@@ -66,7 +65,7 @@ class OriginTestCase(unittest.TestCase):
                    'type': 'blah'}
         rv = self.app.post('/origins/',
                            data=serial.dumps(payload),
-                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
+                           headers={'Content-Type': serial.MIMETYPE})
         # then
         assert rv.status_code == 404
         assert rv.data == b'Origin not found!'
@@ -74,7 +73,7 @@ class OriginTestCase(unittest.TestCase):
         # when
         rv = self.app.put('/origins/',
                           data=serial.dumps(payload),
-                          headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
+                          headers={'Content-Type': serial.MIMETYPE})
 
         # then
         assert rv.status_code == 200  # fixme 201
@@ -84,7 +83,7 @@ class OriginTestCase(unittest.TestCase):
                    'type': 'blah'}
         rv = self.app.post('/origins/',
                            data=serial.dumps(payload),
-                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
+                           headers={'Content-Type': serial.MIMETYPE})
         # then
         assert rv.status_code == 200
         origin_id = serial.loads(rv.data)
@@ -93,7 +92,7 @@ class OriginTestCase(unittest.TestCase):
         # when
         rv = self.app.put('/origins/',
                           data=serial.dumps(payload),
-                          headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
+                          headers={'Content-Type': serial.MIMETYPE})
 
         # then
         assert rv.status_code == 200  # fixme 204

@@ -41,8 +41,8 @@ def post(baseurl, obj_type, obj_sha1s):
     body = serial.dumps(obj_sha1s)
     r = session_swh.post(url,
                          data=body,
-                         headers={'Content-Type': 'application/octet-stream'})
-    return r.stream
+                         headers={'Content-Type': serial.MIMETYPE})
+    return serial.json(r.data)
 
 
 # @retry(retry_on_exception=policy.retry_if_connection_error,
@@ -75,9 +75,9 @@ url_store_per_type = {store.Type.origin: "/origins/",
        stop_max_attempt_number=3)
 def put_all(baseurl, obj_type, objs_map):
     """Given a list of sha1s, put them in the backend."""
-    body = serial.dumps(objs_map)
     url = compute_simple_url(baseurl, url_store_per_type.get(obj_type, "/objects/"))
+    body = serial.dumps(objs_map)
     r = session_swh.put(url,
                         data=body,
-                        headers={'Content-Type': 'application/octet-stream'})
-    return r.stream
+                        headers={'Content-Type': serial.MIMETYPE})
+    return serial.json(r.data)

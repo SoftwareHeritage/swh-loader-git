@@ -11,7 +11,6 @@ from nose.plugins.attrib import attr
 
 from swh.protocols import serial
 from swh.storage import db, models
-from swh.backend import api
 from test_utils import now, app_client
 
 
@@ -85,7 +84,7 @@ class TestObjectsCase(unittest.TestCase):
 
         rv = self.app.post('/objects/',
                            data=query_payload,
-                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
+                           headers={'Content-Type': serial.MIMETYPE})
 
         # then
         assert rv.status_code == 200
@@ -102,7 +101,7 @@ class TestObjectsCase(unittest.TestCase):
         # when
         rv = self.app.post('/objects/',
                            data=serial.dumps({}),
-                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
+                           headers={'Content-Type': serial.MIMETYPE})
 
         # then
         assert rv.status_code == 200
@@ -135,7 +134,7 @@ class TestObjectsCase(unittest.TestCase):
 
         rv = self.app.post('/objects/',
                            data=query_payload_1,
-                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
+                           headers={'Content-Type': serial.MIMETYPE})
 
         assert rv.status_code == 200
 
@@ -163,7 +162,7 @@ class TestObjectsCase(unittest.TestCase):
 
         rv = self.app.put('/vcs/contents/',
                           data=query_payload_contents,
-                          headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
+                          headers={'Content-Type': serial.MIMETYPE})
 
         # then
         assert rv.status_code == 204
@@ -171,7 +170,7 @@ class TestObjectsCase(unittest.TestCase):
         # Sent back the first requests and see that we now have less unknown
         # sha1s (no more missed contents )
         rv = self.app.post('/objects/', data=query_payload_1,
-                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
+                           headers={'Content-Type': serial.MIMETYPE})
 
         assert rv.status_code == 200
 
@@ -207,7 +206,7 @@ class TestObjectsCase(unittest.TestCase):
 
         rv = self.app.put('/vcs/directories/',
                           data=query_payload_directories,
-                          headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
+                          headers={'Content-Type': serial.MIMETYPE})
 
         # then
         assert rv.status_code == 204
@@ -216,7 +215,7 @@ class TestObjectsCase(unittest.TestCase):
         # sha1s (no more missed directories)
         rv = self.app.post('/objects/',
                            data=query_payload_1,
-                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
+                           headers={'Content-Type': serial.MIMETYPE})
 
         assert rv.status_code == 200
 
@@ -246,7 +245,7 @@ class TestObjectsCase(unittest.TestCase):
 
         rv = self.app.put('/vcs/releases/',
                           data=query_payload_releases,
-                          headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
+                          headers={'Content-Type': serial.MIMETYPE})
 
         # then
         assert rv.status_code == 204
@@ -255,7 +254,7 @@ class TestObjectsCase(unittest.TestCase):
         # sha1s (no more missed directories)
         rv = self.app.post('/objects/',
                            data=query_payload_1,
-                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
+                           headers={'Content-Type': serial.MIMETYPE})
 
         assert rv.status_code == 200
 
@@ -287,7 +286,7 @@ class TestObjectsCase(unittest.TestCase):
 
         rv = self.app.put('/vcs/revisions/',
                           data=query_payload_revisions,
-                          headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
+                          headers={'Content-Type': serial.MIMETYPE})
 
         # then
         assert rv.status_code == 204
@@ -296,7 +295,7 @@ class TestObjectsCase(unittest.TestCase):
         # sha1s (no more missed directories)
         rv = self.app.post('/objects/',
                            data=query_payload_1,
-                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
+                           headers={'Content-Type': serial.MIMETYPE})
 
         assert rv.status_code == 200
 
@@ -325,7 +324,7 @@ class TestObjectsCase(unittest.TestCase):
 
         rv = self.app.put('/vcs/occurrences/',
                           data=query_payload_occurrences,
-                          headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
+                          headers={'Content-Type': serial.MIMETYPE})
 
         assert rv.status_code == 204
 

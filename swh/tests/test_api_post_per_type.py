@@ -10,7 +10,6 @@ from nose.tools import istest
 from nose.plugins.attrib import attr
 
 from swh.storage import db, models
-from swh.backend import api
 from swh.protocols import serial
 from test_utils import now, app_client
 
@@ -81,7 +80,7 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
 
         rv = self.app.post('/vcs/contents/',
                            data=query_payload,
-                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
+                           headers={'Content-Type': serial.MIMETYPE})
 
         # then
         assert rv.status_code == 200
@@ -104,7 +103,7 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
 
         rv = self.app.post('/vcs/directories/',
                            data=query_payload,
-                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
+                           headers={'Content-Type': serial.MIMETYPE})
 
         # then
         assert rv.status_code == 200
@@ -128,7 +127,7 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
 
         rv = self.app.post('/vcs/revisions/',
                            data=query_payload,
-                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
+                           headers={'Content-Type': serial.MIMETYPE})
 
         # then
         assert rv.status_code == 200
@@ -152,7 +151,7 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
 
         rv = self.app.post('/vcs/releases/',
                            data=query_payload,
-                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
+                           headers={'Content-Type': serial.MIMETYPE})
 
         # then
         assert rv.status_code == 200
@@ -176,7 +175,7 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
 
         rv = self.app.post('/vcs/occurrences/',
                            data=query_payload,
-                           headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
+                           headers={'Content-Type': serial.MIMETYPE})
 
         # then
         assert rv.status_code == 400
@@ -190,7 +189,7 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
         for api_type in ['contents', 'directories', 'revisions', 'releases']:
             rv = self.app.post('/vcs/%s/' % api_type,
                                data=serial.dumps({}),
-                               headers={'Content-Type': api.ACCEPTED_MIME_TYPE})
+                               headers={'Content-Type': serial.MIMETYPE})
 
             # then
             assert rv.status_code == 200
