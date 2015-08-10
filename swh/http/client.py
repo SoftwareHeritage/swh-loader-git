@@ -31,9 +31,9 @@ url_lookup_per_type = {store.Type.origin: "/origins/",
                        }
 
 
-# @retry(retry_on_exception=policy.retry_if_connection_error,
-#        wrap_exception=True,
-#        stop_max_attempt_number=3)
+@retry(retry_on_exception=policy.retry_if_connection_error,
+       wrap_exception=True,
+       stop_max_attempt_number=3)
 def post(baseurl, obj_type, obj_sha1s):
     """Retrieve the objects of type type with sha1 sha1hex.
     """
@@ -48,9 +48,9 @@ def post(baseurl, obj_type, obj_sha1s):
     return serial.loads(r.content)
 
 
-# @retry(retry_on_exception=policy.retry_if_connection_error,
-#        wrap_exception=True,
-#        stop_max_attempt_number=3)
+@retry(retry_on_exception=policy.retry_if_connection_error,
+       wrap_exception=True,
+       stop_max_attempt_number=3)
 def put(baseurl, obj_type, obj):
     """Store the obj of type obj_type in backend.
        Return the identifier held in the key 'key_result' of the server's
@@ -76,9 +76,9 @@ url_store_per_type = {store.Type.origin: "/origins/",
                      }
 
 
-# @retry(retry_on_exception=policy.retry_if_connection_error,
-#        wrap_exception=True,
-#        stop_max_attempt_number=3)
+@retry(retry_on_exception=policy.retry_if_connection_error,
+       wrap_exception=True,
+       stop_max_attempt_number=3)
 def put_all(baseurl, obj_type, objs_map):
     """Given a list of sha1s, put them in the backend."""
     if not objs_map:
