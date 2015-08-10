@@ -151,12 +151,12 @@ class TestObjectsCase(unittest.TestCase):
         payload_contents = [{'sha1': content_sha1_unknown1,
                              'content-sha1': 'content-sha1c46ee476a8be155ab03333333333',
                              'content-sha256': 'content-sha2566ee476a8be155ab03333333333',
-                             'content': 'bar',
+                             'content': b'bar',
                              'size': '3'},
                             {'sha1': content_sha1_unknown2,
                              'content-sha1': '555444f9dd5dc46ee476a8be155ab049994f717e',
                              'content-sha256': '555444f9dd5dc46ee476a8be155ab049994f717e',
-                             'content': 'foobar',
+                             'content': b'foobar',
                              'size': 6}]
         query_payload_contents = serial.dumps(payload_contents)
 
@@ -183,7 +183,7 @@ class TestObjectsCase(unittest.TestCase):
 
         # when
         payload_directories = [{'sha1': directory_sha1_unknown,
-                                'content': 'directory has content too.',
+                                'content': b'directory has content too.',
                                 'entries': [{'name': 'filename',
                                              'target-sha1': self.content_sha1_id,
                                              'nature': 'file',
@@ -227,14 +227,14 @@ class TestObjectsCase(unittest.TestCase):
 
         # when
         payload_releases = [{'sha1': release_sha1_unknown,
-                             'content': 'release also has content',
+                             'content': b'release also has content',
                              'revision': self.revision_sha1_hex,
                              'date': now(),
                              'name': '0.0.1',
                              'comment': 'super release tagged by ardumont',
                              'author': 'ardumont'},
                             {'sha1': 'another-sha1',
-                             'content': 'some content',
+                             'content': b'some content',
                              'revision': self.revision_sha1_hex,
                              'date': now(),
                              'name': '0.0.2',
@@ -265,7 +265,7 @@ class TestObjectsCase(unittest.TestCase):
 
         # when
         payload_revisions = [{'sha1': revision_sha1_unknown,
-                              'content': 'some content',
+                              'content': b'some content',
                               'date': now(),
                               'directory': directory_sha1_unknown,
                               'message': "commit message",
@@ -273,7 +273,7 @@ class TestObjectsCase(unittest.TestCase):
                               'committer': "committer",
                               'parent-sha1s': []},
                              {'sha1': revision_sha1_unknown2,
-                              'content': 'some other content',
+                              'content': b'some other content',
                               'date': now(),
                               'directory': directory_sha1_unknown,
                               'message': "some other commit message",
@@ -312,11 +312,11 @@ class TestObjectsCase(unittest.TestCase):
 
         # when
         payload_occurrences = [{'sha1': self.revision_sha1_hex2,
-                                'content': 'some content',
+                                'content': b'some content',
                                 'reference': 'master',
                                 'url-origin': self.origin_url},
                                {'sha1': self.revision_sha1_hex2,
-                                'content': 'some content',
+                                'content': b'some content',
                                 'reference': 'puppets',
                                 'url-origin': self.origin_url}]
 

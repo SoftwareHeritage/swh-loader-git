@@ -68,7 +68,7 @@ class RevisionTestCase(unittest.TestCase):
         assert rv.data == b'Not found!'
 
         # we create it
-        body = serial.dumps({'content': 'revision has content too.',
+        body = serial.dumps({'content': b'revision has content too.',
                              'date': now(),
                              'directory': self.directory_sha1_hex,
                              'message': 'revision message describing it',

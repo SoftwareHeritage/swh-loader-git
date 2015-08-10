@@ -44,7 +44,7 @@ class TestFile(unittest.TestCase):
                                       dir='/tmp')
 
         # when
-        res = file.write_data('some data to write', tmpfile)
+        res = file.write_data(b'some data to write', tmpfile)
 
         # then
         assert res is len('some data to write')
@@ -64,7 +64,7 @@ class TestFile(unittest.TestCase):
                                       dir='/tmp')
 
         # when
-        res = file.write_data('some data to write compressed', tmpfile, True)
+        res = file.write_data(b'some data to write compressed', tmpfile, True)
 
         # then
         assert res is len('some data to write compressed')

@@ -41,19 +41,10 @@ def timestamp_to_string(timestamp):
     return date_format(datetime.utcfromtimestamp(timestamp))
 
 
-def convert_problematic_data(data):
-    """Convert data to the right format.
-    # FIXME: use data.decode('utf-8')), -> fails with
-    # UnicodeDecodeError: 'utf-8' codec can't decode byte 0xa8 in position 14: invalid start byte
-    # when fixed, remove this function and use `convert_data` instead.
-    """
-    return str(data)
-
-
 def convert_data(data):
     """Convert data to the right format.
     """
-    return data.decode('utf-8')
+    return data
 
 
 def parse(repo_path):
@@ -84,7 +75,7 @@ def parse(repo_path):
                 blobs.append({'sha1': obj.hex,
                               'content-sha1': hash.hash1(data).hexdigest(),
                               'content-sha256': hash.hash256(data).hexdigest(),
-                              'content': convert_problematic_data(data),
+                              'content': convert_data(data),
                               'size': obj.size})
 
             logging.debug('(name: %s, target: %s, nat: %s, perms: %s, parent: %s) ' % (tree_entry.name, obj.hex, nature, tree_entry.filemode, tree.hex))
@@ -114,7 +105,7 @@ def parse(repo_path):
             for content_ref in contents_ref:
                 swhrepo.add_content(content_ref)
 
-            directory_content = convert_problematic_data(directory_root.read_raw())
+            directory_content = convert_data(directory_root.read_raw())
             swhrepo.add_directory({'sha1': directory_root.hex,
                                    'content': directory_content,
                                    'entries': directory_entries})
@@ -170,7 +161,7 @@ def parse(repo_path):
             swhrepo.add_release(release)
         else:
             swhrepo.add_occurrence({'sha1': head_revision.hex,
-                                    'content': '',
+                                    'content': b'',  # FIXME does it need this?
                                     'reference': ref_name,
                                     'url-origin': origin['url']})
             head_start = head_revision

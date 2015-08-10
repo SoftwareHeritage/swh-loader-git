@@ -69,7 +69,7 @@ class DirectoryTestCase(unittest.TestCase):
         assert rv.data == b'Not found!'
 
         # we create it
-        body = serial.dumps({'content': 'directory has content too.',
+        body = serial.dumps({'content': b'directory has content too.',
                              'entries': [{'name': 'filename',
                                           'target-sha1': self.content_sha1_id,
                                           'nature': 'file',

@@ -102,6 +102,9 @@ test-api-origin:
 test-api-pickle:
 	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_api_pickle.py
 
+test-file:
+	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_file.py
+
 connect-db:
 	psql -d $(DB)
 

@@ -69,7 +69,7 @@ class ContentTestCase(unittest.TestCase):
         body = {'sha1': content_sha1,
                 'content-sha1': 'content-sha1c46ee476a8be155ab03333333333',
                 'content-sha256': 'content-sha2566ee476a8be155ab03333333333',
-                'content': 'bar',
+                'content': b'bar',
                 'size': '3'}
 
         rv = self.app.put('/vcs/contents/%s' % content_sha1,
@@ -90,7 +90,7 @@ class ContentTestCase(unittest.TestCase):
         body = {'sha1': content_sha1,
                 'content-sha1': 'content-sha1c46ee476a8be155ab03333333333',
                 'content-sha256': 'content-sha2566ee476a8be155ab03333333333',
-                'content': 'bar',
+                'content': b'bar',
                 'size': '3'}
 
         rv = self.app.put('/vcs/contents/%s' % content_sha1,
