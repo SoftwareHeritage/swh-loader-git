@@ -23,14 +23,6 @@ def compute_simple_url(baseurl, type):
     return '%s%s' % (baseurl, type)
 
 
-def to_unicode(s):
-    """Convert s to unicode.
-    FIXME: Technically, there is a serialization problem.
-    Wrap bytes into string (unicode in python3) to serialize in json.
-    """
-    return str(s) if isinstance(s, bytes) else s
-
-
 # url mapping
 url_lookup_per_type = {store.Type.origin: "/origins/",
                        store.Type.content: "/vcs/contents/",
