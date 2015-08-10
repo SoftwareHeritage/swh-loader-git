@@ -7,7 +7,6 @@
 
 import logging
 
-from datetime import datetime
 from flask import Flask, Response, make_response, request
 
 from . import mapping
