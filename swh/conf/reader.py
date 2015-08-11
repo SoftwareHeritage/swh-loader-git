@@ -32,13 +32,13 @@ DEFAULT_CONF = {
     conf = config._sections['main']
 
     # remaining missing default configuration key are set
+    # also type conversion is enforced for underneath layer
     for key in default_conf:
         nature_type, default_value = default_conf[key]
-        print(nature_type, default_value)
         val = conf.get(key, None)
         if not val:  # fallback to default value
             conf[key] = default_value
-        else:  # force type conversion
+        else:  # value present but in string format, force type conversion
             conf[key] = _map_convert_fn.get(nature_type, lambda x: x)(val)
 
     return conf

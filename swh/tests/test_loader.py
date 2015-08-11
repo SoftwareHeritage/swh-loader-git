@@ -15,6 +15,7 @@ from nose.tools import istest
 
 from swh.storage import db, models
 from swh.gitloader import loader
+from swh.conf import reader
 
 import test_initdb
 from test_git_utils import create_commit_with_content
@@ -25,16 +26,19 @@ class FuncUseCase(unittest.TestCase):
         """Initialize a git repository for the remaining test to manipulate.
         """
         tmp_git_folder_path = tempfile.mkdtemp(prefix='test-sgloader.',
-                                        dir='/tmp')
+                                               dir='/tmp')
         self.tmp_git_repo = pygit2.init_repository(tmp_git_folder_path)
 
+        self.conf = reader.read('./resources/test/back.ini',
+                                {'port': ('int', 9999)})
 
-        self.db_url = "dbname=softwareheritage-dev-test"
-        self.conf = {
+        self.db_url = self.conf['db_url']
+        self.conf.update({
             'action': 'load',
-            'repository': self.tmp_git_repo.workdir,
-            'backend_url': 'http://localhost:5001'
-            }
+            'repo_path': self.tmp_git_repo.workdir,
+            'backend_url': 'http://localhost:%s' % self.conf['port']
+        })
+
 
         test_initdb.prepare_db(self.db_url)
 
