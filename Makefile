@@ -33,16 +33,13 @@ deps:
 		python3-retrying \
 		ipython3
 
-prepare:
-	mkdir -p /tmp/swh-git-loader/log /tmp/swh-git-loader/content-storage
-
 clean:
-	rm -rf /tmp/swh-git-loader/log /tmp/swh-git-loader/content-storage
+	rm -rf /tmp/swh-git-loader/content-storage
 
-cleandb: clean prepare
+cleandb: clean
 	PYTHONPATH=`pwd` $(SWH_DB_MANAGER) $(FLAG) cleandb
 
-initdb: clean prepare
+initdb: clean
 	PYTHONPATH=`pwd` $(SWH_DB_MANAGER) $(FLAG) initdb
 
 run:

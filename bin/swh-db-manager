@@ -50,8 +50,7 @@ if __name__ == '__main__':
     conf = reader.read(args.config or DEFAULT_CONF_FILE, DEFAULT_CONF)
     reader.prepare_folders(conf, 'log_dir')
 
-    log_filename = os.path.join(conf['log_dir'], 'db-manager.log')
-    logging.basicConfig(filename=log_filename,
+    logging.basicConfig(filename=os.path.join(conf['log_dir'], 'db-manager.log'),
                         level=logging.DEBUG if args.verbose else logging.INFO)
 
     manager.manage(args.action, conf['db_url'])

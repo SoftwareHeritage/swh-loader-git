@@ -11,19 +11,18 @@ from swh.gitloader import git, store
 
 
 def load(conf):
-    """According to action, load the repository.
+    """According to action, load the repo_path.
 
     used configuration keys:
     - action: requested action
-    - repository: git repository path ('load' action only)
+    - repo_path: git repository path ('load' action only)
     - backend_url: url access to backend api
-   """
+    """
     action = conf['action']
-
     if action == 'load':
-        repo_path = conf['repository']
+        repo_path = conf['repo_path']
         backend_url = conf['backend_url']
-        logging.info('load repository %s' % repo_path)
+        logging.info('load repo_path %s' % repo_path)
 
         if not os.path.exists(repo_path):
             error_msg = 'Repository %s does not exist.' % repo_path

@@ -51,10 +51,9 @@ if __name__ == '__main__':
     reader.prepare_folders(conf, 'log_dir')
 
     conf['action'] = args.action
-    conf['repository'] = args.repository
+    conf['repo_path'] = args.repository
 
-    log_filename = os.path.join(conf['log_dir'], 'sgloader.log')
-    logging.basicConfig(filename=log_filename,
+    logging.basicConfig(filename=os.path.join(conf['log_dir'], 'sgloader.log'),
                         level=logging.DEBUG if args.verbose else logging.INFO)
 
     loader.load(conf)
