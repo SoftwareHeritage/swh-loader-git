@@ -10,16 +10,20 @@ import configparser
 import os
 
 
-def read(conf_file, default_conf):
+_map_convert_fn = {'int': int,
+                   'bool': lambda x: x == 'true'}  # conversion per type
+
+
+def read(conf_file, default_conf=None):
     """Read the user's configuration file.
     Fill in the gap using `default_conf`.
 `default_conf` is similar to this:
 DEFAULT_CONF = {
     'a': ('string', '/tmp/swh-git-loader/log'),
-    'b' : ('string', 'dbname=swhgitloader')
-    'c' : ('bool', true)
-    'e' : ('bool', None)
-    'd' : ('int', 10)
+    'b': ('string', 'dbname=swhgitloader')
+    'c': ('bool', true)
+    'e': ('bool', None)
+    'd': ('int', 10)
 }
 
     """
@@ -29,13 +33,13 @@ DEFAULT_CONF = {
 
     # remaining missing default configuration key are set
     for key in default_conf:
-        type, default_value = default_conf[key]
+        nature_type, default_value = default_conf[key]
+        print(nature_type, default_value)
         val = conf.get(key, None)
         if not val:  # fallback to default value
             conf[key] = default_value
-        else:  # force only the type for int
-            if type == 'int':
-                conf[key] = int(val)
+        else:  # force type conversion
+            conf[key] = _map_convert_fn.get(nature_type, lambda x: x)(val)
 
     return conf
 
