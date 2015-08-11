@@ -250,7 +250,7 @@ def count_revisions(db_conn):
     return _count_objects(db_conn, Type.revision)
 
 
-def count_directories(db_conn, obj_type):
+def count_directories(db_conn):
     """Count the number of directories.
     """
     return _count_objects(db_conn, Type.directory)
