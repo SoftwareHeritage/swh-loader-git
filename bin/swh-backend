@@ -7,12 +7,11 @@
 # See top-level LICENSE file for more information
 
 import argparse
-import configparser
 import logging
 import os
 
 from swh.backend import api
-
+from swh.conf import reader
 
 # Default configuration file
 DEFAULT_CONF_FILE = '~/.config/swh/back.ini'
@@ -20,13 +19,13 @@ DEFAULT_CONF_FILE = '~/.config/swh/back.ini'
 
 # default configuration (can be overriden by the DEFAULT_CONF_FILE)
 DEFAULT_CONF = {
-    'content_storage_dir': '/tmp/swh-git-loader/content-storage',
-    'log_dir': '/tmp/swh-git-loader/log',
-    'db_url': 'dbname=softwareheritage-dev',
-    'storage_compression': None,
-    'folder_depth': 4,
-    'debug': None,
-    'port': 5000
+    'content_storage_dir' : ('string', '/tmp/swh-git-loader/content-storage'),
+    'log_dir'             : ('string', '/tmp/swh-git-loader/log'),
+    'db_url'              : ('string', 'dbname=softwareheritage-dev'),
+    'storage_compression' : ('bool'  , None),
+    'folder_depth'        : ('int'   , 4),
+    'debug'               : ('bool'  , None),
+    'port'                : ('int'   , 5000)
 }
 
 
@@ -43,45 +42,11 @@ def parse_args():
 
     return args
 
-def read_conf(args):
-    """Read the user's configuration file.
-
-    args contains the repo to parse.
-    Transmit to the result.
-    """
-    config = configparser.ConfigParser(defaults=DEFAULT_CONF)
-    conf_file = args.config or DEFAULT_CONF_FILE
-    config.read(os.path.expanduser(conf_file))
-    conf = config._sections['main']
-
-    conf['folder_depth'] = DEFAULT_CONF['folder_depth'] \
-                              if 'folder_depth' not in conf \
-                              else int(conf['folder_depth'])
-
-    # remaining missing default configuration key are set
-    for key in DEFAULT_CONF:
-        conf[key] = conf.get(key, DEFAULT_CONF[key])
-
-    conf['port'] = int(conf['port'])  # hack to deal with number
-
-    return conf
-
-
-def prepare_folders(conf):
-    """Prepare the folder mentioned in config.
-    """
-    def makedir(folder):
-        if not os.path.exists(folder):
-            os.makedirs(folder)
-
-    makedir(conf['log_dir'])
-    makedir(conf['content_storage_dir'])
-
 
 if __name__ == '__main__':
    args = parse_args()
-   conf = read_conf(args)
-   prepare_folders(conf)
+   conf = reader.read(args.config or DEFAULT_CONF_FILE, DEFAULT_CONF)
+   reader.prepare_folders(conf, 'log_dir', 'content_storage_dir')
 
    log_filename = os.path.join(conf['log_dir'], 'back.log')
    logging.basicConfig(filename=log_filename,

@@ -28,6 +28,7 @@ class FuncUseCase(unittest.TestCase):
                                         dir='/tmp')
         self.tmp_git_repo = pygit2.init_repository(tmp_git_folder_path)
 
+
         self.db_url = "dbname=softwareheritage-dev-test"
         self.conf = {
             'action': 'load',

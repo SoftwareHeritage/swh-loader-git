@@ -7,13 +7,12 @@
 # See top-level LICENSE file for more information
 
 import argparse
-import configparser
 import logging
 import os
 
 
-from swh.manager import manage
-
+from swh import manager
+from swh.conf import reader
 
 # Default configuration file
 DEFAULT_CONF_FILE = '~/.config/swh/db-manager.ini'
@@ -21,8 +20,8 @@ DEFAULT_CONF_FILE = '~/.config/swh/db-manager.ini'
 
 # default configuration (can be overriden by the DEFAULT_CONF_FILE)
 DEFAULT_CONF = {
-    'log_dir': '/tmp/swh-git-loader/log',
-    'db_url': 'dbname=swhgitloader',
+    'log_dir': ('string', '/tmp/swh-git-loader/log'),
+    'db_url' : ('string', 'dbname=softwareheritage-dev')
 }
 
 
@@ -46,28 +45,13 @@ def parse_args():
     return args
 
 
-def read_conf(args):
-    """Read the user's configuration file.
-    args contains the repo to parse.
-    """
-
-    config = configparser.ConfigParser(defaults=DEFAULT_CONF)
-    conf_file = args.config or DEFAULT_CONF_FILE
-    config.read(os.path.expanduser(conf_file))
-    conf = config._sections['main']
-
-    # propagate CLI arguments to conf dictionary
-    conf['action'] = args.action
-
-    return conf
-
-
 if __name__ == '__main__':
     args = parse_args()
-    conf = read_conf(args)
+    conf = reader.read(args.config or DEFAULT_CONF_FILE, DEFAULT_CONF)
+    reader.prepare_folders(conf, 'log_dir')
 
     log_filename = os.path.join(conf['log_dir'], 'db-manager.log')
     logging.basicConfig(filename=log_filename,
                         level=logging.DEBUG if args.verbose else logging.INFO)
 
-    manage(conf['action'], conf['db_url'])
+    manager.manage(args.action, conf['db_url'])
