@@ -63,6 +63,9 @@ profile-run:
 profile-stats:
 	PYTHONPATH=`pwd` ./scratch/analyse-profile.py
 
+test-run-back:
+	PYTHONPATH=`pwd` $(SWH_BACK) $(FLAG) --config ./resources/test/back.ini
+
 test:
 	$(NOSE) $(TESTFLAGS) $(TESTDIR)
 

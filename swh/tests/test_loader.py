@@ -11,6 +11,7 @@ import tempfile
 import shutil
 
 from nose.plugins.attrib import attr
+from nose.tools import istest
 
 from swh.storage import db, models
 from swh.gitloader import loader
@@ -79,13 +80,15 @@ class FuncUseCase(unittest.TestCase):
 
         os.makedirs(content_storage_dir, exist_ok=True)
 
-        self.db_url = "dbname=swhgitloader-test"
+
+        self.db_url = "dbname=softwareheritage-dev-test"
         self.conf = {
             'db_url': self.db_url,
             'repository': repo_path,
             'content_storage_dir': content_storage_dir,
             'storage_compression': None,
             'folder_depth': 2,
+            'backend_url': 'http://localhost:5001'
             }
 
         test_initdb.prepare_db(self.db_url)
@@ -96,6 +99,7 @@ class FuncUseCase(unittest.TestCase):
         # Remove temporary git repository
         shutil.rmtree(self.tmpGitRepo.workdir)
 
+    @istest
     def use_case_0(self):
         """Trigger loader and make sure everything is ok.
         """
@@ -118,11 +122,11 @@ class FuncUseCase(unittest.TestCase):
         # then
         with db.connect(self.db_url) as db_conn:
             self.assertEquals(
-                models.count_objects(db_conn, models.Type.commit),
+                models.count_revisions(db_conn),
                 5,
                 "Should be 5 commits")
             self.assertEquals(
-                models.count_objects(db_conn, models.Type.tree),
+                models.count_directories(db_conn),
                 5,
                 "Should be 5 trees")
             self.assertEquals(
@@ -145,11 +149,11 @@ class FuncUseCase(unittest.TestCase):
         # then
         with db.connect(self.db_url) as db_conn:
             self.assertEquals(
-                models.count_objects(db_conn, models.Type.commit),
+                models.count_revisions(db_conn),
                 8,
                 "Should be 5+3 == 8 commits now")
             self.assertEquals(
-                models.count_objects(db_conn, models.Type.tree),
+                models.count_directories(db_conn),
                 8,
                 "Should be 5+3 == 8 trees")
             self.assertEquals(
@@ -167,11 +171,11 @@ class FuncUseCase(unittest.TestCase):
         # then
         with db.connect(self.db_url) as db_conn:
             self.assertEquals(
-                models.count_objects(db_conn, models.Type.commit),
+                models.count_revisions(db_conn),
                 9,
                 "Should be 8+1 == 9 commits now")
             self.assertEquals(
-                models.count_objects(db_conn, models.Type.tree),
+                models.count_directories(db_conn),
                 8,
                 "Should be 8 trees (new commit without blob so no new tree)")
             self.assertEquals(
