@@ -43,7 +43,7 @@ CLOSED: [2015-07-22 Wed 12:20]
 - [X] Improve api backend to use the `real` schema
 - [X] Adapt loader to speak the api backend the dummy way (~json)
 - [X] Clean up some db-manager code + adapt makefile to use swh-sql
-- [ ] Improve protocol communication between loader and api backend (drop json) > pickle
+- [X] Improve protocol communication between loader and api backend (drop json) > pickle
 
 * Global enhancement
 
