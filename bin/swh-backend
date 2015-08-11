@@ -17,7 +17,7 @@ from swh.conf import reader
 DEFAULT_CONF_FILE = '~/.config/swh/back.ini'
 
 
-# default configuration (can be overriden by the DEFAULT_CONF_FILE)
+# default configuration
 DEFAULT_CONF = {
     'content_storage_dir' : ('string', '/tmp/swh-git-loader/content-storage'),
     'log_dir'             : ('string', '/tmp/swh-git-loader/log'),
