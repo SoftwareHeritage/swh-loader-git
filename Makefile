@@ -66,6 +66,9 @@ profile-stats:
 test:
 	$(NOSE) $(TESTFLAGS) $(TESTDIR)
 
+test-swhmap:
+	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_swhmap.py
+
 test-loader:
 	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_loader.py
 
