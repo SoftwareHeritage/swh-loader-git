@@ -8,13 +8,13 @@ class SWHMap():
     """Data structure that ensures easy access to current keys.
     """
     def __init__(self):
-        self.sha1s_hex = []
+        self.sha1s_hex = set()
         self.sha1s_map = {}
 
     def add(self, sha1, obj):
         """Add obj with type obj_type and sha1.
         """
-        self.sha1s_hex.append(sha1)
+        self.sha1s_hex.add(sha1)
         self.sha1s_map[sha1] = obj
 
     def keys(self):
