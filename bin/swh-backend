@@ -25,7 +25,8 @@ DEFAULT_CONF = {
     'db_url': 'dbname=softwareheritage-dev',
     'storage_compression': None,
     'folder_depth': 4,
-    'debug': None
+    'debug': None,
+    'port': 5000
 }
 
 
@@ -61,11 +62,27 @@ def read_conf(args):
     for key in DEFAULT_CONF:
         conf[key] = conf.get(key, DEFAULT_CONF[key])
 
+    conf['port'] = int(conf['port'])  # hack to deal with number
+
     return conf
+
+
+def prepare_folders(conf):
+    """Prepare the folder mentioned in config.
+    """
+    def makedir(folder):
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+
+    makedir(conf['log_dir'])
+    makedir(conf['content_storage_dir'])
+
 
 if __name__ == '__main__':
    args = parse_args()
    conf = read_conf(args)
+   prepare_folders(conf)
+
    log_filename = os.path.join(conf['log_dir'], 'back.log')
    logging.basicConfig(filename=log_filename,
                        level=logging.DEBUG if args.verbose else logging.INFO)
