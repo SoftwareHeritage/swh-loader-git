@@ -14,79 +14,67 @@ from swh.retry import policy
 from swh.storage import store
 from swh.protocols import serial
 
+
 session_swh = requests.Session()
 
 
-def compute_simple_url(baseurl, type):
+def compute_simple_url(base_url, type):
     """Compute the api url.
     """
-    return '%s%s' % (baseurl, type)
-
-
-# url mapping
-url_lookup_per_type = {store.Type.origin: "/origins/",
-                       store.Type.content: "/vcs/contents/",
-                       store.Type.directory: "/vcs/directories/",
-                       store.Type.revision: "/vcs/revisions/"
-                       }
+    return '%s%s' % (base_url, type)
 
 
 @retry(retry_on_exception=policy.retry_if_connection_error,
        wrap_exception=True,
        stop_max_attempt_number=3)
-def post(baseurl, obj_type, obj_sha1s):
+def execute(map_type_url, method_fn, base_url, obj_type, data):
+    """Execute a query to the backend.
+    - map_type_url is a map of {type: url backend}
+    - method_fn is swh_session.post or swh_session.put
+    - base_url is the base url of the backend
+    - obj_type is the nature of the data
+    - data is the data to send to the backend
+    """
+    if not data:
+        return data
+
+    url = compute_simple_url(base_url, map_type_url[obj_type])
+    body = serial.dumps(data)
+    r = method_fn(url,
+                  data=body,
+                  headers={'Content-Type': serial.MIMETYPE})
+    return serial.loads(r.content)
+
+
+# url mapping for lookup
+url_lookup_per_type = {  store.Type.origin: "/origins/"
+                       , store.Type.content: "/vcs/contents/"
+                       , store.Type.directory: "/vcs/directories/"
+                       , store.Type.revision: "/vcs/revisions/"
+                      }
+
+
+def post(base_url, obj_type, obj_sha1s):
     """Retrieve the objects of type type with sha1 sha1hex.
     """
-    if not obj_sha1s:
-        return []
-
-    url = compute_simple_url(baseurl, url_lookup_per_type[obj_type])
-    body = serial.dumps(obj_sha1s)
-    r = session_swh.post(url,
-                         data=body,
-                         headers={'Content-Type': serial.MIMETYPE})
-    return serial.loads(r.content)
+    return execute(url_lookup_per_type, session_swh.post, base_url, obj_type, obj_sha1s)
 
 
-@retry(retry_on_exception=policy.retry_if_connection_error,
-       wrap_exception=True,
-       stop_max_attempt_number=3)
-def put(baseurl, obj_type, obj):
-    """Store the obj of type obj_type in backend.
-       Return the identifier held in the key 'key_result' of the server's
-       response.
-    """
-    if not obj:
-        return None
-
-    url = compute_simple_url(baseurl, url_store_per_type[obj_type])
-    body = serial.dumps(obj)
-    r = session_swh.put(url,
-                           data=body,
-                           headers={'Content-Type': serial.MIMETYPE})
-    return serial.loads(r.content)
-
-
-url_store_per_type = {store.Type.origin: "/origins/",
-                      store.Type.content: "/vcs/contents/",
-                      store.Type.directory: "/vcs/directories/",
-                      store.Type.revision: "/vcs/revisions/",
-                      store.Type.release: "/vcs/releases/",
-                      store.Type.occurrence: "/vcs/occurrences/",
+# url mapping for storage
+url_store_per_type = {  store.Type.origin: "/origins/"
+                      , store.Type.content: "/vcs/contents/"
+                      , store.Type.directory: "/vcs/directories/"
+                      , store.Type.revision: "/vcs/revisions/"
+                      , store.Type.release: "/vcs/releases/"
+                      , store.Type.occurrence: "/vcs/occurrences/"
                      }
 
+def put(base_url, obj_type, obj):
+    """Given an obj of obj_type, PUT it in the backend.
+    """
+    return execute(url_store_per_type, session_swh.put, base_url, obj_type, obj)
 
-@retry(retry_on_exception=policy.retry_if_connection_error,
-       wrap_exception=True,
-       stop_max_attempt_number=3)
-def put_all(baseurl, obj_type, objs_map):
-    """Given a list of sha1s, put them in the backend."""
-    if not objs_map:
-        return []
 
-    url = compute_simple_url(baseurl, url_store_per_type.get(obj_type, "/objects/"))
-    body = serial.dumps(objs_map)
-    r = session_swh.put(url,
-                        data=body,
-                        headers={'Content-Type': serial.MIMETYPE})
-    return serial.loads(r.content)
+def put_all(base_url, obj_type, objs_map):
+    """Given a list of sha1s, PUT them in the backend."""
+    return execute(url_store_per_type, session_swh.put, base_url, obj_type, objs_map)
