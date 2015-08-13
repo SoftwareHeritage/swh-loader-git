@@ -81,8 +81,3 @@ def put(base_url, obj_type, obj):
     """Given an obj of obj_type, PUT it in the backend.
     """
     return execute(url_store_per_type, session_swh.put, base_url, obj_type, obj)
-
-
-def put_all(base_url, obj_type, objs_map):
-    """Given a list of sha1s, PUT them in the backend."""
-    return execute(url_store_per_type, session_swh.put, base_url, obj_type, objs_map)

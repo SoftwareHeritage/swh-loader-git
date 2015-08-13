@@ -21,7 +21,7 @@ def store_objects(backend_url, obj_type, swhmap):
     obj_map = swhmap.objects()
     obj_to_store = list(map(obj_map.get, unknown_obj_sha1s))  # FIXME: check if still needed?
     # store unknown objects
-    client.put_all(backend_url, obj_type, obj_to_store)
+    return client.put(backend_url, obj_type, obj_to_store)
 
 
 def load_to_back(backend_url, swhrepo):
@@ -40,16 +40,19 @@ def load_to_back(backend_url, swhrepo):
     # - then the worker sends only what the backend does not know per
     # object type basis
     store_objects(backend_url, store.Type.content, swhrepo.get_contents())
-    store_objects(backend_url, store.Type.directory, swhrepo.get_directories())
-    store_objects(backend_url, store.Type.revision, swhrepo.get_revisions())
+    # the contents could fail, still we can continue with directories
 
-    # brutally send all remaining occurrences
-    client.put_all(backend_url,
-                   store.Type.occurrence,
-                   swhrepo.get_occurrences())
+    res = store_objects(backend_url, store.Type.directory, swhrepo.get_directories())
+    if res:
+        res = store_objects(backend_url, store.Type.revision, swhrepo.get_revisions())
+        if res:
+            # brutally send all remaining occurrences
+            client.put(backend_url,
+                       store.Type.occurrence,
+                       swhrepo.get_occurrences())
 
-    # and releases (the idea here is that compared to existing other objects,
-    # the quantity is less)
-    client.put_all(backend_url,
-                   store.Type.release,
-                   swhrepo.get_releases())
+            # and releases (the idea here is that compared to existing other objects,
+            # the quantity is less)
+            client.put(backend_url,
+                       store.Type.release,
+                       swhrepo.get_releases())
