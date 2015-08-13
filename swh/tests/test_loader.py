@@ -5,7 +5,6 @@
 # See top-level LICENSE file for more information
 
 import unittest
-import os
 import pygit2
 import tempfile
 import shutil
