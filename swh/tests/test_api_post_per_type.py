@@ -154,12 +154,8 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
                            headers={'Content-Type': serial.MIMETYPE})
 
         # then
-        assert rv.status_code == 200
-
-        sha1s = serial.loads(rv.data)
-        assert len(sha1s) is 2                                     # only 2 sha1s
-        assert "666777f9dd5dc46ee476a8be155ab049994f717e" in sha1s
-        assert "555444f9dd5dc46ee476a8be155ab049994f717e" in sha1s
+        assert rv.status_code == 400
+        assert rv.data  == b'Bad request. Type not supported!'
 
     @istest
     def post_all_non_presents_occurrences_KO(self):
@@ -186,7 +182,7 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
         # given
 
         # when
-        for api_type in ['contents', 'directories', 'revisions', 'releases']:
+        for api_type in ['contents', 'directories', 'revisions']:
             rv = self.app.post('/vcs/%s/' % api_type,
                                data=serial.dumps({}),
                                headers={'Content-Type': serial.MIMETYPE})
@@ -200,7 +196,7 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
         # given
 
         # when
-        for api_type in ['contents', 'directories', 'revisions', 'releases']:
+        for api_type in ['contents', 'directories', 'revisions']:
             rv = self.app.post('/vcs/%s/' % api_type,
                                data="not pickle -> fail")
 

@@ -72,28 +72,10 @@ def _do_action_with_payload(action_fn, uri_type, sha1hex, map_result_fn):
     return action_fn(app.config['conf'], vcs_object, map_result_fn)
 
 
-# FIXME: improve payload to have multiple type checksums list
-# and return symmetrically the result with filtered checksums per type
-@app.route('/objects/', methods=['POST'])
-def filter_unknowns_objects():
-    """Filters unknown sha1 to the backend and returns them.
-    """
-    if request.headers.get('Content-Type') != serial.MIMETYPE:
-        return make_response('Bad request. Expected %s data!' % serial.MIMETYPE, 400)
-
-    sha1s = read_request_payload(request)
-    unknowns_sha1s = store.find_unknowns(app.config['conf'], None, sha1s)
-    if unknowns_sha1s is None:
-        return make_response('Bad request!', 400)
-    else:
-        return write_response(unknowns_sha1s)
-
-
 # occurrence type is not dealt the same way
 _post_all_uri_types = {'revisions': store.Type.revision,
                        'directories': store.Type.directory,
-                       'contents': store.Type.content,
-                       'releases': store.Type.release}
+                       'contents': store.Type.content}
 
 
 @app.route('/vcs/<uri_type>/', methods=['POST'])

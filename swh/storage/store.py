@@ -41,7 +41,7 @@ def find_unknowns(config, obj_type, sha1s_hex):
     cpy_data_buffer.write(vals)
     cpy_data_buffer.seek(0)  # move file cursor back at start of file
 
-    find_unknown_fn = _find_unknown.get(obj_type, models.find_unknowns)
+    find_unknown_fn = _find_unknown[obj_type]
     with db.connect(config['db_url']) as db_conn:
         unknowns = find_unknown_fn(db_conn, cpy_data_buffer)
         cpy_data_buffer.close()

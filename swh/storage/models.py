@@ -214,32 +214,6 @@ def find_unknown_contents(db_conn, file_sha1s):
                                   'filter_sha1_content')
 
 
-def find_unknowns(db_conn, file_sha1s):  # FIXME obsolete?
-    """Given a list of sha1s (inside the file_sha1s reference),
-    returns the objects list of sha1 non-presents in db.
-    """
-    with db_conn.cursor() as cur:
-        # explicit is better than implicit
-        # simply creating the temporary table seems to be enough
-        db.execute(cur, """CREATE TEMPORARY TABLE IF NOT EXISTS filter_sha1(
-                             id git_object_id)
-                           ON COMMIT DELETE ROWS;""")
-        db.copy_from(cur, file_sha1s, 'filter_sha1')
-        db.execute(cur, ("""WITH sha1_union as (
-                                 SELECT id FROM revision
-                                 UNION
-                                 SELECT id FROM directory
-                                 UNION
-                                 SELECT id FROM content
-                                 UNION
-                                 SELECT id FROM release
-                              )
-                            (SELECT id FROM filter_sha1)
-                            EXCEPT
-                            (SELECT id FROM sha1_union);"""))
-        return cur.fetchall()
-
-
 def _count_objects(db_conn, type):
     return db.query_fetchone(db_conn, 'SELECT count(*) FROM ' + type.value)[0]
 
