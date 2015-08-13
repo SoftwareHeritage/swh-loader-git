@@ -17,11 +17,14 @@ def store_objects(backend_url, obj_type, swhmap):
                                     obj_type,
                                     sha1s)
 
-    # seen: now create the data for the backend to store
-    obj_map = swhmap.objects()
-    obj_to_store = list(map(obj_map.get, unknown_obj_sha1s))  # FIXME: check if still needed?
-    # store unknown objects
-    return client.put(backend_url, obj_type, obj_to_store)
+    if unknown_obj_sha1s:
+        # seen: now create the data for the backend to store
+        obj_map = swhmap.objects()
+        obj_to_store = list(map(obj_map.get, unknown_obj_sha1s))  # FIXME: check if still needed?
+        # store unknown objects
+        return client.put(backend_url, obj_type, obj_to_store)
+
+    return True
 
 
 def load_to_back(backend_url, swhrepo):
