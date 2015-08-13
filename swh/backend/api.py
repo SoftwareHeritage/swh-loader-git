@@ -19,9 +19,8 @@ app = Flask(__name__)
 
 def read_request_payload(request):
     """Read the request's payload.
-    """  # FIXME: Check the signed pickled data?
-    payload = serial.load(request.stream)
-    return payload
+    """  # TODO: Check the signed pickled data?
+    return serial.load(request.stream)
 
 
 def write_response(data):
@@ -141,6 +140,7 @@ def put_origin():
 @app.route('/vcs/revisions/', methods=['PUT'])
 def put_all_revisions():
     """Store or update given revisions.
+    FIXME: Refactor same behavior with `put_all`.
     """
     if request.headers.get('Content-Type') != serial.MIMETYPE:
         return make_response('Bad request. Expected %s data!' % serial.MIMETYPE, 400)
