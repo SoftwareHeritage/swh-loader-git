@@ -150,7 +150,7 @@ def parse(repo_path):
             head_start = head_revision.get_object()
             release = {'sha1': head_revision.hex,
                        'content': head_revision.read_raw(),
-                       'rev': head_revision.target.hex,
+                       'revision': head_revision.target.hex,
                        'name': ref_name,
                        'date': now(),  # FIXME find the tag's date,
                        'author':  read_signature(head_revision.tagger),
