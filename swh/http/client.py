@@ -50,10 +50,10 @@ def execute(map_type_url,
 
 
 # url mapping for lookup
-url_lookup_per_type = {  store.Type.origin: "/origins/"
-                       , store.Type.content: "/vcs/contents/"
-                       , store.Type.directory: "/vcs/directories/"
-                       , store.Type.revision: "/vcs/revisions/"
+url_lookup_per_type = { store.Type.origin: "/origins/"
+                      , store.Type.content: "/vcs/contents/"
+                      , store.Type.directory: "/vcs/directories/"
+                      , store.Type.revision: "/vcs/revisions/"
                       }
 
 
@@ -69,12 +69,12 @@ def post(base_url, obj_type, obj_sha1s):
 
 
 # url mapping for storage
-url_store_per_type = {  store.Type.origin: "/origins/"
-                      , store.Type.content: "/vcs/contents/"
-                      , store.Type.directory: "/vcs/directories/"
-                      , store.Type.revision: "/vcs/revisions/"
-                      , store.Type.release: "/vcs/releases/"
-                      , store.Type.occurrence: "/vcs/occurrences/"
+url_store_per_type = { store.Type.origin: "/origins/"
+                     , store.Type.content: "/vcs/contents/"
+                     , store.Type.directory: "/vcs/directories/"
+                     , store.Type.revision: "/vcs/revisions/"
+                     , store.Type.release: "/vcs/releases/"
+                     , store.Type.occurrence: "/vcs/occurrences/"
                      }
 
 def put(base_url, obj_type, obj):
