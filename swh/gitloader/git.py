@@ -41,12 +41,6 @@ def timestamp_to_string(timestamp):
     return date_format(datetime.utcfromtimestamp(timestamp))
 
 
-def convert_data(data):
-    """Convert data to the right format.
-    """
-    return data
-
-
 def parse(repo_path):
     """Given a repository path, parse and return a memory model of such
     repository."""
@@ -75,7 +69,7 @@ def parse(repo_path):
                 blobs.append({'sha1': obj.hex,
                               'content-sha1': hash.hash1(data).hexdigest(),
                               'content-sha256': hash.hash256(data).hexdigest(),
-                              'content': convert_data(data),
+                              'content': data,
                               'size': obj.size})
 
             logging.debug('(name: %s, target: %s, nat: %s, perms: %s, parent: %s) ' % (tree_entry.name, obj.hex, nature, tree_entry.filemode, tree.hex))
@@ -105,14 +99,13 @@ def parse(repo_path):
             for content_ref in contents_ref:
                 swhrepo.add_content(content_ref)
 
-            directory_content = convert_data(directory_root.read_raw())
             swhrepo.add_directory({'sha1': directory_root.hex,
-                                   'content': directory_content,
+                                   'content': directory_root.read_raw(),
                                    'entries': directory_entries})
 
         revision_parent_sha1s = list(map(str, revision.parent_ids))
         swhrepo.add_revision({'sha1': revision.hex,
-                              'content': convert_data(revision.read_raw()),
+                              'content': revision.read_raw(),
                               'date': timestamp_to_string(revision.commit_time),
                               'directory': revision.tree.hex,
                               'message': revision.message,
@@ -152,7 +145,7 @@ def parse(repo_path):
         if isinstance(head_revision, pygit2.Tag):
             head_start = head_revision.get_object()
             release = {'sha1': head_revision.hex,
-                       'content': convert_data(head_revision.read_raw()),
+                       'content': head_revision.read_raw(),
                        'revision': head_revision.target.hex,
                        'name': ref_name,
                        'date': now(),  # FIXME find the tag's date,
