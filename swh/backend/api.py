@@ -275,18 +275,14 @@ def list_occurrences_for(sha1hex):
                       lambda _, result: list(map(lambda col: col[1], result)))
 
 
-def result_map_id_with_sha1(sha1hex, result):
-    """A default mapping function to map the backend's result.
-    """
-    # FIXME: could do something more complicated given the result
-    return {'id': sha1hex}
-
-
 @app.route('/vcs/<uri_type>/<sha1hex>')
 def object_exists_p(uri_type, sha1hex):
     """Assert if the object with sha1 sha1hex, of type uri_type, exists.
     """
-    return _do_action(lookup, uri_type, sha1hex, result_map_id_with_sha1)
+    return _do_action(lookup,
+                      uri_type,
+                      sha1hex,
+                      lambda sha1hex, _: {'id': sha1hex})
 
 
 @app.route('/vcs/<uri_type>/<sha1hex>', methods=['PUT'])
