@@ -158,7 +158,6 @@ def parse(repo_path):
             swhrepo.add_release(release)
         else:
             swhrepo.add_occurrence({'sha1': head_revision.hex,
-                                    'content': b'',  # FIXME does it need this?
                                     'reference': ref_name,
                                     'url-origin': origin['url']})
             head_start = head_revision

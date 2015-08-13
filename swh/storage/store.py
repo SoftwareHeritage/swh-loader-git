@@ -167,16 +167,18 @@ def add(db_conn, config, vcs_object):
     """
     type = vcs_object['type']
     sha1hex = vcs_object['sha1']
+    obj_content = vcs_object.get('content')
 
-    res = fs.write_object(config['content_storage_dir'],
-                          sha1hex,
-                          vcs_object['content'],
-                          config['folder_depth'],
-                          config['storage_compression'])
-    if res is not None:
+    if obj_content:
+        res = fs.write_object(config['content_storage_dir'],
+                              sha1hex,
+                              obj_content,
+                              config['folder_depth'],
+                              config['storage_compression'])
+        if not res:
+            return False
         return _store_fn[type](db_conn, vcs_object, sha1hex)
-
-    return False
+    return _store_fn[type](db_conn, vcs_object, sha1hex)
 
 
 def add_revision_history(db_conn, couple_parents):

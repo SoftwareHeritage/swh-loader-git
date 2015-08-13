@@ -97,8 +97,7 @@ def build_occurrence(sha1hex, payload):
     obj = {'sha1': sha1hex,
            'type': store.Type.occurrence}
     if payload:
-        obj.update({'content': payload['content'],
-                    'reference': payload['reference'],
+        obj.update({'reference': payload['reference'],
                     'type': store.Type.occurrence,
                     'revision': sha1hex,
                     'url-origin': payload['url-origin']})
