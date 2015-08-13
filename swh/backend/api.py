@@ -36,15 +36,6 @@ def hello():
     return 'Dev SWH API'
 
 
-@app.route('/pickle', methods=['POST'])
-def pickle_tryout():
-    """Test pickle.
-    """
-    unpickled = read_request_payload(request)
-    print("unpickled data: %s" % unpickled)
-    return make_response('Received!', 200)
-
-
 # dispatch on build object function for the right type
 _build_object_fn = {store.Type.revision: mapping.build_revision,
                     store.Type.directory: mapping.build_directory,
