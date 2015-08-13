@@ -8,6 +8,7 @@
 import logging
 
 from flask import Flask, Response, make_response, request
+from functools import partial
 
 from . import mapping
 from swh.storage import store, db
@@ -38,12 +39,12 @@ def hello():
     return 'Dev SWH API'
 
 
-# dispatch on build object function for the right type
-_build_object_fn = {store.Type.revision: mapping.build_revision,
-                    store.Type.directory: mapping.build_directory,
-                    store.Type.content: mapping.build_content,
-                    store.Type.release: mapping.build_release,
-                    store.Type.occurrence: mapping.build_occurrence}
+_build_lookup_mapping_fn = lambda t: partial(mapping.build_base_object, t)
+
+
+# dispatch on type the build mapping function for creation
+_build_object_fn = lambda t: partial(mapping.build_object, t)
+
 
 # from uri to type
 _uri_types = {'revisions': store.Type.revision,
@@ -53,22 +54,39 @@ _uri_types = {'revisions': store.Type.revision,
               'occurrences': store.Type.occurrence}
 
 
-def _do_action(action_fn, uri_type, sha1hex, map_result_fn):
+def _do_action(action_fn, uri_type, sha1hex, map_input_fn, map_result_fn):
+    """Execute the action function action_fn for object of type uri_type
+    and sha1 sha1hex.
+    - map_input_fn is a function which takes a type as parameter and returns a
+    mapping function for that type.
+    - map_result_fn is a function which takes a sha1 and a response result from
+    the backend and knows how to map the result.
+    This is the result of map_result_fn which is returned.
+    """
     uri_type_ok = _uri_types.get(uri_type, None)
     if not uri_type_ok:
         return make_response('Bad request!', 400)
 
-    vcs_object = _build_object_fn[uri_type_ok](sha1hex, None)
+    vcs_object = map_input_fn(uri_type_ok)(sha1hex)
     return action_fn(app.config['conf'], vcs_object, map_result_fn)
 
 
-def _do_action_with_payload(action_fn, uri_type, sha1hex, map_result_fn):
+def _do_action_with_payload(action_fn, uri_type, sha1hex, map_input_fn, map_result_fn):
+    """Execute the action function action_fn for object of type uri_type
+    and sha1 sha1hex.
+    - map_input_fn is a function which takes a type as parameter and returns a
+    mapping function for that type (mapping function takes a sha1 and a payload
+    as arguments)
+    - map_result_fn is a function which takes a sha1 and a response result from
+    the backend and knows how to map the result.
+    This is the result of map_result_fn which is returned.
+    """
     uri_type_ok = _uri_types.get(uri_type, None)
     if uri_type_ok is None:
         return make_response('Bad request!', 400)
 
     payload = read_request_payload(request)
-    vcs_object = _build_object_fn[uri_type_ok](sha1hex, payload)
+    vcs_object = map_input_fn(uri_type_ok)(sha1hex, payload)
     return action_fn(app.config['conf'], vcs_object, map_result_fn)
 
 
@@ -172,7 +190,7 @@ def put_all_revisions():
         try:
             couple_parents = []
             for obj in payload:  # iterate over objects of type uri_type
-                obj_to_store = _build_object_fn[obj_type](obj['sha1'], obj)
+                obj_to_store = _build_object_fn(obj_type)(obj['sha1'], obj)
 
                 obj_found = store.find(db_conn, obj_to_store)
                 if not obj_found:
@@ -206,7 +224,7 @@ def put_all(uri_type):
     with db.connect(config['db_url']) as db_conn:
         try:
             for obj in payload:  # iterate over objects of type uri_type
-                obj_to_store = _build_object_fn[obj_type](obj['sha1'], obj)
+                obj_to_store = _build_object_fn(obj_type)(obj['sha1'], obj)
 
                 obj_found = store.find(db_conn, obj_to_store)
                 if not obj_found:
@@ -246,7 +264,7 @@ def add_object(config, vcs_object, map_result_fn):
     This function returns an http response of the result.
     """
     type = vcs_object['type']
-    sha1hex = vcs_object['sha1']  # FIXME: remove useless key and send direct list
+    sha1hex = vcs_object['sha1']
     logging.debug('store %s %s' % (type, sha1hex))
 
     with db.connect(config['db_url']) as db_conn:
@@ -272,7 +290,8 @@ def list_occurrences_for(sha1hex):
     return _do_action(lookup,
                       'occurrences',
                       sha1hex,
-                      lambda _, result: list(map(lambda col: col[1], result)))
+                      map_input_fn=_build_lookup_mapping_fn,
+                      map_result_fn=lambda _, res: map(lambda c: c[1], res))
 
 
 @app.route('/vcs/<uri_type>/<sha1hex>')
@@ -282,7 +301,8 @@ def object_exists_p(uri_type, sha1hex):
     return _do_action(lookup,
                       uri_type,
                       sha1hex,
-                      lambda sha1hex, _: {'id': sha1hex})
+                      map_input_fn=_build_lookup_mapping_fn,
+                      map_result_fn=lambda sha1hex, _: {'id': sha1hex})
 
 
 @app.route('/vcs/<uri_type>/<sha1hex>', methods=['PUT'])
@@ -292,7 +312,8 @@ def put_object(uri_type, sha1hex):
     return _do_action_with_payload(add_object,
                                    uri_type,
                                    sha1hex,
-                                   lambda _1, _2: 'Successful Creation!')  # FIXME use sha1hex or result instead
+                                   map_input_fn=_build_object_fn,
+                                   map_result_fn=lambda _1, _2: 'Successful creation!')
 
 
 def run(conf):

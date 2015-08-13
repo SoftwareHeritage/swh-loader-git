@@ -10,10 +10,21 @@ from datetime import datetime
 from swh.storage import store
 
 
+def date_from_string(str_date):
+    """Convert a string date with format '%a, %d %b %Y %H:%M:%S +0000'.
+    """
+    return datetime.strptime(str_date, '%a, %d %b %Y %H:%M:%S +0000')
+
+
+def build_base_object(otype, sha1hex):
+    """Build basic object.
+    """
+    return {'sha1': sha1hex, 'type': otype}
+
+
 def build_content(sha1hex, payload):
     """Build a content object from the payload.
     """
-    payload = payload if payload else {}
     return {'sha1': sha1hex,
             'type': store.Type.content,
             'content-sha1': payload.get('content-sha1'),
@@ -25,7 +36,6 @@ def build_content(sha1hex, payload):
 def build_directory(sha1hex, payload):
     """Build a directory object from the payload.
     """
-    payload = payload if payload else {}  # FIXME get hack -> split get-post/put
     directory = {'sha1': sha1hex,
                  'type': store.Type.directory,
                  'content': payload.get('content')}
@@ -37,12 +47,6 @@ def build_directory(sha1hex, payload):
 
     directory.update({'entries': directory_entries})
     return directory
-
-
-def date_from_string(str_date):
-    """Convert a string date with format '%a, %d %b %Y %H:%M:%S +0000'.
-    """
-    return datetime.strptime(str_date, '%a, %d %b %Y %H:%M:%S +0000')
 
 
 def build_directory_entry(parent_sha1hex, entry):
@@ -58,55 +62,57 @@ def build_directory_entry(parent_sha1hex, entry):
             'parent': entry['parent']}
 
 
-
 def build_revision(sha1hex, payload):
     """Build a revision object from the payload.
     """
-    obj = {'sha1': sha1hex,
-           'type': store.Type.revision}
-    if payload:
-        obj.update({'content': payload['content'],
-                    'date': date_from_string(payload['date']),
-                    'directory': payload['directory'],
-                    'message': payload['message'],
-                    'author': payload['author'],
-                    'committer': payload['committer'],
-                    'parent-sha1s': payload['parent-sha1s']})
-    return obj
+    return {'sha1': sha1hex,
+            'type': store.Type.revision,
+            'content': payload['content'],
+            'date': date_from_string(payload['date']),
+            'directory': payload['directory'],
+            'message': payload['message'],
+            'author': payload['author'],
+            'committer': payload['committer'],
+            'parent-sha1s': payload['parent-sha1s']}
 
 
 def build_release(sha1hex, payload):
     """Build a release object from the payload.
     """
-    obj = {'sha1': sha1hex,
-           'type': store.Type.release}
-    if payload:
-        obj.update({'sha1': sha1hex,
-                    'content': payload['content'],
-                    'revision': payload['revision'],
-                    'date': payload['date'],
-                    'name': payload['name'],
-                    'comment': payload['comment'],
-                    'author': payload['author']})
-    return obj
+    return {'sha1': sha1hex,
+            'type': store.Type.release,
+            'content': payload['content'],
+            'revision': payload['revision'],
+            'date': payload['date'],
+            'name': payload['name'],
+            'comment': payload['comment'],
+            'author': payload['author']}
 
 
 def build_occurrence(sha1hex, payload):
     """Build a content object from the payload.
     """
-    obj = {'sha1': sha1hex,
-           'type': store.Type.occurrence}
-    if payload:
-        obj.update({'reference': payload['reference'],
-                    'type': store.Type.occurrence,
-                    'revision': sha1hex,
-                    'url-origin': payload['url-origin']})
-    return obj
+    return {'sha1': sha1hex,
+            'type': store.Type.occurrence,
+            'reference': payload['reference'],
+            'type': store.Type.occurrence,
+            'revision': sha1hex,
+            'url-origin': payload['url-origin']}
 
 
 def build_origin(sha1hex, payload):
     """Build an origin.
     """
-    obj = {'id': payload['url'],
-           'origin-type': payload['type']}
-    return obj
+    return {'id': payload['url'],
+            'origin-type': payload['type']}
+
+
+build_object_per_type = {store.Type.revision: build_revision,
+                         store.Type.directory: build_directory,
+                         store.Type.content: build_content,
+                         store.Type.release: build_release,
+                         store.Type.occurrence: build_occurrence}
+
+
+def build_object(otype, sha1hex, payload):
+    return build_object_per_type[otype]
