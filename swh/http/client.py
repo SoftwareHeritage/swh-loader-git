@@ -27,7 +27,12 @@ def compute_simple_url(base_url, type):
 @retry(retry_on_exception=policy.retry_if_connection_error,
        wrap_exception=True,
        stop_max_attempt_number=3)
-def execute(map_type_url, method_fn, base_url, obj_type, data):
+def execute(map_type_url,
+            method_fn,
+            base_url,
+            obj_type,
+            data,
+            result_fn=lambda result: result.ok):  # default to simply return bool
     """Execute a query to the backend.
     - map_type_url is a map of {type: url backend}
     - method_fn is swh_session.post or swh_session.put
@@ -38,12 +43,10 @@ def execute(map_type_url, method_fn, base_url, obj_type, data):
     if not data:
         return data
 
-    url = compute_simple_url(base_url, map_type_url[obj_type])
-    body = serial.dumps(data)
-    r = method_fn(url,
-                  data=body,
-                  headers={'Content-Type': serial.MIMETYPE})
-    return serial.loads(r.content)
+    res = method_fn(compute_simple_url(base_url, map_type_url[obj_type]),
+                    data=serial.dumps(data),
+                    headers={'Content-Type': serial.MIMETYPE})
+    return result_fn(res)
 
 
 # url mapping for lookup
@@ -57,7 +60,12 @@ url_lookup_per_type = {  store.Type.origin: "/origins/"
 def post(base_url, obj_type, obj_sha1s):
     """Retrieve the objects of type type with sha1 sha1hex.
     """
-    return execute(url_lookup_per_type, session_swh.post, base_url, obj_type, obj_sha1s)
+    return execute(url_lookup_per_type,
+                   session_swh.post,
+                   base_url,
+                   obj_type,
+                   obj_sha1s,
+                   result_fn=lambda res: serial.loads(res.content))
 
 
 # url mapping for storage
