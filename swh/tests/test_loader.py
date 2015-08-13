@@ -1,3 +1,5 @@
+# coding: utf-8
+
 # Copyright (C) 2015  Stefano Zacchiroli <zack@upsilon.cc>,
 #                     Antoine R. Dumont <antoine.romain.dumont@gmail.com>
 # See the AUTHORS file at the top-level directory of this distribution
@@ -17,7 +19,7 @@ from swh.gitloader import loader
 from swh.conf import reader
 
 import test_initdb
-from test_git_utils import create_commit_with_content
+from test_git_utils import create_commit_with_content, create_tag
 
 @attr('slow')
 class FuncUseCase(unittest.TestCase):
@@ -136,3 +138,18 @@ class FuncUseCase(unittest.TestCase):
                 models.count_contents(db_conn),
                 7,
                 "Should be 7 blobs (new commit without new blob)")
+
+
+        # add tag
+        create_tag(self.tmp_git_repo, '0.0.1', commit5, 'bad ass release 0.0.1, towards infinity...')
+        create_tag(self.tmp_git_repo, '0.0.2', commit7, 'release 0.0.2... and beyond')
+
+
+        loader.load(self.conf)
+
+        # then
+        with db.connect(self.db_url) as db_conn:
+            self.assertEquals(
+                models.count_release(db_conn),
+                2,
+                "Should be 2 tags")

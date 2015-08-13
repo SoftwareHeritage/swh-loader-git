@@ -36,6 +36,12 @@ def create_author_and_committer():
                                  'vincent@committers.tld')
     return (author, committer)
 
+def create_tagger():
+    """Create a dummy signature for author and committer.
+    """
+    return pygit2.Signature('ToNyX',
+                            'tony@badass.org')
+
 
 def create_commit_with_content(git_repo,
                                blob_content,
@@ -51,3 +57,12 @@ def create_commit_with_content(git_repo,
         tree,  # binary string representing the tree object ID
         [] if commit_parents is None else commit_parents  # commit parents
     )
+
+def create_tag(git_repo, name, commit, message):
+    """Create a dummy tag.
+    """
+    return git_repo.create_tag(name,
+                               commit.hex,
+                               pygit2.GIT_OBJ_COMMIT,
+                               create_tagger(),
+                               message)
