@@ -18,13 +18,15 @@ app = Flask(__name__)
 
 
 def read_request_payload(request):
-    """Read the request's payload."""  # FIXME: Check the signed pickled data?
+    """Read the request's payload.
+    """  # FIXME: Check the signed pickled data?
     payload = serial.load(request.stream)
     return payload
 
 
 def write_response(data):
-    """Write response from data."""
+    """Write response from data.
+    """
     return Response(serial.dumps(data), mimetype=serial.MIMETYPE)
 
 
