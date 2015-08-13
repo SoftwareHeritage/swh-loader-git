@@ -51,7 +51,7 @@ def parse(repo_path):
         """Walk a tree with the same implementation as `os.path`.
         Returns: tree, trees, blobs
         """
-        trees, blobs, directory_entries = [], [], []
+        trees, blobs, dir_entries = [], [], []
         for tree_entry in tree:
             obj = repo.get(tree_entry.oid)
             if obj is None:
@@ -72,57 +72,61 @@ def parse(repo_path):
                               'content': data,
                               'size': obj.size})
 
-            logging.debug('(name: %s, target: %s, nat: %s, perms: %s, parent: %s) ' % (tree_entry.name, obj.hex, nature, tree_entry.filemode, tree.hex))
-            directory_entries.append({'name': tree_entry.name,
-                                      'target-sha1': obj.hex,
-                                      'nature': nature,
-                                      'perms': tree_entry.filemode,
-                                      'atime': now(),  # FIXME use real data
-                                      'mtime': now(),  # FIXME use real data
-                                      'ctime': now(),  # FIXME use real data
-                                      'parent': tree.hex})
+            logging.debug('(name: %s, tgt: %s, nat: %s, perms: %s, parent: %s) ' %  # noqa
+                          (tree_entry.name,
+                           obj.hex, nature,
+                           tree_entry.filemode,
+                           tree.hex))
 
-        yield tree, directory_entries, trees, blobs
+            dir_entries.append({'name': tree_entry.name,
+                                'target-sha1': obj.hex,
+                                'nature': nature,
+                                'perms': tree_entry.filemode,
+                                'atime': now(),  # FIXME use real data
+                                'mtime': now(),  # FIXME use real data
+                                'ctime': now(),  # FIXME use real data
+                                'parent': tree.hex})
+
+        yield tree, dir_entries, trees, blobs
         for tree_entry in trees:
             for x in treewalk(repo, repo[tree_entry.oid]):
                 yield x
 
-    def walk_tree(repo, swhrepo, revision):
-        """Walk the revision's directories.
+    def walk_tree(repo, swhrepo, rev):
+        """Walk the rev revision's directories.
         """
-        if swhrepo.already_visited(revision.hex):
-            logging.debug('commit %s already visited, skipped' % revision.hex)
+        if swhrepo.already_visited(rev.hex):
+            logging.debug('commit %s already visited, skipped' % rev.hex)
             return swhrepo
 
-        for directory_root, directory_entries, _, contents_ref in \
-            treewalk(repo, revision.tree):
+        for dir_root, dir_entries, _, contents_ref in treewalk(repo, rev.tree):
             for content_ref in contents_ref:
                 swhrepo.add_content(content_ref)
 
-            swhrepo.add_directory({'sha1': directory_root.hex,
-                                   'content': directory_root.read_raw(),
-                                   'entries': directory_entries})
+            swhrepo.add_directory({'sha1': dir_root.hex,
+                                   'content': dir_root.read_raw(),
+                                   'entries': dir_entries})
 
-        revision_parent_sha1s = list(map(str, revision.parent_ids))
-        swhrepo.add_revision({'sha1': revision.hex,
-                              'content': revision.read_raw(),
-                              'date': timestamp_to_string(revision.commit_time),
-                              'directory': revision.tree.hex,
-                              'message': revision.message,
-                              'committer': read_signature(revision.committer),
-                              'author': read_signature(revision.author),
-                              'parent-sha1s': revision_parent_sha1s  # from oid to string
+        revision_parent_sha1s = list(map(str, rev.parent_ids))
+        swhrepo.add_revision({'sha1': rev.hex,
+                              'content': rev.read_raw(),
+                              'date': timestamp_to_string(rev.commit_time),
+                              'directory': rev.tree.hex,
+                              'message': rev.message,
+                              'committer': read_signature(rev.committer),
+                              'author': read_signature(rev.author),
+                              'parent-sha1s': revision_parent_sha1s
                               })
 
         return swhrepo
 
     def walk_revision_from(repo, swhrepo, head_revision):
-        """Walk the revision history log from head_revision.
+        """Walk the rev history log from head_revision.
         - repo is the current repository
-        - revision is the latest revision to start from.
+        - rev is the latest rev to start from.
         """
-        for revision in repo.walk(head_revision.id, GIT_SORT_TOPOLOGICAL):
-            swhrepo = walk_tree(repo, swhrepo, revision)
+        for rev in repo.walk(head_revision.id, GIT_SORT_TOPOLOGICAL):
+            swhrepo = walk_tree(repo, swhrepo, rev)
 
         return swhrepo
 
@@ -146,7 +150,7 @@ def parse(repo_path):
             head_start = head_revision.get_object()
             release = {'sha1': head_revision.hex,
                        'content': head_revision.read_raw(),
-                       'revision': head_revision.target.hex,
+                       'rev': head_revision.target.hex,
                        'name': ref_name,
                        'date': now(),  # FIXME find the tag's date,
                        'author':  read_signature(head_revision.tagger),
