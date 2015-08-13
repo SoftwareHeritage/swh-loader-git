@@ -78,6 +78,6 @@ url_store_per_type = { store.Type.origin: "/origins/"
                      }
 
 def put(base_url, obj_type, obj):
-    """Given an obj of obj_type, PUT it in the backend.
+    """Given an obj (map, simple object) of obj_type, PUT it in the backend.
     """
     return execute(url_store_per_type, session_swh.put, base_url, obj_type, obj)
