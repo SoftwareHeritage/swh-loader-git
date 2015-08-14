@@ -5,7 +5,7 @@
 # See top-level LICENSE file for more information
 
 class SWHMap():
-    """Data structure that ensures easy access to current keys.
+    """Data structure that ensures easy access to current keys.  FIXME: improve or remove altogether
     """
     def __init__(self):
         self.sha1s_hex = set()
@@ -22,11 +22,6 @@ class SWHMap():
 
     def objects(self):
         return self.sha1s_map
-
-    def __str__(self):
-        return """SWHMap({
-sha1s: %s,
-map: %s})""" % (self.sha1s_hex.__str__(), self.sha1s_map.__str__())
 
 
 class SWHRepo():
@@ -87,18 +82,3 @@ class SWHRepo():
 
     def get_revisions(self):
         return self.revisions
-
-    def __str__(self):
-        return """SWHRepo({
-origin: %s,
-occurrences: %s,
-releases: %s,
-contents: %s,
-directories: %s,
-revisions: %s,
-})""" % (self.origin,
-         self.occurrences,
-         self.releases,
-         self.contents.__str__(),
-         self.directories.__str__(),
-         self.revisions.__str__())
