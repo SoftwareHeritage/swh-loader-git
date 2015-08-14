@@ -57,3 +57,5 @@ def load_to_back(back_url, swhrepo):
             client.put(back_url,
                        store.Type.release,
                        swhrepo.get_releases())
+
+    # FIXME: deal with collision failures which should be raised by the backend.

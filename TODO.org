@@ -44,9 +44,28 @@ CLOSED: [2015-07-22 Wed 12:20]
 - [X] Adapt loader to speak the api backend the dummy way (~json)
 - [X] Clean up some db-manager code + adapt makefile to use swh-sql
 - [X] Improve protocol communication between loader and api backend (drop json) > pickle
+
 - [ ] Roberto: do not use specific language serialization stack (pickle) -> the backend api could not be that private after all.
+- [ ] Roberto: add md5 checksum on contents to make sure there were no integrity during transport
+- [ ] Fix multiple FIXMEs (`M-x rgrep RET FIXME RET *.py RET /path/to/swh-git-loader RET`)
+  - [ ] Use sha256 with sha1 for content filtering to backend
+  - [ ] Find the right times (atime, ctime, mtime)
+  - [ ] Determine if `swhmap` data structure is really useful or not -> could be a simple map right now...
+  - [ ] ...
+
+- [ ] Deal with sha1s collisions ->
+
+- [ ] Ultimately, the swh-git-loader is not distributed right now. Determine if we need it to run with celery and then adapt code accordingly.
 
 * Global enhancement
+
+** Implementation details
+
+- Pointers on raw data instead of in memory representation -> cf. read_raw() call in `swh/gitloader/git.py`...
+
+- Maybe loader's repository memory model on disk and then open a file handler and provides this to the http client when ready
+-> pickle (for the moment) knows how to deal with it
+-> flask can deal with it (content-type header is 'application/octet-stream')
 
 ** Performance
 
@@ -59,6 +78,7 @@ Use future computations. Can we send in // some data?
 -> POST revisions' signatures
 
 ** Collision
+
 We need to deal with potential collisions.
 
 Backend check for collision and warn the loader if there is.

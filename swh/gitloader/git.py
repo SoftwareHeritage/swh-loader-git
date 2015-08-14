@@ -69,7 +69,7 @@ def parse(repo_path):
                 blobs.append({'sha1': obj.hex,
                               'content-sha1': hash.hash1(data).hexdigest(),
                               'content-sha256': hash.hash256(data).hexdigest(),
-                              'content': data,
+                              'content': data,  # FIXME: add pointer to data on disk?
                               'size': obj.size})
 
             logging.debug('(name: %s, tgt: %s, nat: %s, perms: %s, parent: %s) ' %  # noqa
@@ -82,9 +82,9 @@ def parse(repo_path):
                                 'target-sha1': obj.hex,
                                 'nature': nature,
                                 'perms': tree_entry.filemode,
-                                'atime': now(),  # FIXME use real data
-                                'mtime': now(),  # FIXME use real data
-                                'ctime': now(),  # FIXME use real data
+                                'atime': now(),  # FIXME: use real data
+                                'mtime': now(),  # FIXME: use real data
+                                'ctime': now(),  # FIXME: use real data
                                 'parent': tree.hex})
 
         yield tree, dir_entries, trees, blobs
@@ -104,12 +104,12 @@ def parse(repo_path):
                 swhrepo.add_content(content_ref)
 
             swhrepo.add_directory({'sha1': dir_root.hex,
-                                   'content': dir_root.read_raw(),
+                                   'content': dir_root.read_raw(),  # FIXME: add pointer to data on disk?
                                    'entries': dir_entries})
 
         revision_parent_sha1s = list(map(str, rev.parent_ids))
         swhrepo.add_revision({'sha1': rev.hex,
-                              'content': rev.read_raw(),
+                              'content': rev.read_raw(),  # FIXME: add pointer to data on disk?
                               'date': timestamp_to_string(rev.commit_time),
                               'directory': rev.tree.hex,
                               'message': rev.message,
@@ -149,10 +149,10 @@ def parse(repo_path):
         if isinstance(head_revision, pygit2.Tag):
             head_start = head_revision.get_object()
             release = {'sha1': head_revision.hex,
-                       'content': head_revision.read_raw(),
+                       'content': head_revision.read_raw(),  # FIXME: add pointer to data on disk?
                        'revision': head_revision.target.hex,
                        'name': ref_name,
-                       'date': now(),  # FIXME find the tag's date,
+                       'date': now(),  # FIXME: find the tag's date,
                        'author':  read_signature(head_revision.tagger),
                        'comment': head_revision.message}
             swhrepo.add_release(release)
