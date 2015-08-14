@@ -107,11 +107,38 @@ port = 6000
 See http://initd.org/psycopg/docs/module.html#psycopg2.connect for the db url's schema
 
 * Run
-
 ** Environment initialization
 
 #+begin_src sh
 export PYTHONPATH=`pwd`:$PYTHONPATH
+#+end_src
+
+** Backend
+
+*** With initialization
+
+This depends on swh-sql repository, so:
+#+begin_src sh
+cd /path/to/swh-sql && make clean initdb DBNAME=softwareheritage-dev
+#+end_src
+
+Using the Makefile eases:
+#+begin_src sh
+make drop-db create-db run-back FOLLOW_LOG=-f
+#+end_src
+
+*** without initialization
+
+Running the backend.
+
+#+begin_src sh
+./bin/swh-backend -v
+#+end_src
+
+With makefile:
+
+#+begin_src sh
+make run-back FOLLOW_LOG=-f
 #+end_src
 
 ** Help
@@ -131,16 +158,18 @@ bin/swh-git-loader load /path/to/git/repo
 
 For ease:
 #+begin_src sh
-make cleandb clean-and-run REPO_PATH=/path/to/git/repo
+time make cleandb run REPO_PATH=~/work/inria/repo/swh-git-cloner
 #+end_src
 
 ** Parse an existing repository
+
 #+begin_src sh
 bin/swh-git-loader load /path/to/git/repo
 #+end_src
 
 ** Clean data
 
+This will truncate the relevant table in the schema
 #+begin_src sh
 bin/swh-db-manager cleandb
 #+end_src
