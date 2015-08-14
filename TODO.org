@@ -53,8 +53,7 @@ CLOSED: [2015-07-22 Wed 12:20]
   - [ ] Determine if `swhmap` data structure is really useful or not -> could be a simple map right now...
   - [ ] ...
 
-- [ ] Deal with sha1s collisions ->
-
+- [ ] Deal with sha1s collisions
 - [ ] Ultimately, the swh-git-loader is not distributed right now. Determine if we need it to run with celery and then adapt code accordingly.
 
 * Global enhancement
