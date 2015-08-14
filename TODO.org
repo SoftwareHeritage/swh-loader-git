@@ -1,7 +1,7 @@
 #+title: TODO
 #+author: swh team
 
-* DONE First implementation
+* DONE swh implementation - poc 1
 CLOSED: [2015-07-22 Wed 12:20]
 
 - [X] Push on remote git repository
@@ -37,18 +37,36 @@ CLOSED: [2015-07-22 Wed 12:20]
 - [X] Enforce retrying policy on http client requests
 - [X] Share http connection throughout the git repository parsing
 
-* IN-PROGRESS swh implementation
+* IN-PROGRESS swh implementation - poc 2
 
 - [X] One content storage (2 were used, one for content, one for revision/directory)
 - [X] Improve api backend to use the `real` schema
 - [X] Adapt loader to speak the api backend the dummy way (~json)
 - [X] Clean up some db-manager code + adapt makefile to use swh-sql
 - [X] Improve protocol communication between loader and api backend (drop json) > pickle
+- [ ] Roberto: do not use specific language serialization stack (pickle) -> the backend api could not be that private after all.
 
 * Global enhancement
 
-- [ ] Drop json as api backend communication and use a simpler message protocol `<size><content-msg>` for example
-- [ ] Use future computations?
+** Performance
+
+Of course, we'd need to measure the actual performance first to determine if we could improve on it.
+
+But some hints:
+Use future computations. Can we send in // some data?
+-> POST contents' signatures
+-> POST directories' signatures
+-> POST revisions' signatures
+
+** Collision
+We need to deal with potential collisions.
+
+Backend check for collision and warn the loader if there is.
+
+The loader deals with the collision message accordingly.
+
+-> if everything is ok, when done, sends a message to queue to say it's ok to delete the repository
+-> if collisions has been detected, at the end of it all, sends a message to another error queue to say `WARNING collision, do not destroy this repository`
 
 * Discussion
 
