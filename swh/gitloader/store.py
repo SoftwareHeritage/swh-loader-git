@@ -38,24 +38,23 @@ def load_to_back(back_url, swhrepo):
     # - then the backend answers the checksums it does not know
     # - then the worker sends only what the backend does not know per
     # object type basis
-    store_objects(back_url, store.Type.content, swhrepo.get_contents())
-    # the contents could fail, still we can continue with directories
-
-    res = store_objects(back_url, store.Type.directory,
-                        swhrepo.get_directories())
+    res = store_objects(back_url, store.Type.content, swhrepo.get_contents())
     if res:
-        res = store_objects(back_url, store.Type.revision,
-                            swhrepo.get_revisions())
+        res = store_objects(back_url, store.Type.directory,
+                            swhrepo.get_directories())
         if res:
-            # brutally send all remaining occurrences
-            client.put(back_url,
-                       store.Type.occurrence,
-                       swhrepo.get_occurrences())
+            res = store_objects(back_url, store.Type.revision,
+                                swhrepo.get_revisions())
+            if res:
+                # brutally send all remaining occurrences
+                client.put(back_url,
+                           store.Type.occurrence,
+                           swhrepo.get_occurrences())
 
-            # and releases (the idea here is that compared to existing other
-            # objects, the quantity is less)
-            client.put(back_url,
-                       store.Type.release,
-                       swhrepo.get_releases())
+                # and releases (the idea here is that compared to existing other
+                # objects, the quantity is less)
+                client.put(back_url,
+                           store.Type.release,
+                           swhrepo.get_releases())
 
     # FIXME: deal with collision failures which should be raised by the backend.
