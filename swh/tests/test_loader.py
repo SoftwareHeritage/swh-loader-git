@@ -85,6 +85,14 @@ class FuncUseCase(unittest.TestCase):
                 models.count_contents(db_conn),
                 4,
                 "Should be 4 blobs as we created one commit without data!")
+            self.assertEquals(
+                models.count_release(db_conn),
+                0,
+                "No tag created so 0 release.")
+            self.assertEquals(
+                models.count_occurrence(db_conn),
+                1,
+                "Should be 1 reference (master) so 1 occurrence.")
 
         # given
         commit5 = create_commit_with_content(self.tmp_git_repo, 'new blob 5',
@@ -115,6 +123,14 @@ class FuncUseCase(unittest.TestCase):
                 models.count_contents(db_conn),
                 7,
                 "Should be 4+3 == 7 blobs")
+            self.assertEquals(
+                models.count_release(db_conn),
+                0,
+                "No tag created so 0 release.")
+            self.assertEquals(
+                models.count_occurrence(db_conn),
+                2,
+                "Should be 1 reference which changed twice so 2 occurrences (master changed).")
 
         # given
         create_commit_with_content(self.tmp_git_repo, None,
@@ -138,18 +154,41 @@ class FuncUseCase(unittest.TestCase):
                 models.count_contents(db_conn),
                 7,
                 "Should be 7 blobs (new commit without new blob)")
+            self.assertEquals(
+                models.count_release(db_conn),
+                0,
+                "No tag created so 0 release.")
+            self.assertEquals(
+                models.count_occurrence(db_conn),
+                3,
+                "Should be 1 reference which changed thrice so 3 occurrences (master changed again).")
 
 
         # add tag
         create_tag(self.tmp_git_repo, '0.0.1', commit5, 'bad ass release 0.0.1, towards infinity...')
         create_tag(self.tmp_git_repo, '0.0.2', commit7, 'release 0.0.2... and beyond')
 
-
         loader.load(self.conf)
 
         # then
         with db.connect(self.db_url) as db_conn:
             self.assertEquals(
+                models.count_revisions(db_conn),
+                9,
+                "Should be 8+1 == 9 commits now")
+            self.assertEquals(
+                models.count_directories(db_conn),
+                8,
+                "Should be 8 trees (new commit without blob so no new tree)")
+            self.assertEquals(
+                models.count_contents(db_conn),
+                7,
+                "Should be 7 blobs (new commit without new blob)")
+            self.assertEquals(
                 models.count_release(db_conn),
                 2,
-                "Should be 2 tags")
+                "Should be 2 annotated tags so 2 releases")
+            self.assertEquals(
+                models.count_occurrence(db_conn),
+                3,
+                "master did not change this time so still 3 occurrences")
