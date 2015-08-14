@@ -45,9 +45,6 @@ run:
 run-back:
 	PYTHONPATH=`pwd` $(SWH_BACK) $(FLAG)
 
-clean-and-run: cleandb initdb
-	PYTHONPATH=`pwd` $(SWH_LOADER) $(FLAG) load $(REPO_PATH)
-
 check:
 	$(FLAKE) $(BINDIR) $(SRCDIR)
 
