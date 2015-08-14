@@ -36,50 +36,10 @@ Test
 Requirements
 ============
 
-Functional
-----------
-
--   input: a Git bare repository available locally, on the filesystem
--   input (optional): a table mapping SHA256 of individual files to path
-    on the filesystem that contain the corresponding content (AKA, the
-    file cache)
--   input (optional): a set of SHA1 of Git commits that have already
-    been seen in the past (AKA, the Git commit cache)
--   output: an augmented SWH dataset, where all files present in all
-    blobs referenced by any Git object, have been added
-
-### algo
-
-Sketch of the (naive) algorithm that the Git loader should execute
-
-``` {.pseudo}
-for each ref in the repo
-    for each commit referenced by the commit graph starting at that ref
-        if we have a git commit cache and the commit is in there: stop treating the current commit sub-graph
-        for each tree referenced by the commit
-            for each blob referenced by the tree
-                compute the SHA256 checksum of the blob
-                lookup the checksum in the file cache
-                if it is not there
-                    add the file to the dataset on the filesystem
-                    add the file to the file cache, pointing to the file path on the filesystem
-```
-
-Non-functional
---------------
-
 -   implementation language, Python3
 -   coding guidelines: conform to PEP8
 -   Git access: via libgit2/pygit
 -   cache: implemented as Postgres tables
-
-File-system storage
--------------------
-
-Given a file with SHA256 of
-b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c It will
-be stored at
-STORAGE~ROOT~/b5/bb/9d/80/14a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c
 
 Configuration
 =============
@@ -90,8 +50,7 @@ for those:
 swh-db-manager
 --------------
 
-This is a tool in charge of db management (cleanup data, bootstrap
-model, etc...).
+This is solely a tool in charge of db cleanup now.
 
 Create a configuration file in **\~/.config/db-manager.ini**
 
@@ -131,7 +90,7 @@ Note:
 swh-backend
 -----------
 
-Backend api.
+Backend api. This
 
 Create a configuration file in **\~/.config/swh/back.ini**:
 
@@ -163,63 +122,6 @@ port = 6000
 See <http://initd.org/psycopg/docs/module.html#psycopg2.connect> for the
 db url's schema
 
-### Tryouts
-
-PUT on commits:
-
-``` {.bash}
-# tony at corellia in ~/work/inria/org/antelink on git:master x [14:04:40]
-$ curl -i -XPUT -H'application/json' -d 'date=1' http://localhost:5000/commits/52745df6dd5dc46ee476a8be155ab049994f714e
-HTTP/1.0 204 NO CONTENT
-Content-Type: text/html; charset=utf-8
-Content-Length: 0
-Server: Werkzeug/0.9.6 Python/3.4.3+
-Date: Thu, 18 Jun 2015 12:04:44 GMT
-
-
-# tony at corellia in ~/work/inria/org/antelink on git:master x [14:12:05]
-$ curl -i -XPUT -H'application/json' -d 'date=1' http://localhost:5000/commits/52745df6dd5dc46ee476a8be155ab049994f714e
-HTTP/1.0 200 OK
-Content-Type: text/html; charset=utf-8
-Content-Length: 18
-Server: Werkzeug/0.9.6 Python/3.4.3+
-Date: Thu, 18 Jun 2015 12:12:19 GMT
-
-Successful update!%
-# tony at corellia in ~/work/inria/org/antelink on git:master x [14:12:19]
-$ curl http://localhost:5000/commits/52745df6dd5dc46ee476a8be155ab049994f714e{
-  "sha1": "52745df6dd5dc46ee476a8be155ab049994f714e"
-}%
-
-```
-
-GET/PUT on blob:
-
-``` {.bash}
-# tony at corellia in ~/work/inria/org/antelink on git:master x [14:12:24]
-$ curl -i http://localhost:5000/blobs/52745df6dd5dc46ee476a8be155ab049994f714e                                         HTTP/1.0 404 NOT FOUND
-Content-Type: text/html; charset=utf-8
-Content-Length: 10
-Server: Werkzeug/0.9.6 Python/3.4.3+
-Date: Thu, 18 Jun 2015 12:12:33 GMT
-
-Not found!%
-
-
-# tony at corellia in ~/work/inria/org/antelink on git:master x [14:12:33]
-$ curl -i -XPUT -H'application/json' -d'git-sha1=456' -d'size=10' http://localhost:5000/blobs/52745df6dd5dc46ee476a8be155ab049994f714e
-HTTP/1.0 204 NO CONTENT
-Content-Type: text/html; charset=utf-8
-Content-Length: 0
-Server: Werkzeug/0.9.6 Python/3.4.3+
-Date: Thu, 18 Jun 2015 12:13:47 GMT
-
-
-# tony at corellia in ~/work/inria/org/antelink on git:master x [14:13:47]
-$ curl http://localhost:5000/blobs/52745df6dd5dc46ee476a8be155ab049994f714e{
-  "sha1": "52745df6dd5dc46ee476a8be155ab049994f714e"
-```
-
 Run
 ===
 
@@ -245,14 +147,13 @@ Clean and initialize the model then parse the repository git:
 
 ``` {.bash}
 bin/swh-db-manager cleandb
-bin/swh-db-manager initdb
 bin/swh-git-loader load /path/to/git/repo
 ```
 
 For ease:
 
 ``` {.bash}
-make cleandb initdb clean-and-run REPO_PATH=/path/to/git/repo
+make cleandb clean-and-run REPO_PATH=/path/to/git/repo
 ```
 
 Parse an existing repository
@@ -279,43 +180,5 @@ Init data
 ---------
 
 ``` {.bash}
-bin/swh-db-manager initdb
+make drop-db create-db
 ```
-
-Log
-===
-
-Format
-------
-
-Activating the debug mode (flag \`-v\` or \`--verbose\` will log more
-information in the following format: \<action-verb\> \<nature-object\>
-\<sha1-name-or-path\>
-
-where: \<action-verb\>
--   walk walk a tree or a reference
--   skip skip an already saved/visited object or unknown object (e.g.
-    commit submodule)
--   store save an object in db (file or object) and content (file or
-    object) storage
--   initialize Initialize the db
--   clean Clean the db's data
-
-\<nature-object\>
--   tree
--   commit
--   blob
--   reference
--   submodule-commit A commit from a submodule
--   unknown-action An unknown action from swhgitloader's cli
-
-\<sha1-name-or-path\>
--   sha1 git or swh's sha1
--   name object name
--   path object's content storage path
-
-Folder
-------
-
-The different tools can be configured in their respective .ini file.
-They, by default, log inside the swh-git-loader/log folder.

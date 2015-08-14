@@ -39,9 +39,6 @@ clean:
 cleandb: clean
 	PYTHONPATH=`pwd` $(SWH_DB_MANAGER) $(FLAG) cleandb
 
-initdb: clean
-	PYTHONPATH=`pwd` $(SWH_DB_MANAGER) $(FLAG) initdb
-
 run:
 	PYTHONPATH=`pwd` $(SWH_LOADER) $(FLAG) load $(REPO_PATH)
 
