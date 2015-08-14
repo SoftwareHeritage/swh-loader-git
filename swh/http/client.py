@@ -32,13 +32,16 @@ def execute(map_type_url,
             base_url,
             obj_type,
             data,
-            result_fn=lambda result: result.ok):  # default to simply return bool
+            result_fn=lambda result: result.ok):
     """Execute a query to the backend.
     - map_type_url is a map of {type: url backend}
     - method_fn is swh_session.post or swh_session.put
     - base_url is the base url of the backend
     - obj_type is the nature of the data
     - data is the data to send to the backend
+    - result_fn is a function which takes the response
+    result and do something with it. The default function
+    is to return if the server is ok or not.
     """
     if not data:
         return data
