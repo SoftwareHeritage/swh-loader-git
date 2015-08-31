@@ -52,7 +52,7 @@ def add_revisions(db_conn, conf, obj_type, objs):
             if parent_shas:
                 couple_parents.extend([(obj_to_store['sha1'], p) for p in parent_shas])
 
-        store.add_revision_history(db_conn, couple_parents)
+    store.add_revision_history(db_conn, couple_parents)
 
     return True
 
