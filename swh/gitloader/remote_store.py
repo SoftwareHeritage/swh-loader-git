@@ -7,7 +7,7 @@ from swh.storage import store
 from swh.client import http
 
 
-def store_objects(back_url, obj_type, swhmap):
+def store_unknown_objects(back_url, obj_type, swhmap):
     """Load objects to the backend.
     """
     sha1s = swhmap.keys()
@@ -37,12 +37,12 @@ def load_to_back(back_url, swhrepo):
     # - then the backend answers the checksums it does not know
     # - then the worker sends only what the backend does not know per
     # object type basis
-    res = store_objects(back_url, store.Type.content, swhrepo.get_contents())
+    res = store_unknown_objects(back_url, store.Type.content, swhrepo.get_contents())
     if res:
-        res = store_objects(back_url, store.Type.directory,
+        res = store_unknown_objects(back_url, store.Type.directory,
                             swhrepo.get_directories())
         if res:
-            res = store_objects(back_url, store.Type.revision,
+            res = store_unknown_objects(back_url, store.Type.revision,
                                 swhrepo.get_revisions())
             if res:
                 # brutally send all remaining occurrences

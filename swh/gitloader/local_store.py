@@ -35,7 +35,7 @@ def store_only_new(db_conn, conf, obj_type, obj):
 _obj_to_persist_fn = { store.Type.revision: service.add_revisions }
 
 
-def store_objects(db_conn, conf, obj_type, swhmap):
+def store_unknown_objects(db_conn, conf, obj_type, swhmap):
     """Load objects to the backend.
     """
     sha1s = swhmap.keys()
@@ -63,12 +63,12 @@ def load_to_back(backend_setup_file, swhrepo):
         # the right swh db ftm)
         service.add_origin(db_conn, swhrepo.get_origin())
 
-        res = store_objects(db_conn, conf, store.Type.content, swhrepo.get_contents())
+        res = store_unknown_objects(db_conn, conf, store.Type.content, swhrepo.get_contents())
         if res:
-            res = store_objects(db_conn, conf, store.Type.directory,
+            res = store_unknown_objects(db_conn, conf, store.Type.directory,
                                 swhrepo.get_directories())
             if res:
-                res = store_objects(db_conn, conf, store.Type.revision,
+                res = store_unknown_objects(db_conn, conf, store.Type.revision,
                                     swhrepo.get_revisions())
                 if res:
                     # brutally send all remaining occurrences
