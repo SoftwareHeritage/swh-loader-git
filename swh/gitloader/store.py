@@ -29,8 +29,8 @@ def load_to_back(back_url, swhrepo):
     # FIXME: should be done by the cloner worker (which is not yet plugged on
     # the right swh db ftm)
     http.put(back_url,
-               obj_type=store.Type.origin,
-               obj=swhrepo.get_origin())
+             obj_type=store.Type.origin,
+             obj=swhrepo.get_origin())
 
     # let the backend and api discuss what's really needed
     # - first this worker sends the checksums
@@ -47,13 +47,13 @@ def load_to_back(back_url, swhrepo):
             if res:
                 # brutally send all remaining occurrences
                 http.put(back_url,
-                           store.Type.occurrence,
-                           swhrepo.get_occurrences())
+                         store.Type.occurrence,
+                         swhrepo.get_occurrences())
 
                 # and releases (the idea here is that compared to existing other
                 # objects, the quantity is less)
                 http.put(back_url,
-                           store.Type.release,
-                           swhrepo.get_releases())
+                         store.Type.release,
+                         swhrepo.get_releases())
 
     # FIXME: deal with collision failures which should be raised by the backend.
