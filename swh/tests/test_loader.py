@@ -36,7 +36,8 @@ class FuncUseCase(unittest.TestCase):
         self.conf.update({
             'action': 'load',
             'repo_path': self.tmp_git_repo.workdir,
-            'backend_url': 'http://localhost:%s' % self.conf['port']
+            'backend-type': 'remote',
+            'backend': 'http://localhost:%s' % self.conf['port']
         })
 
 

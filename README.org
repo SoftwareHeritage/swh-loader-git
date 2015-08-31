@@ -67,8 +67,12 @@ Create a configuration file in *~/.config/swh/git-loader.ini*:
 # Where to store the logs
 log_dir = /tmp/swh-git-loader/log
 
-# url access to api's backend
-backend_url = http://localhost:5000
+# how to access the backend (remote or local)
+backend-type = remote
+
+# backend-type remote: url access to api rest's backend
+# backend-type local: configuration file to backend file .ini (cf. back.ini file)
+backend = http://localhost:5000
 #+end_src
 
 Note:

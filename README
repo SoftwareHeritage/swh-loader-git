@@ -77,8 +77,12 @@ Create a configuration file in **\~/.config/swh/git-loader.ini**:
 # Where to store the logs
 log_dir = /tmp/swh-git-loader/log
 
-# url access to api's backend
-backend_url = http://localhost:5000
+# how to access the backend (remote or local)
+backend-type = remote
+
+# backend-type remote: url access to api rest's backend
+# backend-type local: configuration file to backend file .ini (cf. back.ini file)
+backend = http://localhost:5000
 ```
 
 Note:
@@ -132,6 +136,37 @@ Environment initialization
 export PYTHONPATH=`pwd`:$PYTHONPATH
 ```
 
+Backend
+-------
+
+### With initialization
+
+This depends on swh-sql repository, so:
+
+``` {.bash}
+cd /path/to/swh-sql && make clean initdb DBNAME=softwareheritage-dev
+```
+
+Using the Makefile eases:
+
+``` {.bash}
+make drop-db create-db run-back FOLLOW_LOG=-f
+```
+
+### without initialization
+
+Running the backend.
+
+``` {.bash}
+./bin/swh-backend -v
+```
+
+With makefile:
+
+``` {.bash}
+make run-back FOLLOW_LOG=-f
+```
+
 Help
 ----
 
@@ -153,7 +188,7 @@ bin/swh-git-loader load /path/to/git/repo
 For ease:
 
 ``` {.bash}
-make cleandb clean-and-run REPO_PATH=/path/to/git/repo
+time make cleandb run REPO_PATH=~/work/inria/repo/swh-git-cloner
 ```
 
 Parse an existing repository
@@ -165,6 +200,8 @@ bin/swh-git-loader load /path/to/git/repo
 
 Clean data
 ----------
+
+This will truncate the relevant table in the schema
 
 ``` {.bash}
 bin/swh-db-manager cleandb

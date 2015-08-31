@@ -15,12 +15,15 @@ def load(conf):
     used configuration keys:
     - action: requested action
     - repo_path: git repository path ('load' action only)
-    - backend_url: url access to backend api
+    - backend-type: backend access's type (remote or local)
+    - backend: url access to backend api
     """
     action = conf['action']
+
     if action == 'load':
         repo_path = conf['repo_path']
-        backend_url = conf['backend_url']
+        backend_type = conf['backend-type']
+        backend = conf['backend']
         logging.info('load repo_path %s' % repo_path)
 
         if not os.path.exists(repo_path):
@@ -29,6 +32,11 @@ def load(conf):
             raise Exception(error_msg)
 
         swhrepo = git.parse(repo_path)
-        store.load_to_back(backend_url, swhrepo)
+
+        if backend_type == 'remote':
+            store.load_to_back(backend, swhrepo)
+        else:
+            # not implemented yet
+            pass
     else:
         logging.warn('skip unknown-action %s' % action)
