@@ -8,8 +8,7 @@ import logging
 
 from flask import Flask, Response, make_response, request
 
-from . import mapping
-from swh.storage import store, db
+from swh.storage import store, db, service
 from swh.protocols import serial
 
 # api's definition
@@ -37,11 +36,7 @@ def hello():
 
 
 # dispatch on build object function for the right type
-_build_object_fn = {store.Type.revision: mapping.build_revision,
-                    store.Type.directory: mapping.build_directory,
-                    store.Type.content: mapping.build_content,
-                    store.Type.release: mapping.build_release,
-                    store.Type.occurrence: mapping.build_occurrence}
+_build_object_fn = service.build_object_fn
 
 # from uri to type
 _uri_types = {'revisions': store.Type.revision,
@@ -90,12 +85,11 @@ def filter_unknowns_type(uri_type):
     sha1s = read_request_payload(request)
     config = app.config['conf']
 
-    with db.connect(config['db_url']) as db_conn:
-        unknowns_sha1s = store.find_unknowns(db_conn, obj_type, sha1s)
-        if unknowns_sha1s is None:
-            return make_response('Bad request!', 400)
-        else:
-            return write_response(unknowns_sha1s)
+    unknowns_sha1s = service.filter_unknowns_type(config, obj_type, sha1s)
+    if unknowns_sha1s is None:
+        return make_response('Bad request!', 400)
+    else:
+        return write_response(unknowns_sha1s)
 
 
 @app.route('/origins/', methods=['POST'])
@@ -108,15 +102,14 @@ def post_origin():
     origin = read_request_payload(request)
     config = app.config['conf']
 
-    with db.connect(config['db_url']) as db_conn:
-        try:
-            origin_found = store.find_origin(db_conn, origin)
-            if origin_found:
-                return write_response({'id': origin_found[0]})
-            else:
-                return make_response('Origin not found!', 404)
-        except:
-            return make_response('Bad request!', 400)
+    try:
+        origin_found = service.find_origin(config, origin)
+        if origin_found:
+            return write_response(origin_found)
+        else:
+            return make_response('Origin not found!', 404)
+    except:
+        return make_response('Bad request!', 400)
 
 
 @app.route('/origins/', methods=['PUT'])
@@ -129,17 +122,11 @@ def put_origin():
     origin = read_request_payload(request)
     config = app.config['conf']
 
-    with db.connect(config['db_url']) as db_conn:
-        try:
-            origin_found = store.find_origin(db_conn, origin)
-            if origin_found:
-                return write_response({'id': origin_found[0]})  # FIXME 204
-            else:
-                origin_id = store.add_origin(db_conn, origin)
-                return write_response({'id': origin_id})  # FIXME 201
-
-        except:
-            return make_response('Bad request!', 400)
+    try:
+        origin_found = service.add_origin(config, origin)
+        return write_response(origin_found)  # FIXME 204
+    except:
+        return make_response('Bad request!', 400)
 
 
 @app.route('/vcs/revisions/', methods=['PUT'])
@@ -155,26 +142,7 @@ def put_all_revisions():
 
     config = app.config['conf']
 
-    with db.connect(config['db_url']) as db_conn:
-        try:
-            couple_parents = []
-            for obj in payload:  # iterate over objects of type uri_type
-                obj_to_store = _build_object_fn[obj_type](obj['sha1'], obj)
-
-                obj_found = store.find(db_conn, obj_to_store)
-                if not obj_found:
-                    store.add(db_conn, config, obj_to_store)
-
-                    # deal with revision history
-                    parent_shas = obj_to_store.get('parent-sha1s', None)
-                    if parent_shas:
-                        couple_parents.extend([(obj_to_store['sha1'], p) for p in parent_shas])
-
-            store.add_revision_history(db_conn, couple_parents)
-        except:  # all kinds of error break the transaction
-            db_conn.rollback()
-            return make_response('Failure', 500)
-
+    service.add_revisions(config, obj_type, payload)
     return make_response('Successful creation!', 204)
 
 
@@ -190,18 +158,7 @@ def put_all(uri_type):
 
     config = app.config['conf']
 
-    with db.connect(config['db_url']) as db_conn:
-        try:
-            for obj in payload:  # iterate over objects of type uri_type
-                obj_to_store = _build_object_fn[obj_type](obj['sha1'], obj)
-
-                obj_found = store.find(db_conn, obj_to_store)
-                if not obj_found:
-                    store.add(db_conn, config, obj_to_store)
-        except:  # all kinds of error break the transaction
-            db_conn.rollback()
-            return make_response('Failure', 500)
-
+    service.add_objects(config, obj_type, payload)
     return make_response('Successful creation!', 204)
 
 def lookup(config, vcs_object, map_result_fn):
