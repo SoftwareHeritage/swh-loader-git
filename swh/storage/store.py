@@ -4,7 +4,7 @@
 # See top-level LICENSE file for more information
 
 from io import StringIO
-from swh.storage import db, models, fs
+from swh.storage import models, fs
 
 
 Type = models.Type
