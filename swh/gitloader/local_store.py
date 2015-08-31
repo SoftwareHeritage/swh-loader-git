@@ -48,7 +48,8 @@ def store_unknown_objects(db_conn, conf, obj_type, swhmap):
     # seen: now store in backend
     obj_map = swhmap.objects()
     persist_fn = _obj_to_persist_fn.get(obj_type, service.add_objects)
-    return persist_fn(db_conn, conf, obj_type, map(obj_map.get, unknown_obj_sha1s))
+    obj_fulls = map(obj_map.get, unknown_obj_sha1s)
+    return persist_fn(db_conn, conf, obj_type, obj_fulls)
 
 
 def load_to_back(backend_setup_file, swhrepo):
@@ -59,11 +60,12 @@ def load_to_back(backend_setup_file, swhrepo):
 
     with db.connect(conf['db_url']) as db_conn:
         # First, store/retrieve the origin identifier
-        # FIXME: should be done by the cloner worker (which is not yet plugged on
-        # the right swh db ftm)
+        # FIXME: should be done by the cloner worker (which is not yet plugged
+        # on the right swh db ftm)
         service.add_origin(db_conn, swhrepo.get_origin())
 
-        res = store_unknown_objects(db_conn, conf, store.Type.content, swhrepo.get_contents())
+        res = store_unknown_objects(db_conn, conf, store.Type.content,
+                                    swhrepo.get_contents())
         if res:
             res = store_unknown_objects(db_conn, conf, store.Type.directory,
                                 swhrepo.get_directories())
@@ -72,8 +74,10 @@ def load_to_back(backend_setup_file, swhrepo):
                                     swhrepo.get_revisions())
                 if res:
                     # brutally send all remaining occurrences
-                    service.add_objects(db_conn, conf, store.Type.occurrence, swhrepo.get_occurrences())
+                    service.add_objects(db_conn, conf, store.Type.occurrence,
+                                        swhrepo.get_occurrences())
 
-                    # and releases (the idea here is that compared to existing other
+                    # and releases (the idea here is that compared to existing
                     # objects, the quantity is less)
-                    service.add_objects(db_conn, conf, store.Type.release, swhrepo.get_releases())
+                    service.add_objects(db_conn, conf, store.Type.release,
+                                        swhrepo.get_releases())

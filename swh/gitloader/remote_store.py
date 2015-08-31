@@ -37,7 +37,8 @@ def load_to_back(back_url, swhrepo):
     # - then the backend answers the checksums it does not know
     # - then the worker sends only what the backend does not know per
     # object type basis
-    res = store_unknown_objects(back_url, store.Type.content, swhrepo.get_contents())
+    res = store_unknown_objects(back_url, store.Type.content,
+                                swhrepo.get_contents())
     if res:
         res = store_unknown_objects(back_url, store.Type.directory,
                             swhrepo.get_directories())
