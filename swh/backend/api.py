@@ -88,11 +88,14 @@ def filter_unknowns_type(uri_type):
         return make_response('Bad request. Type not supported!', 400)
 
     sha1s = read_request_payload(request)
-    unknowns_sha1s = store.find_unknowns(app.config['conf'], obj_type, sha1s)
-    if unknowns_sha1s is None:
-        return make_response('Bad request!', 400)
-    else:
-        return write_response(unknowns_sha1s)
+    config = app.config['conf']
+
+    with db.connect(config['db_url']) as db_conn:
+        unknowns_sha1s = store.find_unknowns(db_conn, obj_type, sha1s)
+        if unknowns_sha1s is None:
+            return make_response('Bad request!', 400)
+        else:
+            return write_response(unknowns_sha1s)
 
 
 @app.route('/origins/', methods=['POST'])
@@ -103,15 +106,17 @@ def post_origin():
         return make_response('Bad request. Expected %s data!' % serial.MIMETYPE, 400)
 
     origin = read_request_payload(request)
+    config = app.config['conf']
 
-    try:
-        origin_found = store.find_origin(app.config['conf'], origin)
-        if origin_found:
-            return write_response({'id': origin_found[0]})
-        else:
-            return make_response('Origin not found!', 404)
-    except:
-        return make_response('Bad request!', 400)
+    with db.connect(config['db_url']) as db_conn:
+        try:
+            origin_found = store.find_origin(db_conn, origin)
+            if origin_found:
+                return write_response({'id': origin_found[0]})
+            else:
+                return make_response('Origin not found!', 404)
+        except:
+            return make_response('Bad request!', 400)
 
 
 @app.route('/origins/', methods=['PUT'])
@@ -124,16 +129,17 @@ def put_origin():
     origin = read_request_payload(request)
     config = app.config['conf']
 
-    try:
-        origin_found = store.find_origin(config, origin)
-        if origin_found:
-            return write_response({'id': origin_found[0]})  # FIXME 204
-        else:
-            origin_id = store.add_origin(config, origin)
-            return write_response({'id': origin_id})  # FIXME 201
+    with db.connect(config['db_url']) as db_conn:
+        try:
+            origin_found = store.find_origin(db_conn, origin)
+            if origin_found:
+                return write_response({'id': origin_found[0]})  # FIXME 204
+            else:
+                origin_id = store.add_origin(db_conn, origin)
+                return write_response({'id': origin_id})  # FIXME 201
 
-    except:
-        return make_response('Bad request!', 400)
+        except:
+            return make_response('Bad request!', 400)
 
 
 @app.route('/vcs/revisions/', methods=['PUT'])

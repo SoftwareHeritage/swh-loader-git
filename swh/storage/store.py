@@ -27,7 +27,7 @@ _find_unknown = {Type.revision: models.find_unknown_revisions,
                  Type.directory: models.find_unknown_directories}
 
 
-def find_unknowns(config, obj_type, sha1s_hex):
+def find_unknowns(db_conn, obj_type, sha1s_hex):
     """Given a list of sha1s, return the non presents one in storage.
     """
     def row_to_sha1(row):
@@ -41,10 +41,9 @@ def find_unknowns(config, obj_type, sha1s_hex):
     cpy_data_buffer.seek(0)  # move file cursor back at start of file
 
     find_unknown_fn = _find_unknown[obj_type]
-    with db.connect(config['db_url']) as db_conn:
-        unknowns = find_unknown_fn(db_conn, cpy_data_buffer)
-        cpy_data_buffer.close()
-        return list(map(row_to_sha1, unknowns))
+    unknowns = find_unknown_fn(db_conn, cpy_data_buffer)
+    cpy_data_buffer.close()
+    return list(map(row_to_sha1, unknowns))
 
 
 def _add_content(db_conn, vcs_object, sha1hex):
@@ -147,18 +146,16 @@ _store_fn = {Type.content:   _add_content,
              Type.occurrence: _add_occurrence}
 
 
-def add_origin(config, origin):
+def add_origin(db_conn, origin):
     """A a new origin and returns its id.
     """
-    with db.connect(config['db_url']) as db_conn:
-        return models.add_origin(db_conn, origin['url'], origin['type'])
+    return models.add_origin(db_conn, origin['url'], origin['type'])
 
 
-def find_origin(config, origin):
+def find_origin(db_conn, origin):
     """Find an existing origin.
     """
-    with db.connect(config['db_url']) as db_conn:
-        return models.find_origin(db_conn, origin['url'], origin['type'])
+    return models.find_origin(db_conn, origin['url'], origin['type'])
 
 
 def add(db_conn, config, vcs_object):

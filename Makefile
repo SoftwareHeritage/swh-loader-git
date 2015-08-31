@@ -66,8 +66,11 @@ test-http:
 test-swhmap:
 	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_swhmap.py
 
-test-loader:
-	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_loader.py
+test-remote-loader:
+	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_remote_loader.py
+
+test-local-loader:
+	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_local_loader.py
 
 test-api:
 	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_api*.py

@@ -6,14 +6,11 @@
 import logging
 import os
 
-from swh.gitloader import git, store
+from swh.gitloader import git, remote_store, local_store
 
 
-to_implement = lambda x,y : x
-
-
-_load_to_back_fn = {'remote': store.load_to_back
-                   ,'local': to_implement
+_load_to_back_fn = {'remote': remote_store.load_to_back
+                   ,'local': local_store.load_to_back
                    }
 
 

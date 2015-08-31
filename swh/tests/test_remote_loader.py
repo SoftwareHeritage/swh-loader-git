@@ -21,7 +21,7 @@ import test_initdb
 from test_git_utils import create_commit_with_content, create_tag
 
 @attr('slow')
-class FuncUseCase(unittest.TestCase):
+class TestRemoteLoader(unittest.TestCase):
     def setUp(self):
         """Initialize a git repository for the remaining test to manipulate.
         """
@@ -75,7 +75,7 @@ class FuncUseCase(unittest.TestCase):
             pass
 
     @istest
-    def use_case_0(self):
+    def remote_loader(self):
         """Trigger loader and make sure everything is ok.
         """
         # given
