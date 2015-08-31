@@ -40,13 +40,39 @@ class FuncUseCase(unittest.TestCase):
             'backend': 'http://localhost:%s' % self.conf['port']
         })
 
-
         test_initdb.prepare_db(self.db_url)
 
     def tearDown(self):
         """Destroy the test git repository.
         """
         shutil.rmtree(self.tmp_git_repo.workdir)
+
+    @istest
+    def should_fail_on_bad_action(self):
+        # when
+        try:
+            loader.load({'action': 'unknown'})
+        except:
+            pass
+
+    @istest
+    def should_fail_on_inexistant_folder(self):
+        # when
+        try:
+            loader.load({'action': 'load',
+                         'repo_path': 'something-that-definitely-does-not-exist'})
+        except:
+            pass
+
+    @istest
+    def should_fail_on_inexistant_backend_type(self):
+        # when
+        try:
+            loader.load({'action': 'load',
+                         'repo_path': '.',
+                         'backend-type': 'unknown'})  # only local or remote supported
+        except:
+            pass
 
     @istest
     def use_case_0(self):

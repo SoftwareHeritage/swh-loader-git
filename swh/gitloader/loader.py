@@ -9,6 +9,32 @@ import os
 from swh.gitloader import git, store
 
 
+to_implement = lambda x,y : x
+
+
+_load_to_back_fn = {'remote': store.load_to_back
+                   ,'local': to_implement
+                   }
+
+
+def check_user_conf(conf):
+    """Check the user's configuration and rejects if problems.
+    """
+    action = conf['action']
+    if action != 'load':
+        return 'skip unknown action %s' % action
+
+    backend_type = conf['backend-type']
+    if backend_type not in _load_to_back_fn:
+        return 'skip unknown backend-type %s (only `remote`, `local` supported)' % backend_type
+
+    repo_path = conf['repo_path']
+    if not os.path.exists(repo_path):
+        return 'Repository %s does not exist.' % repo_path
+
+    return None
+
+
 def load(conf):
     """According to action, load the repo_path.
 
@@ -18,25 +44,13 @@ def load(conf):
     - backend-type: backend access's type (remote or local)
     - backend: url access to backend api
     """
-    action = conf['action']
+    error_msg = check_user_conf(conf)
+    if error_msg:
+        logging.error(error_msg)
+        raise Exception(error_msg)
 
-    if action == 'load':
-        repo_path = conf['repo_path']
-        backend_type = conf['backend-type']
-        backend = conf['backend']
-        logging.info('load repo_path %s' % repo_path)
+    repo_path = conf['repo_path']
+    logging.info('load repo_path %s' % repo_path)
 
-        if not os.path.exists(repo_path):
-            error_msg = 'Repository %s does not exist.' % repo_path
-            logging.error(error_msg)
-            raise Exception(error_msg)
-
-        swhrepo = git.parse(repo_path)
-
-        if backend_type == 'remote':
-            store.load_to_back(backend, swhrepo)
-        else:
-            # not implemented yet
-            pass
-    else:
-        logging.warn('skip unknown-action %s' % action)
+    swhrepo = git.parse(repo_path)
+    _load_to_back_fn[conf['backend-type']](conf['backend'], swhrepo)
