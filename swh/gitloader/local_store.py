@@ -3,7 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-from swh.storage import store, db
+from swh.storage import store, db, service
 from swh.conf import reader
 
 
@@ -23,7 +23,7 @@ DEFAULT_CONF = {
     'port'                : ('int'   , 5000)
 }
 
-def store_new(db_conn, conf, obj_type, obj):
+def store_only_new(db_conn, conf, obj_type, obj):
     """Store object if not already present.
     """
     print("obj %s: %s" % (obj_type, obj))
@@ -32,21 +32,23 @@ def store_new(db_conn, conf, obj_type, obj):
         store.add(db_conn, conf, obj)
 
 
+_obj_to_persist_fn = { store.Type.revision: service.add_revisions }
+
+
 def store_objects(db_conn, conf, obj_type, swhmap):
     """Load objects to the backend.
     """
     sha1s = swhmap.keys()
 
     # have: filter unknown obj
-    unknown_obj_sha1s = store.find_unknowns(db_conn, obj_type, sha1s)
+    unknown_obj_sha1s = service.filter_unknowns_type(db_conn, obj_type, sha1s)
     if not unknown_obj_sha1s:
         return True
 
-    # seen: now create the data for the backend to store
+    # seen: now store in backend
     obj_map = swhmap.objects()
-
-    for sha1 in unknown_obj_sha1s:
-        store_new(db_conn, conf, obj_type, obj_map[sha1])
+    persist_fn = _obj_to_persist_fn.get(obj_type, service.add_objects)
+    return persist_fn(db_conn, conf, obj_type, map(obj_map.get, unknown_obj_sha1s))
 
 
 def load_to_back(backend_setup_file, swhrepo):
@@ -59,9 +61,7 @@ def load_to_back(backend_setup_file, swhrepo):
         # First, store/retrieve the origin identifier
         # FIXME: should be done by the cloner worker (which is not yet plugged on
         # the right swh db ftm)
-        origin = swhrepo.get_origin()
-        if not store.find_origin(db_conn, origin):
-            store.add_origin(db_conn, origin)
+        service.add_origin(db_conn, swhrepo.get_origin())
 
         res = store_objects(db_conn, conf, store.Type.content, swhrepo.get_contents())
         if res:
@@ -72,11 +72,8 @@ def load_to_back(backend_setup_file, swhrepo):
                                     swhrepo.get_revisions())
                 if res:
                     # brutally send all remaining occurrences
-                    for occurrence in swhrepo.get_occurrences():
-                        occurrence.update({'revision': occurrence['sha1']})
-                        store_new(db_conn, conf, store.Type.occurrence, occurrence)
+                    service.add_objects(db_conn, conf, store.Type.occurrence, swhrepo.get_occurrences())
 
                     # and releases (the idea here is that compared to existing other
                     # objects, the quantity is less)
-                    for release in swhrepo.get_releases():
-                        store_new(db_conn, conf, store.Type.release, release)
+                    service.add_objects(db_conn, conf, store.Type.release, swhrepo.get_releases())

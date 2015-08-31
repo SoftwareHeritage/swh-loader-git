@@ -78,9 +78,6 @@ test-api:
 test-api-post-per-type:
 	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_api_post_*.py
 
-test-api-object:
-	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_api_object.py
-
 test-api-content:
 	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_api_content.py
 

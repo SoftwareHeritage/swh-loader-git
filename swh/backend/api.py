@@ -85,11 +85,12 @@ def filter_unknowns_type(uri_type):
     sha1s = read_request_payload(request)
     config = app.config['conf']
 
-    unknowns_sha1s = service.filter_unknowns_type(config, obj_type, sha1s)
-    if unknowns_sha1s is None:
-        return make_response('Bad request!', 400)
-    else:
-        return write_response(unknowns_sha1s)
+    with db.connect(config['db_url']) as db_conn:
+        unknowns_sha1s = service.filter_unknowns_type(db_conn, obj_type, sha1s)
+        if unknowns_sha1s is None:
+            return make_response('Bad request!', 400)
+        else:
+            return write_response(unknowns_sha1s)
 
 
 @app.route('/origins/', methods=['POST'])
@@ -102,14 +103,15 @@ def post_origin():
     origin = read_request_payload(request)
     config = app.config['conf']
 
-    try:
-        origin_found = service.find_origin(config, origin)
-        if origin_found:
-            return write_response(origin_found)
-        else:
-            return make_response('Origin not found!', 404)
-    except:
-        return make_response('Bad request!', 400)
+    with db.connect(config['db_url']) as db_conn:
+        try:
+            origin_found = service.find_origin(db_conn, origin)
+            if origin_found:
+                return write_response(origin_found)
+            else:
+                return make_response('Origin not found!', 404)
+        except:
+            return make_response('Bad request!', 400)
 
 
 @app.route('/origins/', methods=['PUT'])
@@ -122,11 +124,12 @@ def put_origin():
     origin = read_request_payload(request)
     config = app.config['conf']
 
-    try:
-        origin_found = service.add_origin(config, origin)
-        return write_response(origin_found)  # FIXME 204
-    except:
-        return make_response('Bad request!', 400)
+    with db.connect(config['db_url']) as db_conn:
+        try:
+            origin_found = service.add_origin(db_conn, origin)
+            return write_response(origin_found)  # FIXME 204
+        except:
+            return make_response('Bad request!', 400)
 
 
 @app.route('/vcs/revisions/', methods=['PUT'])
@@ -142,7 +145,8 @@ def put_all_revisions():
 
     config = app.config['conf']
 
-    service.add_revisions(config, obj_type, payload)
+    with db.connect(config['db_url']) as db_conn:
+        service.add_revisions(db_conn, config, obj_type, payload)
     return make_response('Successful creation!', 204)
 
 
@@ -158,8 +162,11 @@ def put_all(uri_type):
 
     config = app.config['conf']
 
-    service.add_objects(config, obj_type, payload)
+    with db.connect(config['db_url']) as db_conn:
+        service.add_objects(db_conn, config, obj_type, payload)
+
     return make_response('Successful creation!', 204)
+
 
 def lookup(config, vcs_object, map_result_fn):
     """Looking up type object with sha1.
