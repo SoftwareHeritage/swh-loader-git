@@ -34,7 +34,7 @@ CLOSED: [2015-07-22 Wed 12:20]
 - [X] Separate the git repository parsing from the persistence (using backend api)
 - [X] Enforce retrying disk writing policy
 - [X] Use blob's git sha1 as key on disk
-- [X] Enforce retrying policy on http client requests
+- [X] Enforce retrying policy on http http requests
 - [X] Share http connection throughout the git repository parsing
 
 * IN-PROGRESS swh implementation - poc 2

@@ -60,8 +60,8 @@ test-run-back:
 test:
 	$(NOSE) $(TESTFLAGS) $(TESTDIR)
 
-test-client:
-	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_client.py
+test-http:
+	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_http.py
 
 test-swhmap:
 	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_swhmap.py

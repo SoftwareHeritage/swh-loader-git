@@ -7,15 +7,15 @@ import unittest
 
 from nose.tools import istest
 
-from swh.http import client
+from swh.client import http
 from swh.storage import store
 
 
-class TestClient(unittest.TestCase):
+class TestHttp(unittest.TestCase):
     @istest
     def url(self):
         # when
-        s = client.compute_simple_url('http://base-url', '/end')
+        s = http.compute_simple_url('http://base-url', '/end')
 
         # then
         assert s == 'http://base-url/end'
@@ -23,7 +23,7 @@ class TestClient(unittest.TestCase):
     @istest
     def url_lookup_per_type(self):
         # then
-        assert client.url_lookup_per_type == {  store.Type.origin: "/origins/"
+        assert http.url_lookup_per_type == {  store.Type.origin: "/origins/"
                                                 , store.Type.content: "/vcs/contents/"
                                                 , store.Type.directory: "/vcs/directories/"
                                                 , store.Type.revision: "/vcs/revisions/" }
@@ -31,7 +31,7 @@ class TestClient(unittest.TestCase):
     @istest
     def url_store_per_type(self):
         # then
-        assert client.url_store_per_type == {  store.Type.origin: "/origins/"
+        assert http.url_store_per_type == {  store.Type.origin: "/origins/"
                                                , store.Type.content: "/vcs/contents/"
                                                , store.Type.directory: "/vcs/directories/"
                                                , store.Type.revision: "/vcs/revisions/"

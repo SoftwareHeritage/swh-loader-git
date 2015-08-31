@@ -4,7 +4,7 @@
 # See top-level LICENSE file for more information
 
 from swh.storage import store
-from swh.http import client
+from swh.client import http
 
 
 def store_objects(back_url, obj_type, swhmap):
@@ -12,14 +12,14 @@ def store_objects(back_url, obj_type, swhmap):
     """
     sha1s = swhmap.keys()
     # have: filter unknown obj
-    unknown_obj_sha1s = client.post(back_url, obj_type, sha1s)
+    unknown_obj_sha1s = http.post(back_url, obj_type, sha1s)
     if not unknown_obj_sha1s:
         return True
 
     # seen: now create the data for the backend to store
     obj_map = swhmap.objects()
     # store unknown objects
-    return client.put(back_url, obj_type, map(obj_map.get, unknown_obj_sha1s))
+    return http.put(back_url, obj_type, map(obj_map.get, unknown_obj_sha1s))
 
 
 def load_to_back(back_url, swhrepo):
@@ -28,7 +28,7 @@ def load_to_back(back_url, swhrepo):
     # First, store/retrieve the origin identifier
     # FIXME: should be done by the cloner worker (which is not yet plugged on
     # the right swh db ftm)
-    client.put(back_url,
+    http.put(back_url,
                obj_type=store.Type.origin,
                obj=swhrepo.get_origin())
 
@@ -46,13 +46,13 @@ def load_to_back(back_url, swhrepo):
                                 swhrepo.get_revisions())
             if res:
                 # brutally send all remaining occurrences
-                client.put(back_url,
+                http.put(back_url,
                            store.Type.occurrence,
                            swhrepo.get_occurrences())
 
                 # and releases (the idea here is that compared to existing other
                 # objects, the quantity is less)
-                client.put(back_url,
+                http.put(back_url,
                            store.Type.release,
                            swhrepo.get_releases())
 
