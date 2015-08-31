@@ -13,6 +13,7 @@ import os
 from swh.backend import api
 from swh.conf import reader
 
+
 # Default configuration file
 DEFAULT_CONF_FILE = '~/.config/swh/back.ini'
 
