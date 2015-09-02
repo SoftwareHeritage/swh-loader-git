@@ -30,14 +30,20 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
             self.directory_sha1_hex = 'directory-sha1-ee476a8be155ab049994f717e'
             models.add_directory(db_conn, self.directory_sha1_hex)
 
+            authorAndCommitter = {'name': 'some-name', 'email': 'some-email'}
+            models.add_person(db_conn, authorAndCommitter['name'], authorAndCommitter['email'])
+            
+            authorAndCommitter2 = {'name': 'tony', 'email': 'tony@dude.org'}
+            models.add_person(db_conn, authorAndCommitter2['name'], authorAndCommitter2['email'])
+            
             self.revision_sha1_hex = 'revision-sha1-to-test-existence9994f717e'
             models.add_revision(db_conn,
                                 self.revision_sha1_hex,
                                 now(),
                                 self.directory_sha1_hex,
                                 "revision message",
-                                "ardumont",
-                                "ardumont")
+                                authorAndCommitter,
+                                authorAndCommitter)
 
             self.revision_sha1_hex2 = 'revision-sha1-2-for-testing-put-occurr'
             models.add_revision(db_conn,
@@ -45,8 +51,8 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
                                 now(),
                                 self.directory_sha1_hex,
                                 "revision message",
-                                "ardumont",
-                                "ardumont",
+                                authorAndCommitter2,
+                                authorAndCommitter2,
                                 parent_shas=['revision-sha1-to-test-existence9994f717e'])
 
             self.release_sha1_hex = 'release-sha1-to-test-existence1234567901'
@@ -56,7 +62,7 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
                                now(),
                                "0.0.1",
                                "Super release tagged by tony",
-                               "tony")
+                               authorAndCommitter2)
 
             self.origin_url = "https://github.com/user/repo"
             models.add_origin(db_conn, self.origin_url, 'git')

@@ -22,14 +22,17 @@ class RevisionTestCase(unittest.TestCase):
             self.directory_sha1_hex = 'directory-sha16ee476a8be155ab049994f717e'
             models.add_directory(db_conn, self.directory_sha1_hex)
 
+            self.authorAndCommitter = {'name': 'some-name', 'email': 'some-email'}
+            models.add_person(db_conn, self.authorAndCommitter['name'], self.authorAndCommitter['email'])
+            
             self.revision_sha1_hex = 'revision-sha1-to-test-existence9994f717e'
             models.add_revision(db_conn,
                                 self.revision_sha1_hex,
                                 now(),
                                 self.directory_sha1_hex,
                                 "revision message",
-                                "ardumont",
-                                "ardumont")
+                                self.authorAndCommitter,
+                                self.authorAndCommitter)
 
     @istest
     def get_revision_ok(self):
@@ -71,8 +74,8 @@ class RevisionTestCase(unittest.TestCase):
                              'date': now(),
                              'directory': self.directory_sha1_hex,
                              'message': 'revision message describing it',
-                             'committer': 'ardumont',
-                             'author': 'ardumont',
+                             'committer': self.authorAndCommitter,
+                             'author': self.authorAndCommitter,
                              'parent-sha1s': [self.revision_sha1_hex]})
 
         rv = self.app.put('/vcs/revisions/%s' % revision_sha1_hex,

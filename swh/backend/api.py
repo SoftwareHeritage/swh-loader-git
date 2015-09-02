@@ -92,6 +92,26 @@ def filter_unknowns_type(uri_type):
         else:
             return write_response(unknowns_sha1s)
 
+@app.route('/vcs/persons/', methods=['POST'])
+def post_person():
+    """Post a person.
+    """
+    if request.headers.get('Content-Type') != serial.MIMETYPE:
+        return make_response('Bad request. Expected %s data!' % serial.MIMETYPE, 400)
+
+    origin = read_request_payload(request)
+    config = app.config['conf']
+
+    with db.connect(config['db_url']) as db_conn:
+        try:
+            person_found = service.find_person(db_conn, origin)
+            if person_found:
+                return write_response(person_found)
+            else:
+                return make_response('Person not found!', 404)
+        except:
+            return make_response('Bad request!', 400)
+
 
 @app.route('/origins/', methods=['POST'])
 def post_origin():
@@ -130,6 +150,24 @@ def put_origin():
             return write_response(origin_found)  # FIXME 204
         except:
             return make_response('Bad request!', 400)
+
+        
+@app.route('/vcs/persons/', methods=['PUT'])
+def put_all_persons():
+    """Store or update given revisions.
+    FIXME: Refactor same behavior with `put_all`.
+    """
+    if request.headers.get('Content-Type') != serial.MIMETYPE:
+        return make_response('Bad request. Expected %s data!' % serial.MIMETYPE, 400)
+
+    payload = read_request_payload(request)
+    obj_type = store.Type.person
+
+    config = app.config['conf']
+
+    with db.connect(config['db_url']) as db_conn:
+        service.add_persons(db_conn, config, obj_type, payload)
+    return make_response('Successful creation!', 204)
 
 
 @app.route('/vcs/revisions/', methods=['PUT'])

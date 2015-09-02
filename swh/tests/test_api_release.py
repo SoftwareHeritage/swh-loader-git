@@ -22,14 +22,17 @@ class ReleaseTestCase(unittest.TestCase):
             self.directory_sha1_hex = 'directory-sha16ee476a8be155ab049994f717e'
             models.add_directory(db_conn, self.directory_sha1_hex)
 
+            self.tagAuthor = {'name': 'tony', 'email': 'tony@mail.org'}
+            models.add_person(db_conn, self.tagAuthor['name'], self.tagAuthor['email'])
+
             self.revision_sha1_hex = 'revision-sha1-to-test-existence9994f717e'
             models.add_revision(db_conn,
                                 self.revision_sha1_hex,
                                 now(),
                                 self.directory_sha1_hex,
                                 "revision message",
-                                "ardumont",
-                                "ardumont")
+                                self.tagAuthor,
+                                self.tagAuthor)
 
             self.release_sha1_hex = 'release-sha1-to-test-existence1234567901'
             models.add_release(db_conn,
@@ -38,7 +41,7 @@ class ReleaseTestCase(unittest.TestCase):
                                now(),
                                "0.0.1",
                                "Super release tagged by tony",
-                               "tony")
+                               self.tagAuthor)
 
     @istest
     def get_release_ok(self):
@@ -82,7 +85,7 @@ class ReleaseTestCase(unittest.TestCase):
                              'date': now(),
                              'name': '0.0.1',
                              'comment': 'super release tagged by ardumont',
-                             'author': "me, myself and me again"})
+                             'author': self.tagAuthor})
 
         rv = self.app.put('/vcs/releases/%s' % release_sha1_hex,
                           data=body,

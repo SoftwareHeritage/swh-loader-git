@@ -22,14 +22,17 @@ class OccurrenceTestCase(unittest.TestCase):
             self.directory_sha1_hex = 'directory-sha16ee476a8be155ab049994f717e'
             models.add_directory(db_conn, self.directory_sha1_hex)
 
+            authorAndCommitter = {'name': 'some-name', 'email': 'some-email'}
+            models.add_person(db_conn, authorAndCommitter['name'], authorAndCommitter['email'])
+
             self.revision_sha1_hex = 'revision-sha1-to-test-existence9994f717e'
             models.add_revision(db_conn,
                                 self.revision_sha1_hex,
                                 now(),
                                 self.directory_sha1_hex,
                                 "revision message",
-                                "ardumont",
-                                "ardumont")
+                                authorAndCommitter,
+                                authorAndCommitter)
 
             self.origin_url = "https://github.com/user/repo"
             models.add_origin(db_conn, self.origin_url, 'git')
@@ -52,8 +55,8 @@ class OccurrenceTestCase(unittest.TestCase):
                                 now(),
                                 self.directory_sha1_hex,
                                 "revision message 2",
-                                "ardumont",
-                                "ardumont")
+                                authorAndCommitter,
+                                authorAndCommitter)
 
 
     @istest

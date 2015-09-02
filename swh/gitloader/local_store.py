@@ -65,7 +65,7 @@ def load_to_back(backend_setup_file, swhrepo):
         service.add_origin(db_conn, swhrepo.get_origin())
 
         # First reference all unknown persons
-        service.add_persons(db_conn,
+        service.add_persons(db_conn, conf, store.Type.person,
                             swhrepo.get_persons())
 
         res = store_unknown_objects(db_conn, conf, store.Type.content,

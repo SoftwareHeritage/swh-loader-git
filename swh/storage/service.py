@@ -18,6 +18,15 @@ def find_origin(db_conn, origin):
     return None
 
 
+def find_person(db_conn, person):
+    """Find person.
+    """
+    person_found = store.find_person(db_conn, person)
+    if person_found:
+        return {'id': person_found[0]}
+    return None
+
+
 def add_origin(db_conn, origin):
     """Add origin if not already existing.
     """
@@ -57,8 +66,9 @@ def add_revisions(db_conn, conf, obj_type, objs):
     return True
 
 
-def add_persons(db_conn, objs):
+def add_persons(db_conn, conf, obj_type, objs):
     """Add persons.
+    conf, obj_type are not used (implementation detail.)
     """
     for obj in objs:
         obj_found = store.find_person(db_conn, obj)
