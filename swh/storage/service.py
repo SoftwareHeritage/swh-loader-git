@@ -29,11 +29,11 @@ def add_origin(db_conn, origin):
         return {'id': origin_id}
 
 
-build_object_fn = { store.Type.revision: mapping.build_revision
-                  , store.Type.directory: mapping.build_directory
-                  , store.Type.content: mapping.build_content
-                  , store.Type.release: mapping.build_release
-                  , store.Type.occurrence: mapping.build_occurrence}
+build_object_fn = {store.Type.revision: mapping.build_revision,
+                   store.Type.directory: mapping.build_directory,
+                   store.Type.content: mapping.build_content,
+                   store.Type.release: mapping.build_release,
+                   store.Type.occurrence: mapping.build_occurrence}
 
 
 def add_revisions(db_conn, conf, obj_type, objs):
@@ -41,16 +41,16 @@ def add_revisions(db_conn, conf, obj_type, objs):
     """
     couple_parents = []
     for obj in objs:  # iterate over objects of type uri_type
-        obj_to_store = build_object_fn[obj_type](obj['sha1'], obj)
+        objfull = build_object_fn[obj_type](obj['sha1'], obj)
 
-        obj_found = store.find(db_conn, obj_to_store)
+        obj_found = store.find(db_conn, objfull)
         if not obj_found:
-            store.add(db_conn, conf, obj_to_store)
+            store.add(db_conn, conf, objfull)
 
             # deal with revision history
-            parent_shas = obj_to_store.get('parent-sha1s', None)
-            if parent_shas:
-                couple_parents.extend([(obj_to_store['sha1'], p) for p in parent_shas])
+            par_shas = objfull.get('parent-sha1s', None)
+            if par_shas:
+                couple_parents.extend([(objfull['sha1'], p) for p in par_shas])
 
     store.add_revision_history(db_conn, couple_parents)
 

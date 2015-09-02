@@ -14,14 +14,15 @@ DEFAULT_CONF_FILE = '~/.config/swh/back.ini'
 
 # default configuration
 DEFAULT_CONF = {
-    'content_storage_dir' : ('string', '/tmp/swh-git-loader/content-storage'),
-    'log_dir'             : ('string', '/tmp/swh-git-loader/log'),
-    'db_url'              : ('string', 'dbname=softwareheritage-dev'),
-    'storage_compression' : ('bool'  , None),
-    'folder_depth'        : ('int'   , 4),
-    'debug'               : ('bool'  , None),
-    'port'                : ('int'   , 5000)
+    'content_storage_dir': ('string', '/tmp/swh-git-loader/content-storage'),
+    'log_dir': ('string', '/tmp/swh-git-loader/log'),
+    'db_url': ('string', 'dbname=softwareheritage-dev'),
+    'storage_compression': ('bool', None),
+    'folder_depth': ('int', 4),
+    'debug': ('bool', None),
+    'port': ('int', 5000)
 }
+
 
 def store_only_new(db_conn, conf, obj_type, obj):
     """Store object if not already present.
@@ -32,7 +33,7 @@ def store_only_new(db_conn, conf, obj_type, obj):
         store.add(db_conn, conf, obj)
 
 
-_obj_to_persist_fn = { store.Type.revision: service.add_revisions }
+_obj_to_persist_fn = {store.Type.revision: service.add_revisions}
 
 
 def store_unknown_objects(db_conn, conf, obj_type, swhmap):
@@ -55,6 +56,8 @@ def store_unknown_objects(db_conn, conf, obj_type, swhmap):
 def load_to_back(backend_setup_file, swhrepo):
     """Load to the backend the repository swhrepo.
     """
+    print("##### Local backend %s" % backend_setup_file)
+
     # Read the configuration file (no check yet)
     conf = reader.read(backend_setup_file or DEFAULT_CONF_FILE, DEFAULT_CONF)
 
@@ -68,10 +71,10 @@ def load_to_back(backend_setup_file, swhrepo):
                                     swhrepo.get_contents())
         if res:
             res = store_unknown_objects(db_conn, conf, store.Type.directory,
-                                swhrepo.get_directories())
+                                        swhrepo.get_directories())
             if res:
                 res = store_unknown_objects(db_conn, conf, store.Type.revision,
-                                    swhrepo.get_revisions())
+                                            swhrepo.get_revisions())
                 if res:
                     # brutally send all remaining occurrences
                     service.add_objects(db_conn, conf, store.Type.occurrence,

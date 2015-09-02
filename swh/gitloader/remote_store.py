@@ -25,6 +25,7 @@ def store_unknown_objects(back_url, obj_type, swhmap):
 def load_to_back(back_url, swhrepo):
     """Load to the back_url the repository swhrepo.
     """
+    print("##### Remote backend %s" % back_url)
     # First, store/retrieve the origin identifier
     # FIXME: should be done by the cloner worker (which is not yet plugged on
     # the right swh db ftm)
@@ -41,20 +42,20 @@ def load_to_back(back_url, swhrepo):
                                 swhrepo.get_contents())
     if res:
         res = store_unknown_objects(back_url, store.Type.directory,
-                            swhrepo.get_directories())
+                                    swhrepo.get_directories())
         if res:
             res = store_unknown_objects(back_url, store.Type.revision,
-                                swhrepo.get_revisions())
+                                        swhrepo.get_revisions())
             if res:
                 # brutally send all remaining occurrences
                 http.put(back_url,
                          store.Type.occurrence,
                          swhrepo.get_occurrences())
 
-                # and releases (the idea here is that compared to existing other
-                # objects, the quantity is less)
+                # and releases (the idea here is that compared to existing
+                # other objects, the quantity is less)
                 http.put(back_url,
                          store.Type.release,
                          swhrepo.get_releases())
 
-    # FIXME: deal with collision failures which should be raised by the backend.
+    # FIXME: deal with collision failures which should be raised by backend.
