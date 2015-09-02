@@ -56,8 +56,6 @@ def store_unknown_objects(db_conn, conf, obj_type, swhmap):
 def load_to_back(backend_setup_file, swhrepo):
     """Load to the backend the repository swhrepo.
     """
-    print("##### Local backend %s" % backend_setup_file)
-
     # Read the configuration file (no check yet)
     conf = reader.read(backend_setup_file or DEFAULT_CONF_FILE, DEFAULT_CONF)
 

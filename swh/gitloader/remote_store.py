@@ -25,7 +25,6 @@ def store_unknown_objects(back_url, obj_type, swhmap):
 def load_to_back(back_url, swhrepo):
     """Load to the back_url the repository swhrepo.
     """
-    print("##### Remote backend %s" % back_url)
     # First, store/retrieve the origin identifier
     # FIXME: should be done by the cloner worker (which is not yet plugged on
     # the right swh db ftm)
