@@ -39,7 +39,14 @@ clean:
 cleandb: clean
 	PYTHONPATH=`pwd` $(SWH_DB_MANAGER) $(FLAG) cleandb
 
+run-remote:
+	PYTHONPATH=`pwd` $(SWH_LOADER) $(FLAG) --config ./resources/remote-git-loader.ini load $(REPO_PATH)
+
+run-local:
+	PYTHONPATH=`pwd` $(SWH_LOADER) $(FLAG) --config ./resources/local-git-loader.ini load $(REPO_PATH)
+
 run:
+	# works with the default ~/.config/swh/git-loader.ini file
 	PYTHONPATH=`pwd` $(SWH_LOADER) $(FLAG) load $(REPO_PATH)
 
 run-back:
