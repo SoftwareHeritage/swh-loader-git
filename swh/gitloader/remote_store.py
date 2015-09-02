@@ -10,31 +10,29 @@ from swh.client import http
 def store_unknown_objects(back_url, obj_type, swhmap):
     """Load objects to the backend.
     """
-    sha1s = swhmap.keys()
+    sha1s = list(swhmap.keys())
     # have: filter unknown obj
     unknown_obj_sha1s = http.post(back_url, obj_type, sha1s)
     if not unknown_obj_sha1s:
         return True
 
-    # seen: now create the data for the backend to store
-    obj_map = swhmap.objects()
     # store unknown objects
-    return http.put(back_url, obj_type, map(obj_map.get, unknown_obj_sha1s))
+    return http.put(back_url, obj_type, map(swhmap.get, unknown_obj_sha1s))
 
 
-def load_to_back(back_url, swhrepo):
-    """Load to the back_url the repository swhrepo.
+def load_to_back(back_url, swh_repo):
+    """Load to the back_url the repository swh_repo.
     """
     # First, store/retrieve the origin identifier
     # FIXME: should be done by the cloner worker (which is not yet plugged on
     # the right swh db ftm)
     http.put(back_url,
              obj_type=store.Type.origin,
-             obj=swhrepo.get_origin())
+             obj=swh_repo.get_origin())
 
     http.put(back_url,
              obj_type=store.Type.person,
-             obj=swhrepo.get_persons())
+             obj=list(swh_repo.get_persons()))
     
     # let the backend and api discuss what's really needed
     # - first this worker sends the checksums
@@ -42,24 +40,24 @@ def load_to_back(back_url, swhrepo):
     # - then the worker sends only what the backend does not know per
     # object type basis
     res = store_unknown_objects(back_url, store.Type.content,
-                                swhrepo.get_contents())
+                                swh_repo.get_contents())
 
     if res:
         res = store_unknown_objects(back_url, store.Type.directory,
-                                    swhrepo.get_directories())
+                                    swh_repo.get_directories())
         if res:
             res = store_unknown_objects(back_url, store.Type.revision,
-                                        swhrepo.get_revisions())
+                                        swh_repo.get_revisions())
             if res:
                 # brutally send all remaining occurrences
                 http.put(back_url,
                          store.Type.occurrence,
-                         swhrepo.get_occurrences())
+                         swh_repo.get_occurrences())
 
                 # and releases (the idea here is that compared to existing
                 # other objects, the quantity is less)
                 http.put(back_url,
                          store.Type.release,
-                         swhrepo.get_releases())
+                         swh_repo.get_releases())
 
     # FIXME: deal with collision failures which should be raised by backend.

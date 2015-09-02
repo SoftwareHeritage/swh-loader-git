@@ -79,8 +79,8 @@ test-local-loader:
 test-http:
 	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_http.py
 
-test-swhmap:
-	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_swhmap.py
+test-swhrepo:
+	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_swhrepo.py
 
 test-api:
 	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_api*.py

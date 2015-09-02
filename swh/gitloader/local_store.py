@@ -46,9 +46,8 @@ def store_unknown_objects(db_conn, conf, obj_type, swhmap):
         return True
 
     # seen: now store in backend
-    obj_map = swhmap.objects()
     persist_fn = _obj_to_persist_fn.get(obj_type, service.add_objects)
-    obj_fulls = map(obj_map.get, unknown_obj_sha1s)
+    obj_fulls = map(swhmap.get, unknown_obj_sha1s)
     return persist_fn(db_conn, conf, obj_type, obj_fulls)
 
 

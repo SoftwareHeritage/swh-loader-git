@@ -3,40 +3,18 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-
-class SWHMap():
-    """Data structure that ensures easy access to current keys.
-    FIXME: improve or remove altogether
-    """
-    def __init__(self):
-        self.sha1s_hex = set()
-        self.sha1s_map = {}
-
-    def add(self, sha1, obj):
-        """Add obj with type obj_type and sha1.
-        """
-        self.sha1s_hex.add(sha1)
-        self.sha1s_map[sha1] = obj
-
-    def keys(self):
-        return self.sha1s_hex
-
-    def objects(self):
-        return self.sha1s_map
-
-
 class SWHRepo():
     """Structure with:
-    - sha1s as list
-    - swh objects map (indexed by sha1)
+       - sha1s as list
+       - map indexed by sha1
     """
     def __init__(self):
         self.origin = {}
         self.releases = []
         self.occurrences = []
-        self.contents = SWHMap()
-        self.directories = SWHMap()
-        self.revisions = SWHMap()
+        self.contents = {}
+        self.directories = {}
+        self.revisions = {}
         self.persons = {}
         self.visited = set()
 
@@ -60,7 +38,7 @@ class SWHRepo():
 
     def add_content(self, content_ref):
         sha1 = content_ref['sha1']
-        self.contents.add(sha1, content_ref)
+        self.contents[sha1] = content_ref
         self.visited.add(sha1)
 
     def get_contents(self):
@@ -68,7 +46,7 @@ class SWHRepo():
 
     def add_directory(self, directory):
         sha1 = directory['sha1']
-        self.directories.add(sha1, directory)
+        self.directories[sha1] = directory
         self.visited.add(sha1)
 
     def get_directories(self):
@@ -76,14 +54,14 @@ class SWHRepo():
 
     def add_revision(self, revision):
         sha1 = revision['sha1']
-        self.revisions.add(sha1, revision)
+        self.revisions[sha1] = revision
         self.visited.add(sha1)
 
     def add_person(self, id, person):
         self.persons[id] = person
 
     def get_persons(self):
-        return list(self.persons.values())
+        return self.persons.values()
 
     def already_visited(self, sha1):
         return sha1 in self.visited
