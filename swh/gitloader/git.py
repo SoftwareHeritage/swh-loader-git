@@ -107,24 +107,32 @@ def parse(repo_path):
                                    'entries': dir_entries})
 
         revision_parent_sha1s = list(map(str, rev.parent_ids))
+
+        author = {'name': rev.author.name,
+                  'email': rev.author.email}
+        committer = {'name': rev.committer.name,
+                     'email': rev.committer.email}
         swhrepo.add_revision({'sha1': rev.hex,
                               'content': rev.read_raw(),  # FIXME: add pointer to data on disk?
                               'date': timestamp_to_string(rev.commit_time),
                               'directory': rev.tree.hex,
                               'message': rev.message,
-                              'committer': read_signature(rev.committer),
-                              'author': read_signature(rev.author),
+                              'committer': committer,
+                              'author': author,
                               'parent-sha1s': revision_parent_sha1s
-                              })
+        })
+
+        swhrepo.add_person(read_signature(rev.author), author)
+        swhrepo.add_person(read_signature(rev.committer), committer)
 
         return swhrepo
 
-    def walk_revision_from(repo, swhrepo, head_revision):
-        """Walk the rev history log from head_revision.
+    def walk_revision_from(repo, swhrepo, head_rev):
+        """Walk the rev history log from head_rev.
         - repo is the current repository
         - rev is the latest rev to start from.
         """
-        for rev in repo.walk(head_revision.id, GIT_SORT_TOPOLOGICAL):
+        for rev in repo.walk(head_rev.id, GIT_SORT_TOPOLOGICAL):
             swhrepo = walk_tree(repo, swhrepo, rev)
 
         return swhrepo
@@ -141,25 +149,30 @@ def parse(repo_path):
         logging.info('walk reference %s' % ref_name)
         ref = repo.lookup_reference(ref_name)
 
-        head_revision = repo[ref.target] \
+        head_rev = repo[ref.target] \
                         if ref.type is GIT_REF_OID \
-                        else ref.peel(GIT_OBJ_COMMIT)
+                        else ref.peel(GIT_OBJ_COMMIT)  # noqa
 
-        if isinstance(head_revision, pygit2.Tag):
-            head_start = head_revision.get_object()
-            release = {'sha1': head_revision.hex,
-                       'content': head_revision.read_raw(),  # FIXME: add pointer to data on disk?
-                       'revision': head_revision.target.hex,
+        if isinstance(head_rev, pygit2.Tag):
+            head_start = head_rev.get_object()
+            taggerSig = head_rev.tagger
+            author = {'name': taggerSig.name,
+                      'email': taggerSig.email}
+            release = {'sha1': head_rev.hex,
+                       'content': head_rev.read_raw(),  # FIXME: add pointer to data on disk?
+                       'revision': head_rev.target.hex,
                        'name': ref_name,
                        'date': now(),  # FIXME: find the tag's date,
-                       'author':  read_signature(head_revision.tagger),
-                       'comment': head_revision.message}
+                       'author':  author,
+                       'comment': head_rev.message}
+
             swhrepo.add_release(release)
+            swhrepo.add_person(read_signature(taggerSig), author)
         else:
-            swhrepo.add_occurrence({'sha1': head_revision.hex,
+            swhrepo.add_occurrence({'sha1': head_rev.hex,
                                     'reference': ref_name,
                                     'url-origin': origin['url']})
-            head_start = head_revision
+            head_start = head_rev
 
         # crawl commits and trees
         walk_revision_from(repo, swhrepo, head_start)

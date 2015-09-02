@@ -3,8 +3,10 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+
 class SWHMap():
-    """Data structure that ensures easy access to current keys.  FIXME: improve or remove altogether
+    """Data structure that ensures easy access to current keys.
+    FIXME: improve or remove altogether
     """
     def __init__(self):
         self.sha1s_hex = set()
@@ -35,6 +37,7 @@ class SWHRepo():
         self.contents = SWHMap()
         self.directories = SWHMap()
         self.revisions = SWHMap()
+        self.persons = {}
         self.visited = set()
 
     def add_origin(self, origin):
@@ -75,6 +78,12 @@ class SWHRepo():
         sha1 = revision['sha1']
         self.revisions.add(sha1, revision)
         self.visited.add(sha1)
+
+    def add_person(self, id, person):
+        self.persons[id] = person
+
+    def get_persons(self):
+        return self.persons.values()
 
     def already_visited(self, sha1):
         return sha1 in self.visited

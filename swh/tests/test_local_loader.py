@@ -189,6 +189,10 @@ class TestRemoteLoader(unittest.TestCase):
                 models.count_occurrence(db_conn),
                 3,
                 "Should be 1 reference which changed thrice so 3 occurrences (master changed again).")
+            self.assertEquals(
+                models.count_person(db_conn),
+                2,
+                "1 author + 1 committer")
 
 
         # add tag
@@ -219,3 +223,7 @@ class TestRemoteLoader(unittest.TestCase):
                 models.count_occurrence(db_conn),
                 3,
                 "master did not change this time so still 3 occurrences")
+            self.assertEquals(
+                models.count_person(db_conn),
+                3,
+                "1 author + 1 committer + 1 tagger")

@@ -9,28 +9,28 @@ from datetime import datetime
 from swh.storage import store
 
 
-def build_content(sha1hex, payload):
-    """Build a content object from the payload.
+def build_content(sha1hex, obj_partial):
+    """Build a content object from the obj_partial.
     """
-    payload = payload if payload else {}
+    obj_partial = obj_partial if obj_partial else {}
     return {'sha1': sha1hex,
             'type': store.Type.content,
-            'content-sha1': payload.get('content-sha1'),
-            'content-sha256': payload.get('content-sha256'),
-            'content': payload.get('content'),
-            'size': payload.get('size')}
+            'content-sha1': obj_partial.get('content-sha1'),
+            'content-sha256': obj_partial.get('content-sha256'),
+            'content': obj_partial.get('content'),
+            'size': obj_partial.get('size')}
 
 
-def build_directory(sha1hex, payload):
-    """Build a directory object from the payload.
+def build_directory(sha1hex, obj_partial):
+    """Build a directory object from the obj_partial.
     """
-    payload = payload if payload else {}  # FIXME get hack -> split get-post/put
+    obj_partial = obj_partial if obj_partial else {}  # FIXME get hack -> split get-post/put
     directory = {'sha1': sha1hex,
                  'type': store.Type.directory,
-                 'content': payload.get('content')}
+                 'content': obj_partial.get('content')}
 
     directory_entries = []
-    for entry in payload.get('entries', []):
+    for entry in obj_partial.get('entries', []):
         directory_entry = build_directory_entry(sha1hex, entry)
         directory_entries.append(directory_entry)
 
@@ -58,54 +58,54 @@ def build_directory_entry(parent_sha1hex, entry):
 
 
 
-def build_revision(sha1hex, payload):
-    """Build a revision object from the payload.
+def build_revision(sha1hex, obj_partial):
+    """Build a revision object from the obj_partial.
     """
     obj = {'sha1': sha1hex,
            'type': store.Type.revision}
-    if payload:
-        obj.update({'content': payload['content'],
-                    'date': date_from_string(payload['date']),
-                    'directory': payload['directory'],
-                    'message': payload['message'],
-                    'author': payload['author'],
-                    'committer': payload['committer'],
-                    'parent-sha1s': payload['parent-sha1s']})
+    if obj_partial:
+        obj.update({'content': obj_partial['content'],
+                    'date': date_from_string(obj_partial['date']),
+                    'directory': obj_partial['directory'],
+                    'message': obj_partial['message'],
+                    'author': obj_partial['author'],
+                    'committer': obj_partial['committer'],
+                    'parent-sha1s': obj_partial['parent-sha1s']})
     return obj
 
 
-def build_release(sha1hex, payload):
-    """Build a release object from the payload.
+def build_release(sha1hex, obj_partial):
+    """Build a release object from the obj_partial.
     """
     obj = {'sha1': sha1hex,
            'type': store.Type.release}
-    if payload:
+    if obj_partial:
         obj.update({'sha1': sha1hex,
-                    'content': payload['content'],
-                    'revision': payload['revision'],
-                    'date': payload['date'],
-                    'name': payload['name'],
-                    'comment': payload['comment'],
-                    'author': payload['author']})
+                    'content': obj_partial['content'],
+                    'revision': obj_partial['revision'],
+                    'date': obj_partial['date'],
+                    'name': obj_partial['name'],
+                    'comment': obj_partial['comment'],
+                    'author': obj_partial['author']})
     return obj
 
 
-def build_occurrence(sha1hex, payload):
-    """Build a content object from the payload.
+def build_occurrence(sha1hex, obj_partial):
+    """Build a content object from the obj_partial.
     """
     obj = {'sha1': sha1hex,
            'type': store.Type.occurrence}
-    if payload:
-        obj.update({'reference': payload['reference'],
+    if obj_partial:
+        obj.update({'reference': obj_partial['reference'],
                     'type': store.Type.occurrence,
                     'revision': sha1hex,
-                    'url-origin': payload['url-origin']})
+                    'url-origin': obj_partial['url-origin']})
     return obj
 
 
-def build_origin(sha1hex, payload):
+def build_origin(sha1hex, obj_partial):
     """Build an origin.
     """
-    obj = {'id': payload['url'],
-           'origin-type': payload['type']}
+    obj = {'id': obj_partial['url'],
+           'origin-type': obj_partial['type']}
     return obj

@@ -27,7 +27,6 @@ DEFAULT_CONF = {
 def store_only_new(db_conn, conf, obj_type, obj):
     """Store object if not already present.
     """
-    print("obj %s: %s" % (obj_type, obj))
     obj.update({'type': obj_type})
     if not store.find(db_conn, obj):
         store.add(db_conn, conf, obj)
@@ -64,6 +63,10 @@ def load_to_back(backend_setup_file, swhrepo):
         # FIXME: should be done by the cloner worker (which is not yet plugged
         # on the right swh db ftm)
         service.add_origin(db_conn, swhrepo.get_origin())
+
+        # First reference all unknown persons
+        service.add_persons(db_conn,
+                            swhrepo.get_persons())
 
         res = store_unknown_objects(db_conn, conf, store.Type.content,
                                     swhrepo.get_contents())

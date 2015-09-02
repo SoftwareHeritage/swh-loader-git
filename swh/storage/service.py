@@ -57,6 +57,17 @@ def add_revisions(db_conn, conf, obj_type, objs):
     return True
 
 
+def add_persons(db_conn, objs):
+    """Add persons.
+    """
+    for obj in objs:
+        obj_found = store.find_person(db_conn, obj)
+        if not obj_found:
+            store.add_person(db_conn, obj)
+
+    return True
+
+
 def add_objects(db_conn, conf, obj_type, objs):
     """Add objects.
     """

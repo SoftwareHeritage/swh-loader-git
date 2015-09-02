@@ -139,10 +139,18 @@ def _add_occurrence(db_conn, vcs_object, sha1hex):
     return sha1hex
 
 
-_store_fn = {Type.content:   _add_content,
+def add_person(db_conn, vcs_object):
+    """Add an author.
+    """
+    return models.add_person(db_conn,
+                             vcs_object['name'],
+                             vcs_object['email'])
+
+
+_store_fn = {Type.content: _add_content,
              Type.directory: _add_directory,
-             Type.revision:  _add_revision,
-             Type.release:   _add_release,
+             Type.revision: _add_revision,
+             Type.release: _add_release,
              Type.occurrence: _add_occurrence}
 
 
@@ -158,6 +166,12 @@ def find_origin(db_conn, origin):
     return models.find_origin(db_conn, origin['url'], origin['type'])
 
 
+def find_person(db_conn, person):
+    """Find an existing person.
+    """
+    return models.find_person(db_conn, person['email'], person['name'])
+
+    
 def add(db_conn, config, vcs_object):
     """Given a sha1hex, type and content, store a given object in the store.
     """

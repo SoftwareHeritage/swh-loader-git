@@ -18,6 +18,7 @@ class Type(Enum):
     directory_entry = 'directory_entry'  # ~git tree_entry
     content = 'content'                  # ~git blob
     origin = 'origin'
+    person = 'person'                    # committer, tagger, author
 
 
 def initdb(db_conn):
@@ -34,6 +35,7 @@ def cleandb(db_conn):
                                  'TRUNCATE TABLE occurrence_history CASCADE',
                                  'TRUNCATE TABLE occurrence CASCADE',
                                  'TRUNCATE TABLE origin CASCADE',
+                                 'TRUNCATE TABLE person CASCADE',
                                  ])
 
 
@@ -42,9 +44,18 @@ def add_origin(db_conn, url, type, parent=None):
     """
     return db.insert(db_conn,
                      ("""INSERT INTO origin (type, url, parent_id)
-                             VALUES (%s, %s, %s)
-                             RETURNING id""",
+                         VALUES (%s, %s, %s)
+                         RETURNING id""",
                       (type, url, parent)))
+
+def add_person(db_conn, name, email):
+    """Insert author and returns the newly inserted id.
+    """
+    return db.insert(db_conn,
+                     ("""INSERT INTO person (name, email)
+                         VALUES (%s, %s)
+                         RETURNING id""",
+                      (name, email)))
 
 
 def add_content(db_conn, sha1, sha1_content, sha256_content, size):
@@ -86,8 +97,12 @@ def add_revision(db_conn, sha, date, directory, message, author, committer,
     db.query_execute(db_conn,
                      ("""INSERT INTO revision
                          (id, date, directory, message, author, committer)
-                         VALUES (%s, %s, %s, %s, %s, %s)""",
-                      (sha, date, directory, message, author, committer)))
+                         VALUES (%s, %s, %s, %s, 
+                                 (select id from person where name=%s and email=%s),
+                                 (select id from person where name=%s and email=%s))""",
+                      (sha, date, directory, message,
+                       author['name'], author['email'],
+                       committer['name'], committer['email'])))
 
 
 def add_revision_history(db_conn, couple_parents):
@@ -103,8 +118,9 @@ def add_release(db_conn, obj_sha, revision, date, name, comment, author):
     """
     db.query_execute(db_conn,
                      ("""INSERT INTO release (id, revision, date, name, comment, author)
-                         VALUES (%s, %s, %s, %s, %s, %s)""",
-                      (obj_sha, revision, date, name, comment, author)))
+                         VALUES (%s, %s, %s, %s, %s, 
+                                 (select id from person where name=%s and email=%s))""",
+                      (obj_sha, revision, date, name, comment, author['name'], author['email'])))
 
 
 def add_occurrence(db_conn, url_origin, reference, revision):
@@ -159,6 +175,15 @@ def find_origin(db_conn, origin_url, origin_type):
                                        WHERE url=%s
                                        AND type=%s""",
                                        (origin_url, origin_type)))
+
+def find_person(db_conn, email, name):
+    """Find a person uniquely identified by email and name.
+    """
+    return db.query_fetchone(db_conn, ("""SELECT id
+                                          FROM person
+                                          WHERE email=%s
+                                          AND name=%s""",
+                                       (email, name)))
 
 
 def find_occurrence(cur, reference, revision, url_origin):
@@ -252,3 +277,9 @@ def count_release(db_conn):
     """Count the number of occurrence.
     """
     return _count_objects(db_conn, Type.release)
+
+
+def count_person(db_conn):
+    """Count the number of occurrence.
+    """
+    return _count_objects(db_conn, Type.person)
