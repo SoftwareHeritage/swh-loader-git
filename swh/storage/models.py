@@ -11,13 +11,14 @@ from swh.storage import db
 class Type(Enum):
     """Types of git objects.
     """
-    occurrence = 'occurrence'           # ~git branch
-    release = 'release'                 # ~git annotated tag
-    revision = 'revision'               # ~git commit
-    directory = 'directory'             # ~git tree
-    directory_entry = 'directory_entry' # ~git tree_entry
-    content = 'content'                 # ~git blob
+    occurrence = 'occurrence'            # ~git branch
+    release = 'release'                  # ~git annotated tag
+    revision = 'revision'                # ~git commit
+    directory = 'directory'              # ~git tree
+    directory_entry = 'directory_entry'  # ~git tree_entry
+    content = 'content'                  # ~git blob
     origin = 'origin'
+
 
 def initdb(db_conn):
     """For retrocompatibility.
@@ -82,10 +83,11 @@ def add_revision(db_conn, sha, date, directory, message, author, committer,
                  parent_shas=None):
     """Insert a revision.
     """
-    db.query_execute(db_conn, ("""INSERT INTO revision
-                                  (id, date, directory, message, author, committer)
-                                  VALUES (%s, %s, %s, %s, %s, %s)""",
-                               (sha, date, directory, message, author, committer)))
+    db.query_execute(db_conn,
+                     ("""INSERT INTO revision
+                         (id, date, directory, message, author, committer)
+                         VALUES (%s, %s, %s, %s, %s, %s)""",
+                      (sha, date, directory, message, author, committer)))
 
 
 def add_revision_history(db_conn, couple_parents):
@@ -113,11 +115,12 @@ def add_occurrence(db_conn, url_origin, reference, revision):
     with db_conn.cursor() as cur:
         occ = find_occurrence(cur, reference, revision, url_origin)
         if not occ:
-            db.execute(cur,
-                   ("""INSERT INTO occurrence
-                       (origin, reference, revision)
-                       VALUES ((select id from origin where url=%s), %s, %s)""",
-                    (url_origin, reference, revision)))
+            db.execute(
+                cur,
+                ("""INSERT INTO occurrence
+                    (origin, reference, revision)
+                    VALUES ((select id from origin where url=%s), %s, %s)""",
+                 (url_origin, reference, revision)))
 
 
 def find_revision(db_conn, obj_sha):
@@ -147,6 +150,7 @@ def find_occurrences_for_revision(db_conn, revision, type):
                                        WHERE revision=%s""",
                                     (revision,)))
 
+
 def find_origin(db_conn, origin_url, origin_type):
     """Find all origins matching an url and an origin type.
     """
@@ -156,15 +160,18 @@ def find_origin(db_conn, origin_url, origin_type):
                                        AND type=%s""",
                                        (origin_url, origin_type)))
 
+
 def find_occurrence(cur, reference, revision, url_origin):
     """Find an ocurrence with reference pointing on valid revision for date.
     """
-    return db.fetchone(cur, ("""SELECT *
-                                FROM occurrence oc
-                                WHERE reference=%s
-                                AND revision=%s
-                                AND origin = (select id from origin where url = %s)""",
-                             (reference, revision, url_origin)))
+    return db.fetchone(
+        cur,
+        ("""SELECT *
+            FROM occurrence oc
+            WHERE reference=%s
+            AND revision=%s
+            AND origin = (select id from origin where url = %s)""",
+         (reference, revision, url_origin)))
 
 
 def find_object(db_conn, obj_sha, obj_type):
@@ -175,20 +182,20 @@ def find_object(db_conn, obj_sha, obj_type):
     return db.query_fetchone(db_conn, (query, (obj_sha,)))
 
 
-def filter_unknown_objects(db_conn, file_sha1s, table_to_filter, table_temp_filter_name):
+def filter_unknown_objects(db_conn, file_sha1s, table_to_filter, tbl_tmp_name):
     """Given a list of sha1s, filter the unknown object between this list and
     the content of the table table_to_filter.
-    table_temp_filter_name is the temporary table used to filter.
+    tbl_tmp_name is the temporary table used to filter.
     """
     with db_conn.cursor() as cur:
         # explicit is better than implicit
         # simply creating the temporary table seems to be enough
         db.execute(cur, """CREATE TEMPORARY TABLE IF NOT EXISTS %s(
                              id git_object_id)
-                           ON COMMIT DELETE ROWS;""" % table_temp_filter_name)
-        db.copy_from(cur, file_sha1s, table_temp_filter_name)
+                           ON COMMIT DELETE ROWS;""" % tbl_tmp_name)
+        db.copy_from(cur, file_sha1s, tbl_tmp_name)
         db.execute(cur, '(SELECT id FROM %s) EXCEPT (SELECT id FROM %s);' %
-                   (table_temp_filter_name, table_to_filter))
+                   (tbl_tmp_name, table_to_filter))
         return cur.fetchall()
 
 
