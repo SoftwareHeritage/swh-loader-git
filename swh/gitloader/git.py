@@ -13,8 +13,8 @@ from pygit2 import GIT_OBJ_COMMIT, GIT_OBJ_TREE, GIT_SORT_TOPOLOGICAL
 from enum import Enum
 
 from swh.core import hashutil
-#from swh import hash
 from swh.data import swhrepo
+from swh.storage import store
 
 
 class DirectoryTypeEntry(Enum):
@@ -71,12 +71,14 @@ def parse(repo_path):
                 nature = DirectoryTypeEntry.file.value
                 hashes = hashutil.hashdata(data, HASH_ALGORITHMS)
                 blobs.append({'id': obj.hex,
+                              'type': store.Type.content,
                               'content-sha1': hashes['sha1'],
                               'content-sha256': hashes['sha256'],
                               'content': data,  # FIXME: add pointer to data on disk?
                               'size': obj.size})
 
             dir_entries.append({'name': tree_entry.name,
+                                'type': store.Type.directory_entry,
                                 'target-sha1': obj.hex,
                                 'nature': nature,
                                 'perms': tree_entry.filemode,
@@ -102,23 +104,28 @@ def parse(repo_path):
                 swh_repo.add_content(content_ref)
 
             swh_repo.add_directory({'id': dir_root.hex,
-                                   'content': dir_root.read_raw(),  # FIXME: add pointer to data on disk?
-                                   'entries': dir_entries})
+                                    'type': store.Type.directory,
+                                    'content': dir_root.read_raw(),  # FIXME: add pointer to data on disk?
+                                    'entries': dir_entries})
 
         revision_parent_sha1s = list(map(str, rev.parent_ids))
 
         author = {'name': rev.author.name,
-                  'email': rev.author.email}
+                  'email': rev.author.email,
+                  'type': store.Type.person}
         committer = {'name': rev.committer.name,
-                     'email': rev.committer.email}
+                     'email': rev.committer.email,
+                     'type': store.Type.person}
+
         swh_repo.add_revision({'id': rev.hex,
-                              'content': rev.read_raw(),  # FIXME: add pointer to data on disk?
-                              'date': timestamp_to_string(rev.commit_time),
-                              'directory': rev.tree.hex,
-                              'message': rev.message,
-                              'committer': committer,
-                              'author': author,
-                              'parent-sha1s': revision_parent_sha1s
+                               'type':store.Type.revision,
+                               'content': rev.read_raw(),  # FIXME: add pointer to data on disk?
+                               'date': timestamp_to_string(rev.commit_time),
+                               'directory': rev.tree.hex,
+                               'message': rev.message,
+                               'committer': committer,
+                               'author': author,
+                               'parent-sha1s': revision_parent_sha1s
         })
 
         swh_repo.add_person(read_signature(rev.author), author)
@@ -156,8 +163,10 @@ def parse(repo_path):
             head_start = head_rev.get_object()
             taggerSig = head_rev.tagger
             author = {'name': taggerSig.name,
-                      'email': taggerSig.email}
+                      'email': taggerSig.email,
+                      'type': store.Type.person}
             release = {'id': head_rev.hex,
+                       'type': store.Type.release,
                        'content': head_rev.read_raw(),  # FIXME: add pointer to data on disk?
                        'revision': head_rev.target.hex,
                        'name': ref_name,
@@ -169,8 +178,10 @@ def parse(repo_path):
             swh_repo.add_person(read_signature(taggerSig), author)
         else:
             swh_repo.add_occurrence({'id': head_rev.hex,
-                                    'reference': ref_name,
-                                    'url-origin': origin['url']})
+                                     'revision': head_rev.hex,
+                                     'reference': ref_name,
+                                     'url-origin': origin['url'],
+                                     'type': store.Type.occurrence})
             head_start = head_rev
 
         # crawl commits and trees

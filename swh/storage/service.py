@@ -3,7 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-from swh.storage import store, mapping
+from swh.storage import store
 
 
 filter_unknowns_type = store.find_unknowns
@@ -38,28 +38,20 @@ def add_origin(db_conn, origin):
         return {'id': origin_id}
 
 
-build_object_fn = {store.Type.revision: mapping.build_revision,
-                   store.Type.directory: mapping.build_directory,
-                   store.Type.content: mapping.build_content,
-                   store.Type.release: mapping.build_release,
-                   store.Type.occurrence: mapping.build_occurrence}
-
-
 def add_revisions(db_conn, conf, obj_type, objs):
     """Add Revisions.
     """
     couple_parents = []
     for obj in objs:  # iterate over objects of type uri_type
-        objfull = build_object_fn[obj_type](obj['id'], obj)
 
-        obj_found = store.find(db_conn, objfull)
+        obj_found = store.find(db_conn, obj)
         if not obj_found:
-            store.add(db_conn, conf, objfull)
+            store.add(db_conn, conf, obj)
 
             # deal with revision history
-            par_shas = objfull.get('parent-sha1s', None)
+            par_shas = obj.get('parent-sha1s', None)
             if par_shas:
-                couple_parents.extend([(objfull['id'], p) for p in par_shas])
+                couple_parents.extend([(obj['id'], p) for p in par_shas])
 
     store.add_revision_history(db_conn, couple_parents)
 
@@ -82,10 +74,8 @@ def add_objects(db_conn, conf, obj_type, objs):
     """Add objects.
     """
     for obj in objs:  # iterate over objects of type uri_type
-        obj_to_store = build_object_fn[obj_type](obj['id'], obj)
-
-        obj_found = store.find(db_conn, obj_to_store)
+        obj_found = store.find(db_conn, obj)
         if not obj_found:
-            store.add(db_conn, conf, obj_to_store)
+            store.add(db_conn, conf, obj)
 
     return True

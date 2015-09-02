@@ -35,9 +35,6 @@ def hello():
     return 'Dev SWH API'
 
 
-# dispatch on build object function for the right type
-_build_object_fn = service.build_object_fn
-
 # from uri to type
 _uri_types = {'revisions': store.Type.revision,
               'directories': store.Type.directory,
@@ -46,23 +43,15 @@ _uri_types = {'revisions': store.Type.revision,
               'occurrences': store.Type.occurrence}
 
 
-def _do_action(action_fn, uri_type, sha1hex, map_result_fn):
-    uri_type_ok = _uri_types.get(uri_type, None)
-    if not uri_type_ok:
-        return make_response('Bad request!', 400)
-
-    vcs_object = _build_object_fn[uri_type_ok](sha1hex, None)
-    return action_fn(app.config['conf'], vcs_object, map_result_fn)
-
-
-def _do_action_with_payload(action_fn, uri_type, sha1hex, map_result_fn):
+def _do_action_with_payload(conf, action_fn, uri_type, id, map_result_fn):
     uri_type_ok = _uri_types.get(uri_type, None)
     if uri_type_ok is None:
         return make_response('Bad request!', 400)
 
-    payload = read_request_payload(request)
-    vcs_object = _build_object_fn[uri_type_ok](sha1hex, payload)
-    return action_fn(app.config['conf'], vcs_object, map_result_fn)
+    vcs_object = read_request_payload(request)
+    vcs_object.update({'id': id,
+                       'type': uri_type_ok})
+    return action_fn(conf, vcs_object, map_result_fn)
 
 
 # occurrence type is not dealt the same way
@@ -206,25 +195,6 @@ def put_all(uri_type):
     return make_response('Successful creation!', 204)
 
 
-def lookup(config, vcs_object, map_result_fn):
-    """Looking up type object with sha1.
-    - config is the configuration needed for the backend to execute query
-    - vcs_object is the object to look for in the backend
-    - map_result_fn is a mapping function which takes the backend's result
-    and transform its output accordingly.
-
-    This function returns an http response of the result.
-    """
-    sha1hex = vcs_object['id']
-    logging.debug('read %s %s' % (vcs_object['type'], sha1hex))
-
-    with db.connect(config['db_url']) as db_conn:
-        res = store.find(db_conn, vcs_object)
-        if res:
-            return write_response(map_result_fn(sha1hex, res))  # 200
-        return make_response('Not found!', 404)
-
-
 def add_object(config, vcs_object, map_result_fn):
     """Add object in storage.
     - config is the configuration needed for the backend to execute query
@@ -235,53 +205,77 @@ def add_object(config, vcs_object, map_result_fn):
     This function returns an http response of the result.
     """
     type = vcs_object['type']
-    sha1hex = vcs_object['id']  # FIXME: remove useless key and send direct list
-    logging.debug('store %s %s' % (type, sha1hex))
+    id = vcs_object['id']  # FIXME: remove useless key and send direct list
+    logging.debug('store %s %s' % (type, id))
 
     with db.connect(config['db_url']) as db_conn:
         if store.find(db_conn, vcs_object):
-            logging.debug('update %s %s' % (sha1hex, type))
+            logging.debug('update %s %s' % (id, type))
             return make_response('Successful update!', 200)  # immutable
         else:
-            logging.debug('store %s %s' % (sha1hex, type))
+            logging.debug('store %s %s' % (id, type))
             res = store.add(db_conn, config, vcs_object)
             if res is None:
                 return make_response('Bad request!', 400)
             elif res is False:
-                logging.error('store %s %s' % (sha1hex, type))
+                logging.error('store %s %s' % (id, type))
                 return make_response('Internal server error!', 500)
             else:
-                return make_response(map_result_fn(sha1hex, res), 204)
+                return make_response(map_result_fn(id, res), 204)
 
 
-@app.route('/vcs/occurrences/<sha1hex>')
-def list_occurrences_for(sha1hex):
-    """Return the occurrences pointing to the revision sha1hex.
+def _do_lookup(conf, uri_type, id, map_result_fn):
+    """Looking up type object with sha1.
+    - config is the configuration needed for the backend to execute query
+    - vcs_object is the object to look for in the backend
+    - map_result_fn is a mapping function which takes the backend's result
+    and transform its output accordingly.
+
+    This function returns an http response of the result.
     """
-    return _do_action(lookup,
+    uri_type_ok = _uri_types.get(uri_type, None)
+    if not uri_type_ok:
+        return make_response('Bad request!', 400)
+
+    vcs_object = {'id': id,
+                  'type': uri_type_ok}
+    
+    with db.connect(conf['db_url']) as db_conn:
+        res = store.find(db_conn, vcs_object)
+        if res:
+            return write_response(map_result_fn(id, res))  # 200
+        return make_response('Not found!', 404)
+
+
+@app.route('/vcs/occurrences/<id>')
+def list_occurrences_for(id):
+    """Return the occurrences pointing to the revision id.
+    """
+    return _do_lookup(app.config['conf'],
                       'occurrences',
-                      sha1hex,
+                      id,
                       lambda _, result: list(map(lambda col: col[1], result)))
 
 
-@app.route('/vcs/<uri_type>/<sha1hex>')
-def object_exists_p(uri_type, sha1hex):
-    """Assert if the object with sha1 sha1hex, of type uri_type, exists.
+@app.route('/vcs/<uri_type>/<id>')
+def object_exists_p(uri_type, id):
+    """Assert if the object with sha1 id, of type uri_type, exists.
     """
-    return _do_action(lookup,
+    return _do_lookup(app.config['conf'],
                       uri_type,
-                      sha1hex,
-                      lambda sha1hex, _: {'id': sha1hex})
+                      id,
+                      lambda sha1, _: {'id': sha1})
 
 
-@app.route('/vcs/<uri_type>/<sha1hex>', methods=['PUT'])
-def put_object(uri_type, sha1hex):
+@app.route('/vcs/<uri_type>/<id>', methods=['PUT'])
+def put_object(uri_type, id):
     """Put an object in storage.
     """
-    return _do_action_with_payload(add_object,
+    return _do_action_with_payload(app.config['conf'],
+                                   add_object,
                                    uri_type,
-                                   sha1hex,
-                                   lambda _1, _2: 'Successful Creation!')  # FIXME use sha1hex or result instead
+                                   id,
+                                   lambda _1, _2: 'Successful Creation!')  # FIXME use id or result instead
 
 
 def run(conf):

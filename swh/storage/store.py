@@ -9,6 +9,7 @@ from swh.storage import models, fs
 
 Type = models.Type
 
+
 _find_object = {Type.occurrence: models.find_occurrences_for_revision}
 
 

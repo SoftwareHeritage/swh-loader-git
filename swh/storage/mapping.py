@@ -57,7 +57,6 @@ def build_directory_entry(parent_sha1hex, entry):
             'parent': entry['parent']}
 
 
-
 def build_revision(sha1hex, obj_partial):
     """Build a revision object from the obj_partial.
     """
