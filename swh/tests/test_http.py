@@ -23,19 +23,19 @@ class TestHttp(unittest.TestCase):
     @istest
     def url_lookup_per_type(self):
         # then
-        assert http.url_lookup_per_type == {  store.Type.origin: "/origins/"
-                                                , store.Type.content: "/vcs/contents/"
-                                                , store.Type.directory: "/vcs/directories/"
-                                                , store.Type.revision: "/vcs/revisions/" }
+        assert http.url_lookup_per_type == { store.Type.origin: "/origins/"
+                                           , store.Type.content: "/vcs/contents/"
+                                           , store.Type.directory: "/vcs/directories/"
+                                           , store.Type.revision: "/vcs/revisions/" }
 
     @istest
     def url_store_per_type(self):
         # then
-        assert http.url_store_per_type == {  store.Type.origin: "/origins/"
-                                               , store.Type.content: "/vcs/contents/"
-                                               , store.Type.directory: "/vcs/directories/"
-                                               , store.Type.revision: "/vcs/revisions/"
-                                               , store.Type.release: "/vcs/releases/"
-                                               , store.Type.occurrence: "/vcs/occurrences/"
-                                               , store.Type.person: "/vcs/persons/"
-                                               }
+        assert http.url_store_per_type == { store.Type.origin: "/origins/"
+                                          , store.Type.content: "/vcs/contents/"
+                                          , store.Type.directory: "/vcs/directories/"
+                                          , store.Type.revision: "/vcs/revisions/"
+                                          , store.Type.release: "/vcs/releases/"
+                                          , store.Type.occurrence: "/vcs/occurrences/"
+                                          , store.Type.person: "/vcs/persons/"
+                                          }
