@@ -13,7 +13,7 @@ from pygit2 import GIT_OBJ_COMMIT, GIT_OBJ_TREE, GIT_SORT_TOPOLOGICAL
 from enum import Enum
 
 from swh import hash
-from swh.data import swhmap
+from swh.data import swhrepo
 
 
 class DirectoryTypeEntry(Enum):
@@ -91,18 +91,18 @@ def parse(repo_path):
             for x in treewalk(repo, repo[tree_entry.oid]):
                 yield x
 
-    def walk_tree(repo, swhrepo, rev):
+    def walk_tree(repo, swh_repo, rev):
         """Walk the rev revision's directories.
         """
-        if swhrepo.already_visited(rev.hex):
+        if swh_repo.already_visited(rev.hex):
             logging.debug('commit %s already visited, skipped' % rev.hex)
-            return swhrepo
+            return swh_repo
 
         for dir_root, dir_entries, _, contents_ref in treewalk(repo, rev.tree):
             for content_ref in contents_ref:
-                swhrepo.add_content(content_ref)
+                swh_repo.add_content(content_ref)
 
-            swhrepo.add_directory({'sha1': dir_root.hex,
+            swh_repo.add_directory({'sha1': dir_root.hex,
                                    'content': dir_root.read_raw(),  # FIXME: add pointer to data on disk?
                                    'entries': dir_entries})
 
@@ -112,7 +112,7 @@ def parse(repo_path):
                   'email': rev.author.email}
         committer = {'name': rev.committer.name,
                      'email': rev.committer.email}
-        swhrepo.add_revision({'sha1': rev.hex,
+        swh_repo.add_revision({'sha1': rev.hex,
                               'content': rev.read_raw(),  # FIXME: add pointer to data on disk?
                               'date': timestamp_to_string(rev.commit_time),
                               'directory': rev.tree.hex,
@@ -122,28 +122,28 @@ def parse(repo_path):
                               'parent-sha1s': revision_parent_sha1s
         })
 
-        swhrepo.add_person(read_signature(rev.author), author)
-        swhrepo.add_person(read_signature(rev.committer), committer)
+        swh_repo.add_person(read_signature(rev.author), author)
+        swh_repo.add_person(read_signature(rev.committer), committer)
 
-        return swhrepo
+        return swh_repo
 
-    def walk_revision_from(repo, swhrepo, head_rev):
+    def walk_revision_from(repo, swh_repo, head_rev):
         """Walk the rev history log from head_rev.
         - repo is the current repository
         - rev is the latest rev to start from.
         """
         for rev in repo.walk(head_rev.id, GIT_SORT_TOPOLOGICAL):
-            swhrepo = walk_tree(repo, swhrepo, rev)
+            swh_repo = walk_tree(repo, swh_repo, rev)
 
-        return swhrepo
+        return swh_repo
 
     repo = pygit2.Repository(repo_path)
     # memory model
-    swhrepo = swhmap.SWHRepo()
+    swh_repo = swhrepo.SWHRepo()
     # add origin
     origin = {'type': 'git',
               'url': 'file://' + repo.path}
-    swhrepo.add_origin(origin)
+    swh_repo.add_origin(origin)
     # add references and crawl them
     for ref_name in repo.listall_references():
         logging.info('walk reference %s' % ref_name)
@@ -166,15 +166,15 @@ def parse(repo_path):
                        'author':  author,
                        'comment': head_rev.message}
 
-            swhrepo.add_release(release)
-            swhrepo.add_person(read_signature(taggerSig), author)
+            swh_repo.add_release(release)
+            swh_repo.add_person(read_signature(taggerSig), author)
         else:
-            swhrepo.add_occurrence({'sha1': head_rev.hex,
+            swh_repo.add_occurrence({'sha1': head_rev.hex,
                                     'reference': ref_name,
                                     'url-origin': origin['url']})
             head_start = head_rev
 
         # crawl commits and trees
-        walk_revision_from(repo, swhrepo, head_start)
+        walk_revision_from(repo, swh_repo, head_start)
 
-    return swhrepo
+    return swh_repo

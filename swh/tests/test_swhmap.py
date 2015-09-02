@@ -7,7 +7,7 @@ import unittest
 
 from nose.tools import istest
 
-from swh.data import swhmap
+from swh.data import swhrepo
 from test_utils import app_client
 
 
@@ -15,7 +15,7 @@ class SWHMapTestCase(unittest.TestCase):
     @istest
     def new_swhmap(self):
         # when
-        m = swhmap.SWHMap()
+        m = swhrepo.SWHMap()
 
         # then
         assert m.keys() == set()
@@ -24,7 +24,7 @@ class SWHMapTestCase(unittest.TestCase):
     @istest
     def add_first(self):
         # given
-        m = swhmap.SWHMap()
+        m = swhrepo.SWHMap()
 
         # when
         m.add('some-sha1', {'sha1': 'some-sha1', 'type': 'something'})
@@ -39,7 +39,7 @@ class SWHMapTestCase(unittest.TestCase):
     @istest
     def add_second_time_can_update(self):
         # given
-        m = swhmap.SWHMap()
+        m = swhrepo.SWHMap()
         m.add('some-sha1', {'sha1': 'some-sha1', 'type': 'something'})
 
         # when
@@ -59,7 +59,7 @@ class SWHRepoTestCase(unittest.TestCase):
     @istest
     def new_swhrepo(self):
         # when
-        r = swhmap.SWHRepo()
+        r = swhrepo.SWHRepo()
 
         r.add_origin({'url': 'foobar'})
         r.add_content({'sha1': 'some-con-sha1'})
