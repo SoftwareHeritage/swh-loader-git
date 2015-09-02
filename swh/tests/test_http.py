@@ -37,4 +37,5 @@ class TestHttp(unittest.TestCase):
                                                , store.Type.revision: "/vcs/revisions/"
                                                , store.Type.release: "/vcs/releases/"
                                                , store.Type.occurrence: "/vcs/occurrences/"
+                                               , store.Type.person: "/vcs/persons/"
                                                }

@@ -32,6 +32,10 @@ def load_to_back(back_url, swhrepo):
              obj_type=store.Type.origin,
              obj=swhrepo.get_origin())
 
+    http.put(back_url,
+             obj_type=store.Type.person,
+             obj=swhrepo.get_persons())
+    
     # let the backend and api discuss what's really needed
     # - first this worker sends the checksums
     # - then the backend answers the checksums it does not know
@@ -39,6 +43,7 @@ def load_to_back(back_url, swhrepo):
     # object type basis
     res = store_unknown_objects(back_url, store.Type.content,
                                 swhrepo.get_contents())
+
     if res:
         res = store_unknown_objects(back_url, store.Type.directory,
                                     swhrepo.get_directories())

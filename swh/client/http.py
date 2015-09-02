@@ -77,6 +77,7 @@ url_store_per_type = { store.Type.origin: "/origins/"
                      , store.Type.revision: "/vcs/revisions/"
                      , store.Type.release: "/vcs/releases/"
                      , store.Type.occurrence: "/vcs/occurrences/"
+                     , store.Type.person: "/vcs/persons/"
                      }
 
 def put(base_url, obj_type, obj):

@@ -83,7 +83,7 @@ class SWHRepo():
         self.persons[id] = person
 
     def get_persons(self):
-        return self.persons.values()
+        return list(self.persons.values())
 
     def already_visited(self, sha1):
         return sha1 in self.visited
