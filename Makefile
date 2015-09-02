@@ -22,6 +22,9 @@ PROFILE_TYPE=profile
 
 FOLLOW_LOG=-f
 
+# Adapt python-path to use other modules
+_PYPATH=`pwd`:`pwd`/../swh-core
+
 deps:
 	apt-get install -y \
 		python3 \
@@ -37,47 +40,47 @@ clean:
 	rm -rf /tmp/swh-git-loader/content-storage
 
 cleandb: clean
-	PYTHONPATH=`pwd` $(SWH_DB_MANAGER) $(FLAG) cleandb
+	PYTHONPATH=$(_PYPATH) $(SWH_DB_MANAGER) $(FLAG) cleandb
 
 run-remote:
-	PYTHONPATH=`pwd` $(SWH_LOADER) $(FLAG) --config ./resources/remote-git-loader.ini load $(REPO_PATH)
+	PYTHONPATH=`pwd`:`pwd`/../swh-core $(SWH_LOADER) $(FLAG) --config ./resources/remote-git-loader.ini load $(REPO_PATH)
 
 run-local:
-	PYTHONPATH=`pwd` $(SWH_LOADER) $(FLAG) --config ./resources/local-git-loader.ini load $(REPO_PATH)
+	PYTHONPATH=$(_PYPATH) $(SWH_LOADER) $(FLAG) --config ./resources/local-git-loader.ini load $(REPO_PATH)
 
 run:
 	# works with the default ~/.config/swh/git-loader.ini file
-	PYTHONPATH=`pwd` $(SWH_LOADER) $(FLAG) load $(REPO_PATH)
+	PYTHONPATH=$(_PYPATH) $(SWH_LOADER) $(FLAG) load $(REPO_PATH)
 
 run-back:
-	PYTHONPATH=`pwd` $(SWH_BACK) $(FLAG)
+	PYTHONPATH=$(_PYPATH) $(SWH_BACK) $(FLAG)
 
 check:
 	$(FLAKE) $(BINDIR) $(SRCDIR)
 
 profile-run:
-	PYTHONPATH=`pwd` python3 -m $(PROFILE_TYPE) -o ./scratch/swhgitloader.$(PROFILE_TYPE) ./scratch/profile-swhgitloader.py
+	PYTHONPATH=$(_PYPATH) python3 -m $(PROFILE_TYPE) -o ./scratch/swhgitloader.$(PROFILE_TYPE) ./scratch/profile-swhgitloader.py
 
 profile-stats:
-	PYTHONPATH=`pwd` ./scratch/analyse-profile.py
+	PYTHONPATH=$(_PYPATH) ./scratch/analyse-profile.py
 
 test-run-back:
-	PYTHONPATH=`pwd` $(SWH_BACK) $(FLAG) --config ./resources/test/back.ini
+	PYTHONPATH=$(_PYPATH) $(SWH_BACK) $(FLAG) --config ./resources/test/back.ini
 
 test:
-	$(NOSE) $(TESTFLAGS) $(TESTDIR)
+	PYTHONPATH=$(_PYPATH) $(NOSE) $(TESTFLAGS) $(TESTDIR)
+
+test-remote-loader:
+	PYTHONPATH=$(_PYPATH) $(NOSE) $(TESTFLAGS) $(TESTDIR)/test_remote_loader.py
+
+test-local-loader:
+	PYTHONPATH=$(_PYPATH) $(NOSE) $(TESTFLAGS) $(TESTDIR)/test_local_loader.py
 
 test-http:
 	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_http.py
 
 test-swhmap:
 	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_swhmap.py
-
-test-remote-loader:
-	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_remote_loader.py
-
-test-local-loader:
-	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_local_loader.py
 
 test-api:
 	$(NOSE) $(TESTFLAGS) $(TESTDIR)/test_api*.py
@@ -151,4 +154,4 @@ log-back:
 	tail $(FOLLOW_LOG) /tmp/swh-git-loader/log/back.log
 
 coverage:
-	$(NOSE) --with-coverage $(SRCDIR) -v --cover-package=$(SRCDIR)
+	PYTHONPATH=$(_PYPATH) $(NOSE) --with-coverage $(SRCDIR) -v --cover-package=$(SRCDIR)

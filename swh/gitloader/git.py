@@ -12,7 +12,8 @@ from pygit2 import GIT_REF_OID
 from pygit2 import GIT_OBJ_COMMIT, GIT_OBJ_TREE, GIT_SORT_TOPOLOGICAL
 from enum import Enum
 
-from swh import hash
+from swh.core import hashutil
+#from swh import hash
 from swh.data import swhrepo
 
 
@@ -65,9 +66,10 @@ def parse(repo_path):
                 logging.debug('found content %s' % tree_entry.hex)
                 data = obj.data
                 nature = DirectoryTypeEntry.file.value
+                hashes = hashutil.hashdata(data, algorithms=['sha1', 'sha256'])
                 blobs.append({'sha1': obj.hex,
-                              'content-sha1': hash.hash1(data).hexdigest(),
-                              'content-sha256': hash.hash256(data).hexdigest(),
+                              'content-sha1': hashes['sha1'],
+                              'content-sha256': hashes['sha256'],
                               'content': data,  # FIXME: add pointer to data on disk?
                               'size': obj.size})
 
