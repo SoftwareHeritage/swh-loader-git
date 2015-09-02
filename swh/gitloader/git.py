@@ -41,6 +41,9 @@ def timestamp_to_string(timestamp):
     return date_format(datetime.utcfromtimestamp(timestamp))
 
 
+HASH_ALGORITHMS=['sha1', 'sha256']
+
+
 def parse(repo_path):
     """Given a repository path, parse and return a memory model of such
     repository."""
@@ -66,7 +69,7 @@ def parse(repo_path):
                 logging.debug('found content %s' % tree_entry.hex)
                 data = obj.data
                 nature = DirectoryTypeEntry.file.value
-                hashes = hashutil.hashdata(data, algorithms=['sha1', 'sha256'])
+                hashes = hashutil.hashdata(data, HASH_ALGORITHMS)
                 blobs.append({'sha1': obj.hex,
                               'content-sha1': hashes['sha1'],
                               'content-sha256': hashes['sha256'],
