@@ -15,10 +15,12 @@ NB_CONTENTS=$(count $DB "select count(*) from content;")
 NB_DIRECTORIES=$(count $DB "select count(*) from directory;")
 NB_REVISIONS=$(count $DB "select count(*) from revision;")
 NB_RELEASES=$(count $DB "select count(*) from release;")
+NB_PERSONS=$(count $DB "select count(*) from person;")
 
 cat<<EOF
 content   $NB_CONTENTS
 directory $NB_DIRECTORIES
 revision  $NB_REVISIONS
 release   $NB_RELEASES
+person    $NB_PERSONS
 EOF
