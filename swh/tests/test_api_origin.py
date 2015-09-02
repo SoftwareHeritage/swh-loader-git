@@ -75,7 +75,7 @@ class OriginTestCase(unittest.TestCase):
                           headers={'Content-Type': serial.MIMETYPE})
 
         # then
-        assert rv.status_code == 200  # fixme 201
+        assert rv.status_code == 200  # FIXME: 201
         assert serial.loads(rv.data)['id']
 
         payload = {'url': 'unknown',
@@ -94,5 +94,5 @@ class OriginTestCase(unittest.TestCase):
                           headers={'Content-Type': serial.MIMETYPE})
 
         # then
-        assert rv.status_code == 200  # fixme 204
+        assert rv.status_code == 200  # FIXME: 204
         assert serial.loads(rv.data)['id'] == origin_id

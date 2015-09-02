@@ -96,7 +96,7 @@ class OccurrenceTestCase(unittest.TestCase):
 
         # we create it
         body = serial.dumps({'content': b'occurrence content',
-                             'revision': occ_revision_sha1_hex,  # FIXME redundant with the one from uri...
+                             'revision': occ_revision_sha1_hex,  # FIXME: redundant with the one from uri..
                              'reference': 'master',
                              'url-origin': self.origin_url})
 

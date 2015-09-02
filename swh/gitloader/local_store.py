@@ -7,7 +7,7 @@ from swh.storage import store, db, service
 from swh.conf import reader
 
 
-# FIXME duplicated from bin/swh-backend...
+# FIXME: duplicated from bin/swh-backend...
 # Default configuration file
 DEFAULT_CONF_FILE = '~/.config/swh/back.ini'
 

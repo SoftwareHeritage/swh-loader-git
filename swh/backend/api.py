@@ -136,7 +136,7 @@ def put_origin():
     with db.connect(config['db_url']) as db_conn:
         try:
             origin_found = service.add_origin(db_conn, origin)
-            return write_response(origin_found)  # FIXME 204
+            return write_response(origin_found)  # FIXME: 204
         except:
             return make_response('Bad request!', 400)
 
@@ -205,7 +205,7 @@ def add_object(config, vcs_object, map_result_fn):
     This function returns an http response of the result.
     """
     type = vcs_object['type']
-    id = vcs_object['id']  # FIXME: remove useless key and send direct list
+    id = vcs_object['id']
     logging.debug('store %s %s' % (type, id))
 
     with db.connect(config['db_url']) as db_conn:
@@ -275,7 +275,7 @@ def put_object(uri_type, id):
                                    add_object,
                                    uri_type,
                                    id,
-                                   lambda _1, _2: 'Successful Creation!')  # FIXME use id or result instead
+                                   lambda _1, _2: 'Successful Creation!')  # FIXME: use id or result instead
 
 
 def run(conf):
