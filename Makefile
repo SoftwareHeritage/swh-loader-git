@@ -144,9 +144,6 @@ check-meta:
 	@$(BINDIR)/db-git-repo-meta.sh $(DB) $(REPO_PATH)
 	@echo
 
-readme:
-	pandoc -f org -t markdown README.org > README
-
 log-loader:
 	tail $(FOLLOW_LOG) /tmp/swh-git-loader/log/sgloader.log
 
