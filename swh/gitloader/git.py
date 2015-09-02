@@ -76,12 +76,6 @@ def parse(repo_path):
                               'content': data,  # FIXME: add pointer to data on disk?
                               'size': obj.size})
 
-            logging.debug('(name: %s, tgt: %s, nat: %s, perms: %s, parent: %s) ' %  # noqa
-                          (tree_entry.name,
-                           obj.hex, nature,
-                           tree_entry.filemode,
-                           tree.hex))
-
             dir_entries.append({'name': tree_entry.name,
                                 'target-sha1': obj.hex,
                                 'nature': nature,
