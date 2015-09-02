@@ -215,7 +215,7 @@ def lookup(config, vcs_object, map_result_fn):
 
     This function returns an http response of the result.
     """
-    sha1hex = vcs_object['sha1']
+    sha1hex = vcs_object['id']
     logging.debug('read %s %s' % (vcs_object['type'], sha1hex))
 
     with db.connect(config['db_url']) as db_conn:
@@ -235,7 +235,7 @@ def add_object(config, vcs_object, map_result_fn):
     This function returns an http response of the result.
     """
     type = vcs_object['type']
-    sha1hex = vcs_object['sha1']  # FIXME: remove useless key and send direct list
+    sha1hex = vcs_object['id']  # FIXME: remove useless key and send direct list
     logging.debug('store %s %s' % (type, sha1hex))
 
     with db.connect(config['db_url']) as db_conn:

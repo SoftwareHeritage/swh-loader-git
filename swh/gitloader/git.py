@@ -70,7 +70,7 @@ def parse(repo_path):
                 data = obj.data
                 nature = DirectoryTypeEntry.file.value
                 hashes = hashutil.hashdata(data, HASH_ALGORITHMS)
-                blobs.append({'sha1': obj.hex,
+                blobs.append({'id': obj.hex,
                               'content-sha1': hashes['sha1'],
                               'content-sha256': hashes['sha256'],
                               'content': data,  # FIXME: add pointer to data on disk?
@@ -101,7 +101,7 @@ def parse(repo_path):
             for content_ref in contents_ref:
                 swh_repo.add_content(content_ref)
 
-            swh_repo.add_directory({'sha1': dir_root.hex,
+            swh_repo.add_directory({'id': dir_root.hex,
                                    'content': dir_root.read_raw(),  # FIXME: add pointer to data on disk?
                                    'entries': dir_entries})
 
@@ -111,7 +111,7 @@ def parse(repo_path):
                   'email': rev.author.email}
         committer = {'name': rev.committer.name,
                      'email': rev.committer.email}
-        swh_repo.add_revision({'sha1': rev.hex,
+        swh_repo.add_revision({'id': rev.hex,
                               'content': rev.read_raw(),  # FIXME: add pointer to data on disk?
                               'date': timestamp_to_string(rev.commit_time),
                               'directory': rev.tree.hex,
@@ -157,7 +157,7 @@ def parse(repo_path):
             taggerSig = head_rev.tagger
             author = {'name': taggerSig.name,
                       'email': taggerSig.email}
-            release = {'sha1': head_rev.hex,
+            release = {'id': head_rev.hex,
                        'content': head_rev.read_raw(),  # FIXME: add pointer to data on disk?
                        'revision': head_rev.target.hex,
                        'name': ref_name,
@@ -168,7 +168,7 @@ def parse(repo_path):
             swh_repo.add_release(release)
             swh_repo.add_person(read_signature(taggerSig), author)
         else:
-            swh_repo.add_occurrence({'sha1': head_rev.hex,
+            swh_repo.add_occurrence({'id': head_rev.hex,
                                     'reference': ref_name,
                                     'url-origin': origin['url']})
             head_start = head_rev

@@ -37,7 +37,7 @@ class SWHRepo():
         return self.occurrences
 
     def add_content(self, content_ref):
-        sha1 = content_ref['sha1']
+        sha1 = content_ref['id']
         self.contents[sha1] = content_ref
         self.visited.add(sha1)
 
@@ -45,7 +45,7 @@ class SWHRepo():
         return self.contents
 
     def add_directory(self, directory):
-        sha1 = directory['sha1']
+        sha1 = directory['id']
         self.directories[sha1] = directory
         self.visited.add(sha1)
 
@@ -53,7 +53,7 @@ class SWHRepo():
         return self.directories
 
     def add_revision(self, revision):
-        sha1 = revision['sha1']
+        sha1 = revision['id']
         self.revisions[sha1] = revision
         self.visited.add(sha1)
 

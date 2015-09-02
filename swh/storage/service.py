@@ -50,7 +50,7 @@ def add_revisions(db_conn, conf, obj_type, objs):
     """
     couple_parents = []
     for obj in objs:  # iterate over objects of type uri_type
-        objfull = build_object_fn[obj_type](obj['sha1'], obj)
+        objfull = build_object_fn[obj_type](obj['id'], obj)
 
         obj_found = store.find(db_conn, objfull)
         if not obj_found:
@@ -59,7 +59,7 @@ def add_revisions(db_conn, conf, obj_type, objs):
             # deal with revision history
             par_shas = objfull.get('parent-sha1s', None)
             if par_shas:
-                couple_parents.extend([(objfull['sha1'], p) for p in par_shas])
+                couple_parents.extend([(objfull['id'], p) for p in par_shas])
 
     store.add_revision_history(db_conn, couple_parents)
 
@@ -82,7 +82,7 @@ def add_objects(db_conn, conf, obj_type, objs):
     """Add objects.
     """
     for obj in objs:  # iterate over objects of type uri_type
-        obj_to_store = build_object_fn[obj_type](obj['sha1'], obj)
+        obj_to_store = build_object_fn[obj_type](obj['id'], obj)
 
         obj_found = store.find(db_conn, obj_to_store)
         if not obj_found:

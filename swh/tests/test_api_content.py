@@ -65,7 +65,7 @@ class ContentTestCase(unittest.TestCase):
         assert rv.data == b'Not found!'
 
         # we create it
-        body = {'sha1': content_sha1,
+        body = {'id': content_sha1,
                 'content-sha1': 'content-sha1c46ee476a8be155ab03333333333',
                 'content-sha256': 'content-sha2566ee476a8be155ab03333333333',
                 'content': b'bar',
@@ -86,7 +86,7 @@ class ContentTestCase(unittest.TestCase):
         assert serial.loads(rv.data)['id'] == 'sha1-contentc46ee476a8be155ab03333333333'
 
         # # we update it
-        body = {'sha1': content_sha1,
+        body = {'id': content_sha1,
                 'content-sha1': 'content-sha1c46ee476a8be155ab03333333333',
                 'content-sha256': 'content-sha2566ee476a8be155ab03333333333',
                 'content': b'bar',

@@ -79,7 +79,7 @@ class ReleaseTestCase(unittest.TestCase):
         assert rv.data == b'Not found!'
 
         # we create it
-        body = serial.dumps({'sha1': release_sha1_hex,
+        body = serial.dumps({'id': release_sha1_hex,
                              'content': b'release also has content',
                              'revision': self.revision_sha1_hex,
                              'date': now(),

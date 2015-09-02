@@ -15,7 +15,7 @@ _find_object = {Type.occurrence: models.find_occurrences_for_revision}
 def find(db_conn, vcs_object):
     """Find an object according to its sha1hex and type.
     """
-    id = vcs_object['sha1']   # sha1 for every object except for origin (url)
+    id = vcs_object['id']   # sha1 for every object except for origin (url)
     type = vcs_object['type']
 
     find_fn  = _find_object.get(type, models.find_object)
@@ -176,7 +176,7 @@ def add(db_conn, config, vcs_object):
     """Given a sha1hex, type and content, store a given object in the store.
     """
     type = vcs_object['type']
-    sha1hex = vcs_object['sha1']
+    sha1hex = vcs_object['id']
     obj_content = vcs_object.get('content')
 
     if obj_content:

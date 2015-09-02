@@ -13,7 +13,7 @@ def build_content(sha1hex, obj_partial):
     """Build a content object from the obj_partial.
     """
     obj_partial = obj_partial if obj_partial else {}
-    return {'sha1': sha1hex,
+    return {'id': sha1hex,
             'type': store.Type.content,
             'content-sha1': obj_partial.get('content-sha1'),
             'content-sha256': obj_partial.get('content-sha256'),
@@ -25,7 +25,7 @@ def build_directory(sha1hex, obj_partial):
     """Build a directory object from the obj_partial.
     """
     obj_partial = obj_partial if obj_partial else {}  # FIXME get hack -> split get-post/put
-    directory = {'sha1': sha1hex,
+    directory = {'id': sha1hex,
                  'type': store.Type.directory,
                  'content': obj_partial.get('content')}
 
@@ -61,7 +61,7 @@ def build_directory_entry(parent_sha1hex, entry):
 def build_revision(sha1hex, obj_partial):
     """Build a revision object from the obj_partial.
     """
-    obj = {'sha1': sha1hex,
+    obj = {'id': sha1hex,
            'type': store.Type.revision}
     if obj_partial:
         obj.update({'content': obj_partial['content'],
@@ -77,10 +77,10 @@ def build_revision(sha1hex, obj_partial):
 def build_release(sha1hex, obj_partial):
     """Build a release object from the obj_partial.
     """
-    obj = {'sha1': sha1hex,
+    obj = {'id': sha1hex,
            'type': store.Type.release}
     if obj_partial:
-        obj.update({'sha1': sha1hex,
+        obj.update({'id': sha1hex,
                     'content': obj_partial['content'],
                     'revision': obj_partial['revision'],
                     'date': obj_partial['date'],
@@ -93,7 +93,7 @@ def build_release(sha1hex, obj_partial):
 def build_occurrence(sha1hex, obj_partial):
     """Build a content object from the obj_partial.
     """
-    obj = {'sha1': sha1hex,
+    obj = {'id': sha1hex,
            'type': store.Type.occurrence}
     if obj_partial:
         obj.update({'reference': obj_partial['reference'],
