@@ -7,7 +7,7 @@
 
 import logging
 
-from swh.storage import db, models
+from swh.store import db, models
 
 
 def manage(action, db_url):

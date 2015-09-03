@@ -3,7 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-from swh.storage import store
+from swh.store import store
 
 
 filter_unknowns_type = store.find_unknowns

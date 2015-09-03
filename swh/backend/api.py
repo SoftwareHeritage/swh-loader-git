@@ -8,7 +8,7 @@ import logging
 
 from flask import Flask, Response, make_response, request
 
-from swh.storage import store, db, service
+from swh.store import store, db, service
 from swh.protocols import serial
 
 # api's definition

@@ -8,7 +8,7 @@ import unittest
 from nose.tools import istest
 from nose.plugins.attrib import attr
 
-from swh.storage import db, models
+from swh.store import db, models
 from swh.protocols import serial
 from test_utils import app_client
 

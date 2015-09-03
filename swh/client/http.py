@@ -10,7 +10,7 @@ import requests
 from retrying import retry
 
 from swh.retry import policy
-from swh.storage import store
+from swh.store import store
 from swh.protocols import serial
 
 

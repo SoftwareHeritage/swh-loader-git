@@ -14,7 +14,7 @@ from enum import Enum
 
 from swh.core import hashutil
 from swh.data import swhrepo
-from swh.storage import store
+from swh.store import store
 
 
 class DirectoryTypeEntry(Enum):
