@@ -1,0 +1,62 @@
+test-connect-db:
+	psql -d $(DB_TEST)
+
+test-create-db:
+	cd ../swh-sql && make clean initdb DBNAME=$(DB_TEST)
+
+test-drop-db:
+	cd ../swh-sql && make clean dropdb DBNAME=$(DB_TEST)
+
+tests:
+	PYTHONPATH=$(_PYPATH) make test
+
+test-run-back:
+	PYTHONPATH=$(_PYPATH) $(SWH_BACK) $(FLAG) --config ./resources/test/back.ini
+
+test-http:
+	$(NOSE) $(NOSEFLAGS) $(TESTDIR)/test_http.py
+
+test-swhrepo:
+	$(NOSE) $(NOSEFLAGS) $(TESTDIR)/test_swhrepo.py
+
+test-api:
+	$(NOSE) $(NOSEFLAGS) $(TESTDIR)/test_api*.py
+
+test-api-post-per-type:
+	$(NOSE) $(NOSEFLAGS) $(TESTDIR)/test_api_post_*.py
+
+test-api-content:
+	$(NOSE) $(NOSEFLAGS) $(TESTDIR)/test_api_content.py
+
+test-api-directory:
+	$(NOSE) $(NOSEFLAGS) $(TESTDIR)/test_api_directory.py
+
+test-api-revision:
+	$(NOSE) $(NOSEFLAGS) $(TESTDIR)/test_api_revision.py
+
+test-api-release:
+	$(NOSE) $(NOSEFLAGS) $(TESTDIR)/test_api_release.py
+
+test-api-occurrence:
+	$(NOSE) $(NOSEFLAGS) $(TESTDIR)/test_api_occurrence.py
+
+test-api-home:
+	$(NOSE) $(NOSEFLAGS) $(TESTDIR)/test_api_home.py
+
+test-api-origin:
+	$(NOSE) $(NOSEFLAGS) $(TESTDIR)/test_api_origin.py
+
+test-api-person:
+	$(NOSE) $(NOSEFLAGS) $(TESTDIR)/test_api_person.py
+
+test-api-pickle:
+	$(NOSE) $(NOSEFLAGS) $(TESTDIR)/test_api_pickle.py
+
+test-file:
+	$(NOSE) $(NOSEFLAGS) $(TESTDIR)/test_file.py
+
+test-remote-loader:
+	PYTHONPATH=$(_PYPATH) $(NOSE) $(NOSEFLAGS) $(TESTDIR)/test_remote_loader.py
+
+test-local-loader:
+	PYTHONPATH=$(_PYPATH) $(NOSE) $(NOSEFLAGS) $(TESTDIR)/test_local_loader.py
