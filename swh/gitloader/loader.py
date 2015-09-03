@@ -10,7 +10,7 @@ from swh.gitloader import git, remote_store, local_store
 
 
 _load_to_back_fn = {'remote': remote_store.load_to_back
-                   ,'local': local_store.load_to_back
+                   ,'local': local_store.prepare_and_load_to_back
                    }
 
 

@@ -33,6 +33,7 @@ class TestRemoteLoader(unittest.TestCase):
                                 {'port': ('int', 9999)})
 
         self.db_url = conf_back['db_url']
+        self.content_storage_dir = conf_back['content_storage_dir']
 
         self.conf = {
             'action': 'load',
@@ -47,6 +48,7 @@ class TestRemoteLoader(unittest.TestCase):
         """Destroy the test git repository.
         """
         shutil.rmtree(self.tmp_git_repo.workdir)
+        shutil.rmtree(self.content_storage_dir, ignore_errors=True)
 
     @istest
     def should_fail_on_bad_action(self):

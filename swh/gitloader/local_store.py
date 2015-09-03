@@ -51,36 +51,41 @@ def store_unknown_objects(db_conn, conf, obj_type, swhmap):
     return persist_fn(db_conn, conf, obj_type, obj_fulls)
 
 
-def load_to_back(backend_setup_file, swhrepo):
-    """Load to the backend the repository swhrepo.
+def load_to_back(conf, swh_repo):
+    """Load to the backend the repository swh_repo.
     """
-    # Read the configuration file (no check yet)
-    conf = reader.read(backend_setup_file or DEFAULT_CONF_FILE, DEFAULT_CONF)
-
     with db.connect(conf['db_url']) as db_conn:
         # First, store/retrieve the origin identifier
         # FIXME: should be done by the cloner worker (which is not yet plugged
         # on the right swh db ftm)
-        service.add_origin(db_conn, swhrepo.get_origin())
+        service.add_origin(db_conn, swh_repo.get_origin())
 
         # First reference all unknown persons
         service.add_persons(db_conn, conf, store.Type.person,
-                            swhrepo.get_persons())
+                            swh_repo.get_persons())
 
         res = store_unknown_objects(db_conn, conf, store.Type.content,
-                                    swhrepo.get_contents())
+                                    swh_repo.get_contents())
         if res:
             res = store_unknown_objects(db_conn, conf, store.Type.directory,
-                                        swhrepo.get_directories())
+                                        swh_repo.get_directories())
             if res:
                 res = store_unknown_objects(db_conn, conf, store.Type.revision,
-                                            swhrepo.get_revisions())
+                                            swh_repo.get_revisions())
                 if res:
                     # brutally send all remaining occurrences
                     service.add_objects(db_conn, conf, store.Type.occurrence,
-                                        swhrepo.get_occurrences())
+                                        swh_repo.get_occurrences())
 
                     # and releases (the idea here is that compared to existing
                     # objects, the quantity is less)
                     service.add_objects(db_conn, conf, store.Type.release,
-                                        swhrepo.get_releases())
+                                        swh_repo.get_releases())
+
+
+def prepare_and_load_to_back(backend_setup_file, swh_repo):
+    # Read the configuration file (no check yet)
+    conf = reader.read(backend_setup_file or DEFAULT_CONF_FILE, DEFAULT_CONF)
+    reader.prepare_folders(conf['content_storage_dir'])
+    load_to_back(conf, swh_repo)
+
