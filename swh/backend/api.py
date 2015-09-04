@@ -11,6 +11,7 @@ from flask import Flask, Response, make_response, request
 from swh.store import store, db, service
 from swh.protocols import serial
 
+
 # api's definition
 app = Flask(__name__)
 
@@ -140,7 +141,7 @@ def put_origin():
         except:
             return make_response('Bad request!', 400)
 
-        
+
 @app.route('/vcs/persons/', methods=['PUT'])
 def put_all_persons():
     """Store or update given revisions.
@@ -239,7 +240,7 @@ def _do_lookup(conf, uri_type, id, map_result_fn):
 
     vcs_object = {'id': id,
                   'type': uri_type_ok}
-    
+
     with db.connect(conf['db_url']) as db_conn:
         res = store.find(db_conn, vcs_object)
         if res:
@@ -287,6 +288,6 @@ def run(conf):
     flask)
     - 'debug'  activate the verbose logs
     """
-    app.config['conf'] = conf  # app.config is the app's state (accessible)
-
+    # app.config is the app's state (accessible)
+    app.config.update({'conf': conf})
     app.run(port=conf.get('port', None), debug=conf['debug'] == 'true')

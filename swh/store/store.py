@@ -6,7 +6,6 @@
 from io import StringIO
 
 from swh.store import models
-from swh.storage.objstorage import ObjStorage
 
 
 Type = models.Type
@@ -181,10 +180,9 @@ def add(db_conn, config, vcs_object):
     type = vcs_object['type']
     sha1hex = vcs_object['id']
     obj_content = vcs_object.get('content')
-    obj_storage = ObjStorage(config['content_storage_dir'], config['folder_depth'])  # FIXME: Add this in loaders
 
     if obj_content:
-        obj_storage.add_bytes(obj_content, sha1hex)
+        config['objstorage'].add_bytes(obj_content, sha1hex)
         return _store_fn[type](db_conn, vcs_object, sha1hex)
     return _store_fn[type](db_conn, vcs_object, sha1hex)
 

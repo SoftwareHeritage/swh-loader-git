@@ -5,6 +5,7 @@
 
 from swh.store import store, db, service
 from swh.conf import reader
+from swh.storage.objstorage import ObjStorage
 
 
 # FIXME: duplicated from bin/swh-backend...
@@ -86,4 +87,9 @@ def prepare_and_load_to_back(backend_setup_file, swh_repo):
     # Read the configuration file (no check yet)
     conf = reader.read(backend_setup_file or DEFAULT_CONF_FILE, DEFAULT_CONF)
     reader.prepare_folders(conf, 'content_storage_dir')
+    conf.update({
+        'objstorage': ObjStorage(conf['content_storage_dir'],
+                                 conf['folder_depth'])
+        })
+
     load_to_back(conf, swh_repo)

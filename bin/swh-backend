@@ -12,6 +12,7 @@ import os
 
 from swh.backend import api
 from swh.conf import reader
+from swh.storage.objstorage import ObjStorage
 
 
 # Default configuration file
@@ -47,7 +48,10 @@ if __name__ == '__main__':
    args = parse_args()
    conf = reader.read(args.config or DEFAULT_CONF_FILE, DEFAULT_CONF)
    reader.prepare_folders(conf, 'log_dir', 'content_storage_dir')
-
+   conf.update({
+     'objstorage': ObjStorage(conf['content_storage_dir'],
+                              conf['folder_depth'])
+   })
    logging.basicConfig(filename=os.path.join(conf['log_dir'], 'back.log'),
                        level=logging.DEBUG if args.verbose else logging.INFO)
    api.run(conf)

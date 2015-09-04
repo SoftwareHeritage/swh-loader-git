@@ -9,6 +9,7 @@ import shutil
 import tempfile
 
 from swh.backend import api
+from swh.storage.objstorage import ObjStorage
 
 import test_initdb
 
@@ -35,11 +36,15 @@ def app_client(db_url="dbname=softwareheritage-dev-test"):
     """
     content_storage_dir = tempfile.mkdtemp(prefix='test-swh-git-loader.',
                      dir='/tmp')
+    folder_depth = 2
     api.app.config['conf'] = {'db_url': db_url,
                               'content_storage_dir': content_storage_dir,
                               'log_dir': '/tmp/swh-git-loader/log',
-                              'folder_depth': 2,
-                              'debug': 'true'}
+                              'folder_depth': folder_depth,
+                              'debug': 'true',
+                              'objstorage': ObjStorage(content_storage_dir,
+                                                       folder_depth)
+                              }
 
     api.app.config['TESTING'] = True
     app = api.app.test_client()

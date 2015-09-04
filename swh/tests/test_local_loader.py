@@ -9,6 +9,7 @@ import unittest
 import pygit2
 import tempfile
 import shutil
+import os
 
 from nose.plugins.attrib import attr
 from nose.tools import istest
@@ -22,7 +23,7 @@ from test_utils import list_files_from
 from test_git_utils import create_commit_with_content, create_tag
 
 @attr('slow')
-class TestRemoteLoader(unittest.TestCase):
+class TestLocalLoader(unittest.TestCase):
     def setUp(self):
         """Initialize a git repository for the remaining test to manipulate.
         """
@@ -31,7 +32,7 @@ class TestRemoteLoader(unittest.TestCase):
         self.tmp_git_repo = pygit2.init_repository(tmp_git_folder_path)
 
         self.conf_back = reader.read('./resources/test/back.ini',
-                                {'port': ('int', 9999)})
+                                     {'port': ('int', 9999)})
 
         self.db_url = self.conf_back['db_url']
 
@@ -39,8 +40,11 @@ class TestRemoteLoader(unittest.TestCase):
             'action': 'load',
             'repo_path': self.tmp_git_repo.workdir,
             'backend-type': 'local',
-           'backend': './resources/test/back.ini'
+            'backend': './resources/test/back.ini'
         }
+
+        if not os.path.exists(self.conf_back['content_storage_dir']):
+            os.mkdir(self.conf_back['content_storage_dir'])
 
         test_initdb.prepare_db(self.db_url)
 
@@ -78,7 +82,7 @@ class TestRemoteLoader(unittest.TestCase):
             pass
 
     @istest
-    def remote_loader(self):
+    def local_loader(self):
         """Trigger loader and make sure everything is ok.
         """
         # given
