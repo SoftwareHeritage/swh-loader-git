@@ -8,20 +8,16 @@ import unittest
 from nose.tools import istest
 
 from swh.data import swhrepo
-from test_utils import app_client
 
 
 class SWHRepoTestCase(unittest.TestCase):
-    def setUp(self):
-        self.app, db_url = app_client()
-
     @istest
     def new_swhrepo(self):
         # when
         r = swhrepo.SWHRepo()
 
         r.add_origin({'url': 'foobar'})
-        
+
         r.add_content({'id': 'some-con-sha1'})
         r.add_content({'id': 'some-con-sha1-2','stuff': 'some-stuff'})
         r.add_directory({'id': 'some-dir-sha1'})
@@ -43,7 +39,7 @@ class SWHRepoTestCase(unittest.TestCase):
                     'some-dir-sha1', 'some-dir-sha1-2',
                     'some-rev-sha1', 'some-rev-sha1-2']:
             assert r.already_visited(sha) is True
-            
+
         assert r.already_visited('some-occ-sha1') is False
         assert r.already_visited('some-rel-sha1') is False
 
