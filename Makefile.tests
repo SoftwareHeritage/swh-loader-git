@@ -2,10 +2,10 @@ test-connect-db:
 	psql -d $(DB_TEST)
 
 test-create-db:
-	cd ../swh-sql && make clean initdb DBNAME=$(DB_TEST)
+	cd $(SQL_FOLDER) && make clean initdb DBNAME=$(DB_TEST)
 
 test-drop-db:
-	cd ../swh-sql && make clean dropdb DBNAME=$(DB_TEST)
+	cd $(SQL_FOLDER) && make clean dropdb DBNAME=$(DB_TEST)
 
 tests:
 	PYTHONPATH=$(_PYPATH) make test
