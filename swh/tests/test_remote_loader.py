@@ -19,6 +19,7 @@ from swh.conf import reader
 
 import test_initdb
 from test_git_utils import create_commit_with_content, create_tag
+from test_utils import list_files_from
 
 @attr('slow')
 class TestRemoteLoader(unittest.TestCase):
@@ -46,6 +47,7 @@ class TestRemoteLoader(unittest.TestCase):
         """Destroy the test git repository.
         """
         shutil.rmtree(self.tmp_git_repo.workdir)
+        shutil.rmtree(self.conf['content_storage_dir'], ignore_errors=True)
 
     @istest
     def should_fail_on_bad_action(self):
@@ -98,6 +100,9 @@ class TestRemoteLoader(unittest.TestCase):
         loader.load(self.conf)
 
         # then
+        nb_files = len(list_files_from(self.conf['content_storage_dir']))
+        self.assertEquals(nb_files, 4+5+4, "4 blobs, 4 trees, 5 commits were created so 13 files.")
+
         with db.connect(self.db_url) as db_conn:
             self.assertEquals(
                 models.count_revisions(db_conn),
@@ -136,6 +141,9 @@ class TestRemoteLoader(unittest.TestCase):
         loader.load(self.conf)
 
         # then
+        nb_files = len(list_files_from(self.conf['content_storage_dir']))
+        self.assertEquals(nb_files, 13+3+3+3, "3 commits + 3 trees + 3 blobs so 9 more.")
+
         with db.connect(self.db_url) as db_conn:
             self.assertEquals(
                 models.count_revisions(db_conn),
@@ -167,6 +175,9 @@ class TestRemoteLoader(unittest.TestCase):
         loader.load(self.conf)
 
         # then
+        nb_files = len(list_files_from(self.conf['content_storage_dir']))
+        self.assertEquals(nb_files, 22+1, "1 commit more without blob so no tree either.")
+
         with db.connect(self.db_url) as db_conn:
             self.assertEquals(
                 models.count_revisions(db_conn),
@@ -201,6 +212,9 @@ class TestRemoteLoader(unittest.TestCase):
         loader.load(self.conf)
 
         # then
+        nb_files = len(list_files_from(self.conf['content_storage_dir']))
+        self.assertEquals(nb_files, 23+2, "2 tags more.")
+
         with db.connect(self.db_url) as db_conn:
             self.assertEquals(
                 models.count_revisions(db_conn),

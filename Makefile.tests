@@ -60,3 +60,5 @@ test-remote-loader:
 
 test-local-loader:
 	PYTHONPATH=$(_PYPATH) $(NOSE) $(NOSEFLAGS) $(TESTDIR)/test_local_loader.py
+
+test-loaders: test-local-loader test-remote-loader

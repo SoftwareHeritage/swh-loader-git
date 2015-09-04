@@ -4,6 +4,7 @@
 # See top-level LICENSE file for more information
 
 import time
+import os
 
 
 from swh.backend import api
@@ -13,6 +14,16 @@ import test_initdb
 def now():
     "Build the date as of now in the api's format."
     return time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime())
+
+
+def list_files_from(root_path):
+    """Compute the list of files from root_path.
+
+    """
+    f = []
+    for (dirpath, dirnames, filenames) in os.walk(root_path):
+        f.extend(filenames)
+    return f
 
 
 def app_client(db_url="dbname=softwareheritage-dev-test"):
