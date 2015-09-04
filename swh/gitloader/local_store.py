@@ -86,6 +86,6 @@ def load_to_back(conf, swh_repo):
 def prepare_and_load_to_back(backend_setup_file, swh_repo):
     # Read the configuration file (no check yet)
     conf = reader.read(backend_setup_file or DEFAULT_CONF_FILE, DEFAULT_CONF)
-    reader.prepare_folders(conf['content_storage_dir'])
+    reader.prepare_folders(conf, 'content_storage_dir')
     load_to_back(conf, swh_repo)
 
