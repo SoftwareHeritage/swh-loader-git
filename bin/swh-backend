@@ -23,7 +23,6 @@ DEFAULT_CONF = {
     'content_storage_dir' : ('string', '/tmp/swh-git-loader/content-storage'),
     'log_dir'             : ('string', '/tmp/swh-git-loader/log'),
     'db_url'              : ('string', 'dbname=softwareheritage-dev'),
-    'storage_compression' : ('bool'  , None),
     'folder_depth'        : ('int'   , 4),
     'debug'               : ('bool'  , None),
     'port'                : ('int'   , 5000)

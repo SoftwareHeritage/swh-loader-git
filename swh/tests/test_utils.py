@@ -39,7 +39,6 @@ def app_client(db_url="dbname=softwareheritage-dev-test"):
                               'content_storage_dir': content_storage_dir,
                               'log_dir': '/tmp/swh-git-loader/log',
                               'folder_depth': 2,
-                              'storage_compression': None,
                               'debug': 'true'}
 
     api.app.config['TESTING'] = True

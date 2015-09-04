@@ -16,8 +16,7 @@ conf = {
     # 'repository': os.path.expanduser('./test-repo'),
     'repository': os.path.expanduser('../debsources'),
     'content_storage_dir':  '/tmp/swh-git-loader/content-storage',
-    'folder_depth':  4,
-    'storage_compression': None,
+    'folder_depth':  4
 }
 
 conf['action'] = 'cleandb'

@@ -17,7 +17,6 @@ DEFAULT_CONF = {
     'content_storage_dir': ('string', '/tmp/swh-git-loader/content-storage'),
     'log_dir': ('string', '/tmp/swh-git-loader/log'),
     'db_url': ('string', 'dbname=softwareheritage-dev'),
-    'storage_compression': ('bool', None),
     'folder_depth': ('int', 4),
     'debug': ('bool', None),
     'port': ('int', 5000)
@@ -88,4 +87,3 @@ def prepare_and_load_to_back(backend_setup_file, swh_repo):
     conf = reader.read(backend_setup_file or DEFAULT_CONF_FILE, DEFAULT_CONF)
     reader.prepare_folders(conf, 'content_storage_dir')
     load_to_back(conf, swh_repo)
-
