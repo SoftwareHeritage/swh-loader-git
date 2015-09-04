@@ -10,13 +10,13 @@ from nose.plugins.attrib import attr
 
 from swh.store import db, models
 from swh.protocols import serial
-from test_utils import now, app_client
+from test_utils import now, app_client, app_client_teardown
 
 
 @attr('slow')
 class DirectoryTestCase(unittest.TestCase):
     def setUp(self):
-        self.app, db_url = app_client()
+        self.app, db_url, self.content_storage_dir = app_client()
 
         with db.connect(db_url) as db_conn:
             self.content_sha1_id = 'content-sha1c46ee476a8be155ab049994f717e'
@@ -30,6 +30,9 @@ class DirectoryTestCase(unittest.TestCase):
 
             self.directory_sha1_hex = 'directory-sha16ee476a8be155ab049994f717e'
             models.add_directory(db_conn, self.directory_sha1_hex)
+
+    def tearDown(self):
+        app_client_teardown(self.content_storage_dir)
 
     @istest
     def get_directory_ok(self):

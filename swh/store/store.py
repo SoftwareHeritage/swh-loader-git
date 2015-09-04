@@ -4,7 +4,9 @@
 # See top-level LICENSE file for more information
 
 from io import StringIO
-from swh.store import models, fs
+
+from swh.store import models
+from swh.storage.objstorage import ObjStorage
 
 
 Type = models.Type
@@ -172,22 +174,17 @@ def find_person(db_conn, person):
     """
     return models.find_person(db_conn, person['email'], person['name'])
 
-    
+
 def add(db_conn, config, vcs_object):
     """Given a sha1hex, type and content, store a given object in the store.
     """
     type = vcs_object['type']
     sha1hex = vcs_object['id']
     obj_content = vcs_object.get('content')
-    
+    obj_storage = ObjStorage(config['content_storage_dir'], config['folder_depth'])  # FIXME: Add this in loaders
+
     if obj_content:
-        res = fs.write_object(config['content_storage_dir'],
-                              sha1hex,
-                              obj_content,
-                              config['folder_depth'],
-                              config['storage_compression'])
-        if not res:
-            return False
+        obj_storage.add_bytes(obj_content, sha1hex)
         return _store_fn[type](db_conn, vcs_object, sha1hex)
     return _store_fn[type](db_conn, vcs_object, sha1hex)
 

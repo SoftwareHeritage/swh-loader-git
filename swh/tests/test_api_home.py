@@ -14,7 +14,7 @@ from test_utils import app_client
 @attr('slow')
 class HomeTestCase(unittest.TestCase):
     def setUp(self):
-        self.app, _ = app_client()
+        self.app, _, _ = app_client()
 
     @istest
     def get_slash(self):

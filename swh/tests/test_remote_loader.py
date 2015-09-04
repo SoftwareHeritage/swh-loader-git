@@ -9,6 +9,7 @@ import unittest
 import pygit2
 import tempfile
 import shutil
+import os
 
 from nose.plugins.attrib import attr
 from nose.tools import istest
@@ -20,6 +21,7 @@ from swh.conf import reader
 import test_initdb
 from test_git_utils import create_commit_with_content, create_tag
 from test_utils import list_files_from
+
 
 @attr('slow')
 class TestRemoteLoader(unittest.TestCase):
@@ -41,13 +43,17 @@ class TestRemoteLoader(unittest.TestCase):
             'backend': 'http://localhost:%s' % self.conf['port']
         })
 
+        # Not the remote loader in charge of creating the folder, so we do it
+        if not os.path.exists(self.conf['content_storage_dir']):
+            os.mkdir(self.conf['content_storage_dir'])
+
         test_initdb.prepare_db(self.db_url)
 
     def tearDown(self):
         """Destroy the test git repository.
         """
         shutil.rmtree(self.tmp_git_repo.workdir)
-        shutil.rmtree(self.conf['content_storage_dir'], ignore_errors=True)
+        shutil.rmtree(self.conf['content_storage_dir'])
 
     @istest
     def should_fail_on_bad_action(self):

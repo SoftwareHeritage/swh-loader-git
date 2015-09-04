@@ -10,13 +10,13 @@ from nose.plugins.attrib import attr
 
 from swh.store import db, models
 from swh.protocols import serial
-from test_utils import now, app_client
+from test_utils import now, app_client, app_client_teardown
 
 
 @attr('slow')
 class TestPostObjectsPerTypeCase(unittest.TestCase):
     def setUp(self):
-        self.app, self.db_url = app_client()
+        self.app, self.db_url, self.content_storage_dir = app_client()
 
         with db.connect(self.db_url) as db_conn:
             self.content_sha1_id = 'sha1-content0-6ee476a8be155ab049994f717e'
@@ -32,10 +32,10 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
 
             authorAndCommitter = {'name': 'some-name', 'email': 'some-email'}
             models.add_person(db_conn, authorAndCommitter['name'], authorAndCommitter['email'])
-            
+
             authorAndCommitter2 = {'name': 'tony', 'email': 'tony@dude.org'}
             models.add_person(db_conn, authorAndCommitter2['name'], authorAndCommitter2['email'])
-            
+
             self.revision_sha1_hex = 'revision-sha1-to-test-existence9994f717e'
             models.add_revision(db_conn,
                                 self.revision_sha1_hex,
@@ -71,6 +71,9 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
                                   self.origin_url,
                                   'master',
                                   self.revision_sha1_hex)
+
+    def tearDown(self):
+        app_client_teardown(self.content_storage_dir)
 
     @istest
     def post_all_non_presents_contents(self):

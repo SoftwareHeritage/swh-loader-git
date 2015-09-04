@@ -23,7 +23,7 @@ PROFILE_TYPE=profile
 FOLLOW_LOG=-f
 
 # Adapt python-path to use other swh modules
-_PYPATH=`pwd`:`pwd`/../swh-core
+_PYPATH=`pwd`:`pwd`/../swh-core:`pwd`/../swh-storage
 
 deps:
 	apt-get install -y \

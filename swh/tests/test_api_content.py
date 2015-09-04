@@ -10,13 +10,13 @@ from nose.plugins.attrib import attr
 
 from swh.store import db, models
 from swh.protocols import serial
-from test_utils import app_client
+from test_utils import app_client, app_client_teardown
 
 
 @attr('slow')
 class ContentTestCase(unittest.TestCase):
     def setUp(self):
-        self.app, db_url = app_client()
+        self.app, db_url, self.content_storage_dir = app_client()
 
         with db.connect(db_url) as db_conn:
             self.content_sha1_id = '222222f9dd5dc46ee476a8be155ab049994f717e'
@@ -27,6 +27,9 @@ class ContentTestCase(unittest.TestCase):
                                content_sha1_id,
                                self.content_sha256_hex,
                                10)
+
+    def tearDown(self):
+        app_client_teardown(self.content_storage_dir)
 
     @istest
     def get_content_ok(self):

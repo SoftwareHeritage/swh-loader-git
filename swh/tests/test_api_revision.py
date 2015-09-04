@@ -10,13 +10,13 @@ from nose.plugins.attrib import attr
 
 from swh.store import db, models
 from swh.protocols import serial
-from test_utils import now, app_client
+from test_utils import now, app_client, app_client_teardown
 
 
 @attr('slow')
 class RevisionTestCase(unittest.TestCase):
     def setUp(self):
-        self.app, db_url = app_client()
+        self.app, db_url, self.content_storage_dir = app_client()
 
         with db.connect(db_url) as db_conn:
             self.directory_sha1_hex = 'directory-sha16ee476a8be155ab049994f717e'
@@ -24,7 +24,7 @@ class RevisionTestCase(unittest.TestCase):
 
             self.authorAndCommitter = {'name': 'some-name', 'email': 'some-email'}
             models.add_person(db_conn, self.authorAndCommitter['name'], self.authorAndCommitter['email'])
-            
+
             self.revision_sha1_hex = 'revision-sha1-to-test-existence9994f717e'
             models.add_revision(db_conn,
                                 self.revision_sha1_hex,
@@ -33,6 +33,9 @@ class RevisionTestCase(unittest.TestCase):
                                 "revision message",
                                 self.authorAndCommitter,
                                 self.authorAndCommitter)
+
+    def tearDown(self):
+        app_client_teardown(self.content_storage_dir)
 
     @istest
     def get_revision_ok(self):

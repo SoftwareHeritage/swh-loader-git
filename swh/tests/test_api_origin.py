@@ -16,7 +16,7 @@ from test_utils import app_client
 @attr('slow')
 class OriginTestCase(unittest.TestCase):
     def setUp(self):
-        self.app, db_url = app_client()
+        self.app, db_url, _ = app_client()
 
         with db.connect(db_url) as db_conn:
             self.origin_url = 'https://github.com/torvalds/linux.git'
