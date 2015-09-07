@@ -290,6 +290,11 @@ def run(conf):
     flask)
     - 'debug'  activate the verbose logs
     """
+    print("""SWH Api run
+host: %s
+port: %s
+debug: %s""" % (conf['host'], conf.get('port', None), conf['debug']))
+
     # app.config is the app's state (accessible)
     app.config.update({'conf': conf})
 
