@@ -107,7 +107,7 @@ content_storage_dir = /tmp/swh-git-loader/content-storage
 # Where to store the logs
 log_dir = swh-git-loader/log
 
-# url access to db: dbname=<host> (port=<port> user=<user> pass=<pass>)
+# url access to db: dbname=<host> (host=<host> port=<port> user=<user> password=<pass>)
 db_url = dbname=swhgitloader
 
 # compute folder's depth on disk aa/bb/cc/dd
