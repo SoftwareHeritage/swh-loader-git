@@ -1,3 +1,5 @@
+# -*- makefile -*-
+
 FLAKE = flake8
 BINDIR = bin
 SRCDIR = swh
