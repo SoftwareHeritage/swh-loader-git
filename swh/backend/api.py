@@ -284,10 +284,15 @@ def run(conf):
     conf is a dictionary of keywords:
     - 'db_url' the db url's access (through psycopg2 format)
     - 'content_storage_dir' revisions/directories/contents storage on disk
+    - 'host'   to override the default 127.0.0.1 to open or not the server to
+    the world
     - 'port'   to override the default of 5000 (from the underlying layer:
     flask)
     - 'debug'  activate the verbose logs
     """
     # app.config is the app's state (accessible)
     app.config.update({'conf': conf})
-    app.run(port=conf.get('port', None), debug=conf['debug'] == 'true')
+
+    app.run(host=conf['host'],
+            port=conf.get('port', None),
+            debug=conf['debug'] == 'true')

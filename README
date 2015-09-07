@@ -113,6 +113,9 @@ db_url = dbname=swhgitloader
 # compute folder's depth on disk aa/bb/cc/dd
 # folder_depth = 2
 
+# To open to the world, 0.0.0.0
+#host = 127.0.0.1
+
 # Debugger (for dev only)
 debug = true
 

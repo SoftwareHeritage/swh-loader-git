@@ -26,6 +26,7 @@ DEFAULT_CONF = {
     'db_url'              : ('string', 'dbname=softwareheritage-dev'),
     'folder_depth'        : ('int'   , 4),
     'debug'               : ('bool'  , None),
+    'host'                : ('string', '127.0.0.1'),
     'port'                : ('int'   , 5000)
 }
 
