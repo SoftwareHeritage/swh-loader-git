@@ -44,7 +44,7 @@ Requirements
 Configuration
 =============
 
-swh-git-loader depends on some tools, here are the configuration files
+swh-loader-git depends on some tools, here are the configuration files
 for those:
 
 swh-db-manager
@@ -58,7 +58,7 @@ Create a configuration file in **\~/.config/db-manager.ini**
 [main]
 
 # Where to store the logs
-log_dir = swh-git-loader/log
+log_dir = swh-loader-git/log
 
 # url access to db
 db_url = dbname=swhgitloader
@@ -67,7 +67,7 @@ db_url = dbname=swhgitloader
 See <http://initd.org/psycopg/docs/module.html#psycopg2.connect> for the
 db url's schema
 
-swh-git-loader
+swh-loader-git
 --------------
 
 Create a configuration file in **\~/.config/swh/git-loader.ini**:
@@ -75,7 +75,7 @@ Create a configuration file in **\~/.config/swh/git-loader.ini**:
 ``` {.ini}
 [main]
 # Where to store the logs
-log_dir = /tmp/swh-git-loader/log
+log_dir = /tmp/swh-loader-git/log
 
 # how to access the backend (remote or local)
 backend-type = remote
@@ -102,10 +102,10 @@ Create a configuration file in **\~/.config/swh/back.ini**:
 [main]
 
 # where to store blob on disk
-content_storage_dir = /tmp/swh-git-loader/content-storage
+content_storage_dir = /tmp/swh-loader-git/content-storage
 
 # Where to store the logs
-log_dir = swh-git-loader/log
+log_dir = swh-loader-git/log
 
 # url access to db: dbname=<host> (host=<host> port=<port> user=<user> password=<pass>)
 db_url = dbname=swhgitloader
@@ -171,7 +171,7 @@ Help
 ----
 
 ``` {.bash}
-bin/swh-git-loader --help
+bin/swh-loader-git --help
 bin/swh-db-manager --help
 ```
 
@@ -182,7 +182,7 @@ Clean and initialize the model then parse the repository git:
 
 ``` {.bash}
 bin/swh-db-manager cleandb
-bin/swh-git-loader load /path/to/git/repo
+bin/swh-loader-git load /path/to/git/repo
 ```
 
 For ease:
@@ -195,7 +195,7 @@ Parse an existing repository
 ----------------------------
 
 ``` {.bash}
-bin/swh-git-loader load /path/to/git/repo
+bin/swh-loader-git load /path/to/git/repo
 ```
 
 Clean data

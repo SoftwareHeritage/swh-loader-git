@@ -1,7 +1,6 @@
 /sgloader/__pycache__/
 /dataset/
 *.pyc
-/swh-git-loader/
 /.coverage
 /scratch/swhgitloader.cProfile
 /scratch/swhgitloader.profile

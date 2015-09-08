@@ -17,7 +17,7 @@ content
 - the git sha1s for all other object types (directories, contents, revisions,
 occurrences, releases)
 
-A worker is one instance running swh-git-loader to parse and load a repository
+A worker is one instance running swh-loader-git to parse and load a repository
 in the backend. It is not distributed.
 
 The backend api discuss with one or many workers.

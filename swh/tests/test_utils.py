@@ -34,12 +34,12 @@ def app_client(db_url="dbname=softwareheritage-dev-test"):
     """Setup the application ready for testing.
 
     """
-    content_storage_dir = tempfile.mkdtemp(prefix='test-swh-git-loader.',
+    content_storage_dir = tempfile.mkdtemp(prefix='test-swh-loader-git.',
                      dir='/tmp')
     folder_depth = 2
     api.app.config['conf'] = {'db_url': db_url,
                               'content_storage_dir': content_storage_dir,
-                              'log_dir': '/tmp/swh-git-loader/log',
+                              'log_dir': '/tmp/swh-loader-git/log',
                               'folder_depth': folder_depth,
                               'debug': 'true',
                               'objstorage': ObjStorage(content_storage_dir,
