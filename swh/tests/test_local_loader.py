@@ -108,7 +108,7 @@ class TestLocalLoader(unittest.TestCase):
 
         # then
         nb_files = len(list_files_from(self.conf_back['content_storage_dir']))
-        self.assertEquals(nb_files, 4+5+4, "4 blobs, 4 trees, 5 commits were created so 13 files.")
+        self.assertEquals(nb_files, 4, "4 blobs.")
 
         with db.connect(self.db_url) as db_conn:
             self.assertEquals(
@@ -149,7 +149,7 @@ class TestLocalLoader(unittest.TestCase):
 
         # then
         nb_files = len(list_files_from(self.conf_back['content_storage_dir']))
-        self.assertEquals(nb_files, 13+3+3+3, "3 commits + 3 trees + 3 blobs so 9 more.")
+        self.assertEquals(nb_files, 4+3, "3 new blobs.")
 
         with db.connect(self.db_url) as db_conn:
             self.assertEquals(
@@ -183,7 +183,7 @@ class TestLocalLoader(unittest.TestCase):
 
         # then
         nb_files = len(list_files_from(self.conf_back['content_storage_dir']))
-        self.assertEquals(nb_files, 22+1, "1 commit more without blob so no tree either.")
+        self.assertEquals(nb_files, 7, "no new blob.")
 
         with db.connect(self.db_url) as db_conn:
             self.assertEquals(
@@ -220,7 +220,7 @@ class TestLocalLoader(unittest.TestCase):
 
         # then
         nb_files = len(list_files_from(self.conf_back['content_storage_dir']))
-        self.assertEquals(nb_files, 23+2, "2 tags more.")
+        self.assertEquals(nb_files, 7, "no new blob.")
 
         with db.connect(self.db_url) as db_conn:
             self.assertEquals(

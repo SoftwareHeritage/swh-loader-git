@@ -97,8 +97,7 @@ class OccurrenceTestCase(unittest.TestCase):
         assert rv.data == b'Not found!'
 
         # we create it
-        body = serial.dumps({'content': b'occurrence content',
-                             'revision': occ_revision_sha1_hex,  # FIXME: redundant with the one from uri..
+        body = serial.dumps({'revision': occ_revision_sha1_hex,  # FIXME: redundant with the one from uri..
                              'reference': 'master',
                              'url-origin': self.origin_url})
 

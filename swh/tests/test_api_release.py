@@ -83,7 +83,6 @@ class ReleaseTestCase(unittest.TestCase):
 
         # we create it
         body = serial.dumps({'id': release_sha1_hex,
-                             'content': b'release also has content',
                              'revision': self.revision_sha1_hex,
                              'date': now(),
                              'name': '0.0.1',

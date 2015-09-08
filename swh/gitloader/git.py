@@ -105,7 +105,6 @@ def parse(repo_path):
 
             swh_repo.add_directory({'id': dir_root.hex,
                                     'type': store.Type.directory,
-                                    'content': dir_root.read_raw(),  # FIXME: add pointer to data on disk?
                                     'entries': dir_entries})
 
         revision_parent_sha1s = list(map(str, rev.parent_ids))
@@ -119,7 +118,6 @@ def parse(repo_path):
 
         swh_repo.add_revision({'id': rev.hex,
                                'type':store.Type.revision,
-                               'content': rev.read_raw(),  # FIXME: add pointer to data on disk?
                                'date': timestamp_to_string(rev.commit_time),
                                'directory': rev.tree.hex,
                                'message': rev.message,
@@ -167,7 +165,6 @@ def parse(repo_path):
                       'type': store.Type.person}
             release = {'id': head_rev.hex,
                        'type': store.Type.release,
-                       'content': head_rev.read_raw(),  # FIXME: add pointer to data on disk?
                        'revision': head_rev.target.hex,
                        'name': ref_name,
                        'date': now(),  # FIXME: find the tag's date,
