@@ -82,3 +82,15 @@ def add_objects(db_conn, conf, obj_type, objs):
             res.append(obj_found)
 
     return res
+
+
+_persist_fn = {store.Type.person: add_persons,
+               store.Type.revision: add_revisions}
+
+
+def persist(db_conn, conf, obj_type, objs):
+    """Generic call to persist persons, revisions or other objects.
+
+    """
+    persist_fn = _persist_fn.get(obj_type, add_objects)
+    return persist_fn(db_conn, conf, obj_type, objs)

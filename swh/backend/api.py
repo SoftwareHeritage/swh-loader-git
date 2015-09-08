@@ -41,7 +41,8 @@ _uri_types = {'revisions': store.Type.revision,
               'directories': store.Type.directory,
               'contents': store.Type.content,
               'releases': store.Type.release,
-              'occurrences': store.Type.occurrence}
+              'occurrences': store.Type.occurrence,
+              'persons': store.Type.person}
 
 
 def _do_action_with_payload(conf, action_fn, uri_type, id, map_result_fn):
@@ -142,42 +143,6 @@ def put_origin():
             return make_response('Bad request!', 400)
 
 
-@app.route('/vcs/persons/', methods=['PUT'])
-def put_all_persons():
-    """Store or update given revisions.
-    FIXME: Refactor same behavior with `put_all`.
-    """
-    if request.headers.get('Content-Type') != serial.MIMETYPE:
-        return make_response('Bad request. Expected %s data!' % serial.MIMETYPE, 400)
-
-    payload = read_request_payload(request)
-    obj_type = store.Type.person
-
-    config = app.config['conf']
-
-    with db.connect(config['db_url']) as db_conn:
-        service.add_persons(db_conn, config, obj_type, payload)
-    return make_response('Successful creation!', 204)
-
-
-@app.route('/vcs/revisions/', methods=['PUT'])
-def put_all_revisions():
-    """Store or update given revisions.
-    FIXME: Refactor same behavior with `put_all`.
-    """
-    if request.headers.get('Content-Type') != serial.MIMETYPE:
-        return make_response('Bad request. Expected %s data!' % serial.MIMETYPE, 400)
-
-    payload = read_request_payload(request)
-    obj_type = store.Type.revision
-
-    config = app.config['conf']
-
-    with db.connect(config['db_url']) as db_conn:
-        service.add_revisions(db_conn, config, obj_type, payload)
-    return make_response('Successful creation!', 204)
-
-
 @app.route('/vcs/<uri_type>/', methods=['PUT'])
 def put_all(uri_type):
     """Store or update given objects (uri_type in {contents, directories, releases).
@@ -191,7 +156,7 @@ def put_all(uri_type):
     config = app.config['conf']
 
     with db.connect(config['db_url']) as db_conn:
-        service.add_objects(db_conn, config, obj_type, payload)
+        service.persist(db_conn, config, obj_type, payload)
 
     return make_response('Successful creation!', 204)
 
