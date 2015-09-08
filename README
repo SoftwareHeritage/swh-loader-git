@@ -70,7 +70,7 @@ db url's schema
 swh-loader-git
 --------------
 
-Create a configuration file in **\~/.config/swh/git-loader.ini**:
+Create a configuration file in **\~/.config/swh/loader-git.ini**:
 
 ``` {.ini}
 [main]
