@@ -26,12 +26,9 @@ from test_utils import list_files_from
 @attr('slow')
 class TestRemoteLoader(unittest.TestCase):
     def setUp(self):
-        """Initialize a git repository for the remaining test to manipulate.
-        """
         tmp_git_folder_path = tempfile.mkdtemp(prefix='test-sgloader.',
                                                dir='/tmp')
         self.tmp_git_repo = pygit2.init_repository(tmp_git_folder_path)
-
         self.conf = reader.read('./resources/test/back.ini',
                                 {'port': ('int', 9999)})
 
@@ -47,6 +44,9 @@ class TestRemoteLoader(unittest.TestCase):
         if not os.path.exists(self.conf['content_storage_dir']):
             os.mkdir(self.conf['content_storage_dir'])
 
+    def init_db_setup(self):
+        """Initialize a git repository for the remaining test to manipulate.
+        """
         test_initdb.prepare_db(self.db_url)
 
     def tearDown(self):
@@ -86,6 +86,9 @@ class TestRemoteLoader(unittest.TestCase):
     def remote_loader(self):
         """Trigger loader and make sure everything is ok.
         """
+        # given
+        self.init_db_setup()
+
         # given
         commit0 = create_commit_with_content(self.tmp_git_repo, 'blob 0',
                                              'commit msg 0')

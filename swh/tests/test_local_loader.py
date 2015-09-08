@@ -43,6 +43,9 @@ class TestLocalLoader(unittest.TestCase):
             'backend': './resources/test/back.ini'
         }
 
+    def init_db_setup(self):
+        """Initialize a git repository for the remaining test to manipulate.
+        """
         test_initdb.prepare_db(self.db_url)
 
     def tearDown(self):
@@ -82,6 +85,8 @@ class TestLocalLoader(unittest.TestCase):
     def local_loader(self):
         """Trigger loader and make sure everything is ok.
         """
+        self.init_db_setup()
+
         # given
         commit0 = create_commit_with_content(self.tmp_git_repo, 'blob 0',
                                              'commit msg 0')
