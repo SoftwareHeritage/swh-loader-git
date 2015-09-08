@@ -74,7 +74,7 @@ def parse(repo_path):
                               'type': store.Type.content,
                               'content-sha1': hashes['sha1'],
                               'content-sha256': hashes['sha256'],
-                              'content': data,  # FIXME: add pointer to data on disk?
+                              'content': data,
                               'size': obj.size})
 
             dir_entries.append({'name': tree_entry.name,
