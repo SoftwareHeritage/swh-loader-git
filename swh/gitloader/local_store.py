@@ -28,8 +28,7 @@ DEFAULT_CONF = {
 def store_only_new(db_conn, conf, obj_type, obj):
     """Store object if not already present.
     """
-    obj.update({'type': obj_type})
-    if not store.find(db_conn, obj):
+    if not store.find(db_conn, obj['id'], obj_type):
         store.add(db_conn, conf, obj)
 
 

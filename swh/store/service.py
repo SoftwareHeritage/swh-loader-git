@@ -36,15 +36,15 @@ def add_revisions(db_conn, conf, obj_type, objs):
     """
     couple_parents = []
     for obj in objs:  # iterate over objects of type uri_type
-
-        obj_found = store.find(db_conn, obj)
+        obj_id = obj['id']
+        obj_found = store.find(db_conn, obj_id, obj_type)
         if not obj_found:
-            store.add(db_conn, conf, obj)
+            store.add(db_conn, conf, obj_id, obj_type, obj)
 
             # deal with revision history
             par_shas = obj.get('parent-sha1s', None)
             if par_shas:
-                couple_parents.extend([(obj['id'], p) for p in par_shas])
+                couple_parents.extend([(obj_id, p) for p in par_shas])
 
     store.add_revision_history(db_conn, couple_parents)
 
@@ -63,12 +63,22 @@ def add_persons(db_conn, conf, obj_type, objs):
     return True
 
 
-def add_objects(db_conn, conf, obj_type, objs):
-    """Add objects.
-    """
-    for obj in objs:  # iterate over objects of type uri_type
-        obj_found = store.find(db_conn, obj)
-        if not obj_found:
-            store.add(db_conn, conf, obj)
+# dispatch map to add in storage with fs or not
+_add_fn = {store.Type.content: store.add_with_fs_storage}
 
-    return True
+
+def add_objects(db_conn, conf, obj_type, objs):
+    """Add objects if not already present in the storage.
+    """
+    add_fn = _add_fn.get(obj_type, store.add)
+    res = []
+    for obj in objs:  # iterate over objects of type uri_type
+        obj_id = obj['id']
+        obj_found = store.find(db_conn, obj_id, obj_type)
+        if not obj_found:
+            obj = add_fn(db_conn, conf, obj_id, obj_type, obj)
+            res.append(obj)
+        else:
+            res.append(obj_found)
+
+    return res

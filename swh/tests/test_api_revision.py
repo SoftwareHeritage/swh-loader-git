@@ -99,8 +99,8 @@ class RevisionTestCase(unittest.TestCase):
                           data=body,
                           headers={'Content-Type': serial.MIMETYPE})
 
-        assert rv.status_code == 200
-        assert rv.data == b'Successful update!'
+        assert rv.status_code == 204
+        assert rv.data == b''
 
         # still the same
         rv = self.app.get('/vcs/revisions/%s' % revision_sha1_hex)

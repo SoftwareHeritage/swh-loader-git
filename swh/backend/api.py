@@ -210,19 +210,8 @@ def add_object(config, vcs_object, map_result_fn):
     logging.debug('store %s %s' % (type, id))
 
     with db.connect(config['db_url']) as db_conn:
-        if store.find(db_conn, vcs_object):
-            logging.debug('update %s %s' % (id, type))
-            return make_response('Successful update!', 200)  # immutable
-        else:
-            logging.debug('store %s %s' % (id, type))
-            res = store.add(db_conn, config, vcs_object)
-            if res is None:
-                return make_response('Bad request!', 400)
-            elif res is False:
-                logging.error('store %s %s' % (id, type))
-                return make_response('Internal server error!', 500)
-            else:
-                return make_response(map_result_fn(id, res), 204)
+        res = service.add_objects(db_conn, config, type, [vcs_object])
+        return make_response(map_result_fn(id, res), 204)
 
 
 def _do_lookup(conf, uri_type, id, map_result_fn):
@@ -238,11 +227,8 @@ def _do_lookup(conf, uri_type, id, map_result_fn):
     if not uri_type_ok:
         return make_response('Bad request!', 400)
 
-    vcs_object = {'id': id,
-                  'type': uri_type_ok}
-
     with db.connect(conf['db_url']) as db_conn:
-        res = store.find(db_conn, vcs_object)
+        res = store.find(db_conn, id, uri_type_ok)
         if res:
             return write_response(map_result_fn(id, res))  # 200
         return make_response('Not found!', 404)
@@ -276,7 +262,7 @@ def put_object(uri_type, id):
                                    add_object,
                                    uri_type,
                                    id,
-                                   lambda _1, _2: 'Successful Creation!')  # FIXME: use id or result instead
+                                   lambda sha1, _2: sha1)  # FIXME: use id or result instead
 
 
 def run(conf):

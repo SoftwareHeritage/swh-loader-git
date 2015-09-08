@@ -14,13 +14,10 @@ Type = models.Type
 _find_object = {Type.occurrence: models.find_occurrences_for_revision}
 
 
-def find(db_conn, vcs_object):
+def find(db_conn, id, type):
     """Find an object according to its sha1hex and type.
     """
-    id = vcs_object['id']   # sha1 for every object except for origin (url)
-    type = vcs_object['type']
-
-    find_fn  = _find_object.get(type, models.find_object)
+    find_fn = _find_object.get(type, models.find_object)
     return find_fn(db_conn, id, type)
 
 
@@ -149,8 +146,7 @@ def add_person(db_conn, vcs_object):
                              vcs_object['email'])
 
 
-_store_fn = {Type.content: _add_content,
-             Type.directory: _add_directory,
+_store_fn = {Type.directory: _add_directory,
              Type.revision: _add_revision,
              Type.release: _add_release,
              Type.occurrence: _add_occurrence}
@@ -174,17 +170,25 @@ def find_person(db_conn, person):
     return models.find_person(db_conn, person['email'], person['name'])
 
 
-def add(db_conn, config, vcs_object):
-    """Given a sha1hex, type and content, store a given object in the store.
+def add_with_fs_storage(db_conn, config, id, type, vcs_object):
+    """Add vcs_object in the storage
+    - db_conn is the opened connection to the db
+    - config is the map of configuration needed for core layer
+    - type is not used here but represent the type of vcs_object
+    - vcs_object is the object meant to be persisted in fs and db
     """
-    type = vcs_object['type']
-    sha1hex = vcs_object['id']
-    obj_content = vcs_object.get('content')
+    config['objstorage'].add_bytes(vcs_object['content'], id)  # FIXME use this id
+    return _add_content(db_conn, vcs_object, id)
 
-    if obj_content:
-        config['objstorage'].add_bytes(obj_content, sha1hex)
-        return _store_fn[type](db_conn, vcs_object, sha1hex)
-    return _store_fn[type](db_conn, vcs_object, sha1hex)
+
+def add(db_conn, config, id, type, vcs_object):
+    """Given a sha1hex, type and content, store a given object in the store.
+    - db_conn is the opened connection to the db
+    - config is not used here
+    - type is the object's type
+    - vcs_object is the object meant to be persisted in db
+    """
+    return _store_fn[type](db_conn, vcs_object, id)
 
 
 def add_revision_history(db_conn, couple_parents):
