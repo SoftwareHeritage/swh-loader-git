@@ -84,7 +84,7 @@ def filter_unknowns_type(uri_type):
 
 @app.route('/vcs/persons/', methods=['POST'])
 def post_person():
-    """Post a person.
+    """Find a person.
     """
     if request.headers.get('Content-Type') != serial.MIMETYPE:
         return make_response('Bad request. Expected %s data!' % serial.MIMETYPE, 400)
@@ -105,7 +105,7 @@ def post_person():
 
 @app.route('/origins/', methods=['POST'])
 def post_origin():
-    """Post an origin.
+    """Find an origin.
     """
     if request.headers.get('Content-Type') != serial.MIMETYPE:
         return make_response('Bad request. Expected %s data!' % serial.MIMETYPE, 400)
