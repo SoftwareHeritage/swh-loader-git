@@ -43,9 +43,6 @@ class TestLocalLoader(unittest.TestCase):
             'backend': './resources/test/back.ini'
         }
 
-        if not os.path.exists(self.conf_back['content_storage_dir']):
-            os.mkdir(self.conf_back['content_storage_dir'])
-
         test_initdb.prepare_db(self.db_url)
 
     def tearDown(self):
