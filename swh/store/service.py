@@ -13,29 +13,22 @@ def find_origin(db_conn, origin):
     """Find origin.
     """
     origin_found = store.find_origin(db_conn, origin)
-    if origin_found:
-        return {'id': origin_found[0]}
-    return None
+    return None if not origin_found else {'id': origin_found[0]}
 
 
 def find_person(db_conn, person):
     """Find person.
     """
     person_found = store.find_person(db_conn, person)
-    if person_found:
-        return {'id': person_found[0]}
-    return None
+    return None if not person_found else {'id': person_found[0]}
 
 
 def add_origin(db_conn, origin):
     """Add origin if not already existing.
     """
     origin_found = store.find_origin(db_conn, origin)
-    if origin_found:
-        return {'id': origin_found[0]}
-    else:
-        origin_id = store.add_origin(db_conn, origin)
-        return {'id': origin_id}
+    id = origin_found[0] if origin_found else store.add_origin(db_conn, origin)
+    return {'id': id}
 
 
 def add_revisions(db_conn, conf, obj_type, objs):
