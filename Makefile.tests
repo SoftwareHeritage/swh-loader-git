@@ -1,13 +1,24 @@
 # -*- makefile -*-
+NOSEFLAGS=--nologcapture -v
+DB_TEST=$(DB)-test
+TESTDIR = ./swh/tests
 
 test-connect-db:
-	psql -d $(DB_TEST)
+	psql $(DB_TEST)
 
 test-create-db:
 	cd $(SQL_FOLDER) && make clean initdb DBNAME=$(DB_TEST)
 
 test-drop-db:
 	cd $(SQL_FOLDER) && make clean dropdb DBNAME=$(DB_TEST)
+
+test-cleandb:
+	PYTHONPATH=$(_PYPATH) $(SWH_DB_MANAGER) $(FLAG) --config ./resources/test/db-manager.ini cleandb
+
+test-check-meta:
+	@echo "DB $(DB_TEST) metadata:"
+	@$(BINDIR)/db-git-repo-meta.sh $(DB_TEST)
+	@echo
 
 tests:
 	PYTHONPATH=$(_PYPATH) make test

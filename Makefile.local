@@ -8,12 +8,9 @@ REPO_PATH=./swh-loader-git-testdata
 # add -v for example
 FLAG=
 
-TESTDIR = ./swh/tests
-
 DB=softwareheritage-dev
-DB_TEST=$(DB)-test
 
-SWH_LOADER=$(BINDIR)/swh-git-loader
+SWH_LOADER=$(BINDIR)/swh-loader-git
 SWH_DB_MANAGER=$(BINDIR)/swh-db-manager
 SWH_BACK=$(BINDIR)/swh-backend
 
@@ -42,10 +39,10 @@ cover:
 	PYTHONPATH=$(_PYPATH) make coverage
 
 clean:
-	rm -rf /tmp/swh-git-loader/content-storage /tmp/swh-git-loader/test/
+	rm -rf /tmp/swh-loader-git/content-storage /tmp/swh-loader-git/test/
 
 prepare:
-	mkdir -p /tmp/swh-git-loader/content-storage /tmp/swh-git-loader/test/
+	mkdir -p /tmp/swh-loader-git/content-storage /tmp/swh-loader-git/test/
 
 cleandb: clean
 	PYTHONPATH=$(_PYPATH) $(SWH_DB_MANAGER) $(FLAG) cleandb
@@ -80,14 +77,14 @@ check-meta:
 	@echo
 
 	@echo "DB metadata:"
-	@$(BINDIR)/db-git-repo-meta.sh $(DB) $(REPO_PATH)
+	@$(BINDIR)/db-git-repo-meta.sh $(DB)
 	@echo
 
 log-loader:
-	tail $(FOLLOW_LOG) /tmp/swh-git-loader/log/sgloader.log
+	tail $(FOLLOW_LOG) /tmp/swh-loader-git/log/sgloader.log
 
 log-back:
-	tail $(FOLLOW_LOG) /tmp/swh-git-loader/log/back.log
+	tail $(FOLLOW_LOG) /tmp/swh-loader-git/log/back.log
 
 profile-run:
 	PYTHONPATH=$(_PYPATH) python3 -m $(PROFILE_TYPE) -o ./scratch/swhgitloader.$(PROFILE_TYPE) ./scratch/profile-swhgitloader.py
