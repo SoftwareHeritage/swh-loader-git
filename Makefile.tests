@@ -15,6 +15,15 @@ test-drop-db:
 test-cleandb:
 	PYTHONPATH=$(_PYPATH) $(SWH_DB_MANAGER) $(FLAG) --config ./resources/test/db-manager.ini cleandb
 
+test-clean:
+	rm -rf /tmp/swh-loader-git/test/
+
+test-prepare:
+	mkdir -p /tmp/swh-loader-git/test/
+
+test-log-back:
+	tail $(FOLLOW_LOG) /tmp/swh-loader-git/test/log/back.log
+
 test-check-meta:
 	@echo "DB $(DB_TEST) metadata:"
 	@$(BINDIR)/db-git-repo-meta.sh $(DB_TEST)

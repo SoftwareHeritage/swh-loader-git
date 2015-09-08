@@ -39,10 +39,10 @@ cover:
 	PYTHONPATH=$(_PYPATH) make coverage
 
 clean:
-	rm -rf /tmp/swh-loader-git/content-storage /tmp/swh-loader-git/test/
+	rm -rf /tmp/swh-loader-git/content-storage
 
 prepare:
-	mkdir -p /tmp/swh-loader-git/content-storage /tmp/swh-loader-git/test/
+	mkdir -p /tmp/swh-loader-git/content-storage
 
 cleandb: clean
 	PYTHONPATH=$(_PYPATH) $(SWH_DB_MANAGER) $(FLAG) cleandb
