@@ -6,10 +6,7 @@
 import psycopg2
 
 
-def connect(db_url):
-    """Open db connection.
-    """
-    return psycopg2.connect(db_url)
+connect = psycopg2.connect
 
 
 def execute(cur, query_params, trace=None):
