@@ -3,8 +3,8 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-from swh.store import store, db, service
-from swh.conf import reader
+from swh.loader.git.store import store, db, service
+from swh.loader.git.conf import reader
 from swh.storage.objstorage import ObjStorage
 
 

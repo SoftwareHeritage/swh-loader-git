@@ -7,8 +7,8 @@ import unittest
 
 from nose.tools import istest
 
-from swh.client import http
-from swh.store import store
+from swh.loader.git.client import http
+from swh.loader.git.store import store
 
 
 class TestHttp(unittest.TestCase):

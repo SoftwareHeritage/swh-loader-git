@@ -7,7 +7,7 @@
 
 import logging
 
-from swh.store import db, models
+from swh.loader.git.store import db, models
 
 
 def manage(action, db_url):

@@ -3,8 +3,8 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-from swh.store import store
-from swh.client import http
+from swh.loader.git.store import store
+from swh.loader.git.client import http
 
 
 def store_unknown_objects(back_url, obj_type, swhmap):
@@ -33,7 +33,7 @@ def load_to_back(back_url, swh_repo):
     http.put(back_url,
              obj_type=store.Type.person,
              obj=list(swh_repo.get_persons()))
-    
+
     # let the backend and api discuss what's really needed
     # - first this worker sends the checksums
     # - then the backend answers the checksums it does not know

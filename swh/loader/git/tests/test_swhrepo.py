@@ -7,7 +7,7 @@ import unittest
 
 from nose.tools import istest
 
-from swh.data import swhrepo
+from swh.loader.git.data import swhrepo
 
 
 class SWHRepoTestCase(unittest.TestCase):

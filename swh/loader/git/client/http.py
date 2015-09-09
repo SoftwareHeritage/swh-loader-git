@@ -9,9 +9,9 @@ import requests
 
 from retrying import retry
 
-from swh.retry import policy
-from swh.store import store
-from swh.protocols import serial
+from swh.loader.git.retry import policy
+from swh.loader.git.store import store
+from swh.loader.git.protocols import serial
 
 
 session_swh = requests.Session()

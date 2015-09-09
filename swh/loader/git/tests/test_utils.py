@@ -8,7 +8,7 @@ import os
 import shutil
 import tempfile
 
-from swh.backend import api
+from swh.loader.git.backend import api
 from swh.storage.objstorage import ObjStorage
 
 import test_initdb

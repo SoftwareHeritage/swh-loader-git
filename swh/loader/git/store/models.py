@@ -5,7 +5,7 @@
 
 from enum import Enum
 
-from swh.store import db
+from . import db
 
 
 class Type(Enum):
@@ -97,7 +97,7 @@ def add_revision(db_conn, sha, date, directory, message, author, committer,
     db.query_execute(db_conn,
                      ("""INSERT INTO revision
                          (id, date, directory, message, author, committer)
-                         VALUES (%s, %s, %s, %s, 
+                         VALUES (%s, %s, %s, %s,
                                  (select id from person where name=%s and email=%s),
                                  (select id from person where name=%s and email=%s))""",
                       (sha, date, directory, message,
@@ -118,7 +118,7 @@ def add_release(db_conn, obj_sha, revision, date, name, comment, author):
     """
     db.query_execute(db_conn,
                      ("""INSERT INTO release (id, revision, date, name, comment, author)
-                         VALUES (%s, %s, %s, %s, %s, 
+                         VALUES (%s, %s, %s, %s, %s,
                                  (select id from person where name=%s and email=%s))""",
                       (obj_sha, revision, date, name, comment, author['name'], author['email'])))
 

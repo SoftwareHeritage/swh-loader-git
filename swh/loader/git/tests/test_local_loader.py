@@ -14,35 +14,34 @@ import os
 from nose.plugins.attrib import attr
 from nose.tools import istest
 
-from swh.store import db, models
-from swh.gitloader import loader
-from swh.conf import reader
+from swh.loader.git.store import db, models
+from swh.loader.git.gitloader import loader
+from swh.loader.git.conf import reader
 
 import test_initdb
-from test_git_utils import create_commit_with_content, create_tag
 from test_utils import list_files_from
-
+from test_git_utils import create_commit_with_content, create_tag
 
 @attr('slow')
-class TestRemoteLoader(unittest.TestCase):
+class TestLocalLoader(unittest.TestCase):
     def setUp(self):
+        """Initialize a git repository for the remaining test to manipulate.
+        """
         tmp_git_folder_path = tempfile.mkdtemp(prefix='test-sgloader.',
                                                dir='/tmp')
         self.tmp_git_repo = pygit2.init_repository(tmp_git_folder_path)
-        self.conf = reader.read('./resources/test/back.ini',
-                                {'port': ('int', 9999)})
 
-        self.db_url = self.conf['db_url']
-        self.conf.update({
+        self.conf_back = reader.read('./resources/test/back.ini',
+                                     {'port': ('int', 9999)})
+
+        self.db_url = self.conf_back['db_url']
+
+        self.conf = {
             'action': 'load',
             'repo_path': self.tmp_git_repo.workdir,
-            'backend-type': 'remote',
-            'backend': 'http://localhost:%s' % self.conf['port']
-        })
-
-        # Not the remote loader in charge of creating the folder, so we do it
-        if not os.path.exists(self.conf['content_storage_dir']):
-            os.mkdir(self.conf['content_storage_dir'])
+            'backend-type': 'local',
+            'backend': './resources/test/back.ini'
+        }
 
     def init_db_setup(self):
         """Initialize a git repository for the remaining test to manipulate.
@@ -53,7 +52,7 @@ class TestRemoteLoader(unittest.TestCase):
         """Destroy the test git repository.
         """
         shutil.rmtree(self.tmp_git_repo.workdir)
-        shutil.rmtree(self.conf['content_storage_dir'])
+        shutil.rmtree(self.conf_back['content_storage_dir'], ignore_errors=True)
 
     @istest
     def should_fail_on_bad_action(self):
@@ -83,10 +82,9 @@ class TestRemoteLoader(unittest.TestCase):
             pass
 
     @istest
-    def remote_loader(self):
+    def local_loader(self):
         """Trigger loader and make sure everything is ok.
         """
-        # given
         self.init_db_setup()
 
         # given
@@ -109,8 +107,8 @@ class TestRemoteLoader(unittest.TestCase):
         loader.load(self.conf)
 
         # then
-        nb_files = len(list_files_from(self.conf['content_storage_dir']))
-        self.assertEquals(nb_files, 4, "4 blobs")
+        nb_files = len(list_files_from(self.conf_back['content_storage_dir']))
+        self.assertEquals(nb_files, 4, "4 blobs.")
 
         with db.connect(self.db_url) as db_conn:
             self.assertEquals(
@@ -150,8 +148,8 @@ class TestRemoteLoader(unittest.TestCase):
         loader.load(self.conf)
 
         # then
-        nb_files = len(list_files_from(self.conf['content_storage_dir']))
-        self.assertEquals(nb_files, 4+3, "3 new blobs")
+        nb_files = len(list_files_from(self.conf_back['content_storage_dir']))
+        self.assertEquals(nb_files, 4+3, "3 new blobs.")
 
         with db.connect(self.db_url) as db_conn:
             self.assertEquals(
@@ -184,8 +182,8 @@ class TestRemoteLoader(unittest.TestCase):
         loader.load(self.conf)
 
         # then
-        nb_files = len(list_files_from(self.conf['content_storage_dir']))
-        self.assertEquals(nb_files, 7, "no new blob")
+        nb_files = len(list_files_from(self.conf_back['content_storage_dir']))
+        self.assertEquals(nb_files, 7, "no new blob.")
 
         with db.connect(self.db_url) as db_conn:
             self.assertEquals(
@@ -221,8 +219,8 @@ class TestRemoteLoader(unittest.TestCase):
         loader.load(self.conf)
 
         # then
-        nb_files = len(list_files_from(self.conf['content_storage_dir']))
-        self.assertEquals(nb_files, 7, "no new blob")
+        nb_files = len(list_files_from(self.conf_back['content_storage_dir']))
+        self.assertEquals(nb_files, 7, "no new blob.")
 
         with db.connect(self.db_url) as db_conn:
             self.assertEquals(

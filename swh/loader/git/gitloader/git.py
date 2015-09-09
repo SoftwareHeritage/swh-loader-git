@@ -17,8 +17,8 @@ from pygit2 import GIT_OBJ_COMMIT, GIT_OBJ_TREE, GIT_SORT_TOPOLOGICAL
 from enum import Enum
 
 from swh.core import hashutil
-from swh.data import swhrepo
-from swh.store import store
+from swh.loader.git.data import swhrepo
+from swh.loader.git.store import store
 
 
 class DirectoryTypeEntry(Enum):

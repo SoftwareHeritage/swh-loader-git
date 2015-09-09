@@ -1,7 +1,7 @@
 # -*- makefile -*-
 NOSEFLAGS=--nologcapture -v
 DB_TEST=$(DB)-test
-TESTDIR = ./swh/tests
+TESTDIR = ./swh/loader/git/tests
 
 test-connect-db:
 	psql $(DB_TEST)

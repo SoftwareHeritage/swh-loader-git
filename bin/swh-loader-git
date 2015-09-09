@@ -10,8 +10,8 @@ import argparse
 import logging
 import os
 
-from swh.gitloader import loader
-from swh.conf import reader
+from swh.loader.git.gitloader import loader
+from swh.loader.git.conf import reader
 
 # Default configuration file
 DEFAULT_CONF_FILE = '~/.config/swh/loader-git.ini'

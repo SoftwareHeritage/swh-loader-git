@@ -11,8 +11,8 @@ import logging
 import os
 
 
-from swh import manager
-from swh.conf import reader
+from swh.loader.git import manager
+from swh.loader.git.conf import reader
 
 # Default configuration file
 DEFAULT_CONF_FILE = '~/.config/swh/db-manager.ini'

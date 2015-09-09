@@ -5,7 +5,7 @@
 
 from io import StringIO
 
-from swh.store import models
+from . import models
 
 
 Type = models.Type

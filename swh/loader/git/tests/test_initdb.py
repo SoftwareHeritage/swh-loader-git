@@ -3,7 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-from swh.manager import manage
+from swh.loader.git.manager import manage
 
 
 def prepare_db(db_url):
