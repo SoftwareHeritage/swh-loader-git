@@ -226,7 +226,7 @@ def filter_unknown_objects(db_conn, file_sha1s, table_to_filter, tbl_tmp_name):
         # explicit is better than implicit
         # simply creating the temporary table seems to be enough
         db.execute(cur, """CREATE TEMPORARY TABLE IF NOT EXISTS %s(
-                             id git_object_id)
+                             id sha1_git)
                            ON COMMIT DELETE ROWS;""" % tbl_tmp_name)
         db.copy_from(cur, file_sha1s, tbl_tmp_name)
         db.execute(cur, '(SELECT id FROM %s) EXCEPT (SELECT id FROM %s);' %
