@@ -46,18 +46,31 @@ def timestamp_to_string(timestamp):
 
 
 def list_objects_from_packfile_index(packfile_index):
-    """List the objects indexed by this packfile"""
+    """List the objects indexed by this packfile, in packfile offset
+    order.
+    """
     input_file = open(packfile_index, 'rb')
+
     with subprocess.Popen(
         ['/usr/bin/git', 'show-index'],
         stdin=input_file,
         stdout=subprocess.PIPE,
     ) as process:
+
+        data = []
+
         for line in process.stdout.readlines():
             # git show-index returns the line as:
             # <packfile offset> <object_id> (<object CRC>)
             line_components = line.split()
-            yield line_components[1].decode('utf-8')
+            offset = int(line_components[0])
+            object_id = line_components[1]
+
+            data.append((offset, object_id))
+
+        yield from (object_id.decode('utf-8') for _, object_id in sorted(data))
+
+    input_file.close()
 
 
 def list_objects(repo):
