@@ -3,7 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-from swh.loader.git.store import store
+from swh.loader.git.storage import storage
 from swh.loader.git.client import http
 
 
@@ -27,11 +27,11 @@ def load_to_back(back_url, swh_repo):
     # FIXME: should be done by the cloner worker (which is not yet plugged on
     # the right swh db ftm)
     http.put(back_url,
-             obj_type=store.Type.origin,
+             obj_type=storage.Type.origin,
              obj=swh_repo.get_origin())
 
     http.put(back_url,
-             obj_type=store.Type.person,
+             obj_type=storage.Type.person,
              obj=list(swh_repo.get_persons()))
 
     # let the backend and api discuss what's really needed
@@ -39,25 +39,25 @@ def load_to_back(back_url, swh_repo):
     # - then the backend answers the checksums it does not know
     # - then the worker sends only what the backend does not know per
     # object type basis
-    res = store_unknown_objects(back_url, store.Type.content,
+    res = store_unknown_objects(back_url, storage.Type.content,
                                 swh_repo.get_contents())
 
     if res:
-        res = store_unknown_objects(back_url, store.Type.directory,
+        res = store_unknown_objects(back_url, storage.Type.directory,
                                     swh_repo.get_directories())
         if res:
-            res = store_unknown_objects(back_url, store.Type.revision,
+            res = store_unknown_objects(back_url, storage.Type.revision,
                                         swh_repo.get_revisions())
             if res:
                 # brutally send all remaining occurrences
                 http.put(back_url,
-                         store.Type.occurrence,
+                         storage.Type.occurrence,
                          swh_repo.get_occurrences())
 
                 # and releases (the idea here is that compared to existing
                 # other objects, the quantity is less)
                 http.put(back_url,
-                         store.Type.release,
+                         storage.Type.release,
                          swh_repo.get_releases())
 
     # FIXME: deal with collision failures which should be raised by backend.

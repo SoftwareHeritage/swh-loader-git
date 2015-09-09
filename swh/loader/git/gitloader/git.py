@@ -18,7 +18,7 @@ from enum import Enum
 
 from swh.core import hashutil
 from swh.loader.git.data import swhrepo
-from swh.loader.git.store import store
+from swh.loader.git.storage import storage
 
 
 class DirectoryTypeEntry(Enum):
@@ -109,14 +109,14 @@ def parse(repo_path):
                 nature = DirectoryTypeEntry.file.value
                 hashes = hashutil.hashdata(data, HASH_ALGORITHMS)
                 blobs.append({'id': obj.hex,
-                              'type': store.Type.content,
+                              'type': storage.Type.content,
                               'content-sha1': hashes['sha1'],
                               'content-sha256': hashes['sha256'],
                               'content': data,
                               'size': obj.size})
 
             dir_entries.append({'name': tree_entry.name,
-                                'type': store.Type.directory_entry,
+                                'type': storage.Type.directory_entry,
                                 'target-sha1': obj.hex,
                                 'nature': nature,
                                 'perms': tree_entry.filemode,
@@ -142,20 +142,20 @@ def parse(repo_path):
                 swh_repo.add_content(content_ref)
 
             swh_repo.add_directory({'id': dir_root.hex,
-                                    'type': store.Type.directory,
+                                    'type': storage.Type.directory,
                                     'entries': dir_entries})
 
         revision_parent_sha1s = list(map(str, rev.parent_ids))
 
         author = {'name': rev.author.name,
                   'email': rev.author.email,
-                  'type': store.Type.person}
+                  'type': storage.Type.person}
         committer = {'name': rev.committer.name,
                      'email': rev.committer.email,
-                     'type': store.Type.person}
+                     'type': storage.Type.person}
 
         swh_repo.add_revision({'id': rev.hex,
-                               'type':store.Type.revision,
+                               'type':storage.Type.revision,
                                'date': timestamp_to_string(rev.commit_time),
                                'directory': rev.tree.hex,
                                'message': rev.message,
@@ -200,9 +200,9 @@ def parse(repo_path):
             taggerSig = head_rev.tagger
             author = {'name': taggerSig.name,
                       'email': taggerSig.email,
-                      'type': store.Type.person}
+                      'type': storage.Type.person}
             release = {'id': head_rev.hex,
-                       'type': store.Type.release,
+                       'type': storage.Type.release,
                        'revision': head_rev.target.hex,
                        'name': ref_name,
                        'date': now(),  # FIXME: find the tag's date,
@@ -216,7 +216,7 @@ def parse(repo_path):
                                      'revision': head_rev.hex,
                                      'reference': ref_name,
                                      'url-origin': origin['url'],
-                                     'type': store.Type.occurrence})
+                                     'type': storage.Type.occurrence})
             head_start = head_rev
 
         # crawl commits and trees

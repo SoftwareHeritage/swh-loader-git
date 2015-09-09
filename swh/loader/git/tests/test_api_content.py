@@ -8,7 +8,7 @@ import unittest
 from nose.tools import istest
 from nose.plugins.attrib import attr
 
-from swh.loader.git.store import db, models
+from swh.loader.git.storage import db, models
 from swh.loader.git.protocols import serial
 from test_utils import app_client, app_client_teardown
 

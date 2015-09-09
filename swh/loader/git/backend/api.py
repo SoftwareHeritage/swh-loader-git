@@ -8,7 +8,7 @@ import logging
 
 from flask import Flask, Response, make_response, request
 
-from swh.loader.git.store import store, db, service
+from swh.loader.git.storage import storage, db, service
 from swh.loader.git.protocols import serial
 
 
@@ -37,12 +37,12 @@ def hello():
 
 
 # from uri to type
-_uri_types = {'revisions': store.Type.revision,
-              'directories': store.Type.directory,
-              'contents': store.Type.content,
-              'releases': store.Type.release,
-              'occurrences': store.Type.occurrence,
-              'persons': store.Type.person}
+_uri_types = {'revisions': storage.Type.revision,
+              'directories': storage.Type.directory,
+              'contents': storage.Type.content,
+              'releases': storage.Type.release,
+              'occurrences': storage.Type.occurrence,
+              'persons': storage.Type.person}
 
 
 def _do_action_with_payload(conf, action_fn, uri_type, id, map_result_fn):
@@ -57,9 +57,9 @@ def _do_action_with_payload(conf, action_fn, uri_type, id, map_result_fn):
 
 
 # occurrence type is not dealt the same way
-_post_all_uri_types = {'revisions': store.Type.revision,
-                       'directories': store.Type.directory,
-                       'contents': store.Type.content}
+_post_all_uri_types = {'revisions': storage.Type.revision,
+                       'directories': storage.Type.directory,
+                       'contents': storage.Type.content}
 
 
 @app.route('/vcs/<uri_type>/', methods=['POST'])
@@ -172,7 +172,7 @@ def add_object(config, vcs_object, map_result_fn):
     """
     type = vcs_object['type']
     id = vcs_object['id']
-    logging.debug('store %s %s' % (type, id))
+    logging.debug('storage %s %s' % (type, id))
 
     with db.connect(config['db_url']) as db_conn:
         res = service.add_objects(db_conn, config, type, [vcs_object])
@@ -193,7 +193,7 @@ def _do_lookup(conf, uri_type, id, map_result_fn):
         return make_response('Bad request!', 400)
 
     with db.connect(conf['db_url']) as db_conn:
-        res = store.find(db_conn, id, uri_type_ok)
+        res = storage.find(db_conn, id, uri_type_ok)
         if res:
             return write_response(map_result_fn(id, res))  # 200
         return make_response('Not found!', 404)

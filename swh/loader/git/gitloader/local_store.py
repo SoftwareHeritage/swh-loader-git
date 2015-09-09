@@ -3,7 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-from swh.loader.git.store import store, db, service
+from swh.loader.git.storage import storage, db, service
 from swh.loader.git.conf import reader
 from swh.storage.objstorage import ObjStorage
 
@@ -28,11 +28,11 @@ DEFAULT_CONF = {
 def store_only_new(db_conn, conf, obj_type, obj):
     """Store object if not already present.
     """
-    if not store.find(db_conn, obj['id'], obj_type):
-        store.add(db_conn, conf, obj)
+    if not storage.find(db_conn, obj['id'], obj_type):
+        storage.add(db_conn, conf, obj)
 
 
-_obj_to_persist_fn = {store.Type.revision: service.add_revisions}
+_obj_to_persist_fn = {storage.Type.revision: service.add_revisions}
 
 
 def store_unknown_objects(db_conn, conf, obj_type, swhmap):
@@ -61,25 +61,25 @@ def load_to_back(conf, swh_repo):
         service.add_origin(db_conn, swh_repo.get_origin())
 
         # First reference all unknown persons
-        service.add_persons(db_conn, conf, store.Type.person,
+        service.add_persons(db_conn, conf, storage.Type.person,
                             swh_repo.get_persons())
 
-        res = store_unknown_objects(db_conn, conf, store.Type.content,
+        res = store_unknown_objects(db_conn, conf, storage.Type.content,
                                     swh_repo.get_contents())
         if res:
-            res = store_unknown_objects(db_conn, conf, store.Type.directory,
+            res = store_unknown_objects(db_conn, conf, storage.Type.directory,
                                         swh_repo.get_directories())
             if res:
-                res = store_unknown_objects(db_conn, conf, store.Type.revision,
+                res = store_unknown_objects(db_conn, conf, storage.Type.revision,
                                             swh_repo.get_revisions())
                 if res:
                     # brutally send all remaining occurrences
-                    service.add_objects(db_conn, conf, store.Type.occurrence,
+                    service.add_objects(db_conn, conf, storage.Type.occurrence,
                                         swh_repo.get_occurrences())
 
                     # and releases (the idea here is that compared to existing
                     # objects, the quantity is less)
-                    service.add_objects(db_conn, conf, store.Type.release,
+                    service.add_objects(db_conn, conf, storage.Type.release,
                                         swh_repo.get_releases())
 
 

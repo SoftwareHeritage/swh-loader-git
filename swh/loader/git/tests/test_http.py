@@ -8,7 +8,7 @@ import unittest
 from nose.tools import istest
 
 from swh.loader.git.client import http
-from swh.loader.git.store import store
+from swh.loader.git.storage import storage
 
 
 class TestHttp(unittest.TestCase):
@@ -23,19 +23,19 @@ class TestHttp(unittest.TestCase):
     @istest
     def url_lookup_per_type(self):
         # then
-        assert http.url_lookup_per_type == { store.Type.origin: "/origins/"
-                                           , store.Type.content: "/vcs/contents/"
-                                           , store.Type.directory: "/vcs/directories/"
-                                           , store.Type.revision: "/vcs/revisions/" }
+        assert http.url_lookup_per_type == { storage.Type.origin: "/origins/"
+                                           , storage.Type.content: "/vcs/contents/"
+                                           , storage.Type.directory: "/vcs/directories/"
+                                           , storage.Type.revision: "/vcs/revisions/" }
 
     @istest
     def url_store_per_type(self):
         # then
-        assert http.url_store_per_type == { store.Type.origin: "/origins/"
-                                          , store.Type.content: "/vcs/contents/"
-                                          , store.Type.directory: "/vcs/directories/"
-                                          , store.Type.revision: "/vcs/revisions/"
-                                          , store.Type.release: "/vcs/releases/"
-                                          , store.Type.occurrence: "/vcs/occurrences/"
-                                          , store.Type.person: "/vcs/persons/"
+        assert http.url_store_per_type == { storage.Type.origin: "/origins/"
+                                          , storage.Type.content: "/vcs/contents/"
+                                          , storage.Type.directory: "/vcs/directories/"
+                                          , storage.Type.revision: "/vcs/revisions/"
+                                          , storage.Type.release: "/vcs/releases/"
+                                          , storage.Type.occurrence: "/vcs/occurrences/"
+                                          , storage.Type.person: "/vcs/persons/"
                                           }

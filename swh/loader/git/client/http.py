@@ -10,7 +10,7 @@ import requests
 from retrying import retry
 
 from swh.loader.git.retry import policy
-from swh.loader.git.store import store
+from swh.loader.git.storage import storage
 from swh.loader.git.protocols import serial
 
 
@@ -52,10 +52,10 @@ def execute(map_type_url,
 
 
 # url mapping for lookup
-url_lookup_per_type = { store.Type.origin: "/origins/"
-                      , store.Type.content: "/vcs/contents/"
-                      , store.Type.directory: "/vcs/directories/"
-                      , store.Type.revision: "/vcs/revisions/"
+url_lookup_per_type = { storage.Type.origin: "/origins/"
+                      , storage.Type.content: "/vcs/contents/"
+                      , storage.Type.directory: "/vcs/directories/"
+                      , storage.Type.revision: "/vcs/revisions/"
                       }
 
 
@@ -71,13 +71,13 @@ def post(base_url, obj_type, obj_sha1s):
 
 
 # url mapping for storage
-url_store_per_type = { store.Type.origin: "/origins/"
-                     , store.Type.content: "/vcs/contents/"
-                     , store.Type.directory: "/vcs/directories/"
-                     , store.Type.revision: "/vcs/revisions/"
-                     , store.Type.release: "/vcs/releases/"
-                     , store.Type.occurrence: "/vcs/occurrences/"
-                     , store.Type.person: "/vcs/persons/"
+url_store_per_type = { storage.Type.origin: "/origins/"
+                     , storage.Type.content: "/vcs/contents/"
+                     , storage.Type.directory: "/vcs/directories/"
+                     , storage.Type.revision: "/vcs/revisions/"
+                     , storage.Type.release: "/vcs/releases/"
+                     , storage.Type.occurrence: "/vcs/occurrences/"
+                     , storage.Type.person: "/vcs/persons/"
                      }
 
 def put(base_url, obj_type, obj):
