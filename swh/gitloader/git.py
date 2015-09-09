@@ -3,9 +3,13 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import glob
 import logging
-import pygit2
+import os
+import subprocess
 import time
+
+import pygit2
 
 from datetime import datetime
 from pygit2 import GIT_REF_OID
@@ -39,6 +43,36 @@ def timestamp_to_string(timestamp):
     """Convert a timestamps to string.
     """
     return date_format(datetime.utcfromtimestamp(timestamp))
+
+def list_objects_from_packfile_index(packfile_index):
+    """List the objects indexed by this packfile"""
+    input_file = open(packfile_index, 'rb')
+    with subprocess.Popen(
+        ['/usr/bin/git', 'show-index'],
+        stdin=input_file,
+        stdout=subprocess.PIPE,
+    ) as process:
+        for line in process.stdout.readlines():
+            obj_id = line.decode('utf-8', 'ignore').split()[1]
+            yield obj_id
+
+def list_objects(repo):
+    """List the objects in a given repository"""
+    objects_dir = os.path.join(repo.path, 'objects')
+    objects_glob = os.path.join(objects_dir, '[0-9a-f]' * 2, '[0-9a-f]' * 38)
+
+    packfile_dir = os.path.join(objects_dir, 'pack')
+
+    if os.path.isdir(packfile_dir):
+        for packfile_index in os.listdir(packfile_dir):
+            if not packfile_index.endswith('.idx'):
+                # Not an index file
+                continue
+            packfile_index_path = os.path.join(packfile_dir, packfile_index)
+            yield from list_objects_from_packfile_index(packfile_index_path)
+
+    for object_file in glob.glob(objects_glob):
+        yield ''.join(object_file.split(os.path.sep)[-2:])
 
 
 HASH_ALGORITHMS=['sha1', 'sha256']
