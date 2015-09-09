@@ -28,16 +28,24 @@ def initdb(db_conn):
 
 
 def cleandb(db_conn):
-    db.queries_execute(db_conn, ['TRUNCATE TABLE release CASCADE',
-                                 'TRUNCATE TABLE revision CASCADE',
-                                 'TRUNCATE TABLE revision_history CASCADE',
-                                 'TRUNCATE TABLE directory CASCADE',
-                                 'TRUNCATE TABLE directory_entry CASCADE',
-                                 'TRUNCATE TABLE content CASCADE',
-                                 'TRUNCATE TABLE occurrence_history CASCADE',
-                                 'TRUNCATE TABLE occurrence CASCADE',
-                                 'TRUNCATE TABLE origin CASCADE',
-                                 'TRUNCATE TABLE person CASCADE',
+    db.queries_execute(db_conn, ['TRUNCATE TABLE content CASCADE;',
+                                 'TRUNCATE TABLE organization CASCADE;',
+                                 'TRUNCATE TABLE list_history CASCADE;',
+                                 'TRUNCATE TABLE origin CASCADE;',
+                                 'TRUNCATE TABLE fetch_history CASCADE;',
+                                 'TRUNCATE TABLE project CASCADE;',
+                                 'TRUNCATE TABLE project_history CASCADE;',
+                                 'TRUNCATE TABLE directory CASCADE;',
+                                 'TRUNCATE TABLE directory_entry_dir CASCADE;',
+                                 'TRUNCATE TABLE directory_list_dir CASCADE;',
+                                 'TRUNCATE TABLE directory_entry_file CASCADE;',
+                                 'TRUNCATE TABLE directory_list_file CASCADE;',
+                                 'TRUNCATE TABLE person CASCADE;',
+                                 'TRUNCATE TABLE revision CASCADE;',
+                                 'TRUNCATE TABLE revision_history CASCADE;',
+                                 'TRUNCATE TABLE occurrence_history CASCADE;',
+                                 'TRUNCATE TABLE occurrence CASCADE;',
+                                 'TRUNCATE TABLE release CASCADE;',
                                  ])
 
 
