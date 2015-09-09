@@ -56,7 +56,7 @@ def _add_content(db_conn, vcs_object, sha1hex):
     """
     models.add_content(db_conn,
                        sha1hex,
-                       vcs_object['content-sha1'],
+                       vcs_object['git-sha1'],
                        vcs_object['content-sha256'],
                        vcs_object['size'])
     return sha1hex
@@ -177,7 +177,10 @@ def add_with_fs_storage(db_conn, config, id, type, vcs_object):
     - type is not used here but represent the type of vcs_object
     - vcs_object is the object meant to be persisted in fs and db
     """
-    config['objstorage'].add_bytes(vcs_object['content'], id)  # FIXME use this id
+    id_ = config['objstorage'].add_bytes(vcs_object['content'])
+    if id_ != id:
+        raise Exception("The ids should have been identical. Corruption.")
+
     return _add_content(db_conn, vcs_object, id)
 
 

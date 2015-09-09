@@ -68,13 +68,13 @@ def add_person(db_conn, name, email):
                       (name, email)))
 
 
-def add_content(db_conn, sha1, sha1_content, sha256_content, size):
+def add_content(db_conn, sha1, sha1_git, sha256_content, size):
     """Insert a new content.
     """
     db.query_execute(db_conn,
-                     ("""INSERT INTO content (id, sha1, sha256, length)
+                     ("""INSERT INTO content (id, sha1_git, sha256, length)
                          VALUES (%s, %s, %s, %s)""",
-                      (sha1, sha1_content, sha256_content, size)))
+                      (sha1, sha1_git, sha256_content, size)))
 
 
 def add_directory(db_conn, obj_sha):

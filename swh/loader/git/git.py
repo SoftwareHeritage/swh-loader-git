@@ -108,9 +108,9 @@ def parse(repo_path):
                 data = obj.data
                 nature = DirectoryTypeEntry.file.value
                 hashes = hashutil.hashdata(data, HASH_ALGORITHMS)
-                blobs.append({'id': obj.hex,
+                blobs.append({'id': hashes['sha1'],
                               'type': storage.Type.content,
-                              'content-sha1': hashes['sha1'],
+                              'git-sha1': obj.hex,
                               'content-sha256': hashes['sha256'],
                               'content': data,
                               'size': obj.size})
