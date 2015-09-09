@@ -61,6 +61,7 @@ class TestRemoteLoader(unittest.TestCase):
         try:
             loader.load({'action': 'unknown'})
         except:
+            # FIXME assert raises
             pass
 
     @istest
