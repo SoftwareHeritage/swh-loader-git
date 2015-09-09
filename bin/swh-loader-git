@@ -10,7 +10,7 @@ import argparse
 import logging
 import os
 
-from swh.loader.git.gitloader import loader
+from swh.loader.git import loader
 from swh.loader.git.conf import reader
 
 # Default configuration file

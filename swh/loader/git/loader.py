@@ -6,7 +6,7 @@
 import logging
 import os
 
-from swh.loader.git.gitloader import git, remote_store, local_store
+from swh.loader.git import git, remote_store, local_store
 
 
 _load_to_back_fn = {'remote': remote_store.load_to_back

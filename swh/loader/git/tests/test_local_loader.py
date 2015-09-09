@@ -15,7 +15,7 @@ from nose.plugins.attrib import attr
 from nose.tools import istest
 
 from swh.loader.git.storage import db, models
-from swh.loader.git.gitloader import loader
+from swh.loader.git import loader
 from swh.loader.git.conf import reader
 
 import test_initdb
