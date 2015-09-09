@@ -44,6 +44,7 @@ def timestamp_to_string(timestamp):
     """
     return date_format(datetime.utcfromtimestamp(timestamp))
 
+
 def list_objects_from_packfile_index(packfile_index):
     """List the objects indexed by this packfile"""
     input_file = open(packfile_index, 'rb')
@@ -53,12 +54,16 @@ def list_objects_from_packfile_index(packfile_index):
         stdout=subprocess.PIPE,
     ) as process:
         for line in process.stdout.readlines():
-            obj_id = line.decode('utf-8', 'ignore').split()[1]
-            yield obj_id
+            # git show-index returns the line as:
+            # <packfile offset> <object_id> (<object CRC>)
+            line_components = line.split()
+            yield line_components[1].decode('utf-8')
+
 
 def list_objects(repo):
     """List the objects in a given repository"""
     objects_dir = os.path.join(repo.path, 'objects')
+    # Git hashes are 40-character long
     objects_glob = os.path.join(objects_dir, '[0-9a-f]' * 2, '[0-9a-f]' * 38)
 
     packfile_dir = os.path.join(objects_dir, 'pack')
@@ -72,6 +77,7 @@ def list_objects(repo):
             yield from list_objects_from_packfile_index(packfile_index_path)
 
     for object_file in glob.glob(objects_glob):
+        # Rebuild the object id as the last two components of the path
         yield ''.join(object_file.split(os.path.sep)[-2:])
 
 
