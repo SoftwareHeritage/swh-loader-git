@@ -56,6 +56,10 @@ def parse(repo_path):
         """
         trees, blobs, dir_entries = [], [], []
         for tree_entry in tree:
+            if swh_repo.already_visited(tree_entry.hex):
+                logging.debug('tree_entry %s already visited, skipped' % tree_entry.hex)
+                continue
+
             obj = repo.get(tree_entry.oid)
             if obj is None:
                 logging.warn('skip submodule-commit %s' % tree_entry.hex)
