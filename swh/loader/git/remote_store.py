@@ -26,13 +26,17 @@ def load_to_back(back_url, swh_repo):
     # First, store/retrieve the origin identifier
     # FIXME: should be done by the cloner worker (which is not yet plugged on
     # the right swh db ftm)
-    http.put(back_url,
-             obj_type=storage.Type.origin,
-             obj=swh_repo.get_origin())
+    origin = swh_repo.get_origin()
+    if origin:
+        http.put(back_url,
+                 obj_type=storage.Type.origin,
+                 obj=origin)
 
-    http.put(back_url,
-             obj_type=storage.Type.person,
-             obj=list(swh_repo.get_persons()))
+    persons = swh_repo.get_persons()
+    if persons:
+        http.put(back_url,
+                 obj_type=storage.Type.person,
+                 obj=list(persons))
 
     # let the backend and api discuss what's really needed
     # - first this worker sends the checksums

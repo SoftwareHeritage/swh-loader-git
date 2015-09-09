@@ -29,8 +29,8 @@ def initdb(db_conn):
 
 def cleandb(db_conn):
     db.queries_execute(db_conn, ['TRUNCATE TABLE release CASCADE',
-                                 'TRUNCATE TABLE revision CASCADE',
                                  'TRUNCATE TABLE revision_history CASCADE',
+                                 'TRUNCATE TABLE revision CASCADE',
                                  'TRUNCATE TABLE directory CASCADE',
                                  'TRUNCATE TABLE directory_entry CASCADE',
                                  'TRUNCATE TABLE content CASCADE',

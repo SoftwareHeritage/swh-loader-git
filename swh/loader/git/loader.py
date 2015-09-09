@@ -49,5 +49,8 @@ def load(conf):
     repo_path = conf['repo_path']
     logging.info('load repo_path %s' % repo_path)
 
-    swhrepo = git.parse(repo_path)
-    _load_to_back_fn[conf['backend-type']](conf['backend'], swhrepo)
+    load_to_back_fn = _load_to_back_fn[conf['backend-type']]
+    backend_setup = conf['backend']
+
+    for swh_repo_snapshot in git.parse(repo_path):
+        load_to_back_fn(backend_setup, swh_repo_snapshot)

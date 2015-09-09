@@ -8,7 +8,7 @@ class SWHRepo():
        - sha1s as list
        - map indexed by sha1
     """
-    def __init__(self):
+    def __init__(self, visited=set()):
         self.origin = {}
         self.releases = []
         self.occurrences = []
@@ -16,7 +16,7 @@ class SWHRepo():
         self.directories = {}
         self.revisions = {}
         self.persons = {}
-        self.visited = set()
+        self.visited = visited
 
     def add_origin(self, origin):
         self.origin = origin

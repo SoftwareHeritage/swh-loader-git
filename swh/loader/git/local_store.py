@@ -45,7 +45,7 @@ def store_unknown_objects(db_conn, conf, obj_type, swhmap):
     if not unknown_obj_sha1s:
         return True
 
-    # seen: now store in backend
+    # seen: now storage in backend
     persist_fn = _obj_to_persist_fn.get(obj_type, service.add_objects)
     obj_fulls = map(swhmap.get, unknown_obj_sha1s)
     return persist_fn(db_conn, conf, obj_type, obj_fulls)
@@ -55,14 +55,19 @@ def load_to_back(conf, swh_repo):
     """Load to the backend the repository swh_repo.
     """
     with db.connect(conf['db_url']) as db_conn:
-        # First, store/retrieve the origin identifier
+        # First, storage/retrieve the origin identifier
         # FIXME: should be done by the cloner worker (which is not yet plugged
         # on the right swh db ftm)
-        service.add_origin(db_conn, swh_repo.get_origin())
 
-        # First reference all unknown persons
-        service.add_persons(db_conn, conf, storage.Type.person,
-                            swh_repo.get_persons())
+        origin = swh_repo.get_origin()
+        if origin:
+            service.add_origin(db_conn, swh_repo.get_origin())
+
+        persons = swh_repo.get_persons()
+        if persons:
+            # First reference all unknown persons
+            service.add_persons(db_conn, conf, storage.Type.person,
+                                persons)
 
         res = store_unknown_objects(db_conn, conf, storage.Type.content,
                                     swh_repo.get_contents())

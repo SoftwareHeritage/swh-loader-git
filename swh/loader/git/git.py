@@ -179,6 +179,7 @@ def parse(repo_path):
 
         return swh_repo
 
+
     repo = pygit2.Repository(repo_path)
     # memory model
     swh_repo = swhrepo.SWHRepo()
@@ -186,6 +187,7 @@ def parse(repo_path):
     origin = {'type': 'git',
               'url': 'file://' + repo.path}
     swh_repo.add_origin(origin)
+
     # add references and crawl them
     for ref_name in repo.listall_references():
         logging.info('walk reference %s' % ref_name)
@@ -220,6 +222,6 @@ def parse(repo_path):
             head_start = head_rev
 
         # crawl commits and trees
-        walk_revision_from(repo, swh_repo, head_start)
-
-    return swh_repo
+        swh_repo = walk_revision_from(repo, swh_repo, head_start)
+        yield swh_repo
+        swh_repo = swhrepo.SWHRepo(swh_repo.visited)
