@@ -82,9 +82,9 @@ def parse(repo_path):
                                 'target-sha1': obj.hex,
                                 'nature': nature,
                                 'perms': tree_entry.filemode,
-                                'atime': now(),  # FIXME: use real data
-                                'mtime': now(),  # FIXME: use real data
-                                'ctime': now(),  # FIXME: use real data
+                                'atime': None,
+                                'mtime': None,
+                                'ctime': None,
                                 'parent': tree.hex})
 
         yield tree, dir_entries, trees, blobs
