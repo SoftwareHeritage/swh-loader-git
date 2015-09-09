@@ -176,8 +176,8 @@ def parse(repo_path):
         """
         for rev in repo.walk(head_rev.id, GIT_SORT_TOPOLOGICAL):
             swh_repo = walk_tree(repo, swh_repo, rev)
-
-        return swh_repo
+            yield swh_repo
+            swh_repo = swhrepo.SWHRepo(swh_repo.visited)
 
 
     repo = pygit2.Repository(repo_path)
@@ -222,6 +222,4 @@ def parse(repo_path):
             head_start = head_rev
 
         # crawl commits and trees
-        swh_repo = walk_revision_from(repo, swh_repo, head_start)
-        yield swh_repo
-        swh_repo = swhrepo.SWHRepo(swh_repo.visited)
+        yield from walk_revision_from(repo, swh_repo, head_start)
