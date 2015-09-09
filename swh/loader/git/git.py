@@ -11,9 +11,10 @@ import time
 
 import pygit2
 
+from collections import defaultdict
 from datetime import datetime
 from pygit2 import GIT_REF_OID
-from pygit2 import GIT_OBJ_COMMIT, GIT_OBJ_TREE, GIT_SORT_TOPOLOGICAL
+from pygit2 import GIT_OBJ_BLOB, GIT_OBJ_TREE, GIT_OBJ_COMMIT, GIT_OBJ_TAG, GIT_SORT_TOPOLOGICAL
 from enum import Enum
 
 from swh.core import hashutil
@@ -94,8 +95,181 @@ def list_objects(repo):
         yield ''.join(object_file.split(os.path.sep)[-2:])
 
 
+def get_objects_per_object_type(repo):
+    """Get all the (pygit2-parsed) objects from repo per object type"""
+    objects_per_object_type = defaultdict(list)
+
+    for object_id in list_objects(repo):
+        object = repo[object_id]
+        objects_per_object_type[object.type].append(object_id)
+
+    return objects_per_object_type
+
+
 HASH_ALGORITHMS=['sha1', 'sha256']
 
+
+def send_in_packets(repo, source_list, formatter, sender, packet_size, extra_data=None):
+    """Send objects from `source_list`, passed through `formatter` (being
+    passed the `repo` and `extra_data`), by the `sender`, in packets
+    of `packet_size` objects
+
+    """
+
+    if extra_data is None:
+        extra_data = {}
+
+    objects = []
+    for id in source_list:
+        objects.append(formatter(repo, id, **extra_data))
+        if len(objects) >= packet_size:
+            sender(objects)
+            objects = []
+
+    sender(objects)
+
+
+def send_contents(content_list):
+    """Actually send properly formatted contents to the database"""
+    # TODO: send contents
+    print("Would send %d contents" % len(content_list))
+
+
+def send_directories(directory_list):
+    """Actually send properly formatted directories to the database"""
+    # TODO: send directories
+    print("Would send %d directories" % len(directory_list))
+
+
+def send_revisions(revision_list):
+    """Actually send properly formatted revisions to the database"""
+    # TODO: send revisions
+    print("Would send %d revisions" % len(revision_list))
+
+
+def send_releases(release_list):
+    """Actually send properly formatted releases to the database"""
+    # TODO: send releases
+    print("Would send %d releases" % len(release_list))
+
+
+def blob_to_content(repo, id):
+    """Format a blob as a content"""
+    blob = repo[id]
+    data = blob.data
+    hashes = hashutil.hashdata(data, HASH_ALGORITHMS)
+    return {
+        'id': id,
+        'type': storage.Type.content,
+        'content-sha1': hashes['sha1'],
+        'content-sha256': hashes['sha256'],
+        'content': data,
+        'size': blob.size,
+    }
+
+
+def tree_to_directory(repo, id):
+    """Format a tree as a directory"""
+    # TODO: format directories
+    return {
+        'id': id,
+    }
+
+
+def commit_to_revision(repo, id):
+    """Format a commit as a revision"""
+    # TODO: format commits
+    return {
+        'id': id,
+    }
+
+
+def annotated_tag_to_release(repo, id):
+    """Format an annotated tag as a release"""
+    # TODO: format annotated tags
+    return {
+        'id': id,
+    }
+
+
+def unannotated_tag_to_release(repo, id):
+    """Format an unannotated tag as a release"""
+    # TODO: format unannotated tags
+    return {
+        'id': id,
+    }
+
+
+def bulk_send_blobs(repo, blob_dict):
+    """Format blobs as swh contents and send them to the database in bulks
+    of maximum `threshold` objects
+
+    """
+    # TODO: move to config file
+    content_packet_size = 100000
+
+    send_in_packets(repo, blob_dict, blob_to_content, send_contents, content_packet_size)
+
+
+def bulk_send_trees(repo, tree_dict):
+    """Format trees as swh directories and send them to the database
+
+    """
+    # TODO: move to config file
+    directory_packet_size = 100000
+
+    send_in_packets(repo, tree_dict, tree_to_directory, send_directories, directory_packet_size)
+
+
+def bulk_send_commits(repo, commit_dict):
+    """Format commits as swh revisions and send them to the database
+
+    """
+    # TODO: move to config file
+    revision_packet_size = 10000
+
+    send_in_packets(repo, commit_dict, commit_to_revision, send_revisions, revision_packet_size)
+
+
+def bulk_send_annotated_tags(repo, tag_dict):
+    """Format annotated tags (pygit2.Tag objects) as swh releases and send
+    them to the database
+
+    """
+    # TODO: move to config file
+    release_packet_size = 10000
+
+    send_in_packets(repo, tag_dict, annotated_tag_to_release, send_releases, release_packet_size)
+
+
+def bulk_send_unannotated_tags(repo, tag_dict, commit_dict):
+    """Format unannotated tags (strings) as swh releases and send
+    them to the database
+
+    """
+    # TODO: move to config file
+    release_packet_size = 10000
+
+    extra_data = {
+        'commits': commit_dict,
+    }
+    send_in_packets(repo, tag_dict, unannotated_tag_to_release,
+                    send_releases, release_packet_size, extra_data)
+
+
+def parse_via_object_list(repo_path):
+    repo = pygit2.Repository(repo_path)
+
+    objects_per_object_type = get_objects_per_object_type(repo)
+
+    bulk_send_blobs(repo, objects_per_object_type[GIT_OBJ_BLOB])
+    bulk_send_trees(repo, objects_per_object_type[GIT_OBJ_TREE])
+    bulk_send_commits(repo, objects_per_object_type[GIT_OBJ_COMMIT])
+    bulk_send_annotated_tags(repo, objects_per_object_type[GIT_OBJ_TAG])
+    # TODO: send unannotated tags
+    bulk_send_unannotated_tags(repo, [], objects_per_object_type[GIT_OBJ_COMMIT])
+
+    return objects_per_object_type, {type: len(list) for type, list in objects_per_object_type.items()}
 
 def parse(repo_path):
     """Given a repository path, parse and return a memory model of such
