@@ -7,10 +7,10 @@ test-connect-db:
 	psql $(DB_TEST)
 
 test-create-db:
-	make -C $(SQL_FOLDER) clean initdb DBNAME=$(DB_TEST)
+	make create-db DB=$(DB_TEST)
 
 test-drop-db:
-	make -C $(SQL_FOLDER) clean dropdb DBNAME=$(DB_TEST)
+	make drop-db DB=$(DB_TEST)
 
 test-cleandb:
 	$(SWH_DB_MANAGER) $(FLAG) --config ./resources/test/db-manager.ini cleandb
