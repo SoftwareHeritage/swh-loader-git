@@ -61,7 +61,7 @@ def parse(repo_path):
                 continue
 
             obj = repo.get(tree_entry.oid)
-            if obj is None:
+            if obj is None:  # or obj.type == GIT_OBJ_COMMIT:
                 logging.warn('skip submodule-commit %s' % tree_entry.hex)
                 continue  # submodule!
 
