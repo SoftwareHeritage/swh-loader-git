@@ -68,8 +68,8 @@ test-api-origin:
 test-api-person:
 	$(NOSE) $(NOSEFLAGS) $(TESTDIR)/test_api_person.py
 
-test-file:
-	$(NOSE) $(NOSEFLAGS) $(TESTDIR)/test_file.py
+test-date:
+	$(NOSE) $(NOSEFLAGS) $(TESTDIR)/test_date.py
 
 test-remote-loader:
 	$(NOSE) $(NOSEFLAGS) $(TESTDIR)/test_remote_loader.py

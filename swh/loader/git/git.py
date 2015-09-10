@@ -11,36 +11,14 @@ import time
 
 import pygit2
 
-from datetime import datetime
 from pygit2 import GIT_REF_OID
 from pygit2 import GIT_OBJ_COMMIT, GIT_OBJ_TREE, GIT_SORT_TOPOLOGICAL
 from enum import Enum
 
 from swh.core import hashutil
+from swh.loader.git import date
 from swh.loader.git.data import swhrepo
 from swh.loader.git.storage import storage
-
-
-def date_format(d):
-    """d is expected to be a datetime object.
-
-    """
-    return time.strftime("%a, %d %b %Y %H:%M:%S +0000", d.timetuple())
-
-
-def now():
-    """Cheat time values.
-
-    """
-    return date_format(datetime.utcnow())
-
-
-def timestamp_to_string(timestamp):
-    """Convert a timestamps to string.
-
-    """
-    return date_format(datetime.utcfromtimestamp(timestamp))
-
 
 def list_objects_from_packfile_index(packfile_index):
     """List the objects indexed by this packfile.
@@ -160,13 +138,18 @@ def parse(repo_path):
 
         swh_repo.add_revision({'id': rev.hex,
                                'type': storage.Type.revision,
-                               'date': timestamp_to_string(rev.commit_time),
+                               'date': date.ts_to_datetime(
+                                   rev.commit_time,
+                                   rev.commit_time_offset),
+                               'author_date': date.ts_to_datetime(
+                                   rev.author.time,
+                                   rev.author.offset),
                                'directory': rev.tree.hex,
                                'message': rev.message,
                                'committer': committer,
                                'author': author,
                                'parent-sha1s': revision_parent_sha1s
-                               })
+        })
 
         swh_repo.add_person(read_signature(rev.author), author)
         swh_repo.add_person(read_signature(rev.committer), committer)
@@ -214,8 +197,9 @@ def parse(repo_path):
                        'type': storage.Type.release,
                        'revision': head_rev.target.hex,
                        'name': ref_name,
-                       'date': now(),  # FIXME: find the tag's date,
-                       'author':  author,
+                       'date': date.ts_to_datetime(taggerSig.time,
+                                                   taggerSig.offset),
+                       'author': author,
                        'comment': head_rev.message}
 
             swh_repo.add_release(release)
