@@ -12,7 +12,29 @@ from swh.loader.git import date
 
 class DateTestCase(unittest.TestCase):
     @istest
-    def new_swhrepo(self):
+    def negative_offsets(self):
+        # when
+        d0 = date.ts_to_datetime(1434379797, -120)
+
+        assert str(d0) == '2015-06-15 12:49:57-02:00'
+
+        # when
+        d1 = date.ts_to_datetime(1434379797, -60)
+
+        assert str(d1) == '2015-06-15 13:49:57-01:00'
+
+        # when
+        d2 = date.ts_to_datetime(1434379797, -30)
+
+        assert str(d2) == '2015-06-15 14:19:57-00:30'
+
+        # when
+        d3 = date.ts_to_datetime(1434379797, 30)
+
+        assert str(d3) == '2015-06-15 15:19:57+00:30'
+
+    @istest
+    def positive_offsets(self):
         # when
         d0 = date.ts_to_datetime(1434449254, 120)
 
@@ -27,3 +49,8 @@ class DateTestCase(unittest.TestCase):
         d2 = date.ts_to_datetime(1434449254, 0)
 
         assert str(d2) == '2015-06-16 10:07:34+00:00'
+
+        # when
+        d3 = date.ts_to_datetime(1434449254, -60)
+
+        assert str(d3) == '2015-06-16 09:07:34-01:00'
