@@ -23,7 +23,7 @@ class TestHttp(unittest.TestCase):
     @istest
     def url_lookup_per_type(self):
         # then
-        assert http.url_lookup_per_type == { storage.Type.origin: "/origins/"
+        assert http.url_lookup_per_type == { storage.Type.origin: "/vcs/origins/"
                                            , storage.Type.content: "/vcs/contents/"
                                            , storage.Type.directory: "/vcs/directories/"
                                            , storage.Type.revision: "/vcs/revisions/" }
@@ -31,7 +31,7 @@ class TestHttp(unittest.TestCase):
     @istest
     def url_store_per_type(self):
         # then
-        assert http.url_store_per_type == { storage.Type.origin: "/origins/"
+        assert http.url_store_per_type == { storage.Type.origin: "/vcs/origins/"
                                           , storage.Type.content: "/vcs/contents/"
                                           , storage.Type.directory: "/vcs/directories/"
                                           , storage.Type.revision: "/vcs/revisions/"

@@ -55,7 +55,7 @@ def execute(map_type_url,
 
 # url mapping for lookup
 url_lookup_per_type = {
-    storage.Type.origin: "/origins/",
+    storage.Type.origin: "/vcs/origins/",
     storage.Type.content: "/vcs/contents/",
     storage.Type.directory: "/vcs/directories/",
     storage.Type.revision: "/vcs/revisions/",
