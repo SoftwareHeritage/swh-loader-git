@@ -214,7 +214,7 @@ def parse(repo_path):
         else:
             swh_repo.add_occurrence({'id': head_rev.hex,
                                      'revision': head_rev.hex,
-                                     'reference': ref_name,
+                                     'branch': ref_name,
                                      'url-origin': origin['url'],
                                      'type': storage.Type.occurrence})
             head_start = head_rev

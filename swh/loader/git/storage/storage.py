@@ -133,7 +133,7 @@ def _add_occurrence(db_conn, vcs_object, sha1hex):
     """
     models.add_occurrence(db_conn,
                           vcs_object['url-origin'],
-                          vcs_object['reference'],
+                          vcs_object['branch'],
                           vcs_object['revision'])
     return sha1hex
 

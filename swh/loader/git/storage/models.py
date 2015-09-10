@@ -133,20 +133,20 @@ def add_release(db_conn, obj_sha, revision, date, name, comment, author):
                       (obj_sha, revision, date, name, comment, author['name'], author['email'])))
 
 
-def add_occurrence(db_conn, url_origin, reference, revision):
+def add_occurrence(db_conn, url_origin, branch, revision):
     """Insert an occurrence.
        Check if occurrence history already present.
        If present do nothing, otherwise insert
     """
     with db_conn.cursor() as cur:
-        occ = find_occurrence(cur, reference, revision, url_origin)
+        occ = find_occurrence(cur, branch, revision, url_origin)
         if not occ:
             db.execute(
                 cur,
                 ("""INSERT INTO occurrence
-                    (origin, reference, revision)
+                    (origin, branch, revision)
                     VALUES ((select id from origin where url=%s), %s, %s)""",
-                 (url_origin, reference, revision)))
+                 (url_origin, branch, revision)))
 
 
 def find_revision(db_conn, obj_sha):
@@ -196,20 +196,19 @@ def find_person(db_conn, email, name):
                                        (email, name)))
 
 
-def find_occurrence(cur, reference, revision, url_origin):
-    """Find an ocurrence with reference pointing on valid revision for date.
+def find_occurrence(cur, branch, revision, url_origin):
+    """Find an ocurrence with branch pointing on valid revision for date.
     """
     return db.fetchone(
         cur,
         ("""SELECT *
             FROM occurrence oc
-            WHERE reference=%s
+            WHERE branch=%s
             AND revision=%s
             AND origin = (select id from origin where url = %s)""",
-         (reference, revision, url_origin)))
+         (branch, revision, url_origin)))
 
 
-def find_object(db_conn, obj_sha, obj_type):
     """Find an object of obj_type by its obj_sha.
     """
     table = obj_type if isinstance(obj_type, str) else obj_type.value
