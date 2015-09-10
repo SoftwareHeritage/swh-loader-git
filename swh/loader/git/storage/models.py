@@ -137,11 +137,12 @@ def add_revision(db_conn, sha, date, directory, message, author, committer,
                        committer['name'], committer['email'])))
 
 
-def add_revision_history(db_conn, couple_parents):
+def add_revision_history(db_conn, tuple_parents):
     """Store the revision history graph.
     """
-    tuples = ','.join(["('%s','%s')" % couple for couple in couple_parents])
-    query = 'INSERT INTO revision_history (id, parent_id) VALUES ' + tuples
+    tuples = ','.join(["('%s','%s', %s)" % t for t in tuple_parents])
+    query = 'INSERT INTO revision_history ' + \
+            '(id, parent_id, parent_rank) VALUES '+ tuples
     db.query_execute(db_conn, query)
 
 

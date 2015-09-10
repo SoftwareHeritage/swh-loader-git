@@ -34,7 +34,7 @@ def add_origin(db_conn, origin):
 def add_revisions(db_conn, conf, obj_type, objs):
     """Add Revisions.
     """
-    couple_parents = []
+    tuple_parents = []
     for obj in objs:  # iterate over objects of type uri_type
         obj_id = obj['id']
         obj_found = storage.find(db_conn, obj_id, obj_type)
@@ -44,9 +44,11 @@ def add_revisions(db_conn, conf, obj_type, objs):
             # deal with revision history
             par_shas = obj.get('parent-sha1s', None)
             if par_shas:
-                couple_parents.extend([(obj_id, p) for p in par_shas])
+                parent_rank = [(obj_id, parent, rank) \
+                               for (rank, parent) in enumerate(par_shas)]
+                tuple_parents.extend(parent_rank)
 
-    storage.add_revision_history(db_conn, couple_parents)
+    storage.add_revision_history(db_conn, tuple_parents)
 
     return True
 

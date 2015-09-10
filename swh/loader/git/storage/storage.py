@@ -214,8 +214,8 @@ def add(db_conn, config, id, type, vcs_object):
     return _store_fn[type](db_conn, vcs_object, id)
 
 
-def add_revision_history(db_conn, couple_parents):
+def add_revision_history(db_conn, tuple_parents):
     """Given a list of tuple (sha, parent_sha), store in revision_history.
     """
-    if len(couple_parents) > 0:
-        models.add_revision_history(db_conn, couple_parents)
+    if len(tuple_parents) > 0:
+        models.add_revision_history(db_conn, tuple_parents)

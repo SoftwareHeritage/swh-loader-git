@@ -25,12 +25,30 @@ class RevisionTestCase(unittest.TestCase):
             self.authorAndCommitter = {'name': 'some-name', 'email': 'some-email'}
             models.add_person(db_conn, self.authorAndCommitter['name'], self.authorAndCommitter['email'])
 
-            self.revision_sha1_hex = 'revision-sha1-to-test-existence9994f717e'
+            self.revision_parent_sha1_hex = 'revision-sha1-to-test-existence9994f717e'
             models.add_revision(db_conn,
-                                self.revision_sha1_hex,
+                                self.revision_parent_sha1_hex,
                                 now(),
                                 self.directory_sha1_hex,
                                 "revision message",
+                                self.authorAndCommitter,
+                                self.authorAndCommitter)
+
+            self.revision_parent_2_sha1_hex = 'revision-sha1-to-test-as-parent-994f717e'
+            models.add_revision(db_conn,
+                                self.revision_parent_2_sha1_hex,
+                                now(),
+                                self.directory_sha1_hex,
+                                "revision message 2",
+                                self.authorAndCommitter,
+                                self.authorAndCommitter)
+
+            self.revision_parent_3_sha1_hex = 'revision-sha1-to-test-as-parent-3-4f717e'
+            models.add_revision(db_conn,
+                                self.revision_parent_3_sha1_hex,
+                                now(),
+                                self.directory_sha1_hex,
+                                "revision message 3",
                                 self.authorAndCommitter,
                                 self.authorAndCommitter)
 
@@ -40,11 +58,11 @@ class RevisionTestCase(unittest.TestCase):
     @istest
     def get_revision_ok(self):
         # when
-        rv = self.app.get('/vcs/revisions/%s' % self.revision_sha1_hex)
+        rv = self.app.get('/vcs/revisions/%s' % self.revision_parent_sha1_hex)
 
         # then
         assert rv.status_code == 200
-        assert serial.loads(rv.data)['id'] == self.revision_sha1_hex
+        assert serial.loads(rv.data)['id'] == self.revision_parent_sha1_hex
 
     @istest
     def get_revision_not_found(self):
@@ -78,7 +96,9 @@ class RevisionTestCase(unittest.TestCase):
                              'message': 'revision message describing it',
                              'committer': self.authorAndCommitter,
                              'author': self.authorAndCommitter,
-                             'parent-sha1s': [self.revision_sha1_hex]})
+                             'parent-sha1s': [self.revision_parent_sha1_hex,
+                                              self.revision_parent_3_sha1_hex,
+                                              self.revision_parent_2_sha1_hex]})
 
         rv = self.app.put('/vcs/revisions/%s' % revision_sha1_hex,
                           data=body,
