@@ -60,10 +60,10 @@ connect-db:
 	psql -d $(DB)
 
 create-db:
-	make -C $(SQL_FOLDER) clean filldb DB_NAME=$(DB)
+	make -C $(SQL_FOLDER) clean filldb DBNAME=$(DB)
 
 drop-db:
-	make -C $(SQL_FOLDER) clean dropdb DB_NAME=$(DB)
+	make -C $(SQL_FOLDER) clean dropdb DBNAME=$(DB)
 
 check-meta:
 	@echo "Repository: $(REPO_PATH)"
