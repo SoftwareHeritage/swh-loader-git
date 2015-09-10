@@ -9,9 +9,10 @@ import os
 from swh.loader.git import git, remote_store, local_store
 
 
-_load_to_back_fn = {'remote': remote_store.load_to_back
-                   ,'local': local_store.prepare_and_load_to_back
-                   }
+_load_to_back = {
+    'remote': remote_store.load_to_back,
+    'local': local_store.prepare_and_load_to_back,
+}
 
 
 def check_user_conf(conf):
@@ -22,8 +23,9 @@ def check_user_conf(conf):
         return 'skip unknown action %s' % action
 
     backend_type = conf['backend-type']
-    if backend_type not in _load_to_back_fn:
-        return 'skip unknown backend-type %s (only `remote`, `local` supported)' % backend_type
+    if backend_type not in _load_to_back:
+        return ('skip unknown backend-type %s (only '
+                '`remote`, `local` supported)' % backend_type)
 
     repo_path = conf['repo_path']
     if not os.path.exists(repo_path):
@@ -50,4 +52,6 @@ def load(conf):
     logging.info('load repo_path %s' % repo_path)
 
     swhrepo = git.parse(repo_path)
-    _load_to_back_fn[conf['backend-type']](conf['backend'], swhrepo)
+    loader = _load_to_back[conf['backend-type']]
+
+    loader(conf['backend'], swhrepo)
