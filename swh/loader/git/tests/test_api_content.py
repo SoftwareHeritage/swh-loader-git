@@ -58,7 +58,7 @@ class ContentTestCase(unittest.TestCase):
 
     @istest
     def put_content_create_and_update(self):
-        content_sha1 = 'sha1-contentc46ee476a8be155ab03333333333'
+        content_sha1 = '62cdb7020ff920e5aa642c3d4066950dd1f01f4d'  # real sha1 of 'bar'
 
         # does not exist
         rv = self.app.get('/vcs/contents/%s' % content_sha1)
@@ -69,7 +69,7 @@ class ContentTestCase(unittest.TestCase):
 
         # we create it
         body = {'id': content_sha1,
-                'content-sha1': 'content-sha1c46ee476a8be155ab03333333333',
+                'git-sha1': 'content-sha1c46ee476a8be155ab03333333333',
                 'content-sha256': 'content-sha2566ee476a8be155ab03333333333',
                 'content': b'bar',
                 'size': '3'}
@@ -86,7 +86,7 @@ class ContentTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert serial.loads(rv.data)['id'] == 'sha1-contentc46ee476a8be155ab03333333333'
+        assert serial.loads(rv.data)['id'] == content_sha1
 
         # # we update it
         body = {'id': content_sha1,
@@ -107,4 +107,4 @@ class ContentTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert serial.loads(rv.data)['id'] == 'sha1-contentc46ee476a8be155ab03333333333'
+        assert serial.loads(rv.data)['id'] == content_sha1

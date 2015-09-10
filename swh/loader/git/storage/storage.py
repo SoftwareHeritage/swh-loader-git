@@ -11,14 +11,13 @@ from . import models
 Type = models.Type
 
 
-_find_object = {Type.occurrence: models.find_occurrences_for_revision}
-
+_find_object = {Type.occurrence: models.find_occurrences_for_revision,
+                Type.content: lambda *args: models.find_object(*args, column='sha1')}
 
 def find(db_conn, id, type):
     """Find an object according to its sha1hex and type.
     """
-    find_fn = _find_object.get(type, models.find_object)
-    return find_fn(db_conn, id, type)
+    return _find_object.get(type, models.find_object)(db_conn, id, type)
 
 
 _find_unknown = {Type.revision: models.find_unknown_revisions,

@@ -72,7 +72,7 @@ def add_content(db_conn, sha1, sha1_git, sha256_content, size):
     """Insert a new content.
     """
     db.query_execute(db_conn,
-                     ("""INSERT INTO content (id, sha1_git, sha256, length)
+                     ("""INSERT INTO content (sha1, sha1_git, sha256, length)
                          VALUES (%s, %s, %s, %s)""",
                       (sha1, sha1_git, sha256_content, size)))
 
@@ -164,7 +164,7 @@ def find_directory(db_conn, obj_sha):
 def find_content(db_conn, obj_sha):
     """Find a content by its obj_sha.
     """
-    return find_object(db_conn, obj_sha, Type.content)
+    return find_object(db_conn, obj_sha, Type.content, column='sha1')
 
 
 def find_occurrences_for_revision(db_conn, revision, type):
@@ -209,14 +209,17 @@ def find_occurrence(cur, branch, revision, url_origin):
          (branch, revision, url_origin)))
 
 
+def find_object(db_conn, obj_sha, obj_type, column='id'):
     """Find an object of obj_type by its obj_sha.
     """
     table = obj_type if isinstance(obj_type, str) else obj_type.value
-    query = 'select id from ' + table + ' where id=%s'
+    query = 'select '+ column + ' from ' + table + ' where ' + column + '=%s'
     return db.query_fetchone(db_conn, (query, (obj_sha,)))
 
 
-def filter_unknown_objects(db_conn, file_sha1s, table_to_filter, tbl_tmp_name):
+def filter_unknown_objects(db_conn, file_sha1s,
+                           table_to_filter, tbl_tmp_name,
+                           column_to_filter='id', nature_column='sha1_git'):
     """Given a list of sha1s, filter the unknown object between this list and
     the content of the table table_to_filter.
     tbl_tmp_name is the temporary table used to filter.
@@ -225,33 +228,37 @@ def filter_unknown_objects(db_conn, file_sha1s, table_to_filter, tbl_tmp_name):
         # explicit is better than implicit
         # simply creating the temporary table seems to be enough
         db.execute(cur, """CREATE TEMPORARY TABLE IF NOT EXISTS %s(
-                             id sha1_git)
-                           ON COMMIT DELETE ROWS;""" % tbl_tmp_name)
+                             %s %s)
+                           ON COMMIT DELETE ROWS;""" %
+                   (tbl_tmp_name, column_to_filter, nature_column))
         db.copy_from(cur, file_sha1s, tbl_tmp_name)
-        db.execute(cur, '(SELECT id FROM %s) EXCEPT (SELECT id FROM %s);' %
-                   (tbl_tmp_name, table_to_filter))
+        db.execute(cur, '(SELECT %s FROM %s) EXCEPT (SELECT %s FROM %s);' %
+                   (column_to_filter, tbl_tmp_name,
+                    column_to_filter, table_to_filter))
         return cur.fetchall()
 
 
 def find_unknown_revisions(db_conn, file_sha1s):
     """Filter unknown revisions from file_sha1s.
     """
-    return filter_unknown_objects(db_conn, file_sha1s, 'revision',
-                                  'filter_sha1_revision')
+    return filter_unknown_objects(db_conn, file_sha1s,
+                                  'revision', 'filter_sha1_revision')
 
 
 def find_unknown_directories(db_conn, file_sha1s):
     """Filter unknown directories from file_sha1s.
     """
-    return filter_unknown_objects(db_conn, file_sha1s, 'directory',
-                                  'filter_sha1_directory')
+    return filter_unknown_objects(db_conn, file_sha1s,
+                                  'directory', 'filter_sha1_directory')
 
 
 def find_unknown_contents(db_conn, file_sha1s):
     """Filter unknown contents from file_sha1s.
     """
-    return filter_unknown_objects(db_conn, file_sha1s, 'content',
-                                  'filter_sha1_content')
+    return filter_unknown_objects(db_conn, file_sha1s,
+                                  'content',
+                                  'filter_sha1_content',
+                                  'sha1', 'sha1')
 
 
 def _count_objects(db_conn, type):
