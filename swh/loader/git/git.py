@@ -138,12 +138,8 @@ def parse(repo_path):
         """Walk the rev revision's directories.
 
         """
-        if swh_repo.already_visited(rev.hex):
-            logging.debug('commit %s already visited, skipped' % rev.hex)
-            return swh_repo
-
         for dir_root, dir_entry_dirs, dir_entry_files, _, contents_ref \
-                in treewalk(repo, rev.tree):
+            in treewalk(repo, rev.tree):
 
             for content_ref in contents_ref:
                 swh_repo.add_content(content_ref)
@@ -184,6 +180,10 @@ def parse(repo_path):
 
         """
         for rev in repo.walk(head_rev.id, GIT_SORT_TOPOLOGICAL):
+            sha1 = rev.hex
+            if swh_repo.already_visited(sha1):
+                logging.debug('commit %s already visited, skipped' % sha1)
+                continue
             swh_repo = walk_tree(repo, swh_repo, rev)
 
         return swh_repo
