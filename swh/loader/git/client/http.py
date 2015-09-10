@@ -76,7 +76,7 @@ def post(base_url, obj_type, obj_sha1s):
 
 # url mapping for storage
 url_store_per_type = {
-    storage.Type.origin: "/origins/",
+    storage.Type.origin: "/vcs/origins/",
     storage.Type.content: "/vcs/contents/",
     storage.Type.directory: "/vcs/directories/",
     storage.Type.revision: "/vcs/revisions/",

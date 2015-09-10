@@ -117,7 +117,7 @@ def post_person():
             return make_response('Bad request!', 400)
 
 
-@app.route('/origins/', methods=['POST'])
+@app.route('/vcs/origins/', methods=['POST'])
 def post_origin():
     """Find an origin.
 
@@ -140,7 +140,7 @@ def post_origin():
             return make_response('Bad request!', 400)
 
 
-@app.route('/origins/', methods=['PUT'])
+@app.route('/vcs/origins/', methods=['PUT'])
 def put_origin():
     """Create an origin or returns it if already existing.
 
