@@ -138,10 +138,10 @@ def parse(repo_path):
 
         swh_repo.add_revision({'id': rev.hex,
                                'type': storage.Type.revision,
-                               'date': date.ts_to_datetime(
+                               'date': date.ts_to_str(
                                    rev.author.time,
                                    rev.author.offset),
-                               'committer-date': date.ts_to_datetime(
+                               'committer-date': date.ts_to_str(
                                    rev.commit_time,
                                    rev.commit_time_offset),
                                'directory': rev.tree.hex,
@@ -197,7 +197,7 @@ def parse(repo_path):
                        'type': storage.Type.release,
                        'revision': head_rev.target.hex,
                        'name': ref_name,
-                       'date': date.ts_to_datetime(taggerSig.time,
+                       'date': date.ts_to_str(taggerSig.time,
                                                    taggerSig.offset),
                        'author': author,
                        'comment': head_rev.message}

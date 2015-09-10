@@ -7,8 +7,9 @@ from datetime import timedelta, datetime, tzinfo
 
 
 class FixedOffset(tzinfo):
-    """Fixed offset in minutes east from UTC."""
+    """Fixed offset in minutes east from UTC.
 
+    """
     def __init__(self, offset, name):
         self.__offset = timedelta(minutes = offset)
         self.__name = name
@@ -23,9 +24,18 @@ class FixedOffset(tzinfo):
         return timedelta(0)
 
 
-def ts_to_datetime(timestamp, offset):
+_cache_tz = {}
+
+
+def ts_to_str(timestamp, offset):
     """Convert a timestamp to string.
 
     """
-    dt = datetime.fromtimestamp(timestamp, tz=FixedOffset(offset, 'swh'))
-    return dt
+    if offset in _cache_tz:
+        _tz = _cache_tz[offset]
+    else:
+        _tz = FixedOffset(offset, 'swh')
+        _cache_tz[offset] = _tz
+
+    dt = datetime.fromtimestamp(timestamp, _tz)
+    return str(dt)
