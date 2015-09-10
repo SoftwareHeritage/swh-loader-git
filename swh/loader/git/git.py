@@ -86,9 +86,9 @@ def parse(repo_path):
 
     def treewalk(repo, tree):
         """Walk a tree with the same implementation as `os.path`.
-        Returns: tree, trees, blobs
+        Returns: tree, trees, contents
         """
-        trees, blobs, dir_entry_dirs, dir_entry_files = [], [], [], []
+        trees, contents, dir_entry_dirs, dir_entry_files = [], [], [], []
         for tree_entry in tree:
             if swh_repo.already_visited(tree_entry.hex):
                 logging.debug('tree_entry %s already visited, skipped' % tree_entry.hex)
@@ -105,8 +105,7 @@ def parse(repo_path):
                          'perms': tree_entry.filemode,
                          'atime': None,
                          'mtime': None,
-                         'ctime': None,
-                         'parent-id': tree.hex}
+                         'ctime': None}
 
             if obj.type == GIT_OBJ_TREE:
                 logging.debug('found tree %s' % tree_entry.hex)
@@ -118,15 +117,15 @@ def parse(repo_path):
                 data = obj.data
                 nature = DirectoryTypeEntry.file.value
                 hashes = hashutil.hashdata(data, HASH_ALGORITHMS)
-                blobs.append({'id': hashes['sha1'],
-                              'type': storage.Type.content,
-                              'git-sha1': obj.hex,
-                              'content-sha256': hashes['sha256'],
-                              'content': data,
-                              'size': obj.size})
+                contents.append({'id': hashes['sha1'],
+                                 'type': storage.Type.content,
+                                 'git-sha1': obj.hex,
+                                 'content-sha256': hashes['sha256'],
+                                 'content': data,
+                                 'size': obj.size})
                 dir_entry_files.append(dir_entry)
 
-        yield tree, dir_entry_dirs, dir_entry_files, trees, blobs
+        yield tree, dir_entry_dirs, dir_entry_files, trees, contents
         for tree_entry in trees:
             for x in treewalk(repo, repo[tree_entry.oid]):
                 yield x
@@ -138,7 +137,7 @@ def parse(repo_path):
             logging.debug('commit %s already visited, skipped' % rev.hex)
             return swh_repo
 
-        for dir_root, dir_entry_dirs, dir_entry_files, contents_ref \
+        for dir_root, dir_entry_dirs, dir_entry_files, _, contents_ref \
                 in treewalk(repo, rev.tree):
 
             for content_ref in contents_ref:
