@@ -21,6 +21,8 @@ PROFILE_TYPE=profile
 
 FOLLOW_LOG=-f
 
+SWH_DB_MANAGER_CONFIG=~/.config/swh/db-manager.ini
+
 deps:
 	apt-get install -y \
 		python3 \
@@ -38,8 +40,8 @@ clean:
 prepare:
 	mkdir -p /tmp/swh-loader-git/content-storage
 
-cleandb: clean
-	$(SWH_DB_MANAGER) $(FLAG) cleandb
+clean-db: clean
+	$(SWH_DB_MANAGER) $(FLAG) --config $(SWH_DB_MANAGER_CONFIG) cleandb
 
 run-remote:
 	$(SWH_LOADER) $(FLAG) --config ./resources/remote-loader-git.ini load $(REPO_PATH)

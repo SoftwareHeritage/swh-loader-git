@@ -12,8 +12,8 @@ test-create-db:
 test-drop-db:
 	make drop-db DB=$(DB_TEST)
 
-test-cleandb:
-	$(SWH_DB_MANAGER) $(FLAG) --config ./resources/test/db-manager.ini cleandb
+test-clean-db:
+	make clean-db SWH_DB_MANAGER_CONFIG=./resources/test/db-manager.ini
 
 test-clean:
 	rm -rf /tmp/swh-loader-git/test/
