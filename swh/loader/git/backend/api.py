@@ -175,7 +175,7 @@ def add_object(config, vcs_object, map_result_fn):
     logging.debug('storage %s %s' % (type, id))
 
     with db.connect(config['db_url']) as db_conn:
-        res = service.add_objects(db_conn, config, type, [vcs_object])
+        res = service.persist(db_conn, config, type, [vcs_object])
         return make_response(map_result_fn(id, res), 204)
 
 
