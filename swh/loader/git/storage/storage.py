@@ -12,7 +12,9 @@ Type = models.Type
 
 
 _find_object = {Type.occurrence: models.find_occurrences_for_revision,
-                Type.content: lambda *args: models.find_object(*args, column='sha1')}
+                Type.content: lambda *args: models.find_object(*args,
+                                                               column='sha1')}
+
 
 def find(db_conn, id, type):
     """Find an object according to its sha1hex and type.

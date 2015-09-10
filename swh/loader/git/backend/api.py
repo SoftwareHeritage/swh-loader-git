@@ -4,6 +4,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+
 import logging
 
 from flask import Flask, Response, make_response, request
@@ -18,12 +19,14 @@ app = Flask(__name__)
 
 def read_request_payload(request):
     """Read the request's payload.
+
     """  # TODO: Check the signed pickled data?
     return serial.load(request.stream)
 
 
 def write_response(data):
     """Write response from data.
+
     """
     return Response(serial.dumps(data), mimetype=serial.MIMETYPE)
 
@@ -32,17 +35,20 @@ def write_response(data):
 def hello():
     """A simple api to define what the server is all about.
     FIXME: A redirect towards a static page defining the routes would be nice.
+
     """
     return 'Dev SWH API'
 
 
 # from uri to type
-_uri_types = {'revisions': storage.Type.revision,
-              'directories': storage.Type.directory,
-              'contents': storage.Type.content,
-              'releases': storage.Type.release,
-              'occurrences': storage.Type.occurrence,
-              'persons': storage.Type.person}
+_uri_types = {
+    'revisions': storage.Type.revision,
+    'directories': storage.Type.directory,
+    'contents': storage.Type.content,
+    'releases': storage.Type.release,
+    'occurrences': storage.Type.occurrence,
+    'persons': storage.Type.person
+}
 
 
 def _do_action_with_payload(conf, action_fn, uri_type, id, map_result_fn):
@@ -57,17 +63,21 @@ def _do_action_with_payload(conf, action_fn, uri_type, id, map_result_fn):
 
 
 # occurrence type is not dealt the same way
-_post_all_uri_types = {'revisions': storage.Type.revision,
-                       'directories': storage.Type.directory,
-                       'contents': storage.Type.content}
+_post_all_uri_types = {
+    'revisions': storage.Type.revision,
+    'directories': storage.Type.directory,
+    'contents': storage.Type.content
+}
 
 
 @app.route('/vcs/<uri_type>/', methods=['POST'])
 def filter_unknowns_type(uri_type):
     """Filters unknown sha1 to the backend and returns them.
+
     """
     if request.headers.get('Content-Type') != serial.MIMETYPE:
-        return make_response('Bad request. Expected %s data!' % serial.MIMETYPE, 400)
+        return make_response('Bad request. Expected '
+                             '%s data!' % serial.MIMETYPE, 400)
 
     obj_type = _post_all_uri_types.get(uri_type)
     if obj_type is None:
@@ -83,12 +93,15 @@ def filter_unknowns_type(uri_type):
         else:
             return write_response(unknowns_sha1s)
 
+
 @app.route('/vcs/persons/', methods=['POST'])
 def post_person():
     """Find a person.
+
     """
     if request.headers.get('Content-Type') != serial.MIMETYPE:
-        return make_response('Bad request. Expected %s data!' % serial.MIMETYPE, 400)
+        return make_response('Bad request. Expected '
+                             '%s data!' % serial.MIMETYPE, 400)
 
     origin = read_request_payload(request)
     config = app.config['conf']
@@ -107,9 +120,11 @@ def post_person():
 @app.route('/origins/', methods=['POST'])
 def post_origin():
     """Find an origin.
+
     """
     if request.headers.get('Content-Type') != serial.MIMETYPE:
-        return make_response('Bad request. Expected %s data!' % serial.MIMETYPE, 400)
+        return make_response('Bad request. Expected '
+                             '%s data!' % serial.MIMETYPE, 400)
 
     origin = read_request_payload(request)
     config = app.config['conf']
@@ -128,9 +143,11 @@ def post_origin():
 @app.route('/origins/', methods=['PUT'])
 def put_origin():
     """Create an origin or returns it if already existing.
+
     """
     if request.headers.get('Content-Type') != serial.MIMETYPE:
-        return make_response('Bad request. Expected %s data!' % serial.MIMETYPE, 400)
+        return make_response('Bad request. Expected '
+                             '%s data!' % serial.MIMETYPE, 400)
 
     origin = read_request_payload(request)
     config = app.config['conf']
@@ -145,10 +162,12 @@ def put_origin():
 
 @app.route('/vcs/<uri_type>/', methods=['PUT'])
 def put_all(uri_type):
-    """Store or update given objects (uri_type in {contents, directories, releases).
+    """Store/update objects (uri_type in {contents, directories, releases}).
+
     """
     if request.headers.get('Content-Type') != serial.MIMETYPE:
-        return make_response('Bad request. Expected %s data!' % serial.MIMETYPE, 400)
+        return make_response('Bad request. Expected '
+                             '%s data!' % serial.MIMETYPE, 400)
 
     payload = read_request_payload(request)
     obj_type = _uri_types[uri_type]
@@ -169,6 +188,7 @@ def add_object(config, vcs_object, map_result_fn):
     and transform its output accordingly.
 
     This function returns an http response of the result.
+
     """
     type = vcs_object['type']
     id = vcs_object['id']
@@ -187,6 +207,7 @@ def _do_lookup(conf, uri_type, id, map_result_fn):
     and transform its output accordingly.
 
     This function returns an http response of the result.
+
     """
     uri_type_ok = _uri_types.get(uri_type, None)
     if not uri_type_ok:
@@ -202,6 +223,7 @@ def _do_lookup(conf, uri_type, id, map_result_fn):
 @app.route('/vcs/occurrences/<id>')
 def list_occurrences_for(id):
     """Return the occurrences pointing to the revision id.
+
     """
     return _do_lookup(app.config['conf'],
                       'occurrences',
@@ -212,6 +234,7 @@ def list_occurrences_for(id):
 @app.route('/vcs/<uri_type>/<id>')
 def object_exists_p(uri_type, id):
     """Assert if the object with sha1 id, of type uri_type, exists.
+
     """
     return _do_lookup(app.config['conf'],
                       uri_type,
@@ -222,12 +245,14 @@ def object_exists_p(uri_type, id):
 @app.route('/vcs/<uri_type>/<id>', methods=['PUT'])
 def put_object(uri_type, id):
     """Put an object in storage.
+
     """
     return _do_action_with_payload(app.config['conf'],
                                    add_object,
                                    uri_type,
                                    id,
-                                   lambda sha1, _2: sha1)  # FIXME: use id or result instead
+                                   # FIXME: use id or result instead
+                                   lambda sha1, _2: sha1)
 
 
 def run(conf):
@@ -240,6 +265,7 @@ def run(conf):
     - 'port'   to override the default of 5000 (from the underlying layer:
     flask)
     - 'debug'  activate the verbose logs
+
     """
     print("""SWH Api run
 host: %s

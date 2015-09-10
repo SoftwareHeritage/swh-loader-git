@@ -5,11 +5,11 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+
 import unittest
 import pygit2
 import tempfile
 import shutil
-import os
 
 from nose.plugins.attrib import attr
 from nose.tools import istest

@@ -27,6 +27,7 @@ DEFAULT_CONF = {
 
 def store_only_new(db_conn, conf, obj_type, obj):
     """Store object if not already present.
+
     """
     if not storage.find(db_conn, obj['id'], obj_type):
         storage.add(db_conn, conf, obj)
@@ -37,6 +38,7 @@ _obj_to_persist_fn = {storage.Type.revision: service.add_revisions}
 
 def store_unknown_objects(db_conn, conf, obj_type, swhmap):
     """Load objects to the backend.
+
     """
     sha1s = swhmap.keys()
 
@@ -53,6 +55,7 @@ def store_unknown_objects(db_conn, conf, obj_type, swhmap):
 
 def load_to_back(conf, swh_repo):
     """Load to the backend the repository swh_repo.
+
     """
     with db.connect(conf['db_url']) as db_conn:
         # First, store/retrieve the origin identifier
@@ -64,26 +67,36 @@ def load_to_back(conf, swh_repo):
         service.add_persons(db_conn, conf, storage.Type.person,
                             swh_repo.get_persons())
 
-        res = store_unknown_objects(db_conn, conf, storage.Type.content,
+        res = store_unknown_objects(db_conn, conf,
+                                    storage.Type.content,
                                     swh_repo.get_contents())
         if res:
-            res = store_unknown_objects(db_conn, conf, storage.Type.directory,
+            res = store_unknown_objects(db_conn, conf,
+                                        storage.Type.directory,
                                         swh_repo.get_directories())
             if res:
-                res = store_unknown_objects(db_conn, conf, storage.Type.revision,
+                res = store_unknown_objects(db_conn, conf,
+                                            storage.Type.revision,
                                             swh_repo.get_revisions())
                 if res:
                     # brutally send all remaining occurrences
-                    service.add_objects(db_conn, conf, storage.Type.occurrence,
+                    service.add_objects(db_conn, conf,
+                                        storage.Type.occurrence,
                                         swh_repo.get_occurrences())
 
                     # and releases (the idea here is that compared to existing
                     # objects, the quantity is less)
-                    service.add_objects(db_conn, conf, storage.Type.release,
+                    service.add_objects(db_conn, conf,
+                                        storage.Type.release,
                                         swh_repo.get_releases())
 
 
 def prepare_and_load_to_back(backend_setup_file, swh_repo):
+    """Prepare and load to back the swh_repo.
+    backend-setup-file is the backend's setup to load to access the db and file
+    storage.
+
+    """
     # Read the configuration file (no check yet)
     conf = reader.read(backend_setup_file or DEFAULT_CONF_FILE, DEFAULT_CONF)
     reader.prepare_folders(conf, 'content_storage_dir')

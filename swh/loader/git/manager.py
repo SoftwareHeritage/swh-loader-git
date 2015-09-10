@@ -15,6 +15,7 @@ def manage(action, db_url):
 
     used configuration keys:
     - action: requested action [cleandb|initdb]
+
     """
     with db.connect(db_url) as db_conn:
         if action == 'cleandb':

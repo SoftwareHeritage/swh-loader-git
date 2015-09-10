@@ -21,31 +21,31 @@ from swh.loader.git.data import swhrepo
 from swh.loader.git.storage import storage
 
 
-class DirectoryTypeEntry(Enum):
-    """Types of git objects.
-    """
-    file = 'file'
-    directory = 'directory'
-
-
 def date_format(d):
     """d is expected to be a datetime object.
+
     """
     return time.strftime("%a, %d %b %Y %H:%M:%S +0000", d.timetuple())
 
 
 def now():
-    """Cheat time values."""
+    """Cheat time values.
+
+    """
     return date_format(datetime.utcnow())
 
 
 def timestamp_to_string(timestamp):
     """Convert a timestamps to string.
+
     """
     return date_format(datetime.utcfromtimestamp(timestamp))
 
+
 def list_objects_from_packfile_index(packfile_index):
-    """List the objects indexed by this packfile"""
+    """List the objects indexed by this packfile.
+
+    """
     input_file = open(packfile_index, 'rb')
     with subprocess.Popen(
         ['/usr/bin/git', 'show-index'],
@@ -56,8 +56,11 @@ def list_objects_from_packfile_index(packfile_index):
             obj_id = line.decode('utf-8', 'ignore').split()[1]
             yield obj_id
 
+
 def list_objects(repo):
-    """List the objects in a given repository"""
+    """List the objects in a given repository.
+
+    """
     objects_dir = os.path.join(repo.path, 'objects')
     objects_glob = os.path.join(objects_dir, '[0-9a-f]' * 2, '[0-9a-f]' * 38)
 
@@ -75,12 +78,14 @@ def list_objects(repo):
         yield ''.join(object_file.split(os.path.sep)[-2:])
 
 
-HASH_ALGORITHMS=['sha1', 'sha256']
+HASH_ALGORITHMS = ['sha1', 'sha256']
 
 
 def parse(repo_path):
     """Given a repository path, parse and return a memory model of such
-    repository."""
+    repository.
+
+    """
     def read_signature(signature):
         return '%s <%s>' % (signature.name, signature.email)
 
@@ -91,7 +96,8 @@ def parse(repo_path):
         trees, contents, dir_entry_dirs, dir_entry_files = [], [], [], []
         for tree_entry in tree:
             if swh_repo.already_visited(tree_entry.hex):
-                logging.debug('tree_entry %s already visited, skipped' % tree_entry.hex)
+                logging.debug('tree_entry %s already visited,'
+                              ' skipped' % tree_entry.hex)
                 continue
 
             obj = repo.get(tree_entry.oid)
@@ -109,13 +115,11 @@ def parse(repo_path):
 
             if obj.type == GIT_OBJ_TREE:
                 logging.debug('found tree %s' % tree_entry.hex)
-                nature = DirectoryTypeEntry.directory.value
                 trees.append(tree_entry)
                 dir_entry_dirs.append(dir_entry)
             else:
                 logging.debug('found content %s' % tree_entry.hex)
                 data = obj.data
-                nature = DirectoryTypeEntry.file.value
                 hashes = hashutil.hashdata(data, HASH_ALGORITHMS)
                 contents.append({'id': hashes['sha1'],
                                  'type': storage.Type.content,
@@ -132,6 +136,7 @@ def parse(repo_path):
 
     def walk_tree(repo, swh_repo, rev):
         """Walk the rev revision's directories.
+
         """
         if swh_repo.already_visited(rev.hex):
             logging.debug('commit %s already visited, skipped' % rev.hex)
@@ -158,14 +163,14 @@ def parse(repo_path):
                      'type': storage.Type.person}
 
         swh_repo.add_revision({'id': rev.hex,
-                               'type':storage.Type.revision,
+                               'type': storage.Type.revision,
                                'date': timestamp_to_string(rev.commit_time),
                                'directory': rev.tree.hex,
                                'message': rev.message,
                                'committer': committer,
                                'author': author,
                                'parent-sha1s': revision_parent_sha1s
-        })
+                               })
 
         swh_repo.add_person(read_signature(rev.author), author)
         swh_repo.add_person(read_signature(rev.committer), committer)
@@ -176,6 +181,7 @@ def parse(repo_path):
         """Walk the rev history log from head_rev.
         - repo is the current repository
         - rev is the latest rev to start from.
+
         """
         for rev in repo.walk(head_rev.id, GIT_SORT_TOPOLOGICAL):
             swh_repo = walk_tree(repo, swh_repo, rev)

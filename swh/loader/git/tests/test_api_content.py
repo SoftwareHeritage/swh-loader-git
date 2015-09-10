@@ -38,7 +38,8 @@ class ContentTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert serial.loads(rv.data)['id'] == '222222f9dd5dc46ee476a8be155ab049994f717e'
+        data = serial.loads(rv.data)
+        assert data['id'] == '222222f9dd5dc46ee476a8be155ab049994f717e'
 
     @istest
     def get_content_not_found(self):

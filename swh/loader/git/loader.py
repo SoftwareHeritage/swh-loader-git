@@ -17,6 +17,7 @@ _load_to_back = {
 
 def check_user_conf(conf):
     """Check the user's configuration and rejects if problems.
+
     """
     action = conf['action']
     if action != 'load':
@@ -42,6 +43,7 @@ def load(conf):
     - repo_path: git repository path ('load' action only)
     - backend-type: backend access's type (remote or local)
     - backend: url access to backend api
+
     """
     error_msg = check_user_conf(conf)
     if error_msg:

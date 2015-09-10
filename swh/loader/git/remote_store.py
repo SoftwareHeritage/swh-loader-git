@@ -9,6 +9,7 @@ from swh.loader.git.client import http
 
 def store_unknown_objects(back_url, obj_type, swhmap):
     """Load objects to the backend.
+
     """
     sha1s = list(swhmap.keys())
     # have: filter unknown obj
@@ -22,6 +23,7 @@ def store_unknown_objects(back_url, obj_type, swhmap):
 
 def load_to_back(back_url, swh_repo):
     """Load to the back_url the repository swh_repo.
+
     """
     # First, store/retrieve the origin identifier
     # FIXME: should be done by the cloner worker (which is not yet plugged on

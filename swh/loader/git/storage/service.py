@@ -11,13 +11,15 @@ filter_unknowns_type = storage.find_unknowns
 
 def find_origin(db_conn, origin):
     """Find origin.
+
     """
-    origin_found = storage.find_origin(db_conn, origin)
-    return None if not origin_found else {'id': origin_found[0]}
+    orig_found = storage.find_origin(db_conn, origin)
+    return None if not orig_found else {'id': orig_found[0]}
 
 
 def find_person(db_conn, person):
     """Find person.
+
     """
     person_found = storage.find_person(db_conn, person)
     return None if not person_found else {'id': person_found[0]}
@@ -25,14 +27,16 @@ def find_person(db_conn, person):
 
 def add_origin(db_conn, origin):
     """Add origin if not already existing.
+
     """
-    origin_found = storage.find_origin(db_conn, origin)
-    id = origin_found[0] if origin_found else storage.add_origin(db_conn, origin)
+    orig_found = storage.find_origin(db_conn, origin)
+    id = orig_found[0] if orig_found else storage.add_origin(db_conn, origin)
     return {'id': id}
 
 
 def add_revisions(db_conn, conf, obj_type, objs):
     """Add Revisions.
+
     """
     tuple_parents = []
     for obj in objs:  # iterate over objects of type uri_type
@@ -44,7 +48,7 @@ def add_revisions(db_conn, conf, obj_type, objs):
             # deal with revision history
             par_shas = obj.get('parent-sha1s', None)
             if par_shas:
-                parent_rank = [(obj_id, parent, rank) \
+                parent_rank = [(obj_id, parent, rank)
                                for (rank, parent) in enumerate(par_shas)]
                 tuple_parents.extend(parent_rank)
 
@@ -56,6 +60,7 @@ def add_revisions(db_conn, conf, obj_type, objs):
 def add_persons(db_conn, conf, obj_type, objs):
     """Add persons.
     conf, obj_type are not used (implementation detail.)
+
     """
     for obj in objs:
         obj_found = storage.find_person(db_conn, obj)
@@ -66,11 +71,14 @@ def add_persons(db_conn, conf, obj_type, objs):
 
 
 # dispatch map to add in storage with fs or not
-_add_fn = {storage.Type.content: storage.add_with_fs_storage}
+_add_fn = {
+    storage.Type.content: storage.add_with_fs_storage
+}
 
 
 def add_objects(db_conn, conf, obj_type, objs):
     """Add objects if not already present in the storage.
+
     """
     add_fn = _add_fn.get(obj_type, storage.add)
     res = []
@@ -86,8 +94,10 @@ def add_objects(db_conn, conf, obj_type, objs):
     return res
 
 
-_persist_fn = {storage.Type.person: add_persons,
-               storage.Type.revision: add_revisions}
+_persist_fn = {
+    storage.Type.person: add_persons,
+    storage.Type.revision: add_revisions
+}
 
 
 def persist(db_conn, conf, obj_type, objs):

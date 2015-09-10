@@ -19,6 +19,7 @@ session_swh = requests.Session()
 
 def compute_simple_url(base_url, type):
     """Compute the api url.
+
     """
     return '%s%s' % (base_url, type)
 
@@ -41,6 +42,7 @@ def execute(map_type_url,
     - result_fn is a function which takes the response
     result and do something with it. The default function
     is to return if the server is ok or not.
+
     """
     if not data:
         return data
@@ -52,15 +54,17 @@ def execute(map_type_url,
 
 
 # url mapping for lookup
-url_lookup_per_type = { storage.Type.origin: "/origins/"
-                      , storage.Type.content: "/vcs/contents/"
-                      , storage.Type.directory: "/vcs/directories/"
-                      , storage.Type.revision: "/vcs/revisions/"
-                      }
+url_lookup_per_type = {
+    storage.Type.origin: "/origins/",
+    storage.Type.content: "/vcs/contents/",
+    storage.Type.directory: "/vcs/directories/",
+    storage.Type.revision: "/vcs/revisions/",
+}
 
 
 def post(base_url, obj_type, obj_sha1s):
     """Retrieve the objects of type type with sha1 sha1hex.
+
     """
     return execute(url_lookup_per_type,
                    session_swh.post,
@@ -71,16 +75,23 @@ def post(base_url, obj_type, obj_sha1s):
 
 
 # url mapping for storage
-url_store_per_type = { storage.Type.origin: "/origins/"
-                     , storage.Type.content: "/vcs/contents/"
-                     , storage.Type.directory: "/vcs/directories/"
-                     , storage.Type.revision: "/vcs/revisions/"
-                     , storage.Type.release: "/vcs/releases/"
-                     , storage.Type.occurrence: "/vcs/occurrences/"
-                     , storage.Type.person: "/vcs/persons/"
-                     }
+url_store_per_type = {
+    storage.Type.origin: "/origins/",
+    storage.Type.content: "/vcs/contents/",
+    storage.Type.directory: "/vcs/directories/",
+    storage.Type.revision: "/vcs/revisions/",
+    storage.Type.release: "/vcs/releases/",
+    storage.Type.occurrence: "/vcs/occurrences/",
+    storage.Type.person: "/vcs/persons/",
+}
+
 
 def put(base_url, obj_type, obj):
     """Given an obj (map, simple object) of obj_type, PUT it in the backend.
+
     """
-    return execute(url_store_per_type, session_swh.put, base_url, obj_type, obj)
+    return execute(url_store_per_type,
+                   session_swh.put,
+                   base_url,
+                   obj_type,
+                   obj)
