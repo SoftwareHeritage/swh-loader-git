@@ -197,10 +197,7 @@ def add_with_fs_storage(db_conn, config, id, type, vcs_object):
     - type is not used here but represent the type of vcs_object
     - vcs_object is the object meant to be persisted in fs and db
     """
-    id_ = config['objstorage'].add_bytes(vcs_object['content'])
-    if id_ != id:
-        raise Exception("The ids should have been identical. Corruption.")
-
+    config['objstorage'].add_bytes(vcs_object['content'], id)
     return _add_content(db_conn, vcs_object, id)
 
 
