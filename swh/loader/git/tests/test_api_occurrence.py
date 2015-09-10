@@ -29,6 +29,7 @@ class OccurrenceTestCase(unittest.TestCase):
             models.add_revision(db_conn,
                                 self.revision_sha1_hex,
                                 now(),
+                                now(),
                                 self.directory_sha1_hex,
                                 "revision message",
                                 authorAndCommitter,
@@ -52,6 +53,7 @@ class OccurrenceTestCase(unittest.TestCase):
             self.revision_sha1_hex_2 = '2-revision-sha1-to-test-existence9994f71'
             models.add_revision(db_conn,
                                 self.revision_sha1_hex_2,
+                                now(),
                                 now(),
                                 self.directory_sha1_hex,
                                 "revision message 2",

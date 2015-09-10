@@ -129,6 +129,7 @@ def _add_revision(db_conn, vcs_object, sha1hex):
     models.add_revision(db_conn,
                         sha1hex,
                         vcs_object['date'],
+                        vcs_object['committer-date'],
                         vcs_object['directory'],
                         vcs_object['message'],
                         vcs_object['author'],

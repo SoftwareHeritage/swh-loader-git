@@ -135,19 +135,21 @@ def add_directory_entry_file(db_conn, name, sha, perms,
                       (parent_id, dir_entry_id)))
 
 
-def add_revision(db_conn, sha, date, directory, message, author, committer,
-                 parent_shas=None):
+def add_revision(db_conn, sha, date, committer_date, directory, message, author,
+                 committer, parent_shas=None):
     """Insert a revision.
 
     """
     db.query_execute(
         db_conn,
         ("""INSERT INTO revision
-            (id, date, type, directory, message, author, committer)
-            VALUES (%s, %s, %s, %s, %s,
+            (id, date, committer_date, type, directory, message,
+            author,
+            committer)
+            VALUES (%s, %s, %s, %s, %s, %s,
                    (select id from person where name=%s and email=%s),
                    (select id from person where name=%s and email=%s))""",
-         (sha, date, 'git', directory, message,
+         (sha, date, committer_date, 'git', directory, message,
           author['name'], author['email'],
           committer['name'], committer['email'])))
 

@@ -29,6 +29,7 @@ class ReleaseTestCase(unittest.TestCase):
             models.add_revision(db_conn,
                                 self.revision_sha1_hex,
                                 now(),
+                                now(),
                                 self.directory_sha1_hex,
                                 "revision message",
                                 self.tagAuthor,

@@ -29,6 +29,7 @@ class RevisionTestCase(unittest.TestCase):
             models.add_revision(db_conn,
                                 self.revision_parent_sha1_hex,
                                 now(),
+                                now(),
                                 self.directory_sha1_hex,
                                 "revision message",
                                 self.authorAndCommitter,
@@ -38,6 +39,7 @@ class RevisionTestCase(unittest.TestCase):
             models.add_revision(db_conn,
                                 self.revision_parent_2_sha1_hex,
                                 now(),
+                                now(),
                                 self.directory_sha1_hex,
                                 "revision message 2",
                                 self.authorAndCommitter,
@@ -46,6 +48,7 @@ class RevisionTestCase(unittest.TestCase):
             self.revision_parent_3_sha1_hex = 'revision-sha1-to-test-as-parent-3-4f717e'
             models.add_revision(db_conn,
                                 self.revision_parent_3_sha1_hex,
+                                now(),
                                 now(),
                                 self.directory_sha1_hex,
                                 "revision message 3",
@@ -92,6 +95,7 @@ class RevisionTestCase(unittest.TestCase):
 
         # we create it
         body = serial.dumps({'date': now(),
+                             'committer-date': now(),
                              'directory': self.directory_sha1_hex,
                              'message': 'revision message describing it',
                              'committer': self.authorAndCommitter,
