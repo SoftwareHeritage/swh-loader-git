@@ -80,24 +80,46 @@ def add_content(db_conn, sha1, sha1_git, sha256_content, size):
 def add_directory(db_conn, obj_sha):
     """Insert a new directory.
     """
-    db.query_execute(db_conn,
+    return db.insert(db_conn,
                      ("""INSERT INTO directory (id)
-                         VALUES (%s)""",
+                         VALUES (%s)
+                         RETURNING id""",
                       (obj_sha,)))
 
 
-def add_directory_entry(db_conn, name, sha, type, perms,
-                        atime, mtime, ctime, parent):
-    """Insert a new directory.
+def add_directory_entry_dir(db_conn, name, sha, perms,
+                            atime, mtime, ctime, parent_id):
+    """Insert a new directory entry dir.
     """
+    dir_entry_id = db.insert(db_conn,
+                             ("""INSERT INTO directory_entry_dir
+                                 (name, target, perms, atime, mtime, ctime)
+                                 VALUES (%s, %s, %s, %s, %s, %s)
+                                 RETURNING id""",
+                              (name, sha, perms, atime, mtime, ctime)))
     db.query_execute(db_conn,
-                     ("""INSERT INTO directory_entry
-                         (name, id, type, perms, atime, mtime, ctime,
-                         directory)
-                         VALUES (%s, %s, %s, %s, %s, %s, %s,
-                                 %s)""",
-                      (name, sha, type, perms, atime, mtime, ctime,
-                       parent)))
+                     ("""INSERT INTO directory_list_dir
+                         (dir_id, entry_id)
+                         VALUES (%s, %s)""",
+                      (parent_id, dir_entry_id)))
+
+
+def add_directory_entry_file(db_conn, name, sha, perms,
+                             atime, mtime, ctime, parent_id):
+    """Insert a new directory entry file.
+    """
+    dir_entry_id = db.insert(db_conn,
+                             ("""INSERT INTO directory_entry_file
+                                 (name, target, perms, atime, mtime, ctime)
+                                 VALUES (%s, %s, %s, %s, %s, %s)
+                                 RETURNING id""",
+                              (name, sha, perms, atime, mtime, ctime)))
+
+    db.query_execute(db_conn,
+                     ("""INSERT INTO directory_list_file
+                         (dir_id, entry_id)
+                         VALUES (%s, %s)""",
+                      (parent_id, dir_entry_id)))
 
 
 def add_revision(db_conn, sha, date, directory, message, author, committer,
@@ -106,11 +128,11 @@ def add_revision(db_conn, sha, date, directory, message, author, committer,
     """
     db.query_execute(db_conn,
                      ("""INSERT INTO revision
-                         (id, date, directory, message, author, committer)
-                         VALUES (%s, %s, %s, %s,
+                         (id, date, type, directory, message, author, committer)
+                         VALUES (%s, %s, %s, %s, %s,
                                  (select id from person where name=%s and email=%s),
                                  (select id from person where name=%s and email=%s))""",
-                      (sha, date, directory, message,
+                      (sha, date, 'git', directory, message,
                        author['name'], author['email'],
                        committer['name'], committer['email'])))
 

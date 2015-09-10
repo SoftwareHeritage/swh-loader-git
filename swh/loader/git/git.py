@@ -88,7 +88,7 @@ def parse(repo_path):
         """Walk a tree with the same implementation as `os.path`.
         Returns: tree, trees, blobs
         """
-        trees, blobs, dir_entries = [], [], []
+        trees, blobs, dir_entry_dirs, dir_entry_files = [], [], [], []
         for tree_entry in tree:
             if swh_repo.already_visited(tree_entry.hex):
                 logging.debug('tree_entry %s already visited, skipped' % tree_entry.hex)
@@ -99,10 +99,20 @@ def parse(repo_path):
                 logging.warn('skip submodule-commit %s' % tree_entry.hex)
                 continue  # submodule!
 
+            dir_entry = {'name': tree_entry.name,
+                         'type': storage.Type.directory_entry,
+                         'target-sha1': obj.hex,
+                         'perms': tree_entry.filemode,
+                         'atime': None,
+                         'mtime': None,
+                         'ctime': None,
+                         'parent-id': tree.hex}
+
             if obj.type == GIT_OBJ_TREE:
                 logging.debug('found tree %s' % tree_entry.hex)
                 nature = DirectoryTypeEntry.directory.value
                 trees.append(tree_entry)
+                dir_entry_dirs.append(dir_entry)
             else:
                 logging.debug('found content %s' % tree_entry.hex)
                 data = obj.data
@@ -114,18 +124,9 @@ def parse(repo_path):
                               'content-sha256': hashes['sha256'],
                               'content': data,
                               'size': obj.size})
+                dir_entry_files.append(dir_entry)
 
-            dir_entries.append({'name': tree_entry.name,
-                                'type': storage.Type.directory_entry,
-                                'target-sha1': obj.hex,
-                                'nature': nature,
-                                'perms': tree_entry.filemode,
-                                'atime': None,
-                                'mtime': None,
-                                'ctime': None,
-                                'parent': tree.hex})
-
-        yield tree, dir_entries, trees, blobs
+        yield tree, dir_entry_dirs, dir_entry_files, trees, blobs
         for tree_entry in trees:
             for x in treewalk(repo, repo[tree_entry.oid]):
                 yield x
@@ -137,13 +138,16 @@ def parse(repo_path):
             logging.debug('commit %s already visited, skipped' % rev.hex)
             return swh_repo
 
-        for dir_root, dir_entries, _, contents_ref in treewalk(repo, rev.tree):
+        for dir_root, dir_entry_dirs, dir_entry_files, contents_ref \
+                in treewalk(repo, rev.tree):
+
             for content_ref in contents_ref:
                 swh_repo.add_content(content_ref)
 
             swh_repo.add_directory({'id': dir_root.hex,
                                     'type': storage.Type.directory,
-                                    'entries': dir_entries})
+                                    'entry-dirs': dir_entry_dirs,
+                                    'entry-files': dir_entry_files})
 
         revision_parent_sha1s = list(map(str, rev.parent_ids))
 

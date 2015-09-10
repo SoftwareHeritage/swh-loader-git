@@ -31,6 +31,9 @@ class DirectoryTestCase(unittest.TestCase):
             self.directory_sha1_hex = 'directory-sha16ee476a8be155ab049994f717e'
             models.add_directory(db_conn, self.directory_sha1_hex)
 
+            self.directory_sha1_put = 'directory-sha36ee476a8be155ab049994f717e'
+            models.add_directory(db_conn, self.directory_sha1_put)
+
     def tearDown(self):
         app_client_teardown(self.content_storage_dir)
 
@@ -71,23 +74,19 @@ class DirectoryTestCase(unittest.TestCase):
         assert rv.data == b'Not found!'
 
         # we create it
-        body = serial.dumps({'entries': [{'name': 'filename',
-                                          'target-sha1': self.content_sha1_id,
-                                          'nature': 'file',
-                                          'perms': '000',
-                                          'atime': now(),
-                                          'mtime': now(),
-                                          'ctime': now(),
-                                          'parent': directory_sha1},
-                                         {'name': 'dirname',
-                                          'target-sha1': self.directory_sha1_hex,
-                                          'nature': 'directory',
-                                          'perms': '012',
-                                          'atime': now(),
-                                          'mtime': now(),
-                                          'ctime': now(),
-                                          'parent': directory_sha1}
-                                     ]})
+        body = serial.dumps({'entry-files': [{'name': 'filename',
+                                              'target-sha1': self.content_sha1_id,
+                                              'perms': '000',
+                                              'atime': None,
+                                              'mtime': None,
+                                              'ctime': None}],
+                             'entry-dirs': [{'name': 'dirname',
+                                             'target-sha1': self.directory_sha1_put,
+                                             'perms': '012',
+                                             'atime': None,
+                                             'mtime': None,
+                                             'ctime': None}]
+        })
 
         rv = self.app.put('/vcs/directories/%s' % directory_sha1,
                           data=body,
@@ -105,7 +104,7 @@ class DirectoryTestCase(unittest.TestCase):
 
         # we update it
         rv = self.app.put('/vcs/directories/directory-sha16ee476a8be155ab049994f7170',
-                          data=serial.dumps({'entry': 'directory-bar'}),
+                          data=serial.dumps({'entry-files': 'directory-bar'}),
                           headers={'Content-Type': serial.MIMETYPE})
 
         assert rv.status_code == 204
