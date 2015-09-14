@@ -24,9 +24,12 @@ Dependencies
 Runtime
 -------
 
--   python3
--   python3-psycopg2
--   python3-pygit2
+- python3
+- python3-pygit2
+- python3-psycopg2
+- python3-flask
+- python3-requests
+- python3-retrying
 
 Test
 ----
@@ -50,11 +53,11 @@ for those:
 swh-db-manager
 --------------
 
-This is solely a tool in charge of db cleanup now.
+This is solely a db cleanup tool (which will fade away)
 
-Create a configuration file in **\~/.config/db-manager.ini**
+Create a configuration file in **~/.config/db-manager.ini**
 
-``` {.ini}
+```ini
 [main]
 
 # Where to store the logs
@@ -65,14 +68,39 @@ db_url = dbname=swhgitloader
 ```
 
 See <http://initd.org/psycopg/docs/module.html#psycopg2.connect> for the
-db url's schema
+db url's schema.
 
 swh-loader-git
 --------------
 
-Create a configuration file in **\~/.config/swh/loader-git.ini**:
+The loader, which declines in 2 forms:
+- one client which parses and loads directly to swh's backend (db + storage).
 
-``` {.ini}
+- one part client which parses teh repository and load to swh's remote server:
+
+## local
+
+Create a configuration file in **~/.config/swh/loader-git.ini**:
+
+```ini
+[main]
+# Where to store the logs
+log_dir = /tmp/swh-loader-git/log
+
+# how to access the backend (remote or local)
+backend-type = local
+
+# backend-type local: configuration file to backend file .ini (cf. back.ini file)
+backend = ~/.config/swh/back.ini
+```
+
+Note: See swh-backend's configuration file.
+
+## remote
+
+Create a configuration file in **~/.config/swh/loader-git.ini**:
+
+```ini
 [main]
 # Where to store the logs
 log_dir = /tmp/swh-loader-git/log
@@ -81,24 +109,23 @@ log_dir = /tmp/swh-loader-git/log
 backend-type = remote
 
 # backend-type remote: url access to api rest's backend
-# backend-type local: configuration file to backend file .ini (cf. back.ini file)
 backend = http://localhost:5000
 ```
 
 Note:
 -   [DB url
     DSL](http://initd.org/psycopg/docs/module.html#psycopg2.connect)
--   the configuration file can be changed in the CLI with the flag \`-c
-    \<config-filepath\>\` or \`--config-file \<config-filepath\>\`
+-   the configuration file can be changed in the CLI with the flag `-c
+    <config-filepath\>` or `--config-file <config-filepath>`
 
 swh-backend
 -----------
 
 Backend api. This
 
-Create a configuration file in **\~/.config/swh/back.ini**:
+Create a configuration file in **~/.config/swh/back.ini**:
 
-``` {.ini}
+```ini
 [main]
 
 # where to store blob on disk
@@ -132,90 +159,71 @@ Run
 Environment initialization
 --------------------------
 
-``` {.bash}
-export PYTHONPATH=`pwd`:$PYTHONPATH
+The PYTHONPATH must be set adequately.
+The tools depends on:
+- swh-environment/swh-core
+- swh-environment/swh-storage
+
+Note: see swh-environment/pythonpath.sh
+
+Help
+----
+
+```bash
+bin/swh-backend --help
+bin/swh-loader-git --help
+bin/swh-db-manager --help
 ```
 
 Backend
 -------
 
+The backend server depends on the object storage and the db.
+The db depends on the actual sql schema defined in swh-environment/swh-storage/sql/*.sql.
+
 ### With initialization
 
-This depends on swh-sql repository, so:
+The Makefile.local usually is a good place to start with:
 
-``` {.bash}
-cd /path/to/swh-sql && make clean initdb DBNAME=softwareheritage-dev
+```bash
+make create-db (DB=softwareheritage-dev)
 ```
 
-Using the Makefile eases:
-
-``` {.bash}
-make drop-db create-db run-back FOLLOW_LOG=-f
-```
+Note:
+- This delegates to the `swh-storage/sql/`'s Makefile the creation.
+- Between parenthesis, the optional and default values. Override to use according to your needs.
 
 ### without initialization
 
 Running the backend.
 
-``` {.bash}
-./bin/swh-backend -v
+```bash
+./bin/swh-backend -v (--config ~/.config/swh/back.ini)
 ```
+
+Note: Between parenthesis, the optional and default values.
+Override to use according to your needs.
 
 With makefile:
 
-``` {.bash}
+```bash
 make run-back FOLLOW_LOG=-f
 ```
 
-Help
-----
+Parse a repository:
+-------------------
 
-``` {.bash}
-bin/swh-loader-git --help
-bin/swh-db-manager --help
+Parse and load the repository /path/to/git/repo:
+
+```bash
+bin/swh-loader-git -c (~/.config/swh/git-loader.ini) load /path/to/git/repo
 ```
 
-Parse a repository from a clean slate
--------------------------------------
+Scratch data
+------------
 
-Clean and initialize the model then parse the repository git:
-
-``` {.bash}
-bin/swh-db-manager cleandb
-bin/swh-loader-git load /path/to/git/repo
-```
-
-For ease:
-
-``` {.bash}
-time make cleandb run REPO_PATH=~/work/inria/repo/swh-git-cloner
-```
-
-Parse an existing repository
-----------------------------
-
-``` {.bash}
-bin/swh-loader-git load /path/to/git/repo
-```
-
-Clean data
-----------
-
-This will truncate the relevant table in the schema
-
-``` {.bash}
-bin/swh-db-manager cleandb
-```
-
-For ease:
-
-``` {.bash}
-make cleandb
-```
-
-Init data
----------
-
-``` {.bash}
+```bash
 make drop-db create-db
 ```
+
+Note: It only deal with the db and not with the fs.
