@@ -8,10 +8,9 @@ import unittest
 from nose.tools import istest
 from nose.plugins.attrib import attr
 
-from swh.loader.git.storage import db, models
+from swh.loader.git.storage import db, models, storage
 from swh.loader.git.protocols import serial
 from test_utils import app_client, app_client_teardown
-
 
 @attr('slow')
 class DirectoryTestCase(unittest.TestCase):
@@ -77,14 +76,23 @@ class DirectoryTestCase(unittest.TestCase):
 
         # we create it
         body = serial.dumps({'entry-files': [{'name': 'filename',
+                                              'type': storage.Type.directory_entry,
                                               'target-sha1': self.content_sha1_id,
                                               'perms': '000',
                                               'atime': None,
                                               'mtime': None,
                                               'ctime': None}],
                              'entry-dirs': [{'name': 'dirname',
+                                             'type': storage.Type.directory_entry,
                                              'target-sha1': self.directory_sha1_put,
                                              'perms': '012',
+                                             'atime': None,
+                                             'mtime': None,
+                                             'ctime': None}],
+                             'entry-revs': [{'name': "rev-name",
+                                             'type': storage.Type.directory_entry,
+                                             'target-sha1': 'git-submodule-inexistant',
+                                             'perms': '000',
                                              'atime': None,
                                              'mtime': None,
                                              'ctime': None}]

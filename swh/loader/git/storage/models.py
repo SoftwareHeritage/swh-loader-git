@@ -140,6 +140,25 @@ def add_directory_entry_file(db_conn, name, sha, perms,
                       (parent_id, dir_entry_id)))
 
 
+def add_directory_entry_rev(db_conn, name, sha, perms,
+                            atime, mtime, ctime, parent_id):
+    """Insert a new directory entry rev.
+
+    """
+    dir_entry_id = db.insert(db_conn,
+                             ("""INSERT INTO directory_entry_rev
+                                 (name, target, perms, atime, mtime, ctime)
+                                 VALUES (%s, %s, %s, %s, %s, %s)
+                                 RETURNING id""",
+                              (name, sha, perms, atime, mtime, ctime)))
+
+    db.query_execute(db_conn,
+                     ("""INSERT INTO directory_list_rev
+                         (dir_id, entry_id)
+                         VALUES (%s, %s)""",
+                      (parent_id, dir_entry_id)))
+
+
 def add_revision(db_conn, sha, date, committer_date, directory, message, author,
                  committer, parent_shas=None):
     """Insert a revision.
