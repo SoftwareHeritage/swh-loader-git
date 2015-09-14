@@ -43,6 +43,9 @@ prepare:
 clean-db: clean
 	$(SWH_DB_MANAGER) $(FLAG) --config $(SWH_DB_MANAGER_CONFIG) cleandb
 
+init-db:
+	$(SWH_DB_MANAGER) $(FLAG) --config $(SWH_DB_MANAGER_CONFIG) initdb
+
 run-remote:
 	$(SWH_LOADER) $(FLAG) --config ./resources/remote-loader-git.ini load $(REPO_PATH)
 
