@@ -15,7 +15,8 @@ from test_utils import now, app_client, app_client_teardown
 
 @attr('slow')
 class RevisionTestCase(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(self):
         self.app, db_url, self.content_storage_dir = app_client()
 
         with db.connect(db_url) as db_conn:
@@ -55,7 +56,8 @@ class RevisionTestCase(unittest.TestCase):
                                 self.authorAndCommitter,
                                 self.authorAndCommitter)
 
-    def tearDown(self):
+    @classmethod
+    def tearDownClass(self):
         app_client_teardown(self.content_storage_dir)
 
     @istest

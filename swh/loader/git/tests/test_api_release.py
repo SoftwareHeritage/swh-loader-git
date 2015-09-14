@@ -15,7 +15,8 @@ from test_utils import now, app_client, app_client_teardown
 
 @attr('slow')
 class ReleaseTestCase(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(self):
         self.app, db_url, self.content_storage_dir = app_client()
 
         with db.connect(db_url) as db_conn:
@@ -43,8 +44,8 @@ class ReleaseTestCase(unittest.TestCase):
                                "0.0.1",
                                "Super release tagged by tony",
                                self.tagAuthor)
-
-    def tearDown(self):
+    @classmethod
+    def tearDownClass(self):
         app_client_teardown(self.content_storage_dir)
 
     @istest

@@ -15,7 +15,8 @@ from test_utils import now, app_client, app_client_teardown
 
 @attr('slow')
 class TestPostObjectsPerTypeCase(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(self):
         self.app, self.db_url, self.content_storage_dir = app_client()
 
         with db.connect(self.db_url) as db_conn:
@@ -69,12 +70,14 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
             self.origin_url = "https://github.com/user/repo"
             models.add_origin(db_conn, self.origin_url, 'git')
 
-            models.add_occurrence(db_conn,
-                                  self.origin_url,
-                                  'master',
-                                  self.revision_sha1_hex)
+            models.add_occurrence_history(db_conn,
+                                          self.origin_url,
+                                          'master',
+                                          self.revision_sha1_hex,
+                                          'softwareheritage')
 
-    def tearDown(self):
+    @classmethod
+    def tearDownClass(self):
         app_client_teardown(self.content_storage_dir)
 
     @istest

@@ -15,7 +15,8 @@ from test_utils import app_client, app_client_teardown
 
 @attr('slow')
 class ContentTestCase(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(self):
         self.app, db_url, self.content_storage_dir = app_client()
 
         with db.connect(db_url) as db_conn:
@@ -28,7 +29,8 @@ class ContentTestCase(unittest.TestCase):
                                self.content_sha256_hex,
                                10)
 
-    def tearDown(self):
+    @classmethod
+    def tearDownClass(self):
         app_client_teardown(self.content_storage_dir)
 
     @istest

@@ -13,7 +13,8 @@ from test_utils import app_client
 
 @attr('slow')
 class HomeTestCase(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(self):
         self.app, _, _ = app_client()
 
     @istest
