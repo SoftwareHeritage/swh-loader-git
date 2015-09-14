@@ -75,27 +75,29 @@ def parse(repo_path):
         """Walk a tree with the same implementation as `os.path`.
         Returns: tree, trees, contents
         """
-        trees, contents, dir_entry_dirs, dir_entry_files = [], [], [], []
+        trees, contents = [], []
+        dir_entry_dirs, dir_entry_files, dir_entry_revs = [], [], []
+
         for tree_entry in tree:
             if swh_repo.already_visited(tree_entry.hex):
                 logging.debug('tree_entry %s already visited,'
                               ' skipped' % tree_entry.hex)
                 continue
 
-            obj = repo.get(tree_entry.oid)
-            if obj is None:  # or obj.type == GIT_OBJ_COMMIT:
-                logging.warn('skip submodule-commit %s' % tree_entry.hex)
-                continue  # submodule!
-
             dir_entry = {'name': tree_entry.name,
                          'type': storage.Type.directory_entry,
-                         'target-sha1': obj.hex,
+                         'target-sha1': tree_entry.hex,
                          'perms': tree_entry.filemode,
                          'atime': None,
                          'mtime': None,
                          'ctime': None}
 
-            if obj.type == GIT_OBJ_TREE:
+            obj = repo.get(tree_entry.oid)
+
+            if obj is None:  # submodule
+                logging.debug('found rev %s' % tree_entry.hex)
+                dir_entry_revs.append(dir_entry)
+            elif obj.type == GIT_OBJ_TREE:
                 logging.debug('found tree %s' % tree_entry.hex)
                 trees.append(tree_entry)
                 dir_entry_dirs.append(dir_entry)
@@ -111,7 +113,7 @@ def parse(repo_path):
                                  'size': obj.size})
                 dir_entry_files.append(dir_entry)
 
-        yield tree, dir_entry_dirs, dir_entry_files, trees, contents
+        yield tree, dir_entry_dirs, dir_entry_files, dir_entry_revs, trees, contents
         for tree_entry in trees:
             for x in treewalk(repo, repo[tree_entry.oid]):
                 yield x
@@ -120,7 +122,7 @@ def parse(repo_path):
         """Walk the rev revision's directories.
 
         """
-        for dir_root, dir_entry_dirs, dir_entry_files, _, contents_ref \
+        for dir_root, dir_entry_dirs, dir_entry_files, dir_entry_revs, _, contents_ref \
             in treewalk(repo, rev.tree):
 
             for content_ref in contents_ref:
@@ -129,7 +131,8 @@ def parse(repo_path):
             swh_repo.add_directory({'id': dir_root.hex,
                                     'type': storage.Type.directory,
                                     'entry-dirs': dir_entry_dirs,
-                                    'entry-files': dir_entry_files})
+                                    'entry-files': dir_entry_files,
+                                    'entry-revs': dir_entry_revs})
 
         revision_parent_sha1s = list(map(str, rev.parent_ids))
 
