@@ -57,7 +57,7 @@ This is solely a db cleanup tool (which will fade away)
 
 Create a configuration file in **~/.config/db-manager.ini**
 
-```ini
+```
 [main]
 
 # Where to store the logs
@@ -82,7 +82,7 @@ The loader, which declines in 2 forms:
 
 Create a configuration file in **~/.config/swh/loader-git.ini**:
 
-```ini
+```
 [main]
 # Where to store the logs
 log_dir = /tmp/swh-loader-git/log
@@ -100,7 +100,7 @@ Note: See swh-backend's configuration file.
 
 Create a configuration file in **~/.config/swh/loader-git.ini**:
 
-```ini
+```
 [main]
 # Where to store the logs
 log_dir = /tmp/swh-loader-git/log
@@ -125,7 +125,7 @@ Backend api. This
 
 Create a configuration file in **~/.config/swh/back.ini**:
 
-```ini
+```
 [main]
 
 # where to store blob on disk
@@ -169,7 +169,7 @@ Note: see swh-environment/pythonpath.sh
 Help
 ----
 
-```bash
+```
 bin/swh-backend --help
 bin/swh-loader-git --help
 bin/swh-db-manager --help
@@ -185,7 +185,7 @@ The db depends on the actual sql schema defined in swh-environment/swh-storage/s
 
 The Makefile.local usually is a good place to start with:
 
-```bash
+```
 make create-db (DB=softwareheritage-dev)
 ```
 
@@ -197,7 +197,7 @@ Note:
 
 Running the backend.
 
-```bash
+```
 ./bin/swh-backend -v (--config ~/.config/swh/back.ini)
 ```
 
@@ -206,7 +206,7 @@ Override to use according to your needs.
 
 With makefile:
 
-```bash
+```
 make run-back FOLLOW_LOG=-f
 ```
 
@@ -215,14 +215,14 @@ Parse a repository:
 
 Parse and load the repository /path/to/git/repo:
 
-```bash
+```
 bin/swh-loader-git -c (~/.config/swh/git-loader.ini) load /path/to/git/repo
 ```
 
 Scratch data
 ------------
 
-```bash
+```
 make drop-db create-db
 ```
 
