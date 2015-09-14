@@ -5,7 +5,7 @@
 
 from io import StringIO
 
-from . import models
+from swh.loader.git.storage import models
 
 
 Type = models.Type
@@ -72,6 +72,8 @@ def _add_directory(db_conn, vcs_object, sha1hex):
         _add_directory_entry_dir(db_conn, parent_id, directory_entry_dir)
     for directory_entry_file in vcs_object['entry-files']:
         _add_directory_entry_file(db_conn, parent_id, directory_entry_file)
+    for directory_entry_rev in vcs_object['entry-revs']:
+        _add_directory_entry_rev(db_conn, parent_id, directory_entry_rev)
     return sha1hex
 
 
@@ -97,7 +99,7 @@ def _add_directory_entry_dir(db_conn, parent_id, vcs_object):
 
 
 def _add_directory_entry_file(db_conn, parent_id, vcs_object):
-    """Add a directory to storage.
+    """Add a directory entry file to storage.
     Designed to be wrapped in a db transaction.
     Returns:
     - the sha1 if everything went alright.
@@ -115,6 +117,27 @@ def _add_directory_entry_file(db_conn, parent_id, vcs_object):
                                     vcs_object['ctime'],
                                     parent_id)
     return name, parent_id
+
+
+def _add_directory_entry_rev(db_conn, parent_id, vcs_object):
+    """Add a directory entry rev to storage.
+    Designed to be wrapped in a db transaction.
+    Returns:
+    - the sha1 if everything went alright.
+    - None if something went wrong
+    Writing exceptions can also be raised and expected to be handled by the
+    caller.
+    """
+    name = vcs_object['name']
+    models.add_directory_entry_rev(db_conn,
+                                   name,
+                                   vcs_object['target-sha1'],
+                                   vcs_object['perms'],
+                                   vcs_object['atime'],
+                                   vcs_object['mtime'],
+                                   vcs_object['ctime'],
+                                   parent_id)
+    return parent_id
 
 
 def _add_revision(db_conn, vcs_object, sha1hex):
