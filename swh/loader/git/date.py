@@ -3,6 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import time
 from datetime import timedelta, datetime, tzinfo
 
 
@@ -39,3 +40,10 @@ def ts_to_str(timestamp, offset):
 
     dt = datetime.fromtimestamp(timestamp, _tz)
     return str(dt)
+
+
+def now():
+    """Build the date as of now in the api's format.
+
+    """
+    return time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime())

@@ -15,7 +15,8 @@ from test_utils import now, app_client, app_client_teardown
 
 @attr('slow')
 class OccurrenceTestCase(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(self):
         self.app, db_url, self.content_storage_dir = app_client()
 
         with db.connect(db_url) as db_conn:
@@ -38,17 +39,19 @@ class OccurrenceTestCase(unittest.TestCase):
             self.origin_url = "https://github.com/user/repo"
             models.add_origin(db_conn, self.origin_url, 'git')
 
-            self.reference_name = 'master'
-            models.add_occurrence(db_conn,
-                                 self.origin_url,
-                                 self.reference_name,
-                                 self.revision_sha1_hex)
+            self.branch_name = 'master'
+            models.add_occurrence_history(db_conn,
+                                          self.origin_url,
+                                          self.branch_name,
+                                          self.revision_sha1_hex,
+                                          'softwareheritage')
 
-            self.reference_name2 = 'master2'
-            models.add_occurrence(db_conn,
-                                 self.origin_url,
-                                 self.reference_name2,
-                                 self.revision_sha1_hex)
+            self.branch_name2 = 'master2'
+            models.add_occurrence_history(db_conn,
+                                          self.origin_url,
+                                          self.branch_name2,
+                                          self.revision_sha1_hex,
+                                          'softwareheritage')
 
             self.revision_sha1_hex_2 = '2-revision-sha1-to-test-existence9994f71'
             models.add_revision(db_conn,
@@ -60,7 +63,8 @@ class OccurrenceTestCase(unittest.TestCase):
                                 authorAndCommitter,
                                 authorAndCommitter)
 
-    def tearDown(self):
+    @classmethod
+    def tearDownClass(self):
         app_client_teardown(self.content_storage_dir)
 
     @istest
@@ -70,7 +74,10 @@ class OccurrenceTestCase(unittest.TestCase):
 
         # then
         assert rv.status_code == 200
-        assert serial.loads(rv.data) == [self.reference_name, self.reference_name2]
+        branches = serial.loads(rv.data)
+        assert len(branches) == 2
+        assert self.branch_name in branches
+        assert self.branch_name2 in branches
 
     @istest
     def get_occurrence_not_found(self):
@@ -101,6 +108,7 @@ class OccurrenceTestCase(unittest.TestCase):
         # we create it
         body = serial.dumps({'revision': occ_revision_sha1_hex,  # FIXME: redundant with the one from uri..
                              'branch': 'master',
+                             'authority': 'softwareheritage',
                              'url-origin': self.origin_url})
 
         rv = self.app.put('/vcs/occurrences/%s' % occ_revision_sha1_hex,  # ... here
@@ -129,5 +137,6 @@ class OccurrenceTestCase(unittest.TestCase):
         rv = self.app.get('/vcs/occurrences/%s' % occ_revision_sha1_hex)
 
         # then
+        occs = serial.loads(rv.data)
         assert rv.status_code == 200
-        assert serial.loads(rv.data) == ['master']
+        assert occs == ['master']

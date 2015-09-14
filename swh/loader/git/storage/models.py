@@ -6,6 +6,7 @@
 from enum import Enum
 
 from . import db
+from swh.loader.git import date
 
 
 class Type(Enum):
@@ -26,7 +27,11 @@ def initdb(db_conn):
     """For retrocompatibility.
 
     """
-    pass
+    db.query_execute(db_conn,
+                     """INSERT INTO organization(name, description, homepage)
+                        VALUES('softwareheritage',
+                               'Software Heritage',
+                               'http://www.softwareheritage.org');""")
 
 
 def cleandb(db_conn):
@@ -172,26 +177,83 @@ def add_release(db_conn, obj_sha, revision, date, name, comment, author):
         db_conn,
         ("""INSERT INTO release (id, revision, date, name, comment, author)
             VALUES (%s, %s, %s, %s, %s,
-            (select id from person where name=%s and email=%s))""",
+            (SELECT id FROM person WHERE name=%s AND email=%s))""",
          (obj_sha, revision, date, name, comment, author['name'],
           author['email'])))
 
 
-def add_occurrence(db_conn, url_origin, branch, revision):
+def find_occurrence_history(cur, url_origin, branch, authority):
+    """Is there some occurrence still active already existing for origin,
+    branch and authority?
+
+    """
+    return db.fetchone(
+        cur,
+        ("""SELECT revision
+            FROM occurrence_history
+            INNER JOIN origin ori ON ori.id = origin
+            INNER JOIN organization org ON org.id = authority
+            WHERE branch=%s
+            AND org.name=%s
+            AND ori.url=%s
+            AND upper(validity) is null""",
+         (branch, authority, url_origin)))
+
+
+def close_occurrence_history(cur, url_origin, branch, revision, authority):
+    """Close an occurrence history.
+
+    """
+    return db.execute(
+        cur,
+        ("""UPDATE occurrence_history
+            SET validity=tstzrange(lower(validity), %s, '[]')
+            WHERE branch=%s
+            AND authority=(SELECT id FROM organization where name=%s)
+            AND origin=(SELECT id FROM origin where url=%s)
+         """,
+         (date.now(), branch, authority, url_origin)))
+
+
+def create_new_occurrence_history(cur, url_origin, branch, revision, authority):
+    """Create a new entry in occurrence_history.
+
+    """
+    db.execute(
+        cur,
+        ("""INSERT INTO occurrence_history
+            (origin,
+            branch, revision,
+            authority,
+            validity)
+            VALUES ((select id from origin where url=%s),
+                    %s, %s,
+                    (select id from organization where name=%s),
+                    tstzrange(%s, NULL))""",
+         (url_origin, branch, revision, authority, date.now())))
+
+
+
+def add_occurrence_history(db_conn, url_origin, branch, revision, authority):
     """Insert an occurrence.
        Check if occurrence history already present.
        If present do nothing, otherwise insert
 
     """
     with db_conn.cursor() as cur:
-        occ = find_occurrence(cur, branch, revision, url_origin)
-        if not occ:
-            db.execute(
-                cur,
-                ("""INSERT INTO occurrence
-                    (origin, branch, revision)
-                    VALUES ((select id from origin where url=%s), %s, %s)""",
-                 (url_origin, branch, revision)))
+        # is there an already occurrence that exists
+        occ = find_occurrence_history(cur, url_origin, branch, authority)
+
+        if not occ:  # none exists, so we create one
+            create_new_occurrence_history(cur, url_origin, branch, revision,
+                                          authority)
+        elif occ[0] != revision:  # one exists but the revision is new, we
+                                  # close the old one and add a new one
+            close_occurrence_history(cur, url_origin, branch, occ[0], authority)
+            create_new_occurrence_history(cur, url_origin, branch, revision,
+                                          authority)
+        else:  # one exists on the same revision, we do nothing
+            pass
 
 
 def find_revision(db_conn, obj_sha):
@@ -221,7 +283,7 @@ def find_occurrences_for_revision(db_conn, revision, type):
 
     """
     return db.query_fetch(db_conn, ("""SELECT *
-                                       FROM occurrence
+                                       FROM occurrence_history
                                        WHERE revision=%s""",
                                     (revision,)))
 
@@ -351,7 +413,7 @@ def count_occurrence(db_conn):
     """Count the number of occurrence.
 
     """
-    return _count_objects(db_conn, Type.occurrence)
+    return db.query_fetchone(db_conn, 'SELECT count(*) FROM occurrence_history')[0]
 
 
 def count_release(db_conn):

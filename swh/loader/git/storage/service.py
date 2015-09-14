@@ -70,9 +70,21 @@ def add_persons(db_conn, conf, obj_type, objs):
     return True
 
 
+def add_occurrences(db_conn, conf, obj_type, objs):
+    """Add occurrences.
+
+    """
+    res = []
+    for obj in objs:  # iterate over objects of type uri_type
+        obj = storage._add_occurrence(db_conn, obj, obj['id'])
+        res.append(obj)
+
+    return res
+
+
 # dispatch map to add in storage with fs or not
 _add_fn = {
-    storage.Type.content: storage.add_with_fs_storage
+    storage.Type.content: storage.add_with_fs_storage,
 }
 
 
@@ -96,7 +108,8 @@ def add_objects(db_conn, conf, obj_type, objs):
 
 _persist_fn = {
     storage.Type.person: add_persons,
-    storage.Type.revision: add_revisions
+    storage.Type.revision: add_revisions,
+    storage.Type.occurrence: add_occurrences
 }
 
 

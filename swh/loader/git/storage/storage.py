@@ -154,10 +154,11 @@ def _add_release(db_conn, vcs_object, sha1hex):
 def _add_occurrence(db_conn, vcs_object, sha1hex):
     """Add an occurrence.
     """
-    models.add_occurrence(db_conn,
-                          vcs_object['url-origin'],
-                          vcs_object['branch'],
-                          vcs_object['revision'])
+    models.add_occurrence_history(db_conn,
+                                  vcs_object['url-origin'],
+                                  vcs_object['branch'],
+                                  vcs_object['revision'],
+                                  vcs_object['authority'])
     return sha1hex
 
 

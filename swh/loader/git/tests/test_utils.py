@@ -3,22 +3,18 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import time
 import os
 import shutil
 import tempfile
 
+from swh.loader.git import date
 from swh.loader.git.backend import api
 from swh.storage.objstorage import ObjStorage
 
 import test_initdb
 
-def now():
-    """Build the date as of now in the api's format.
 
-    """
-    return time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime())
-
+now = date.now
 
 def list_files_from(root_path):
     """Compute the list of files from root_path.

@@ -20,6 +20,10 @@ from swh.loader.git import date
 from swh.loader.git.data import swhrepo
 from swh.loader.git.storage import storage
 
+
+SWH_AUTHORITY = 'softwareheritage'
+
+
 def list_objects_from_packfile_index(packfile_index):
     """List the objects indexed by this packfile.
 
@@ -207,6 +211,7 @@ def parse(repo_path):
         else:
             swh_repo.add_occurrence({'id': head_rev.hex,
                                      'revision': head_rev.hex,
+                                     'authority': SWH_AUTHORITY,
                                      'branch': ref_name,
                                      'url-origin': origin['url'],
                                      'type': storage.Type.occurrence})
