@@ -60,15 +60,15 @@ def cleandb(db_conn):
     ])
 
 
-def add_origin(db_conn, url, type, parent=None):
+def add_origin(db_conn, url, type):
     """Insert origin and returns the newly inserted id.
 
     """
     return db.insert(db_conn,
-                     ("""INSERT INTO origin (type, url, parent_id)
-                         VALUES (%s, %s, %s)
+                     ("""INSERT INTO origin (type, url)
+                         VALUES (%s, %s)
                          RETURNING id""",
-                      (type, url, parent)))
+                      (type, url)))
 
 
 def add_person(db_conn, name, email):
