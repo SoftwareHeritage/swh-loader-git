@@ -79,14 +79,15 @@ def parse(repo_path):
         dir_entry_dirs, dir_entry_files, dir_entry_revs = [], [], []
 
         for tree_entry in tree:
-            if swh_repo.already_visited(tree_entry.hex):
+            tree_sha1 = hashutil.hex_to_hash(tree_entry.hex)
+            if swh_repo.already_visited(tree_sha1):
                 logging.debug('tree_entry %s already visited,'
                               ' skipped' % tree_entry.hex)
                 continue
 
             dir_entry = {'name': tree_entry.name,
                          'type': storage.Type.directory_entry,
-                         'target-sha1': tree_entry.hex,
+                         'target-sha1': tree_sha1,
                          'perms': tree_entry.filemode,
                          'atime': None,
                          'mtime': None,
@@ -107,7 +108,7 @@ def parse(repo_path):
                 hashes = hashutil.hashdata(data, HASH_ALGORITHMS)
                 contents.append({'id': hashes['sha1'],
                                  'type': storage.Type.content,
-                                 'git-sha1': obj.hex,
+                                 'git-sha1': hashutil.hex_to_hash(obj.hex),
                                  'content-sha256': hashes['sha256'],
                                  'content': data,
                                  'size': obj.size})
@@ -128,13 +129,13 @@ def parse(repo_path):
             for content_ref in contents_ref:
                 swh_repo.add_content(content_ref)
 
-            swh_repo.add_directory({'id': dir_root.hex,
+            swh_repo.add_directory({'id': hashutil.hex_to_hash(dir_root.hex),
                                     'type': storage.Type.directory,
                                     'entry-dirs': dir_entry_dirs,
                                     'entry-files': dir_entry_files,
                                     'entry-revs': dir_entry_revs})
 
-        revision_parent_sha1s = list(map(str, rev.parent_ids))
+        revision_parent_sha1s = map(lambda x: hashutil.hex_to_hash(str(x)), rev.parent_ids)
 
         author = {'name': rev.author.name,
                   'email': rev.author.email,
@@ -143,7 +144,7 @@ def parse(repo_path):
                      'email': rev.committer.email,
                      'type': storage.Type.person}
 
-        swh_repo.add_revision({'id': rev.hex,
+        swh_repo.add_revision({'id': hashutil.hex_to_hash(rev.hex),
                                'type': storage.Type.revision,
                                'date': date.ts_to_str(
                                    rev.author.time,
@@ -151,7 +152,7 @@ def parse(repo_path):
                                'committer-date': date.ts_to_str(
                                    rev.commit_time,
                                    rev.commit_time_offset),
-                               'directory': rev.tree.hex,
+                               'directory': hashutil.hex_to_hash(rev.tree.hex),
                                'message': rev.message,
                                'committer': committer,
                                'author': author,
@@ -170,7 +171,7 @@ def parse(repo_path):
 
         """
         for rev in repo.walk(head_rev.id, GIT_SORT_TOPOLOGICAL):
-            sha1 = rev.hex
+            sha1 = hashutil.hex_to_hash(rev.hex)
             if swh_repo.already_visited(sha1):
                 logging.debug('commit %s already visited, skipped' % sha1)
                 continue
@@ -200,20 +201,20 @@ def parse(repo_path):
             author = {'name': taggerSig.name,
                       'email': taggerSig.email,
                       'type': storage.Type.person}
-            release = {'id': head_rev.hex,
+            release = {'id': hashutil.hex_to_hash(head_rev.hex),
                        'type': storage.Type.release,
-                       'revision': head_rev.target.hex,
+                       'revision': hashutil.hex_to_hash(head_rev.target.hex),
                        'name': ref_name,
                        'date': date.ts_to_str(taggerSig.time,
-                                                   taggerSig.offset),
+                                              taggerSig.offset),
                        'author': author,
                        'comment': head_rev.message}
 
             swh_repo.add_release(release)
             swh_repo.add_person(read_signature(taggerSig), author)
         else:
-            swh_repo.add_occurrence({'id': head_rev.hex,
-                                     'revision': head_rev.hex,
+            swh_repo.add_occurrence({'id': hashutil.hex_to_hash(head_rev.hex),
+                                     'revision': hashutil.hex_to_hash(head_rev.hex),
                                      'authority': SWH_AUTHORITY,
                                      'branch': ref_name,
                                      'url-origin': origin['url'],
