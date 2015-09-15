@@ -13,13 +13,13 @@ import pygit2
 
 from collections import defaultdict
 from datetime import datetime
-from pygit2 import GIT_REF_OID
+from pygit2 import GIT_REF_OID, Oid
 from pygit2 import GIT_OBJ_BLOB, GIT_OBJ_TREE, GIT_OBJ_COMMIT, GIT_OBJ_TAG, GIT_SORT_TOPOLOGICAL
 from enum import Enum
 
 from swh.core import hashutil
 from swh.loader.git.data import swhrepo
-from swh.loader.git.storage import storage
+from swh.storage.storage import Storage
 
 
 class DirectoryTypeEntry(Enum):
@@ -69,7 +69,8 @@ def list_objects_from_packfile_index(packfile_index):
 
             data.append((offset, object_id))
 
-        yield from (object_id.decode('utf-8') for _, object_id in sorted(data))
+        yield from (Oid(hex=object_id.decode('ascii'))
+                    for _, object_id in sorted(data))
 
     input_file.close()
 
@@ -92,7 +93,7 @@ def list_objects(repo):
 
     for object_file in glob.glob(objects_glob):
         # Rebuild the object id as the last two components of the path
-        yield ''.join(object_file.split(os.path.sep)[-2:])
+        yield Oid(hex=''.join(object_file.split(os.path.sep)[-2:]))
 
 
 def get_objects_per_object_type(repo):
@@ -106,7 +107,7 @@ def get_objects_per_object_type(repo):
     return objects_per_object_type
 
 
-HASH_ALGORITHMS=['sha1', 'sha256']
+HASH_ALGORITHMS = ['sha1', 'sha256']
 
 
 def send_in_packets(repo, source_list, formatter, sender, packet_size, extra_data=None):
@@ -131,26 +132,35 @@ def send_in_packets(repo, source_list, formatter, sender, packet_size, extra_dat
 
 def send_contents(content_list):
     """Actually send properly formatted contents to the database"""
-    # TODO: send contents
-    print("Would send %d contents" % len(content_list))
+    logging.info("Sending %d contents" % len(content_list))
+    s = Storage('dbname=softwareheritage-dev', '/tmp/swh-loader-git/test')
+
+    s.content_add(content_list)
+    logging.info("Done sending %d contents" % len(content_list))
 
 
 def send_directories(directory_list):
     """Actually send properly formatted directories to the database"""
     # TODO: send directories
-    print("Would send %d directories" % len(directory_list))
+    logging.info("Sending %d directories" % len(directory_list))
+    s = Storage('dbname=softwareheritage-dev', '/tmp/swh-loader-git/test')
+
+    s.directory_add(directory_list)
+    logging.info("Done sending %d directories" % len(directory_list))
 
 
 def send_revisions(revision_list):
     """Actually send properly formatted revisions to the database"""
+    logging.info("Sending %d revisions" % len(revision_list))
     # TODO: send revisions
-    print("Would send %d revisions" % len(revision_list))
+    logging.info("Done sending %d revisions" % len(revision_list))
 
 
 def send_releases(release_list):
     """Actually send properly formatted releases to the database"""
+    logging.info("Sending %d releases" % len(release_list))
     # TODO: send releases
-    print("Would send %d releases" % len(release_list))
+    logging.info("Done sending %d releases" % len(release_list))
 
 
 def blob_to_content(repo, id):
@@ -159,21 +169,40 @@ def blob_to_content(repo, id):
     data = blob.data
     hashes = hashutil.hashdata(data, HASH_ALGORITHMS)
     return {
-        'id': id,
-        'type': storage.Type.content,
-        'content-sha1': hashes['sha1'],
-        'content-sha256': hashes['sha256'],
-        'content': data,
-        'size': blob.size,
+        'sha1_git': id.raw,
+        'sha1': hashes['sha1'],
+        'sha256': hashes['sha256'],
+        'data': data,
+        'length': blob.size,
     }
 
 
 def tree_to_directory(repo, id):
     """Format a tree as a directory"""
-    # TODO: format directories
-    return {
-        'id': id,
+    ret = {
+        'id': id.raw,
     }
+    entries = []
+    ret['entries'] = entries
+
+    entry_type_map = {
+        'tree': 'dir',
+        'blob': 'file',
+        'commit': 'rev',
+    }
+
+    for entry in repo[id]:
+        entries.append({
+            'type': entry_type_map[entry.type],
+            'perms': entry.filemode,
+            'name': entry.name,
+            'target': entry.id.raw,
+            'atime': None,
+            'mtime': None,
+            'ctime': None,
+        })
+
+    return ret
 
 
 def commit_to_revision(repo, id):
@@ -216,7 +245,7 @@ def bulk_send_trees(repo, tree_dict):
 
     """
     # TODO: move to config file
-    directory_packet_size = 100000
+    directory_packet_size = 25000
 
     send_in_packets(repo, tree_dict, tree_to_directory, send_directories, directory_packet_size)
 
@@ -258,11 +287,19 @@ def bulk_send_unannotated_tags(repo, tag_dict, commit_dict):
 
 
 def parse_via_object_list(repo_path):
+    logging.info("Started loading %s" % repo_path)
     repo = pygit2.Repository(repo_path)
-
     objects_per_object_type = get_objects_per_object_type(repo)
 
-    bulk_send_blobs(repo, objects_per_object_type[GIT_OBJ_BLOB])
+    logging.info("Done listing the objects in %s: will load %d contents, "
+                 "%d directories, %d revisions, %d releases" % (
+                     repo_path,
+                     len(objects_per_object_type[GIT_OBJ_BLOB]),
+                     len(objects_per_object_type[GIT_OBJ_TREE]),
+                     len(objects_per_object_type[GIT_OBJ_COMMIT]),
+                     len(objects_per_object_type[GIT_OBJ_TAG])))
+
+    #  bulk_send_blobs(repo, objects_per_object_type[GIT_OBJ_BLOB])
     bulk_send_trees(repo, objects_per_object_type[GIT_OBJ_TREE])
     bulk_send_commits(repo, objects_per_object_type[GIT_OBJ_COMMIT])
     bulk_send_annotated_tags(repo, objects_per_object_type[GIT_OBJ_TAG])
