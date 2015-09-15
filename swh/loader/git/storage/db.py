@@ -15,11 +15,13 @@ def execute(cur, query_params, trace=None):
     - a sql query (string)
     - a tuple (sql query, params)
     """
-    if trace:
-        print("query: ", cur.mogrify(*query_params).decode())
     if isinstance(query_params, str):
+        if trace:
+            print("query: '%s'" % query_params)
         cur.execute(query_params)
     else:
+        if trace:
+            print("query: ", cur.mogrify(*query_params).decode())
         cur.execute(*query_params)
 
 
