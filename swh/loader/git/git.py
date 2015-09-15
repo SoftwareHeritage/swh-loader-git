@@ -75,8 +75,8 @@ def list_objects_from_packfile_index(packfile_index):
     input_file.close()
 
 
-def list_objects(repo):
-    """List the objects in a given repository"""
+def simple_list_objects(repo):
+    """List the objects in a given repository. Watch out for duplicates!"""
     objects_dir = os.path.join(repo.path, 'objects')
     # Git hashes are 40-character long
     objects_glob = os.path.join(objects_dir, '[0-9a-f]' * 2, '[0-9a-f]' * 38)
@@ -94,6 +94,15 @@ def list_objects(repo):
     for object_file in glob.glob(objects_glob):
         # Rebuild the object id as the last two components of the path
         yield Oid(hex=''.join(object_file.split(os.path.sep)[-2:]))
+
+
+def list_objects(repo):
+    """List the objects in a given repository, removing duplicates"""
+    seen = set()
+    for oid in simple_list_objects(repo):
+        if oid not in seen:
+            yield oid
+            seen.add(oid)
 
 
 def get_objects_per_object_type(repo):
