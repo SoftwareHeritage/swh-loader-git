@@ -3,6 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import datetime
 import glob
 import logging
 import os
@@ -12,7 +13,6 @@ import time
 import pygit2
 
 from collections import defaultdict
-from datetime import datetime
 from pygit2 import GIT_REF_OID, Oid
 from pygit2 import GIT_OBJ_BLOB, GIT_OBJ_TREE, GIT_OBJ_COMMIT, GIT_OBJ_TAG, GIT_SORT_TOPOLOGICAL
 from enum import Enum
@@ -44,6 +44,12 @@ def timestamp_to_string(timestamp):
     """Convert a timestamps to string.
     """
     return date_format(datetime.utcfromtimestamp(timestamp))
+
+
+def format_date(signature):
+    """Convert the date from a signature to a datetime"""
+    return datetime.datetime.fromtimestamp(signature.time,
+                                           datetime.timezone.utc)
 
 
 def list_objects_from_packfile_index(packfile_index):
@@ -161,7 +167,9 @@ def send_directories(directory_list):
 def send_revisions(revision_list):
     """Actually send properly formatted revisions to the database"""
     logging.info("Sending %d revisions" % len(revision_list))
-    # TODO: send revisions
+    s = Storage('dbname=softwareheritage-dev', '/tmp/swh-loader-git/test')
+
+    s.revision_add(revision_list)
     logging.info("Done sending %d revisions" % len(revision_list))
 
 
@@ -216,9 +224,24 @@ def tree_to_directory(repo, id):
 
 def commit_to_revision(repo, id):
     """Format a commit as a revision"""
-    # TODO: format commits
+    commit = repo[id]
+
+    author = commit.author
+    committer = commit.committer
     return {
-        'id': id,
+        'id': id.raw,
+        'date': format_date(author),
+        'date_offset': author.offset,
+        'committer_date': format_date(committer),
+        'committer_date_offset': committer.offset,
+        'type': 'git',
+        'directory': commit.tree_id.raw,
+        'message': commit.raw_message,
+        'author_name': author.name,
+        'author_email': author.email,
+        'committer_name': committer.name,
+        'committer_email': committer.email,
+        'parents': [p.raw for p in commit.parent_ids],
     }
 
 
@@ -308,7 +331,7 @@ def parse_via_object_list(repo_path):
                      len(objects_per_object_type[GIT_OBJ_COMMIT]),
                      len(objects_per_object_type[GIT_OBJ_TAG])))
 
-    #  bulk_send_blobs(repo, objects_per_object_type[GIT_OBJ_BLOB])
+    bulk_send_blobs(repo, objects_per_object_type[GIT_OBJ_BLOB])
     bulk_send_trees(repo, objects_per_object_type[GIT_OBJ_TREE])
     bulk_send_commits(repo, objects_per_object_type[GIT_OBJ_COMMIT])
     bulk_send_annotated_tags(repo, objects_per_object_type[GIT_OBJ_TAG])
