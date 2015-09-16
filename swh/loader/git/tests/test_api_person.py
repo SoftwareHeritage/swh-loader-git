@@ -34,8 +34,8 @@ class PersonTestCase(unittest.TestCase):
                            headers={'Content-Type': serial.MIMETYPE})
 
         # then
-        assert rv.status_code == 200
-        assert serial.loads(rv.data)['id'] == self.person_id
+        self.assertEquals(rv.status_code, 200)
+        self.assertEquals(serial.loads(rv.data)['id'], self.person_id)
 
     @istest
     def get_person_not_found(self):
@@ -46,8 +46,8 @@ class PersonTestCase(unittest.TestCase):
                            data=serial.dumps(person),
                            headers={'Content-Type': serial.MIMETYPE})
         # then
-        assert rv.status_code == 404
-        assert rv.data == b'Person not found!'
+        self.assertEquals(rv.status_code, 404)
+        self.assertEquals(rv.data, b'Person not found!')
 
     @istest
     def get_person_not_found_with_bad_format(self):
@@ -56,7 +56,7 @@ class PersonTestCase(unittest.TestCase):
                            data=serial.dumps({'name': 'unknown'}),
                            headers={'Content-Type': serial.MIMETYPE})
         # then
-        assert rv.status_code == 400
+        self.assertEquals(rv.status_code, 400)
 
     @istest
     def put_person(self):
@@ -67,8 +67,8 @@ class PersonTestCase(unittest.TestCase):
                            data=serial.dumps(person),
                            headers={'Content-Type': serial.MIMETYPE})
         # then
-        assert rv.status_code == 404
-        assert rv.data == b'Person not found!'
+        self.assertEquals(rv.status_code, 404)
+        self.assertEquals(rv.data, b'Person not found!')
 
         # when
         rv = self.app.put('/vcs/persons/',
@@ -76,8 +76,8 @@ class PersonTestCase(unittest.TestCase):
                           headers={'Content-Type': serial.MIMETYPE})
 
         # then
-        assert rv.status_code == 204
-        assert rv.data == b''
+        self.assertEquals(rv.status_code, 204)
+        self.assertEquals(rv.data, b'')
 
         person = {'name': 'unknown',
                   'email': 'blah'}
@@ -85,9 +85,9 @@ class PersonTestCase(unittest.TestCase):
                            data=serial.dumps(person),
                            headers={'Content-Type': serial.MIMETYPE})
         # then
-        assert rv.status_code == 200
+        self.assertEquals(rv.status_code, 200)
         person_id = serial.loads(rv.data)['id']
-        assert person_id
+        self.assertIsNotNone(person_id)
 
         # when
         rv = self.app.put('/vcs/persons/',
@@ -95,5 +95,5 @@ class PersonTestCase(unittest.TestCase):
                           headers={'Content-Type': serial.MIMETYPE})
 
         # then
-        assert rv.status_code == 204
-        assert rv.data == b''
+        self.assertEquals(rv.status_code, 204)
+        self.assertEquals(rv.data, b'')

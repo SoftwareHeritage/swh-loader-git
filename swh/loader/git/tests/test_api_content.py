@@ -43,25 +43,25 @@ class ContentTestCase(unittest.TestCase):
         rv = self.app.get('/vcs/contents/%s' % self.content_sha1_id)
 
         # then
-        assert rv.status_code == 200
+        self.assertEquals(rv.status_code, 200)
         data = serial.loads(rv.data)
-        assert data['id'] == self.content_sha1_id
+        self.assertEquals(data['id'], self.content_sha1_id)
 
     @istest
     def get_content_not_found(self):
         # when
         rv = self.app.get('/vcs/contents/222222f9dd5dc46ee476a8be155ab049994f7170')
         # then
-        assert rv.status_code == 404
-        assert rv.data == b'Not found!'
+        self.assertEquals(rv.status_code, 404)
+        self.assertEquals(rv.data, b'Not found!')
 
     @istest
     def get_content_not_found_with_bad_format(self):
         # when
         rv = self.app.get('/vcs/contents/1')
         # then
-        assert rv.status_code == 404
-        assert rv.data == b'Not found!'
+        self.assertEquals(rv.status_code, 404)
+        self.assertEquals(rv.data, b'Not found!')
 
     @istest
     def put_content_create_and_update(self):
@@ -74,8 +74,8 @@ class ContentTestCase(unittest.TestCase):
         rv = self.app.get('/vcs/contents/%s' % content_sha1)
 
         # then
-        assert rv.status_code == 404
-        assert rv.data == b'Not found!'
+        self.assertEquals(rv.status_code, 404)
+        self.assertEquals(rv.data, b'Not found!')
 
         # we create it
         body = {'id': content_sha1_bin,
@@ -88,27 +88,27 @@ class ContentTestCase(unittest.TestCase):
                           data=serial.dumps(body),
                           headers={'Content-Type': serial.MIMETYPE})
 
-        assert rv.status_code == 204
-        assert rv.data == b''
+        self.assertEquals(rv.status_code, 204)
+        self.assertEquals(rv.data, b'')
 
         # now it exists
         rv = self.app.get('/vcs/contents/%s' % content_sha1)
 
         # then
-        assert rv.status_code == 200
-        assert serial.loads(rv.data)['id'] == content_sha1
+        self.assertEquals(rv.status_code, 200)
+        self.assertEquals(serial.loads(rv.data)['id'], content_sha1)
 
         # we update it
         rv = self.app.put('/vcs/contents/%s' % content_sha1,
                           data=serial.dumps(body),
                           headers={'Content-Type': serial.MIMETYPE})
 
-        assert rv.status_code == 204
-        assert rv.data == b''
+        self.assertEquals(rv.status_code, 204)
+        self.assertEquals(rv.data, b'')
 
         # still the same
         rv = self.app.get('/vcs/contents/%s' % content_sha1)
 
         # then
-        assert rv.status_code == 200
-        assert serial.loads(rv.data)['id'] == content_sha1
+        self.assertEquals(rv.status_code, 200)
+        self.assertEquals(serial.loads(rv.data)['id'], content_sha1)

@@ -59,8 +59,9 @@ class TestLocalLoader(unittest.TestCase):
         # when
         try:
             loader.load({'action': 'unknown'})
+            self.fail()
         except:
-            pass
+            self.assertTrue(True)
 
     @istest
     def should_fail_on_inexistant_folder(self):
@@ -68,8 +69,9 @@ class TestLocalLoader(unittest.TestCase):
         try:
             loader.load({'action': 'load',
                          'repo_path': 'something-that-definitely-does-not-exist'})
+            self.fail()
         except:
-            pass
+            self.assertTrue(True)
 
     @istest
     def should_fail_on_inexistant_backend_type(self):
@@ -78,8 +80,9 @@ class TestLocalLoader(unittest.TestCase):
             loader.load({'action': 'load',
                          'repo_path': '.',
                          'backend-type': 'unknown'})  # only local or remote supported
+            self.fail()
         except:
-            pass
+            self.assertTrue(True)
 
     @istest
     def local_loader(self):

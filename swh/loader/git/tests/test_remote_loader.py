@@ -61,8 +61,7 @@ class TestRemoteLoader(unittest.TestCase):
         try:
             loader.load({'action': 'unknown'})
         except:
-            # FIXME assert raises
-            pass
+            self.assertTrue(True)
 
     @istest
     def should_fail_on_inexistant_folder(self):
@@ -71,7 +70,7 @@ class TestRemoteLoader(unittest.TestCase):
             loader.load({'action': 'load',
                          'repo_path': 'something-that-definitely-does-not-exist'})
         except:
-            pass
+            self.assertTrue(True)
 
     @istest
     def should_fail_on_inexistant_backend_type(self):
@@ -81,7 +80,7 @@ class TestRemoteLoader(unittest.TestCase):
                          'repo_path': '.',
                          'backend-type': 'unknown'})  # only local or remote supported
         except:
-            pass
+            self.assertTrue(True)
 
     @istest
     def remote_loader(self):

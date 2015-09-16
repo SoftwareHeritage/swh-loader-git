@@ -102,12 +102,12 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
                            headers={'Content-Type': serial.MIMETYPE})
 
         # then
-        assert rv.status_code == 200
+        self.assertEquals(rv.status_code, 200)
 
         sha1s = serial.loads(rv.data)
-        assert len(sha1s) is 2                                     # only 2 sha1s
-        assert hashutil.hex_to_hash("666777f9dd5dc46ee476a8be155ab049994f717e") in sha1s
-        assert hashutil.hex_to_hash("555444f9dd5dc46ee476a8be155ab049994f717e") in sha1s
+        self.assertEquals(len(sha1s), 2)                                     # only 2 sha1s
+        self.assertIn(hashutil.hex_to_hash("666777f9dd5dc46ee476a8be155ab049994f717e"), sha1s)
+        self.assertIn(hashutil.hex_to_hash("555444f9dd5dc46ee476a8be155ab049994f717e"), sha1s)
 
     @istest
     def post_all_non_presents_directories(self):
@@ -125,12 +125,12 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
                            headers={'Content-Type': serial.MIMETYPE})
 
         # then
-        assert rv.status_code == 200
+        self.assertEquals(rv.status_code, 200)
 
         sha1s = serial.loads(rv.data)
-        assert len(sha1s) is 2                                     # only 2 sha1s
-        assert hashutil.hex_to_hash("666777f9dd5dc46ee476a8be155ab049994f717e") in sha1s
-        assert hashutil.hex_to_hash("555444f9dd5dc46ee476a8be155ab049994f717e") in sha1s
+        self.assertEquals(len(sha1s), 2)                                     # only 2 sha1s
+        self.assertIn(hashutil.hex_to_hash("666777f9dd5dc46ee476a8be155ab049994f717e"), sha1s)
+        self.assertIn(hashutil.hex_to_hash("555444f9dd5dc46ee476a8be155ab049994f717e"), sha1s)
 
     @istest
     def post_all_non_presents_revisions(self):
@@ -149,12 +149,12 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
                            headers={'Content-Type': serial.MIMETYPE})
 
         # then
-        assert rv.status_code == 200
+        self.assertEquals(rv.status_code, 200)
 
         sha1s = serial.loads(rv.data)
-        assert len(sha1s) is 2                                     # only 2 sha1s
-        assert hashutil.hex_to_hash("666777f9dd5dc46ee476a8be155ab049994f717e") in sha1s
-        assert hashutil.hex_to_hash("555444f9dd5dc46ee476a8be155ab049994f717e") in sha1s
+        self.assertEquals(len(sha1s), 2)
+        self.assertIn(hashutil.hex_to_hash("666777f9dd5dc46ee476a8be155ab049994f717e"), sha1s)
+        self.assertIn(hashutil.hex_to_hash("555444f9dd5dc46ee476a8be155ab049994f717e"), sha1s)
 
     @istest
     def post_all_non_presents_releases(self):
@@ -173,8 +173,8 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
                            headers={'Content-Type': serial.MIMETYPE})
 
         # then
-        assert rv.status_code == 400
-        assert rv.data  == b'Bad request. Type not supported!'
+        self.assertEquals(rv.status_code, 400)
+        self.assertEquals(rv.data, b'Bad request. Type not supported!')
 
     @istest
     def post_all_non_presents_occurrences_KO(self):
@@ -193,8 +193,8 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
                            headers={'Content-Type': serial.MIMETYPE})
 
         # then
-        assert rv.status_code == 400
-        assert rv.data  == b'Bad request. Type not supported!'
+        self.assertEquals(rv.status_code, 400)
+        self.assertEquals(rv.data, b'Bad request. Type not supported!')
 
     @istest
     def post_non_presents_objects_empty_payload_so_empty_results(self):
@@ -207,8 +207,8 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
                                headers={'Content-Type': serial.MIMETYPE})
 
             # then
-            assert rv.status_code == 200
-            assert serial.loads(rv.data) == []
+            self.assertEquals(rv.status_code, 200)
+            self.assertEquals(serial.loads(rv.data), [])
 
     @istest
     def post_non_presents_objects_bad_requests_format_pickle(self):
@@ -220,5 +220,5 @@ class TestPostObjectsPerTypeCase(unittest.TestCase):
                                data="not pickle -> fail")
 
             # then
-            assert rv.status_code == 400
-            assert rv.data == b'Bad request. Expected application/octet-stream data!'
+            self.assertEquals(rv.status_code, 400)
+            self.assertEquals(rv.data, b'Bad request. Expected application/octet-stream data!')

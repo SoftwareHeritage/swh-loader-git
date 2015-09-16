@@ -31,23 +31,23 @@ class SWHRepoTestCase(unittest.TestCase):
         r.add_release({'id': 'some-rel-sha1'})
 
         # then
-        assert r.get_origin() == {'url': 'foobar'}
-        assert r.get_releases() == [{'id': 'some-rel-sha1'}]
-        assert r.get_occurrences() == [{'id': 'some-occ-sha1'}]
+        self.assertEquals(r.get_origin(), {'url': 'foobar'})
+        self.assertEquals(r.get_releases(), [{'id': 'some-rel-sha1'}])
+        self.assertEquals(r.get_occurrences(), [{'id': 'some-occ-sha1'}])
 
         for sha in ['some-con-sha1', 'some-con-sha1-2',
                     'some-dir-sha1', 'some-dir-sha1-2',
                     'some-rev-sha1', 'some-rev-sha1-2']:
-            assert r.already_visited(sha) is True
+            self.assertTrue(r.already_visited(sha))
 
-        assert r.already_visited('some-occ-sha1') is False
-        assert r.already_visited('some-rel-sha1') is False
+        self.assertFalse(r.already_visited('some-occ-sha1'))
+        self.assertFalse(r.already_visited('some-rel-sha1'))
 
-        assert r.get_contents() == {'some-con-sha1': {'id': 'some-con-sha1'},
-                                    'some-con-sha1-2': {'id': 'some-con-sha1-2','stuff': 'some-stuff'}}
-        assert r.get_directories() == {'some-dir-sha1': {'id': 'some-dir-sha1'},
-                                       'some-dir-sha1-2': {'id': 'some-dir-sha1-2'}}
-        assert r.get_revisions() == {'some-rev-sha1': {'id': 'some-rev-sha1'},
-                                     'some-rev-sha1-2': {'id': 'some-rev-sha1-2'}}
+        self.assertEquals(r.get_contents(), {'some-con-sha1': {'id': 'some-con-sha1'},
+                                    'some-con-sha1-2': {'id': 'some-con-sha1-2','stuff': 'some-stuff'}})
+        self.assertEquals(r.get_directories(), {'some-dir-sha1': {'id': 'some-dir-sha1'},
+                                       'some-dir-sha1-2': {'id': 'some-dir-sha1-2'}})
+        self.assertEquals(r.get_revisions(), {'some-rev-sha1': {'id': 'some-rev-sha1'},
+                                     'some-rev-sha1-2': {'id': 'some-rev-sha1-2'}})
 
-        assert len(r.get_persons()) == 2
+        self.assertEquals(len(r.get_persons()), 2)

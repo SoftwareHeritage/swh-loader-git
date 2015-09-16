@@ -34,8 +34,8 @@ class OriginTestCase(unittest.TestCase):
                            headers={'Content-Type': serial.MIMETYPE})
 
         # then
-        assert rv.status_code == 200
-        assert serial.loads(rv.data)['id'] == self.origin_id
+        self.assertEquals(rv.status_code, 200)
+        self.assertEquals(serial.loads(rv.data)['id'], self.origin_id)
 
     @istest
     def get_origin_not_found(self):
@@ -46,8 +46,8 @@ class OriginTestCase(unittest.TestCase):
                            data=serial.dumps(payload),
                            headers={'Content-Type': serial.MIMETYPE})
         # then
-        assert rv.status_code == 404
-        assert rv.data == b'Origin not found!'
+        self.assertEquals(rv.status_code, 404)
+        self.assertEquals(rv.data, b'Origin not found!')
 
     @istest
     def get_origin_not_found_with_bad_format(self):
@@ -56,7 +56,7 @@ class OriginTestCase(unittest.TestCase):
                            data=serial.dumps({'url': 'unknown'}),
                            headers={'Content-Type': serial.MIMETYPE})
         # then
-        assert rv.status_code == 400
+        self.assertEquals(rv.status_code, 400)
 
     @istest
     def put_origin(self):
@@ -67,8 +67,8 @@ class OriginTestCase(unittest.TestCase):
                            data=serial.dumps(payload),
                            headers={'Content-Type': serial.MIMETYPE})
         # then
-        assert rv.status_code == 404
-        assert rv.data == b'Origin not found!'
+        self.assertEquals(rv.status_code, 404)
+        self.assertEquals(rv.data, b'Origin not found!')
 
         # when
         rv = self.app.put('/vcs/origins/',
@@ -76,8 +76,8 @@ class OriginTestCase(unittest.TestCase):
                           headers={'Content-Type': serial.MIMETYPE})
 
         # then
-        assert rv.status_code == 200  # FIXME: 201
-        assert serial.loads(rv.data)['id']
+        self.assertEquals(rv.status_code, 200)  # FIXME: 201)
+        self.assertIsNotNone(serial.loads(rv.data)['id'])
 
         payload = {'url': 'unknown',
                    'type': 'blah'}
@@ -85,9 +85,9 @@ class OriginTestCase(unittest.TestCase):
                            data=serial.dumps(payload),
                            headers={'Content-Type': serial.MIMETYPE})
         # then
-        assert rv.status_code == 200
+        self.assertEquals(rv.status_code, 200)
         origin_id = serial.loads(rv.data)['id']
-        assert origin_id
+        self.assertIsNotNone(origin_id)
 
         # when
         rv = self.app.put('/vcs/origins/',
@@ -95,5 +95,5 @@ class OriginTestCase(unittest.TestCase):
                           headers={'Content-Type': serial.MIMETYPE})
 
         # then
-        assert rv.status_code == 200  # FIXME: 204
-        assert serial.loads(rv.data)['id'] == origin_id
+        self.assertEquals(rv.status_code, 200)  # FIXME: 204
+        self.assertEquals(serial.loads(rv.data)['id'], origin_id)

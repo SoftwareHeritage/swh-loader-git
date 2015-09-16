@@ -23,8 +23,8 @@ class HomeTestCase(unittest.TestCase):
         rv = self.app.get('/')
 
         # then
-        assert rv.status_code == 200
-        assert rv.data == b'Dev SWH API'
+        self.assertEquals(rv.status_code, 200)
+        self.assertEquals(rv.data, b'Dev SWH API')
 
     @istest
     def get_404(self):
@@ -32,7 +32,7 @@ class HomeTestCase(unittest.TestCase):
         rv = self.app.get('/nowhere')
 
         # then
-        assert rv.status_code == 404
+        self.assertEquals(rv.status_code, 404)
 
     @istest
     def get_bad_request(self):
@@ -40,5 +40,5 @@ class HomeTestCase(unittest.TestCase):
         rv = self.app.get('/vcs/not-a-good-type/1')
 
         # then
-        assert rv.status_code == 400
-        assert rv.data == b'Bad request!'
+        self.assertEquals(rv.status_code, 400)
+        self.assertEquals(rv.data, b'Bad request!')

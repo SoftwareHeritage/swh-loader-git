@@ -18,24 +18,25 @@ class TestHttp(unittest.TestCase):
         s = http.compute_simple_url('http://base-url', '/end')
 
         # then
-        assert s == 'http://base-url/end'
+        self.assertEquals(s, 'http://base-url/end')
 
     @istest
     def url_lookup_per_type(self):
         # then
-        assert http.url_lookup_per_type == { storage.Type.origin: "/vcs/origins/"
-                                           , storage.Type.content: "/vcs/contents/"
-                                           , storage.Type.directory: "/vcs/directories/"
-                                           , storage.Type.revision: "/vcs/revisions/" }
+        self.assertEquals(http.url_lookup_per_type,
+                          {storage.Type.origin: "/vcs/origins/",
+                           storage.Type.content: "/vcs/contents/",
+                           storage.Type.directory: "/vcs/directories/",
+                           storage.Type.revision: "/vcs/revisions/"})
 
     @istest
     def url_store_per_type(self):
         # then
-        assert http.url_store_per_type == { storage.Type.origin: "/vcs/origins/"
-                                          , storage.Type.content: "/vcs/contents/"
-                                          , storage.Type.directory: "/vcs/directories/"
-                                          , storage.Type.revision: "/vcs/revisions/"
-                                          , storage.Type.release: "/vcs/releases/"
-                                          , storage.Type.occurrence: "/vcs/occurrences/"
-                                          , storage.Type.person: "/vcs/persons/"
-                                          }
+        self.assertEquals(http.url_store_per_type,
+                          {storage.Type.origin: "/vcs/origins/",
+                           storage.Type.content: "/vcs/contents/",
+                           storage.Type.directory: "/vcs/directories/",
+                           storage.Type.revision: "/vcs/revisions/",
+                           storage.Type.release: "/vcs/releases/",
+                           storage.Type.occurrence: "/vcs/occurrences/",
+                           storage.Type.person: "/vcs/persons/"})

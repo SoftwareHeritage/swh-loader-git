@@ -47,24 +47,24 @@ class DirectoryTestCase(unittest.TestCase):
         rv = self.app.get('/vcs/directories/%s' % self.directory_sha1_hex)
 
         # then
-        assert rv.status_code == 200
-        assert serial.loads(rv.data)['id'] == self.directory_sha1_hex
+        self.assertEquals(rv.status_code, 200)
+        self.assertEquals(serial.loads(rv.data)['id'], self.directory_sha1_hex)
 
     @istest
     def get_directory_not_found(self):
         # when
         rv = self.app.get('/vcs/directories/111111f9dd5dc46ee476a8be155ab049994f7170')
         # then
-        assert rv.status_code == 404
-        assert rv.data == b'Not found!'
+        self.assertEquals(rv.status_code, 404)
+        self.assertEquals(rv.data, b'Not found!')
 
     @istest
     def get_directory_not_found_with_bad_format(self):
         # when
         rv = self.app.get('/vcs/directories/1')
         # then
-        assert rv.status_code == 404
-        assert rv.data == b'Not found!'
+        self.assertEquals(rv.status_code, 404)
+        self.assertEquals(rv.data, b'Not found!')
 
     @istest
     def put_directory_create_and_update(self):
@@ -74,8 +74,8 @@ class DirectoryTestCase(unittest.TestCase):
         rv = self.app.get('/vcs/directories/%s' % directory_sha1)
 
         # then
-        assert rv.status_code == 404
-        assert rv.data == b'Not found!'
+        self.assertEquals(rv.status_code, 404)
+        self.assertEquals(rv.data, b'Not found!')
 
         # we create it
         body = serial.dumps({'entry-files': [{'name': 'filename',
@@ -106,27 +106,27 @@ class DirectoryTestCase(unittest.TestCase):
                           headers={'Content-Type': serial.MIMETYPE})
 
         print(rv.status_code)
-        assert rv.status_code == 204
-        assert rv.data == b''
+        self.assertEquals(rv.status_code, 204)
+        self.assertEquals(rv.data, b'')
 
         # now it exists
         rv = self.app.get('/vcs/directories/%s' % directory_sha1)
 
         # then
-        assert rv.status_code == 200
-        assert serial.loads(rv.data)['id'] == directory_sha1
+        self.assertEquals(rv.status_code, 200)
+        self.assertEquals(serial.loads(rv.data)['id'], directory_sha1)
 
         # we update it
         rv = self.app.put('/vcs/directories/%s' % directory_sha1,
                           data=serial.dumps({'entry-files': 'directory-bar'}),
                           headers={'Content-Type': serial.MIMETYPE})
 
-        assert rv.status_code == 204
-        assert rv.data == b''
+        self.assertEquals(rv.status_code, 204)
+        self.assertEquals(rv.data, b'')
 
         # still the same
         rv = self.app.get('/vcs/directories/%s' % directory_sha1)
 
         # then
-        assert rv.status_code == 200
-        assert serial.loads(rv.data)['id'] == directory_sha1
+        self.assertEquals(rv.status_code, 200)
+        self.assertEquals(serial.loads(rv.data)['id'], directory_sha1)

@@ -76,27 +76,27 @@ class OccurrenceTestCase(unittest.TestCase):
         rv = self.app.get('/vcs/occurrences/%s' % self.revision_sha1_hex)
 
         # then
-        assert rv.status_code == 200
+        self.assertEquals(rv.status_code, 200)
         branches = serial.loads(rv.data)
-        assert len(branches) == 2
-        assert self.branch_name in branches
-        assert self.branch_name2 in branches
+        self.assertEquals(len(branches), 2)
+        self.assertIn(self.branch_name, branches)
+        self.assertIn(self.branch_name2, branches)
 
     @istest
     def get_occurrence_not_found(self):
         # when
         rv = self.app.get('/vcs/occurrences/inexistant-sha1')
         # then
-        assert rv.status_code == 404
-        assert rv.data == b'Not found!'
+        self.assertEquals(rv.status_code, 404)
+        self.assertEquals(rv.data, b'Not found!')
 
     @istest
     def get_occurrence_not_found_with_bad_format(self):
         # when
         rv = self.app.get('/vcs/occurrences/1')
         # then
-        assert rv.status_code == 404
-        assert rv.data == b'Not found!'
+        self.assertEquals(rv.status_code, 404)
+        self.assertEquals(rv.data, b'Not found!')
 
     @istest
     def put_occurrence_create_and_update(self):
@@ -105,8 +105,8 @@ class OccurrenceTestCase(unittest.TestCase):
         rv = self.app.get('/vcs/occurrences/%s' % occ_revision_sha1_hex)
 
         # then
-        assert rv.status_code == 404
-        assert rv.data == b'Not found!'
+        self.assertEquals(rv.status_code, 404)
+        self.assertEquals(rv.data, b'Not found!')
 
         # we create it
         body = serial.dumps({'revision': hashutil.hex_to_hash(occ_revision_sha1_hex),  # FIXME: redundant with the one from uri..
@@ -118,28 +118,28 @@ class OccurrenceTestCase(unittest.TestCase):
                           data=body,
                           headers={'Content-Type': serial.MIMETYPE})
 
-        assert rv.status_code == 204
-        assert rv.data == b''
+        self.assertEquals(rv.status_code, 204)
+        self.assertEquals(rv.data, b'')
 
         # now it exists
         rv = self.app.get('/vcs/occurrences/%s' % occ_revision_sha1_hex)
 
         # then
-        assert rv.status_code == 200
-        assert serial.loads(rv.data) == ['master']
+        self.assertEquals(rv.status_code, 200)
+        self.assertEquals(serial.loads(rv.data), ['master'])
 
         # we update it
         # rv = self.app.put('/vcs/occurrences/%s' % occ_revision_sha1_hex,
         #                   data=body,
         #                   headers={'Content-Type': serial.MIMETYPE})
 
-        # assert rv.status_code == 204
-        # assert rv.data == b''
+        #self.assertEquals(rv.status_code, 204)
+        #self.assertEquals(rv.data, b'')
 
         # # still the same
         # rv = self.app.get('/vcs/occurrences/%s' % occ_revision_sha1_hex)
 
         # # then
         # occs = serial.loads(rv.data)
-        # assert rv.status_code == 200
-        # assert occs == ['master']
+        # self.assertEquals(rv.status_code, 200)
+        # self.assertEquals(occs, ['master'])

@@ -71,24 +71,24 @@ class RevisionTestCase(unittest.TestCase):
         rv = self.app.get('/vcs/revisions/%s' % self.revision_parent_sha1_hex)
 
         # then
-        assert rv.status_code == 200
-        assert serial.loads(rv.data)['id'] == self.revision_parent_sha1_hex
+        self.assertEquals(rv.status_code, 200)
+        self.assertEquals(serial.loads(rv.data)['id'], self.revision_parent_sha1_hex)
 
     @istest
     def get_revision_not_found(self):
         # when
         rv = self.app.get('/vcs/revisions/inexistant-sha1')
         # then
-        assert rv.status_code == 404
-        assert rv.data == b'Not found!'
+        self.assertEquals(rv.status_code, 404)
+        self.assertEquals(rv.data, b'Not found!')
 
     @istest
     def get_revision_not_found_with_bad_format(self):
         # when
         rv = self.app.get('/vcs/revisions/1')
         # then
-        assert rv.status_code == 404
-        assert rv.data == b'Not found!'
+        self.assertEquals(rv.status_code, 404)
+        self.assertEquals(rv.data, b'Not found!')
 
     @istest
     def put_revision_create_and_update(self):
@@ -97,8 +97,8 @@ class RevisionTestCase(unittest.TestCase):
         rv = self.app.get('/vcs/revisions/%s' % revision_sha1_hex)
 
         # then
-        assert rv.status_code == 404
-        assert rv.data == b'Not found!'
+        self.assertEquals(rv.status_code, 404)
+        self.assertEquals(rv.data, b'Not found!')
 
         # we create it
         body = serial.dumps({'date': now(),
@@ -115,27 +115,27 @@ class RevisionTestCase(unittest.TestCase):
                           data=body,
                           headers={'Content-Type': serial.MIMETYPE})
 
-        assert rv.status_code == 204
-        assert rv.data == b''
+        self.assertEquals(rv.status_code, 204)
+        self.assertEquals(rv.data, b'')
 
         # now it exists
         rv = self.app.get('/vcs/revisions/%s' % revision_sha1_hex)
 
         # then
-        assert rv.status_code == 200
-        assert serial.loads(rv.data)['id'] == revision_sha1_hex
+        self.assertEquals(rv.status_code, 200)
+        self.assertEquals(serial.loads(rv.data)['id'], revision_sha1_hex)
 
         # we update it
         rv = self.app.put('/vcs/revisions/%s' % revision_sha1_hex,
                           data=body,
                           headers={'Content-Type': serial.MIMETYPE})
 
-        assert rv.status_code == 204
-        assert rv.data == b''
+        self.assertEquals(rv.status_code, 204)
+        self.assertEquals(rv.data, b'')
 
         # still the same
         rv = self.app.get('/vcs/revisions/%s' % revision_sha1_hex)
 
         # then
-        assert rv.status_code == 200
-        assert serial.loads(rv.data)['id'] == revision_sha1_hex
+        self.assertEquals(rv.status_code, 200)
+        self.assertEquals(serial.loads(rv.data)['id'], revision_sha1_hex)
