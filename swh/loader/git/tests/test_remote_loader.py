@@ -58,29 +58,23 @@ class TestRemoteLoader(unittest.TestCase):
     @istest
     def should_fail_on_bad_action(self):
         # when
-        try:
+        with self.assertRaises(Exception):
             loader.load({'action': 'unknown'})
-        except:
-            self.assertTrue(True)
 
     @istest
     def should_fail_on_inexistant_folder(self):
         # when
-        try:
+        with self.assertRaises(Exception):
             loader.load({'action': 'load',
                          'repo_path': 'something-that-definitely-does-not-exist'})
-        except:
-            self.assertTrue(True)
 
     @istest
     def should_fail_on_inexistant_backend_type(self):
         # when
-        try:
+        with self.assertRaises(Exception):
             loader.load({'action': 'load',
                          'repo_path': '.',
                          'backend-type': 'unknown'})  # only local or remote supported
-        except:
-            self.assertTrue(True)
 
     @istest
     def remote_loader(self):
