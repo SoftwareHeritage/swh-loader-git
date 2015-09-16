@@ -6,13 +6,14 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+
 import argparse
 import logging
 import os
 
-
+from swh.core.conf import reader
 from swh.loader.git import manager
-from swh.loader.git.conf import reader
+
 
 # Default configuration file
 DEFAULT_CONF_FILE = '~/.config/swh/db-manager.ini'
