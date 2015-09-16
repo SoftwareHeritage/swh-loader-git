@@ -135,7 +135,7 @@ def parse(repo_path):
                                     'entry-files': dir_entry_files,
                                     'entry-revs': dir_entry_revs})
 
-        revision_parent_sha1s = map(lambda x: hashutil.hex_to_hash(str(x)), rev.parent_ids)
+        revision_parent_sha1s = list(map(lambda x: hashutil.hex_to_hash(str(x)), rev.parent_ids))
 
         author = {'name': rev.author.name,
                   'email': rev.author.email,

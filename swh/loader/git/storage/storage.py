@@ -34,7 +34,7 @@ def find_unknowns(db_conn, obj_type, sha1s_hex):
     def row_to_sha1(row):
         """Convert a row (memoryview) to a string sha1.
         """
-        return row[0].tobytes()
+        return bytes(row[0])
 
     cpy_data_buffer = StringIO()
     vals = '\n'.join(map(hex_to_sha1,
@@ -45,7 +45,7 @@ def find_unknowns(db_conn, obj_type, sha1s_hex):
     find_unknown_fn = _find_unknown[obj_type]
     unknowns = find_unknown_fn(db_conn, cpy_data_buffer)
     cpy_data_buffer.close()
-    return map(row_to_sha1, unknowns)
+    return list(map(row_to_sha1, unknowns))  # hack: force resolution for remote loader
 
 
 def _add_content(db_conn, vcs_object, id):
