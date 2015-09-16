@@ -4,7 +4,7 @@
 # See top-level LICENSE file for more information
 
 
-from swh.core.git.conf import reader
+from swh.core.conf import reader
 from swh.loader.git.storage import storage, db, service
 from swh.storage.objstorage import ObjStorage
 
