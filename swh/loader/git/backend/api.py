@@ -11,6 +11,7 @@ from flask import Flask, Response, make_response, request
 
 from swh.loader.git.storage import storage, db, service
 from swh.loader.git.protocols import serial
+from swh.core import hashutil
 
 
 # api's definition
@@ -57,7 +58,13 @@ def _do_action_with_payload(conf, action_fn, uri_type, id, map_result_fn):
         return make_response('Bad request!', 400)
 
     vcs_object = read_request_payload(request)
-    vcs_object.update({'id': id,
+
+    try:
+        id_ = hashutil.hex_to_hash(id)
+    except:
+        return make_response('Bad request!', 400)
+
+    vcs_object.update({'id': id_,
                        'type': uri_type_ok})
     return action_fn(conf, vcs_object, map_result_fn)
 
@@ -213,8 +220,13 @@ def _do_lookup(conf, uri_type, id, map_result_fn):
     if not uri_type_ok:
         return make_response('Bad request!', 400)
 
+    try:
+        id_ = hashutil.hex_to_hash(id)
+    except:
+        return make_response('Not found!', 404)
+
     with db.connect(conf['db_url']) as db_conn:
-        res = storage.find(db_conn, id, uri_type_ok)
+        res = storage.find(db_conn, id_, uri_type_ok)
         if res:
             return write_response(map_result_fn(id, res))  # 200
         return make_response('Not found!', 404)

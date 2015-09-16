@@ -11,7 +11,7 @@ from nose.plugins.attrib import attr
 from swh.loader.git.storage import db, models
 from swh.loader.git.protocols import serial
 from test_utils import app_client, app_client_teardown
-
+from swh.core import hashutil
 
 @attr('slow')
 class ContentTestCase(unittest.TestCase):
@@ -20,13 +20,17 @@ class ContentTestCase(unittest.TestCase):
         self.app, db_url, self.content_storage_dir = app_client()
 
         with db.connect(db_url) as db_conn:
-            self.content_sha1_id = '222222f9dd5dc46ee476a8be155ab049994f717e'
-            content_sha1_id = 'blabliblablo'
-            self.content_sha256_hex = '222222f9dd5dc46ee476a8be155ab049994f717e'
+            self.content_sha1_id = '37bfdafafe3b16d970125df29e6ec9a3d2521fd2'
+            self.content_sha1_id_bin = hashutil.hex_to_hash(self.content_sha1_id)
+
+            content_sha1_id = '47bfdafafe3b16d970125df29e6ec9a3d2521fd2'
+            content_sha1_id_bin = hashutil.hex_to_hash(content_sha1_id)
+
+            self.content_sha256_bin = hashutil.hashdata(b'something-to-hash', ['sha256'])['sha256']
             models.add_content(db_conn,
-                               self.content_sha1_id,
-                               content_sha1_id,
-                               self.content_sha256_hex,
+                               self.content_sha1_id_bin,
+                               content_sha1_id_bin,
+                               self.content_sha256_bin,
                                10)
 
     @classmethod
@@ -41,7 +45,7 @@ class ContentTestCase(unittest.TestCase):
         # then
         assert rv.status_code == 200
         data = serial.loads(rv.data)
-        assert data['id'] == '222222f9dd5dc46ee476a8be155ab049994f717e'
+        assert data['id'] == self.content_sha1_id
 
     @istest
     def get_content_not_found(self):
@@ -61,7 +65,10 @@ class ContentTestCase(unittest.TestCase):
 
     @istest
     def put_content_create_and_update(self):
-        content_sha1 = '62cdb7020ff920e5aa642c3d4066950dd1f01f4d'  # real sha1 of 'bar'
+        content_sha1 = '57bfdafafe3b16d970125df29e6ec9a3d2521fd2'
+        content_git_sha1 = hashutil.hex_to_hash('57bfdafafe3b16d970125df29e6ec9a3d2521fd2')
+        content_sha1_bin = hashutil.hex_to_hash(content_sha1)
+        content_sha256_bin = hashutil.hashdata(b'another-thing-to-hash', ['sha256'])['sha256']
 
         # does not exist
         rv = self.app.get('/vcs/contents/%s' % content_sha1)
@@ -71,9 +78,9 @@ class ContentTestCase(unittest.TestCase):
         assert rv.data == b'Not found!'
 
         # we create it
-        body = {'id': content_sha1,
-                'git-sha1': 'content-sha1c46ee476a8be155ab03333333333',
-                'content-sha256': 'content-sha2566ee476a8be155ab03333333333',
+        body = {'id': content_sha1_bin,
+                'git-sha1': content_git_sha1,
+                'content-sha256': content_sha256_bin,
                 'content': b'bar',
                 'size': '3'}
 
@@ -91,13 +98,7 @@ class ContentTestCase(unittest.TestCase):
         assert rv.status_code == 200
         assert serial.loads(rv.data)['id'] == content_sha1
 
-        # # we update it
-        body = {'id': content_sha1,
-                'content-sha1': 'content-sha1c46ee476a8be155ab03333333333',
-                'content-sha256': 'content-sha2566ee476a8be155ab03333333333',
-                'content': b'bar',
-                'size': '3'}
-
+        # we update it
         rv = self.app.put('/vcs/contents/%s' % content_sha1,
                           data=serial.dumps(body),
                           headers={'Content-Type': serial.MIMETYPE})
