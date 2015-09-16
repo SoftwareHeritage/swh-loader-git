@@ -14,7 +14,7 @@ import os
 from nose.plugins.attrib import attr
 from nose.tools import istest
 
-from swh.core.conf import reader
+from swh.core import config
 from swh.loader.git.storage import db, models
 from swh.loader.git import loader
 
@@ -29,7 +29,7 @@ class TestRemoteLoader(unittest.TestCase):
         tmp_git_folder_path = tempfile.mkdtemp(prefix='test-sgloader.',
                                                dir='/tmp')
         self.tmp_git_repo = pygit2.init_repository(tmp_git_folder_path)
-        self.conf = reader.read('./resources/test/back.ini',
+        self.conf = config.read('./resources/test/back.ini',
                                 {'port': ('int', 9999)})
 
         self.db_url = self.conf['db_url']

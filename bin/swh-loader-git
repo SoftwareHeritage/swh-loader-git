@@ -11,7 +11,7 @@ import argparse
 import logging
 import os
 
-from swh.core.conf import reader
+from swh.core import config
 from swh.loader.git import loader
 
 
@@ -57,8 +57,8 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    conf = reader.read(args.config or DEFAULT_CONF_FILE, DEFAULT_CONF)
-    reader.prepare_folders(conf, 'log_dir')
+    conf = config.read(args.config or DEFAULT_CONF_FILE, DEFAULT_CONF)
+    config.prepare_folders(conf, 'log_dir')
 
     conf['action'] = args.action
     conf['repo_path'] = args.repository

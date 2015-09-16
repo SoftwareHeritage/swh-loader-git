@@ -14,7 +14,7 @@ import shutil
 from nose.plugins.attrib import attr
 from nose.tools import istest
 
-from swh.core.conf import reader
+from swh.core import config
 from swh.loader.git.storage import db, models
 from swh.loader.git import loader
 
@@ -31,7 +31,7 @@ class TestLocalLoader(unittest.TestCase):
                                                dir='/tmp')
         self.tmp_git_repo = pygit2.init_repository(tmp_git_folder_path)
 
-        self.conf_back = reader.read('./resources/test/back.ini',
+        self.conf_back = config.read('./resources/test/back.ini',
                                      {'port': ('int', 9999)})
 
         self.db_url = self.conf_back['db_url']

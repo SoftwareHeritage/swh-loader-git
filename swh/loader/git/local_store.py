@@ -4,7 +4,7 @@
 # See top-level LICENSE file for more information
 
 
-from swh.core.conf import reader
+from swh.core import config
 from swh.loader.git.storage import storage, db, service
 from swh.storage.objstorage import ObjStorage
 
@@ -99,8 +99,8 @@ def prepare_and_load_to_back(backend_setup_file, swh_repo):
 
     """
     # Read the configuration file (no check yet)
-    conf = reader.read(backend_setup_file or DEFAULT_CONF_FILE, DEFAULT_CONF)
-    reader.prepare_folders(conf, 'content_storage_dir')
+    conf = config.read(backend_setup_file or DEFAULT_CONF_FILE, DEFAULT_CONF)
+    config.prepare_folders(conf, 'content_storage_dir')
     conf.update({
         'objstorage': ObjStorage(conf['content_storage_dir'],
                                  conf['folder_depth'])
