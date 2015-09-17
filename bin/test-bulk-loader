@@ -5,9 +5,39 @@ import sys
 
 import pygit2
 
-from swh.loader.git.git import parse_via_object_list
+from swh.core import config
+from swh.loader.git.git import BulkLoader
+
+DEFAULT_CONFIG = {
+    'db': ('str', 'dbname=softwareheritage-dev'),
+    'storage_base': ('str', '/tmp/swh-loader-git/test'),
+    'repo_path': ('str', None),
+
+    'origin': ('int', -1),
+    'authority': ('int', 1),
+    'validity': ('str', '2015-01-01 00:00:00+00'),
+
+    'create_origin': ('bool', True),
+    'send_contents': ('bool', True),
+    'send_directories': ('bool', True),
+    'send_revisions': ('bool', True),
+    'send_releases': ('bool', True),
+    'send_occurrences': ('bool', True),
+
+    'content_packet_size': ('int', 100000),
+    'directory_packet_size': ('int', 25000),
+    'revision_packet_size': ('int', 100000),
+    'release_packet_size': ('int', 100000),
+    'occurrence_packet_size': ('int', 100000),
+}
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(message)s')
 
-parse_via_object_list(pygit2.discover_repository(sys.argv[1]))
+my_config = {key: value for key, (type, value) in DEFAULT_CONFIG.items()}
+
+repo_path = pygit2.discover_repository(sys.argv[1])
+my_config['repo_path'] = repo_path
+
+loader = BulkLoader(my_config)
+loader.process()
