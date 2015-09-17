@@ -255,9 +255,36 @@ def commit_to_revision(repo, id):
 
 def annotated_tag_to_release(repo, id):
     """Format an annotated tag as a release"""
-    # TODO: format annotated tags
+    tag = repo[id]
+
+    tag_pointer = repo[tag.target]
+    if tag_pointer.type != GIT_OBJ_COMMIT:
+        logging.warn("Ignoring tag %s pointing at %s %s" % (
+            tag.id.hex, tag_pointer.__class__.__name__, tag_pointer.id.hex))
+        return
+
+    author = tag.tagger
+
+    if not author:
+        logging.warn("Tag %s has no author, using default values" % id.hex)
+        author_name = ''
+        author_email = ''
+        date = None
+        date_offset = 0
+    else:
+        author_name = author.name
+        author_email = author.email
+        date = format_date(author)
+        date_offset = author.offset
+
     return {
-        'id': id,
+        'id': id.raw,
+        'date': date,
+        'date_offset': date_offset,
+        'revision': tag.target.raw,
+        'comment': tag.message.encode('utf-8'),
+        'author_name': author_name,
+        'author_email': author_email,
     }
 
 
