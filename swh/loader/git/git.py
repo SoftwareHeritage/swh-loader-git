@@ -319,7 +319,7 @@ def bulk_send_commits(repo, commit_dict):
 
     """
     # TODO: move to config file
-    revision_packet_size = 10000
+    revision_packet_size = 100000
 
     send_in_packets(repo, commit_dict, commit_to_revision, send_revisions, revision_packet_size)
 
@@ -330,7 +330,7 @@ def bulk_send_annotated_tags(repo, tag_dict):
 
     """
     # TODO: move to config file
-    release_packet_size = 10000
+    release_packet_size = 100000
 
     send_in_packets(repo, tag_dict, annotated_tag_to_release, send_releases, release_packet_size)
 
