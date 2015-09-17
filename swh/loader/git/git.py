@@ -125,24 +125,22 @@ def get_objects_per_object_type(repo):
 HASH_ALGORITHMS = ['sha1', 'sha256']
 
 
-def send_in_packets(repo, source_list, formatter, sender, packet_size, extra_data=None):
+def send_in_packets(repo, source_list, formatter, sender, packet_size):
     """Send objects from `source_list`, passed through `formatter` (being
-    passed the `repo` and `extra_data`), by the `sender`, in packets
+    passed the `repo`), by the `sender`, in packets
     of `packet_size` objects
 
     """
+    formatted_objects = []
+    for obj in source_list:
+        formatted_object = formatter(repo, obj)
+        if formatted_object:
+            formatted_objects.append(formatted_object)
+        if len(formatted_objects) >= packet_size:
+            sender(formatted_objects)
+            formatted_objects = []
 
-    if extra_data is None:
-        extra_data = {}
-
-    objects = []
-    for id in source_list:
-        objects.append(formatter(repo, id, **extra_data))
-        if len(objects) >= packet_size:
-            sender(objects)
-            objects = []
-
-    sender(objects)
+    sender(formatted_objects)
 
 
 def send_contents(content_list):
@@ -156,7 +154,6 @@ def send_contents(content_list):
 
 def send_directories(directory_list):
     """Actually send properly formatted directories to the database"""
-    # TODO: send directories
     logging.info("Sending %d directories" % len(directory_list))
     s = Storage('dbname=softwareheritage-dev', '/tmp/swh-loader-git/test')
 
@@ -176,8 +173,19 @@ def send_revisions(revision_list):
 def send_releases(release_list):
     """Actually send properly formatted releases to the database"""
     logging.info("Sending %d releases" % len(release_list))
-    # TODO: send releases
+    s = Storage('dbname=softwareheritage-dev', '/tmp/swh-loader-git/test')
+
+    s.release_add(release_list)
     logging.info("Done sending %d releases" % len(release_list))
+
+
+def send_occurrences(occurrence_list):
+    """Actually send properly formatted occurrences to the database"""
+    logging.info("Sending %d occurrences" % len(occurrence_list))
+    s = Storage('dbname=softwareheritage-dev', '/tmp/swh-loader-git/test')
+
+    s.occurrence_add(occurrence_list)
+    logging.info("Done sending %d occurrences" % len(occurrence_list))
 
 
 def blob_to_content(repo, id):
@@ -253,12 +261,9 @@ def annotated_tag_to_release(repo, id):
     }
 
 
-def unannotated_tag_to_release(repo, id):
-    """Format an unannotated tag as a release"""
-    # TODO: format unannotated tags
-    return {
-        'id': id,
-    }
+def ref_to_occurrence(repo, ref):
+    """Format a reference as an occurrence"""
+    return ref
 
 
 def bulk_send_blobs(repo, blob_dict):
@@ -303,19 +308,14 @@ def bulk_send_annotated_tags(repo, tag_dict):
     send_in_packets(repo, tag_dict, annotated_tag_to_release, send_releases, release_packet_size)
 
 
-def bulk_send_unannotated_tags(repo, tag_dict, commit_dict):
-    """Format unannotated tags (strings) as swh releases and send
-    them to the database
-
+def bulk_send_refs(repo, refs):
+    """Format git references as swh occurrences and send them to the database
     """
     # TODO: move to config file
-    release_packet_size = 10000
+    occurrence_packet_size = 100000
 
-    extra_data = {
-        'commits': commit_dict,
-    }
-    send_in_packets(repo, tag_dict, unannotated_tag_to_release,
-                    send_releases, release_packet_size, extra_data)
+    send_in_packets(repo, refs, ref_to_occurrence,
+                    send_occurrences, occurrence_packet_size)
 
 
 def parse_via_object_list(repo_path):
@@ -323,22 +323,44 @@ def parse_via_object_list(repo_path):
     repo = pygit2.Repository(repo_path)
     objects_per_object_type = get_objects_per_object_type(repo)
 
+    refs = []
+    ref_names = repo.listall_references()
+    for ref_name in ref_names:
+        ref = repo.lookup_reference(ref_name)
+        target = ref.target
+
+        if not isinstance(target, Oid):
+            logging.info("Skipping symbolic ref %s pointing at %s" % (
+                ref_name, ref.target))
+            continue
+
+        target_obj = repo[target]
+
+        if not target_obj.type == GIT_OBJ_COMMIT:
+            logging.info("Skipping ref %s pointing to %s %s" % (
+                ref_name, target_obj.__class__.__name__, target.hex))
+
+        refs.append({
+            'name': ref_name,
+            'revision': target.hex,
+        })
+
     logging.info("Done listing the objects in %s: will load %d contents, "
-                 "%d directories, %d revisions, %d releases" % (
+                 "%d directories, %d revisions, %d releases, "
+                 "%d occurrences" % (
                      repo_path,
                      len(objects_per_object_type[GIT_OBJ_BLOB]),
                      len(objects_per_object_type[GIT_OBJ_TREE]),
                      len(objects_per_object_type[GIT_OBJ_COMMIT]),
-                     len(objects_per_object_type[GIT_OBJ_TAG])))
+                     len(objects_per_object_type[GIT_OBJ_TAG]),
+                     len(refs)
+                 ))
 
     bulk_send_blobs(repo, objects_per_object_type[GIT_OBJ_BLOB])
     bulk_send_trees(repo, objects_per_object_type[GIT_OBJ_TREE])
     bulk_send_commits(repo, objects_per_object_type[GIT_OBJ_COMMIT])
     bulk_send_annotated_tags(repo, objects_per_object_type[GIT_OBJ_TAG])
-    # TODO: send unannotated tags
-    bulk_send_unannotated_tags(repo, [], objects_per_object_type[GIT_OBJ_COMMIT])
-
-    return objects_per_object_type, {type: len(list) for type, list in objects_per_object_type.items()}
+    bulk_send_refs(repo, refs)
 
 def parse(repo_path):
     """Given a repository path, parse and return a memory model of such
