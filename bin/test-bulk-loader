@@ -34,10 +34,7 @@ DEFAULT_CONFIG = {
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(message)s')
 
-my_config = {key: value for key, (type, value) in DEFAULT_CONFIG.items()}
-
-repo_path = pygit2.discover_repository(sys.argv[1])
-my_config['repo_path'] = repo_path
+my_config = config.read(sys.argv[1], DEFAULT_CONFIG)
 
 loader = BulkLoader(my_config)
 loader.process()
