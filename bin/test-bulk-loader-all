@@ -75,6 +75,11 @@ def process_one_repository(base_config, repo_name):
         return
 
     loader = BulkLoader(my_config)
+    origin = loader.get_origin()
+    if origin['id']:
+        logger.info('Repository %s already loaded (origin id=%s), skipping' % (
+            repo_name, origin['id']))
+        return
     loader.process()
 
 
