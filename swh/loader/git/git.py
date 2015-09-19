@@ -123,7 +123,7 @@ class BulkLoader:
 
         self.repo = pygit2.Repository(config['repo_path'])
 
-        self.log = logging
+        self.log = logging.getLogger('swh.loader.git.BulkLoader')
 
     def send_contents(self, content_list):
         """Actually send properly formatted contents to the database"""
