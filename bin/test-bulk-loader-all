@@ -52,7 +52,7 @@ def process_one_repository(base_config, repo_name):
     basepath = my_config['repo_basepath']
 
     my_path = os.path.join(basepath, repo_name[0], repo_name)
-    config['repo_path'] = my_path
+    my_config['repo_path'] = my_path
 
     if not os.path.exists(my_path):
         logger.error('Repository %s does not exist at %s' % (repo_name,
