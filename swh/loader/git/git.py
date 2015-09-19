@@ -262,13 +262,20 @@ class BulkLoader:
 
         return ref
 
-    def create_origin(self):
+    def get_origin(self):
         origin = {
             'type': 'git',
             'url': 'file://%s' % self.config['repo_path'],
         }
 
-        id = self.storage.origin_get(origin)
+        origin['id'] = self.storage.origin_get(origin)
+
+        return origin
+
+    def create_origin(self):
+        origin = self.get_origin()
+        id = origin['id']
+
         if not id:
             id = self.storage.origin_add_one(origin)
 
