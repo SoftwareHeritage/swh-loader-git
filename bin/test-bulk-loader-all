@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
+import datetime
 import logging
+import os
 import sys
 
 import psycopg2
 import psycopg2.extras
-import pygit2
 
 from swh.core import config
 from swh.loader.git.git import BulkLoader
@@ -42,6 +43,7 @@ logging.basicConfig(level=logging.INFO,
 
 base_config = config.read(sys.argv[1], DEFAULT_CONFIG)
 
+
 def process_one_repository(base_config, repo_name):
     my_config = base_config.copy()
 
@@ -63,14 +65,16 @@ def process_one_repository(base_config, repo_name):
         my_config['validity'] = "%s+00" % datetime.datetime.utcfromtimestamp(
             validity_timestamp)
 
-    logging.info('Processing repository %s fetched on %s' % (repo_name,
-                                                             my_config['validity']))
+    logging.info('Processing repository %s fetched on %s' % (
+        repo_name,
+        my_config['validity']))
 
     if my_config['dry_run']:
         return
 
     loader = BulkLoader(my_config)
     loader.process()
+
 
 def list_random_repos(config):
     db = psycopg2.connect(config['lister_db'],
@@ -94,6 +98,7 @@ while True:
             try:
                 process_one_repository(base_config, repo_name)
             except Exception:
-                logging.exception('Failed processing repository %s' % repo_name)
+                logging.exception('Failed processing repository %s' %
+                                  repo_name)
             finally:
                 processed_repos.add(repo_name)
