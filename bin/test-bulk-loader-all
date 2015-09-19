@@ -42,7 +42,7 @@ logging.basicConfig(level=logging.INFO,
 
 base_config = config.read(sys.argv[1], DEFAULT_CONFIG)
 
-def process_one_repository(repo_name):
+def process_one_repository(base_config, repo_name):
     my_config = base_config.copy()
 
     basepath = my_config['repo_basepath']
@@ -88,11 +88,11 @@ def list_random_repos(config):
 processed_repos = set()
 
 while True:
-    for repo in list_random_repos():
+    for repo in list_random_repos(base_config):
         repo_name = repo.full_name
         if repo_name not in processed_repos:
             try:
-                process_one_repository(repo_name)
+                process_one_repository(base_config, repo_name)
             except Exception:
                 logging.exception('Failed processing repository %s' % repo_name)
             finally:
