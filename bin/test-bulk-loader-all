@@ -67,7 +67,7 @@ def process_one_repository(base_config, repo_name):
         my_config['validity'] = "%s+00" % datetime.datetime.utcfromtimestamp(
             validity_timestamp)
 
-    logging.info('Processing repository %s fetched on %s' % (
+    logger.info('Processing repository %s fetched on %s' % (
         repo_name,
         my_config['validity']))
 
@@ -109,6 +109,6 @@ while True:
                 process_one_repository(base_config, repo_name)
             except Exception:
                 logger.exception('Failed processing repository %s' %
-                                  repo_name)
+                                 repo_name)
             finally:
                 processed_repos.add(repo_name)
