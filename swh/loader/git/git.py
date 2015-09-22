@@ -372,6 +372,10 @@ class BulkLoader:
             self.log.info('Not creating origin, pulling id from config')
             self.origin = self.config['origin']
 
+        if not self.objects['refs']:
+            self.log.info('Skipping empty repository')
+            return
+
         if self.config['send_contents']:
             self.bulk_send_blobs(self.objects[GIT_OBJ_BLOB])
         else:
