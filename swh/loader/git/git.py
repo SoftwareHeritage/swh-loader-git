@@ -16,7 +16,6 @@ from pygit2 import Oid
 from pygit2 import GIT_OBJ_BLOB, GIT_OBJ_TREE, GIT_OBJ_COMMIT, GIT_OBJ_TAG
 
 from swh.core import hashutil
-from swh.storage.storage import Storage
 
 
 def format_date(signature):
@@ -117,9 +116,15 @@ def send_in_packets(source_list, formatter, sender, packet_size):
 
 class BulkLoader:
     """A bulk loader for a git repository"""
-    def __init__(self, config, storage_class=Storage):
+    def __init__(self, config):
         self.config = config
-        self.storage = storage_class(config['db'], config['storage_base'])
+
+        if self.config['storage_class'] == 'remote_storage':
+            from swh.storage.remote_storage import RemoteStorage as Storage
+        else:
+            from swh.storage import Storage
+
+        self.storage = Storage(*self.config['storage_args'])
 
         self.repo = pygit2.Repository(config['repo_path'])
 

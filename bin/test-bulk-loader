@@ -9,8 +9,8 @@ from swh.core import config
 from swh.loader.git.git import BulkLoader
 
 DEFAULT_CONFIG = {
-    'db': ('str', 'dbname=softwareheritage-dev'),
-    'storage_base': ('str', '/tmp/swh-loader-git/test'),
+    'storage_args': ('list[str]', ['http://localhost:5000/']),
+    'storage_class': ('str', 'remote_storage'),
     'repo_path': ('str', None),
 
     'origin': ('int', -1),
