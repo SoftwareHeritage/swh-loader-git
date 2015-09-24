@@ -25,8 +25,9 @@ Runtime
 -------
 
 -   python3
--   python3-psycopg2
 -   python3-pygit2
+-   python3-swh.core
+-   python3-swh.storage
 
 Test
 ----
@@ -39,183 +40,67 @@ Requirements
 -   implementation language, Python3
 -   coding guidelines: conform to PEP8
 -   Git access: via libgit2/pygit
--   cache: implemented as Postgres tables
 
 Configuration
 =============
 
-swh-loader-git depends on some tools, here are the configuration files
-for those:
+bin/swh-loader-git takes one argument: a configuration file in .ini format.
 
-swh-db-manager
---------------
+The configuration file contains the following directives:
 
-This is solely a tool in charge of db cleanup now.
-
-Create a configuration file in **\~/.config/db-manager.ini**
-
-``` {.ini}
+```
 [main]
+# the storage class used. one of remote_storage, local_storage
+storage_class = remote_storage
 
-# Where to store the logs
-log_dir = swh-loader-git/log
+# arguments passed to the storage class
+# for remote_storage: URI of the storage server
+storage_args = http://localhost:5000/
 
-# url access to db
-db_url = dbname=swhgitloader
+# for local_storage: database connection string and root of the
+# storage, comma separated
+# storage_args = dbname=softwareheritage-dev, /tmp/swh/storage
+
+# The path to the repository to load
+repo_path = /tmp/git_repo
+
+# The ID of the origin for the repo (used if create_origin = False)
+# origin = 1
+
+# The ID of the authority that dated the validity of the repo
+authority = 1
+
+# The validity date of the refs in the given repo, in Postgres
+# timestamptz format
+validity = 2015-01-01 00:00:00+00
+
+# Whether to send the given types of objects
+create_origin = True
+send_contents = True
+send_directories = True
+send_revisions = True
+send_releases = True
+send_occurrences = True
+
+# The size of the packets sent to storage for each kind of object
+content_packet_size = 100000
+directory_packet_size = 25000
+revision_packet_size = 100000
+release_packet_size = 100000
+occurrence_packet_size = 100000
 ```
 
-See <http://initd.org/psycopg/docs/module.html#psycopg2.connect> for the
-db url's schema
+bin/swh-loader-git-multi takes the same arguments, and adds:
 
-swh-loader-git
---------------
-
-Create a configuration file in **\~/.config/swh/loader-git.ini**:
-
-``` {.ini}
+```
 [main]
-# Where to store the logs
-log_dir = /tmp/swh-loader-git/log
+# database connection string to the lister-github database
+lister_db = dbname=lister-github
 
-# how to access the backend (remote or local)
-backend-type = remote
+# base path of the github repositories
+repo_basepath = /srv/storage/space/data/github
 
-# backend-type remote: url access to api rest's backend
-# backend-type local: configuration file to backend file .ini (cf. back.ini file)
-backend = http://localhost:5000
-```
+# Whether to run the mass loading or just list the repos
+dry_run = False
 
-Note:
--   [DB url
-    DSL](http://initd.org/psycopg/docs/module.html#psycopg2.connect)
--   the configuration file can be changed in the CLI with the flag \`-c
-    \<config-filepath\>\` or \`--config-file \<config-filepath\>\`
-
-swh-backend
------------
-
-Backend api. This
-
-Create a configuration file in **\~/.config/swh/back.ini**:
-
-``` {.ini}
-[main]
-
-# where to store blob on disk
-content_storage_dir = /tmp/swh-loader-git/content-storage
-
-# Where to store the logs
-log_dir = swh-loader-git/log
-
-# url access to db: dbname=<host> (host=<host> port=<port> user=<user> password=<pass>)
-db_url = dbname=swhgitloader
-
-# compute folder's depth on disk aa/bb/cc/dd
-# folder_depth = 2
-
-# To open to the world, 0.0.0.0
-#host = 127.0.0.1
-
-# Debugger (for dev only)
-debug = true
-
-# server port to listen to requests
-port = 6000
-```
-
-See <http://initd.org/psycopg/docs/module.html#psycopg2.connect> for the
-db url's schema
-
-Run
-===
-
-Environment initialization
---------------------------
-
-``` {.bash}
-export PYTHONPATH=`pwd`:$PYTHONPATH
-```
-
-Backend
--------
-
-### With initialization
-
-This depends on swh-sql repository, so:
-
-``` {.bash}
-cd /path/to/swh-sql && make clean initdb DBNAME=softwareheritage-dev
-```
-
-Using the Makefile eases:
-
-``` {.bash}
-make drop-db create-db run-back FOLLOW_LOG=-f
-```
-
-### without initialization
-
-Running the backend.
-
-``` {.bash}
-./bin/swh-backend -v
-```
-
-With makefile:
-
-``` {.bash}
-make run-back FOLLOW_LOG=-f
-```
-
-Help
-----
-
-``` {.bash}
-bin/swh-loader-git --help
-bin/swh-db-manager --help
-```
-
-Parse a repository from a clean slate
--------------------------------------
-
-Clean and initialize the model then parse the repository git:
-
-``` {.bash}
-bin/swh-db-manager cleandb
-bin/swh-loader-git load /path/to/git/repo
-```
-
-For ease:
-
-``` {.bash}
-time make cleandb run REPO_PATH=~/work/inria/repo/swh-git-cloner
-```
-
-Parse an existing repository
-----------------------------
-
-``` {.bash}
-bin/swh-loader-git load /path/to/git/repo
-```
-
-Clean data
-----------
-
-This will truncate the relevant table in the schema
-
-``` {.bash}
-bin/swh-db-manager cleandb
-```
-
-For ease:
-
-``` {.bash}
-make cleandb
-```
-
-Init data
----------
-
-``` {.bash}
-make drop-db create-db
 ```
