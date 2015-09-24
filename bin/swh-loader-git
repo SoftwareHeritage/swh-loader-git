@@ -1,68 +1,40 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2015  The Software Heritage developers
-# See the AUTHORS file at the top-level directory of this distribution
-# License: GNU General Public License version 3, or any later version
-# See top-level LICENSE file for more information
-
-
-import argparse
 import logging
-import os
+import sys
+
+import pygit2
 
 from swh.core import config
-from swh.loader.git import loader
+from swh.loader.git.git import BulkLoader
 
+DEFAULT_CONFIG = {
+    'storage_args': ('list[str]', ['http://localhost:5000/']),
+    'storage_class': ('str', 'remote_storage'),
+    'repo_path': ('str', None),
 
-# Default configuration file
-DEFAULT_CONF_FILE = '~/.config/swh/loader-git.ini'
+    'origin': ('int', -1),
+    'authority': ('int', 1),
+    'validity': ('str', '2015-01-01 00:00:00+00'),
 
+    'create_origin': ('bool', True),
+    'send_contents': ('bool', True),
+    'send_directories': ('bool', True),
+    'send_revisions': ('bool', True),
+    'send_releases': ('bool', True),
+    'send_occurrences': ('bool', True),
 
-# default configuration (can be overriden by the DEFAULT_CONF_FILE)
-DEFAULT_CONF = {
-    'log_dir':      ('string', '/tmp/swh-loader-git/log'),
-    'backend-type': ('string', 'remote'),
-    'backend':      ('string', 'http://localhost:5000'),
+    'content_packet_size': ('int', 100000),
+    'directory_packet_size': ('int', 25000),
+    'revision_packet_size': ('int', 100000),
+    'release_packet_size': ('int', 100000),
+    'occurrence_packet_size': ('int', 100000),
 }
 
-# Another example of configuration:
-# DEFAULT_CONF = {
-#     'log_dir':      ('string', '/tmp/swh-loader-git/log'),
-#     'backend-type': ('string', 'local'),
-#     'backend':      ('string', '~/.config/swh/back.ini'),
-# }
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s %(message)s')
 
+my_config = config.read(sys.argv[1], DEFAULT_CONFIG)
 
-def parse_args():
-    """Parse the CLI arguments.
-    """
-    cli = argparse.ArgumentParser(
-        description='Parse git repository objects to load them into DB.')
-    cli.add_argument('--verbose', '-v', action='store_true',
-                     help='Verbosity level in log file.')
-    cli.add_argument('--config', '-c', help='configuration file path')
-
-    subcli = cli.add_subparsers(dest='action')
-
-    load_cli = subcli.add_parser('load', help='load Git repo into DB')
-    load_cli.add_argument('repository', help='Git repository path')
-
-    args = cli.parse_args()
-    if not args.action:
-        cli.error('no action given')
-
-    return args
-
-
-if __name__ == '__main__':
-    args = parse_args()
-    conf = config.read(args.config or DEFAULT_CONF_FILE, DEFAULT_CONF)
-    config.prepare_folders(conf, 'log_dir')
-
-    conf['action'] = args.action
-    conf['repo_path'] = args.repository
-
-    logging.basicConfig(filename=os.path.join(conf['log_dir'], 'sgloader.log'),
-                        level=logging.DEBUG if args.verbose else logging.INFO)
-
-    loader.load(conf)
+loader = BulkLoader(my_config)
+loader.process()

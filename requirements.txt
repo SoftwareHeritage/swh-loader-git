@@ -1,6 +1,0 @@
-pygit2
-psycopg2
-flask
-requests
-retrying
-vcversioner
