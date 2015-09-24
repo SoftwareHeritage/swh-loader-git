@@ -30,7 +30,7 @@ DEFAULT_CONFIG = {
 }
 
 logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s %(message)s')
+                    format='%(asctime)s %(name)s %(levelname)s %(message)s')
 
 my_config = config.read(sys.argv[1], DEFAULT_CONFIG)
 
