@@ -35,4 +35,7 @@ logging.basicConfig(level=logging.INFO,
 my_config = config.read(sys.argv[1], DEFAULT_CONFIG)
 
 loader = BulkLoader(my_config)
-loader.process()
+loader.process(my_config['repo_path'],
+               my_config['origin'],
+               my_config['authority'],
+               my_config['validity'])
