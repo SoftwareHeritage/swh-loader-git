@@ -9,7 +9,7 @@ import psycopg2
 import psycopg2.extras
 
 from swh.core import config
-from swh.loader.git.git import BulkLoader
+from swh.loader.git import BulkLoader
 
 DEFAULT_CONFIG = {
     'lister_db': ('str', 'dbname=lister-github'),

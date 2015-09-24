@@ -1,1 +1,1 @@
-# placeholder
+from .loader import BulkLoader  # noqa

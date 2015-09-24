@@ -4,7 +4,7 @@ import logging
 import sys
 
 from swh.core import config
-from swh.loader.git.git import BulkLoader
+from swh.loader.git import BulkLoader
 
 DEFAULT_CONFIG = {
     'storage_args': ('list[str]', ['http://localhost:5000/']),
