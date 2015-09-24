@@ -3,8 +3,6 @@
 import logging
 import sys
 
-import pygit2
-
 from swh.core import config
 from swh.loader.git.git import BulkLoader
 
