@@ -8,21 +8,20 @@ import logging
 import pygit2
 from pygit2 import Oid, GIT_OBJ_BLOB, GIT_OBJ_TREE, GIT_OBJ_COMMIT, GIT_OBJ_TAG
 
-from swh.core import hashutil
-
-from .utils import format_date, get_objects_per_object_type
-
-HASH_ALGORITHMS = ['sha1', 'sha256']
+from . import converters
+from .utils import get_objects_per_object_type
 
 
-def send_in_packets(repo, source_list, formatter, sender, packet_size):
-    """Send objects from `source_list`, passed through `formatter`, by the
-    `sender`, in packets of `packet_size` objects
+def send_in_packets(source_list, formatter, sender, packet_size,
+                    *args, **kwargs):
+    """Send objects from `source_list`, passed through `formatter` (with
+    extra args *args, **kwargs), using the `sender`, in packets of
+    `packet_size` objects
 
     """
     formatted_objects = []
     for obj in source_list:
-        formatted_object = formatter(repo, obj)
+        formatted_object = formatter(obj, *args, **kwargs)
         if formatted_object:
             formatted_objects.append(formatted_object)
         if len(formatted_objects) >= packet_size:
@@ -76,116 +75,8 @@ class BulkLoader:
         self.storage.occurrence_add(occurrence_list)
         self.log.info("Done sending %d occurrences" % len(occurrence_list))
 
-    def blob_to_content(self, repo, id):
-        """Format a blob as a content"""
-        blob = repo[id]
-        data = blob.data
-        hashes = hashutil.hashdata(data, HASH_ALGORITHMS)
-        return {
-            'sha1_git': id.raw,
-            'sha1': hashes['sha1'],
-            'sha256': hashes['sha256'],
-            'data': data,
-            'length': blob.size,
-        }
-
-    def tree_to_directory(self, repo, id):
-        """Format a tree as a directory"""
-        ret = {
-            'id': id.raw,
-        }
-        entries = []
-        ret['entries'] = entries
-
-        entry_type_map = {
-            'tree': 'dir',
-            'blob': 'file',
-            'commit': 'rev',
-        }
-
-        for entry in repo[id]:
-            entries.append({
-                'type': entry_type_map[entry.type],
-                'perms': entry.filemode,
-                'name': entry.name,
-                'target': entry.id.raw,
-                'atime': None,
-                'mtime': None,
-                'ctime': None,
-            })
-
-        return ret
-
-    def commit_to_revision(self, repo, id):
-        """Format a commit as a revision"""
-        commit = repo[id]
-
-        author = commit.author
-        committer = commit.committer
-        return {
-            'id': id.raw,
-            'date': format_date(author),
-            'date_offset': author.offset,
-            'committer_date': format_date(committer),
-            'committer_date_offset': committer.offset,
-            'type': 'git',
-            'directory': commit.tree_id.raw,
-            'message': commit.raw_message,
-            'author_name': author.name,
-            'author_email': author.email,
-            'committer_name': committer.name,
-            'committer_email': committer.email,
-            'parents': [p.raw for p in commit.parent_ids],
-        }
-
-    def annotated_tag_to_release(self, repo, id):
-        """Format an annotated tag as a release"""
-        tag = repo[id]
-
-        tag_pointer = repo[tag.target]
-        if tag_pointer.type != GIT_OBJ_COMMIT:
-            self.log.warn("Ignoring tag %s pointing at %s %s" % (
-                tag.id.hex, tag_pointer.__class__.__name__,
-                tag_pointer.id.hex))
-            return
-
-        author = tag.tagger
-
-        if not author:
-            self.log.warn("Tag %s has no author, using default values"
-                          % id.hex)
-            author_name = ''
-            author_email = ''
-            date = None
-            date_offset = 0
-        else:
-            author_name = author.name
-            author_email = author.email
-            date = format_date(author)
-            date_offset = author.offset
-
-        return {
-            'id': id.raw,
-            'date': date,
-            'date_offset': date_offset,
-            'revision': tag.target.raw,
-            'comment': tag.message.encode('utf-8'),
-            'author_name': author_name,
-            'author_email': author_email,
-        }
-
-    def ref_to_occurrence(self, repo, ref):
-        """Format a reference as an occurrence"""
-        return ref
-
-    def get_origin(self, repo):
-        return {
-            'type': 'git',
-            'url': 'file://%s' % repo.path,
-        }
-
     def get_or_create_origin(self, repo):
-        origin = self.get_origin(repo)
+        origin = converters.repo_to_origin(repo)
 
         origin['id'] = self.storage.origin_add_one(origin)
 
@@ -197,7 +88,7 @@ class BulkLoader:
             return self.get_or_create_origin(repo)
         else:
             self.log.info('Not creating origin, pulling id from config')
-            origin = self.get_origin(repo)
+            origin = converters.repo_to_origin(repo)
             origin['id'] = origin_id
             return origin
 
@@ -205,22 +96,25 @@ class BulkLoader:
         """Format blobs as swh contents and send them to the database"""
         packet_size = self.config['content_packet_size']
 
-        send_in_packets(repo, blobs, self.blob_to_content,
-                        self.send_contents, packet_size)
+        send_in_packets(blobs, converters.blob_to_content,
+                        self.send_contents, packet_size, repo=repo,
+                        log=self.log)
 
     def bulk_send_trees(self, repo, trees):
         """Format trees as swh directories and send them to the database"""
         packet_size = self.config['directory_packet_size']
 
-        send_in_packets(repo, trees, self.tree_to_directory,
-                        self.send_directories, packet_size)
+        send_in_packets(trees, converters.tree_to_directory,
+                        self.send_directories, packet_size, repo=repo,
+                        log=self.log)
 
     def bulk_send_commits(self, repo, commits):
         """Format commits as swh revisions and send them to the database"""
         packet_size = self.config['revision_packet_size']
 
-        send_in_packets(repo, commits, self.commit_to_revision,
-                        self.send_revisions, packet_size)
+        send_in_packets(commits, converters.commit_to_revision,
+                        self.send_revisions, packet_size, repo=repo,
+                        log=self.log)
 
     def bulk_send_annotated_tags(self, repo, tags):
         """Format annotated tags (pygit2.Tag objects) as swh releases and send
@@ -228,8 +122,9 @@ class BulkLoader:
         """
         packet_size = self.config['release_packet_size']
 
-        send_in_packets(repo, tags, self.annotated_tag_to_release,
-                        self.send_releases, packet_size)
+        send_in_packets(tags, converters.annotated_tag_to_release,
+                        self.send_releases, packet_size, repo=repo,
+                        log=self.log)
 
     def bulk_send_refs(self, repo, refs):
         """Format git references as swh occurrences and send them to the
@@ -237,7 +132,7 @@ class BulkLoader:
         """
         packet_size = self.config['occurrence_packet_size']
 
-        send_in_packets(repo, refs, self.ref_to_occurrence,
+        send_in_packets(refs, converters.ref_to_occurrence,
                         self.send_occurrences, packet_size)
 
     def list_repo_refs(self, repo, origin_id, authority_id, validity):
