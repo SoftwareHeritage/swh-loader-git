@@ -64,8 +64,8 @@ storage_args = http://localhost:5000/
 # The path to the repository to load
 repo_path = /tmp/git_repo
 
-# The ID of the origin for the repo (used if create_origin = False)
-# origin = 1
+# The URL of the origin for the repo
+origin_url = https://github.com/hylang/hy
 
 # The ID of the authority that dated the validity of the repo
 authority = 1
@@ -75,7 +75,6 @@ authority = 1
 validity = 2015-01-01 00:00:00+00
 
 # Whether to send the given types of objects
-create_origin = True
 send_contents = True
 send_directories = True
 send_revisions = True

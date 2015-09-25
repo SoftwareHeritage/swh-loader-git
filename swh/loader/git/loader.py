@@ -75,22 +75,16 @@ class BulkLoader:
         self.storage.occurrence_add(occurrence_list)
         self.log.info("Done sending %d occurrences" % len(occurrence_list))
 
-    def get_or_create_origin(self, repo):
-        origin = converters.repo_to_origin(repo)
+    def get_or_create_origin(self, origin_url):
+        origin = converters.origin_url_to_origin(origin_url)
 
         origin['id'] = self.storage.origin_add_one(origin)
 
         return origin
 
-    def repo_origin(self, repo, origin_id):
-        if self.config['create_origin']:
-            self.log.info('Creating origin')
-            return self.get_or_create_origin(repo)
-        else:
-            self.log.info('Not creating origin, pulling id from config')
-            origin = converters.repo_to_origin(repo)
-            origin['id'] = origin_id
-            return origin
+    def repo_origin(self, repo, origin_url):
+        self.log.info('Creating origin')
+        return self.get_or_create_origin(origin_url)
 
     def bulk_send_blobs(self, repo, blobs):
         """Format blobs as swh contents and send them to the database"""
@@ -245,12 +239,12 @@ class BulkLoader:
         else:
             self.log.info('Not sending occurrences')
 
-    def process(self, repo_path, origin_id, authority_id, validity):
+    def process(self, repo_path, origin_url, authority_id, validity):
         # Open repository
         repo = self.open_repo(repo_path)
 
         # Add origin to storage if needed, use the one from config if not
-        origin = self.repo_origin(repo, origin_id)
+        origin = self.repo_origin(repo, origin_url)
 
         # Parse all the refs from our repo
         refs = self.list_repo_refs(repo, origin['id'], authority_id,

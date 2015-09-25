@@ -123,9 +123,9 @@ def ref_to_occurrence(ref):
     return ref
 
 
-def repo_to_origin(repo):
+def origin_url_to_origin(origin_url):
     """Format a pygit2.Repository as an origin suitable for swh.storage"""
     return {
         'type': 'git',
-        'url': 'file://%s' % repo.path,
+        'url': origin_url,
     }

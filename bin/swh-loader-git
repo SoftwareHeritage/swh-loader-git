@@ -11,11 +11,10 @@ DEFAULT_CONFIG = {
     'storage_class': ('str', 'remote_storage'),
     'repo_path': ('str', None),
 
-    'origin': ('int', -1),
+    'origin_url': ('str', 'file:///dev/null'),
     'authority': ('int', 1),
     'validity': ('str', '2015-01-01 00:00:00+00'),
 
-    'create_origin': ('bool', True),
     'send_contents': ('bool', True),
     'send_directories': ('bool', True),
     'send_revisions': ('bool', True),
@@ -36,6 +35,6 @@ my_config = config.read(sys.argv[1], DEFAULT_CONFIG)
 
 loader = BulkLoader(my_config)
 loader.process(my_config['repo_path'],
-               my_config['origin'],
+               my_config['origin_url'],
                my_config['authority'],
                my_config['validity'])
