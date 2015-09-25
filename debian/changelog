@@ -1,5 +1,6 @@
-swh-loader-git (0.0.1-1) unstable; urgency=low
+swh-loader-git (0.0.1-1~swh1) unstable-swh; urgency=medium
 
-  * Import initial source package.
+  * Initial release
+  * Tagging swh.loader.git v0.0.1
 
- -- Nicolas Dandrimont <nicolas@dandrimont.eu>  Fri, 25 Sep 2015 15:55:09 +0200
+ -- Nicolas Dandrimont <nicolas@dandrimont.eu>  Fri, 25 Sep 2015 16:04:00 +0200
