@@ -33,7 +33,7 @@ def send_in_packets(source_list, formatter, sender, packet_size,
     sender(formatted_objects)
 
 
-class BulkLoader:
+class BulkLoader(config.SWHConfig):
     """A bulk loader for a git repository"""
 
     DEFAULT_CONFIG = {
@@ -52,14 +52,6 @@ class BulkLoader:
         'release_packet_size': ('int', 100000),
         'occurrence_packet_size': ('int', 100000),
     }
-
-    @classmethod
-    def parse_config_file(cls, config_file, additional_config=None):
-        default_config = cls.DEFAULT_CONFIG.copy()
-        if additional_config:
-            default_config.update(additional_config)
-
-        return config.read(config_file, default_config)
 
     def __init__(self, config):
         self.config = config
