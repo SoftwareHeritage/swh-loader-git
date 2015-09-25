@@ -20,11 +20,10 @@ DEFAULT_CONFIG = {
     'storage_base': ('str', '/tmp/swh-loader-git/test'),
     'repo_path': ('str', None),
 
-    'origin': ('int', -1),
+    'origin_url': ('str', 'file:///dev/null'),
     'authority': ('int', 1),
     'validity': ('str', '2015-01-01 00:00:00+00'),
 
-    'create_origin': ('bool', True),
     'send_contents': ('bool', True),
     'send_directories': ('bool', True),
     'send_revisions': ('bool', True),
@@ -98,6 +97,9 @@ def list_random_repos(config):
     return ret
 
 processed_repos = set()
+
+print('Needs updating for new BulkLoader')
+sys.exit(1)
 
 while True:
     logger.info('listing 0.001% random repos')
