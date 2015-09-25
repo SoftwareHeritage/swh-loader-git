@@ -1,0 +1,20 @@
+Source: swh-loader-git
+Maintainer: Software Heritage developers <swh-devel@inria.fr>
+Section: python
+Priority: optional
+Build-Depends: debhelper (>= 9),
+               dh-python,
+               python3-all,
+               python3-nose,
+	       python3-pygit2,
+               python3-setuptools,
+               python3-swh.core,
+               python3-swh.storage,
+               python3-vcversioner
+Standards-Version: 3.9.6
+Homepage: https://forge.softwareheritage.org/diffusion/DLDG/
+
+Package: python3-swh.loader.git
+Architecture: all
+Depends: ${misc:Depends}, ${python3:Depends}
+Description: Software Heritage Git loader
