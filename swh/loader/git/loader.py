@@ -8,6 +8,8 @@ import logging
 import pygit2
 from pygit2 import Oid, GIT_OBJ_BLOB, GIT_OBJ_TREE, GIT_OBJ_COMMIT, GIT_OBJ_TAG
 
+from swh.core import config
+
 from . import converters
 from .utils import get_objects_per_object_type
 
@@ -33,6 +35,32 @@ def send_in_packets(source_list, formatter, sender, packet_size,
 
 class BulkLoader:
     """A bulk loader for a git repository"""
+
+    DEFAULT_CONFIG = {
+        'storage_class': ('str', 'remote_storage'),
+        'storage_args': ('list[str]', ['http://localhost:5000/']),
+
+        'send_contents': ('bool', True),
+        'send_directories': ('bool', True),
+        'send_revisions': ('bool', True),
+        'send_releases': ('bool', True),
+        'send_occurrences': ('bool', True),
+
+        'content_packet_size': ('int', 10000),
+        'directory_packet_size': ('int', 25000),
+        'revision_packet_size': ('int', 100000),
+        'release_packet_size': ('int', 100000),
+        'occurrence_packet_size': ('int', 100000),
+    }
+
+    @classmethod
+    def parse_config_file(cls, config_file, additional_config=None):
+        default_config = cls.DEFAULT_CONFIG.copy()
+        if additional_config:
+            default_config.update(additional_config)
+
+        return config.read(config_file, default_config)
+
     def __init__(self, config):
         self.config = config
 

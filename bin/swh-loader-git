@@ -3,35 +3,20 @@
 import logging
 import sys
 
-from swh.core import config
 from swh.loader.git import BulkLoader
 
-DEFAULT_CONFIG = {
-    'storage_args': ('list[str]', ['http://localhost:5000/']),
-    'storage_class': ('str', 'remote_storage'),
+ADDITIONAL_CONFIG = {
     'repo_path': ('str', None),
 
     'origin_url': ('str', 'file:///dev/null'),
     'authority': ('int', 1),
     'validity': ('str', '2015-01-01 00:00:00+00'),
-
-    'send_contents': ('bool', True),
-    'send_directories': ('bool', True),
-    'send_revisions': ('bool', True),
-    'send_releases': ('bool', True),
-    'send_occurrences': ('bool', True),
-
-    'content_packet_size': ('int', 100000),
-    'directory_packet_size': ('int', 25000),
-    'revision_packet_size': ('int', 100000),
-    'release_packet_size': ('int', 100000),
-    'occurrence_packet_size': ('int', 100000),
 }
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(name)s %(levelname)s %(message)s')
 
-my_config = config.read(sys.argv[1], DEFAULT_CONFIG)
+my_config = BulkLoader.parse_config_file(sys.argv[1], ADDITIONAL_CONFIG)
 
 loader = BulkLoader(my_config)
 loader.process(my_config['repo_path'],
