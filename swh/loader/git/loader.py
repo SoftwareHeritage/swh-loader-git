@@ -15,20 +15,28 @@ from .utils import get_objects_per_object_type
 
 
 def send_in_packets(source_list, formatter, sender, packet_size,
-                    *args, **kwargs):
+                    packet_size_bytes=None, *args, **kwargs):
     """Send objects from `source_list`, passed through `formatter` (with
     extra args *args, **kwargs), using the `sender`, in packets of
-    `packet_size` objects
+    `packet_size` objects (and of max `packet_size_bytes`).
 
     """
     formatted_objects = []
+    count = 0
+    if not packet_size_bytes:
+        packet_size_bytes = 0
     for obj in source_list:
         formatted_object = formatter(obj, *args, **kwargs)
         if formatted_object:
             formatted_objects.append(formatted_object)
-        if len(formatted_objects) >= packet_size:
+        else:
+            continue
+        if packet_size_bytes:
+            count += formatted_object['length']
+        if len(formatted_objects) >= packet_size or count > packet_size_bytes:
             sender(formatted_objects)
             formatted_objects = []
+            count = 0
 
     sender(formatted_objects)
 
@@ -47,6 +55,7 @@ class BulkLoader(config.SWHConfig):
         'send_occurrences': ('bool', True),
 
         'content_packet_size': ('int', 10000),
+        'content_packet_size_bytes': ('int', 1024 * 1024 * 1024),
         'directory_packet_size': ('int', 25000),
         'revision_packet_size': ('int', 100000),
         'release_packet_size': ('int', 100000),
