@@ -115,13 +115,17 @@ class BulkLoader(config.SWHConfig):
         self.log.info('Creating origin')
         return self.get_or_create_origin(origin_url)
 
-    def bulk_send_blobs(self, repo, blobs):
+    def bulk_send_blobs(self, repo, blobs, origin_id):
         """Format blobs as swh contents and send them to the database"""
         packet_size = self.config['content_packet_size']
+        packet_size_bytes = self.config['content_packet_size_bytes']
+        max_content_size = self.config['content_size_limit']
 
         send_in_packets(blobs, converters.blob_to_content,
                         self.send_contents, packet_size, repo=repo,
-                        log=self.log)
+                        packet_size_bytes=packet_size_bytes,
+                        log=self.log, max_content_size=max_content_size,
+                        origin_id=origin_id)
 
     def bulk_send_trees(self, repo, trees):
         """Format trees as swh directories and send them to the database"""
@@ -241,10 +245,10 @@ class BulkLoader(config.SWHConfig):
     def open_repo(self, repo_path):
         return pygit2.Repository(repo_path)
 
-    def load_repo(self, repo, objects, refs):
+    def load_repo(self, repo, objects, refs, origin_id):
 
         if self.config['send_contents']:
-            self.bulk_send_blobs(repo, objects[GIT_OBJ_BLOB])
+            self.bulk_send_blobs(repo, objects[GIT_OBJ_BLOB], origin_id)
         else:
             self.log.info('Not sending contents')
 
@@ -287,4 +291,4 @@ class BulkLoader(config.SWHConfig):
         objects = self.list_repo_objs(repo)
 
         # Finally, load the repository
-        self.load_repo(repo, objects, refs)
+        self.load_repo(repo, objects, refs, origin['id'])
