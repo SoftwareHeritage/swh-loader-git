@@ -14,18 +14,32 @@ from .utils import format_date
 HASH_ALGORITHMS = ['sha1', 'sha256']
 
 
-def blob_to_content(id, repo, log=None):
+def blob_to_content(id, repo, log=None, max_content_size=None, origin_id=None):
     """Format a blob as a content"""
     blob = repo[id]
+    size = blob.size
+    ret = {
+        'sha1_git': id.raw,
+        'length': blob.size,
+        'status': 'absent'
+    }
+
+    if max_content_size:
+        if size > max_content_size:
+            if log:
+                log.info('Skipping content %s, too large (%s > %s)' %
+                         (id.hex, size, max_content_size))
+            ret['reason'] = 'Content too large'
+            ret['origin'] = origin_id
+            return ret
+
     data = blob.data
     hashes = hashutil.hashdata(data, HASH_ALGORITHMS)
-    return {
-        'sha1_git': id.raw,
-        'sha1': hashes['sha1'],
-        'sha256': hashes['sha256'],
-        'data': data,
-        'length': blob.size,
-    }
+    ret.update(hashes)
+    ret['data'] = data
+    ret['status'] = 'visible'
+
+    return ret
 
 
 def tree_to_directory(id, repo, log=None):

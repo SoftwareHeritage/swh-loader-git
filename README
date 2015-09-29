@@ -83,6 +83,7 @@ send_occurrences = True
 
 # The size of the packets sent to storage for each kind of object
 content_packet_size = 100000
+content_packet_size_bytes = 1073741824
 directory_packet_size = 25000
 revision_packet_size = 100000
 release_packet_size = 100000

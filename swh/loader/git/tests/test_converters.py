@@ -36,9 +36,8 @@ class TestConverters(unittest.TestCase):
         )
 
         git = subprocess.Popen(
-            ['git', 'fast-import'],
+            ['git', 'fast-import', '--quiet'],
             stdin=xz.stdout,
-            stdout=subprocess.PIPE,
             cwd=cls.repo_path,
         )
 
@@ -68,9 +67,25 @@ class TestConverters(unittest.TestCase):
                      b'\turl = https://github.com/githubtraining/'
                      b'example-dependency.git\n'),
             'length': 124,
+            'status': 'visible',
+            }
+
+        self.blob_hidden = {
+            'sha1_git': self.blob_id.raw,
+            'length': 124,
+            'status': 'absent',
+            'reason': 'Content too large',
+            'origin': None,
             }
 
     @istest
     def blob_to_content(self):
         content = converters.blob_to_content(self.blob_id, self.repo)
         self.assertEqual(self.blob, content)
+
+    @istest
+    def blob_to_content_absent(self):
+        max_length = self.blob['length'] - 1
+        content = converters.blob_to_content(self.blob_id, self.repo,
+                                             max_content_size=max_length)
+        self.assertEqual(self.blob_hidden, content)
