@@ -76,6 +76,7 @@ class TestConverters(unittest.TestCase):
             'length': 124,
             'status': 'absent',
             'reason': 'Content too large',
+            'origin': None,
             }
 
     @istest
