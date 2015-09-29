@@ -1,3 +1,4 @@
+.eggs/
 /sgloader/__pycache__/
 /dataset/
 *.pyc
