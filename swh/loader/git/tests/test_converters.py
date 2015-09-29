@@ -36,9 +36,8 @@ class TestConverters(unittest.TestCase):
         )
 
         git = subprocess.Popen(
-            ['git', 'fast-import'],
+            ['git', 'fast-import', '--quiet'],
             stdin=xz.stdout,
-            stdout=subprocess.PIPE,
             cwd=cls.repo_path,
         )
 
