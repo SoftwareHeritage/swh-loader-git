@@ -1,0 +1,4 @@
+pygit2
+swh.core
+swh.storage
+vcversioner
