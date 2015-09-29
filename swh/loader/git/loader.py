@@ -66,7 +66,7 @@ class BulkLoader(config.SWHConfig):
         self.config = config
 
         if self.config['storage_class'] == 'remote_storage':
-            from swh.storage.remote_storage import RemoteStorage as Storage
+            from swh.storage.api.client import RemoteStorage as Storage
         else:
             from swh.storage import Storage
 
