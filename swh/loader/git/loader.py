@@ -4,10 +4,13 @@
 # See top-level LICENSE file for more information
 
 import logging
+import traceback
 import uuid
 
+import psycopg2
 import pygit2
 from pygit2 import Oid, GIT_OBJ_BLOB, GIT_OBJ_TREE, GIT_OBJ_COMMIT, GIT_OBJ_TAG
+from retrying import retry
 
 from swh.core import config
 
@@ -43,6 +46,27 @@ def send_in_packets(source_list, formatter, sender, packet_size,
         sender(formatted_objects)
 
 
+def retry_loading(error):
+    """Retry policy when the database raises an integrity error"""
+    if not isinstance(error, psycopg2.IntegrityError):
+        return False
+
+    logger = logging.getLogger('swh.loader.git.BulkLoader')
+
+    error_name = error.__module__ + '.' + error.__class__.__name__
+    logger.warning('Retry loading a batch', exc_info=False, extra={
+        'swh_type': 'storage_retry',
+        'swh_exception_type': error_name,
+        'swh_exception': traceback.format_exception(
+            error.__class__,
+            error,
+            error.__traceback__,
+        ),
+    })
+
+    return True
+
+
 class BulkLoader(config.SWHConfig):
     """A bulk loader for a git repository"""
 
@@ -76,6 +100,7 @@ class BulkLoader(config.SWHConfig):
 
         self.log = logging.getLogger('swh.loader.git.BulkLoader')
 
+    @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
     def send_contents(self, content_list):
         """Actually send properly formatted contents to the database"""
         num_contents = len(content_list)
@@ -96,6 +121,7 @@ class BulkLoader(config.SWHConfig):
                            'swh_id': log_id,
                        })
 
+    @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
     def send_directories(self, directory_list):
         """Actually send properly formatted directories to the database"""
         num_directories = len(directory_list)
@@ -116,6 +142,7 @@ class BulkLoader(config.SWHConfig):
                            'swh_id': log_id,
                        })
 
+    @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
     def send_revisions(self, revision_list):
         """Actually send properly formatted revisions to the database"""
         num_revisions = len(revision_list)
@@ -136,6 +163,7 @@ class BulkLoader(config.SWHConfig):
                            'swh_id': log_id,
                        })
 
+    @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
     def send_releases(self, release_list):
         """Actually send properly formatted releases to the database"""
         num_releases = len(release_list)
@@ -156,6 +184,7 @@ class BulkLoader(config.SWHConfig):
                            'swh_id': log_id,
                        })
 
+    @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
     def send_occurrences(self, occurrence_list):
         """Actually send properly formatted occurrences to the database"""
         num_occurrences = len(occurrence_list)

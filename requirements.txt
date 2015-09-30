@@ -1,4 +1,5 @@
 pygit2
+retrying
 vcversioner
 swh.core
 swh.storage
