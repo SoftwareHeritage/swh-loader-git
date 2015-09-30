@@ -4,6 +4,7 @@
 # See top-level LICENSE file for more information
 
 import logging
+import uuid
 
 import pygit2
 from pygit2 import Oid, GIT_OBJ_BLOB, GIT_OBJ_TREE, GIT_OBJ_COMMIT, GIT_OBJ_TAG
@@ -77,33 +78,103 @@ class BulkLoader(config.SWHConfig):
 
     def send_contents(self, content_list):
         """Actually send properly formatted contents to the database"""
-        self.log.info("Sending %d contents" % len(content_list))
+        num_contents = len(content_list)
+        log_id = str(uuid.uuid4())
+        self.log.debug("Sending %d contents" % num_contents,
+                       extra={
+                           'swh_type': 'storage_send_start',
+                           'swh_content_type': 'content',
+                           'swh_num': num_contents,
+                           'swh_id': log_id,
+                       })
         self.storage.content_add(content_list)
-        self.log.info("Done sending %d contents" % len(content_list))
+        self.log.debug("Done sending %d contents" % num_contents,
+                       extra={
+                           'swh_type': 'storage_send_end',
+                           'swh_content_type': 'content',
+                           'swh_num': num_contents,
+                           'swh_id': log_id,
+                       })
 
     def send_directories(self, directory_list):
         """Actually send properly formatted directories to the database"""
-        self.log.info("Sending %d directories" % len(directory_list))
+        num_directories = len(directory_list)
+        log_id = str(uuid.uuid4())
+        self.log.debug("Sending %d directories" % num_directories,
+                       extra={
+                           'swh_type': 'storage_send_start',
+                           'swh_content_type': 'directory',
+                           'swh_num': num_directories,
+                           'swh_id': log_id,
+                       })
         self.storage.directory_add(directory_list)
-        self.log.info("Done sending %d directories" % len(directory_list))
+        self.log.debug("Done sending %d directories" % num_directories,
+                       extra={
+                           'swh_type': 'storage_send_end',
+                           'swh_content_type': 'directory',
+                           'swh_num': num_directories,
+                           'swh_id': log_id,
+                       })
 
     def send_revisions(self, revision_list):
         """Actually send properly formatted revisions to the database"""
-        self.log.info("Sending %d revisions" % len(revision_list))
+        num_revisions = len(revision_list)
+        log_id = str(uuid.uuid4())
+        self.log.debug("Sending %d revisions" % num_revisions,
+                       extra={
+                           'swh_type': 'storage_send_start',
+                           'swh_content_type': 'revision',
+                           'swh_num': num_revisions,
+                           'swh_id': log_id,
+                       })
         self.storage.revision_add(revision_list)
-        self.log.info("Done sending %d revisions" % len(revision_list))
+        self.log.debug("Done sending %d revisions" % num_revisions,
+                       extra={
+                           'swh_type': 'storage_send_end',
+                           'swh_content_type': 'revision',
+                           'swh_num': num_revisions,
+                           'swh_id': log_id,
+                       })
 
     def send_releases(self, release_list):
         """Actually send properly formatted releases to the database"""
-        self.log.info("Sending %d releases" % len(release_list))
+        num_releases = len(release_list)
+        log_id = str(uuid.uuid4())
+        self.log.debug("Sending %d releases" % num_releases,
+                       extra={
+                           'swh_type': 'storage_send_start',
+                           'swh_content_type': 'release',
+                           'swh_num': num_releases,
+                           'swh_id': log_id,
+                       })
         self.storage.release_add(release_list)
-        self.log.info("Done sending %d releases" % len(release_list))
+        self.log.debug("Done sending %d releases" % num_releases,
+                       extra={
+                           'swh_type': 'storage_send_end',
+                           'swh_content_type': 'release',
+                           'swh_num': num_releases,
+                           'swh_id': log_id,
+                       })
 
     def send_occurrences(self, occurrence_list):
         """Actually send properly formatted occurrences to the database"""
-        self.log.info("Sending %d occurrences" % len(occurrence_list))
+        num_occurrences = len(occurrence_list)
+        log_id = str(uuid.uuid4())
+        self.log.debug("Sending %d occurrences" % num_occurrences,
+                       extra={
+                           'swh_type': 'storage_send_start',
+                           'swh_content_type': 'occurrence',
+                           'swh_num': num_occurrences,
+                           'swh_id': log_id,
+                       })
         self.storage.occurrence_add(occurrence_list)
-        self.log.info("Done sending %d occurrences" % len(occurrence_list))
+        self.log.debug("Done sending %d occurrences" % num_occurrences,
+                       extra={
+                           'swh_type': 'storage_send_end',
+                           'swh_content_type': 'occurrence',
+                           'swh_num': num_occurrences,
+                           'swh_id': log_id,
+                       })
 
     def get_or_create_origin(self, origin_url):
         origin = converters.origin_url_to_origin(origin_url)
@@ -113,8 +184,24 @@ class BulkLoader(config.SWHConfig):
         return origin
 
     def repo_origin(self, repo, origin_url):
-        self.log.info('Creating origin')
-        return self.get_or_create_origin(origin_url)
+        log_id = str(uuid.uuid4())
+        self.log.debug('Creating origin for %s' % origin_url,
+                       extra={
+                           'swh_type': 'storage_send_start',
+                           'swh_content_type': 'origin',
+                           'swh_num': 1,
+                           'swh_id': log_id
+                       })
+        origin = self.get_or_create_origin(origin_url)
+        self.log.debug('Done creating origin for %s' % origin_url,
+                       extra={
+                           'swh_type': 'storage_send_end',
+                           'swh_content_type': 'origin',
+                           'swh_num': 1,
+                           'swh_id': log_id
+                       })
+
+        return origin
 
     def bulk_send_blobs(self, repo, blobs, origin_id):
         """Format blobs as swh contents and send them to the database"""
@@ -184,6 +271,8 @@ class BulkLoader(config.SWHConfig):
             Compatible with occurrence_add.
         """
 
+        log_id = str(uuid.uuid4())
+
         refs = []
         ref_names = repo.listall_references()
         for ref_name in ref_names:
@@ -192,20 +281,35 @@ class BulkLoader(config.SWHConfig):
 
             if not isinstance(target, Oid):
                 self.log.debug("Peeling symbolic ref %s pointing at %s" % (
-                    ref_name, ref.target))
+                    ref_name, ref.target), extra={
+                        'swh_type': 'git_sym_ref_peel',
+                        'swh_name': ref_name,
+                        'swh_target': str(ref.target),
+                        'swh_id': log_id,
+                    })
                 target_obj = ref.peel()
             else:
                 target_obj = repo[target]
 
             if target_obj.type == GIT_OBJ_TAG:
                 self.log.debug("Peeling ref %s pointing at tag %s" % (
-                    ref_name, target_obj.name))
+                    ref_name, target_obj.name), extra={
+                        'swh_type': 'git_ref_peel',
+                        'swh_name': ref_name,
+                        'swh_target': str(target_obj.name),
+                        'swh_id': log_id,
+                    })
                 target_obj = ref.peel()
 
             if not target_obj.type == GIT_OBJ_COMMIT:
                 self.log.info("Skipping ref %s pointing to %s %s" % (
                     ref_name, target_obj.__class__.__name__,
-                    target_obj.id.hex))
+                    target_obj.id.hex), extra={
+                        'swh_type': 'git_ref_skip',
+                        'swh_name': ref_name,
+                        'swh_target': str(target_obj),
+                        'swh_id': log_id,
+                    })
 
             refs.append({
                 'branch': ref_name,
@@ -230,7 +334,13 @@ class BulkLoader(config.SWHConfig):
             - GIT_OBJ_COMMIT
             - GIT_OBJ_TAG
         """
-        self.log.info("Started listing %s" % repo.path)
+        log_id = str(uuid.uuid4())
+
+        self.log.info("Started listing %s" % repo.path, extra={
+            'swh_type': 'git_list_objs_start',
+            'swh_repo': repo.path,
+            'swh_id': log_id,
+        })
         objects = get_objects_per_object_type(repo)
         self.log.info("Done listing the objects in %s: %d contents, "
                       "%d directories, %d revisions, %d releases" % (
@@ -239,7 +349,15 @@ class BulkLoader(config.SWHConfig):
                          len(objects[GIT_OBJ_TREE]),
                          len(objects[GIT_OBJ_COMMIT]),
                          len(objects[GIT_OBJ_TAG]),
-                      ))
+                      ), extra={
+                          'swh_type': 'git_list_objs_end',
+                          'swh_repo': repo.path,
+                          'swh_num_blobs': len(objects[GIT_OBJ_BLOB]),
+                          'swh_num_trees': len(objects[GIT_OBJ_TREE]),
+                          'swh_num_commits': len(objects[GIT_OBJ_COMMIT]),
+                          'swh_num_tags': len(objects[GIT_OBJ_TAG]),
+                          'swh_id': log_id,
+                      })
 
         return objects
 
@@ -285,8 +403,19 @@ class BulkLoader(config.SWHConfig):
                                    validity)
 
         if not refs:
-            self.log.info('Skipping empty repository')
+            self.log.info('Skipping empty repository %s' % repo_path, extra={
+                'swh_type': 'git_repo_list_refs',
+                'swh_repo': repo_path,
+                'swh_num_refs': 0,
+            })
             return
+        else:
+            self.log.info('Listed %d refs for repo %s' % (
+                len(refs), repo_path), extra={
+                    'swh_type': 'git_repo_list_refs',
+                    'swh_repo': repo_path,
+                    'swh_num_refs': len(refs),
+                })
 
         # We want to load the repository, walk all the objects
         objects = self.list_repo_objs(repo)
