@@ -38,7 +38,8 @@ def send_in_packets(source_list, formatter, sender, packet_size,
             formatted_objects = []
             count = 0
 
-    sender(formatted_objects)
+    if formatted_objects:
+        sender(formatted_objects)
 
 
 class BulkLoader(config.SWHConfig):
