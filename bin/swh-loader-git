@@ -3,6 +3,7 @@
 import logging
 import sys
 
+from swh.core.logger import PostgresHandler
 from swh.loader.git import BulkLoader
 
 ADDITIONAL_CONFIG = {
@@ -13,14 +14,22 @@ ADDITIONAL_CONFIG = {
     'validity': ('str', '2015-01-01 00:00:00+00'),
 }
 
-logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s %(name)s %(levelname)s %(message)s')
+my_config = BulkLoader.parse_config_file(config_filename=sys.argv[1],
+                                         additional_configs=[ADDITIONAL_CONFIG])
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s %(name)s %(levelname)s %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        PostgresHandler(my_config['log_db']),
+    ],
+)
 
 requests_log = logging.getLogger("requests")
 requests_log.setLevel(logging.CRITICAL)
 
-my_config = BulkLoader.parse_config_file(config_filename=sys.argv[1],
-                                         additional_configs=[ADDITIONAL_CONFIG])
+
 
 loader = BulkLoader(my_config)
 loader.process(my_config['repo_path'],
