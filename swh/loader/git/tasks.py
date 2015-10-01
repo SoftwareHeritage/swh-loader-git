@@ -26,6 +26,7 @@ class LoadGitRepository(Task):
     def run(self, repo_path, origin_url, authority_id, validity):
         """Import a git repository"""
         loader = BulkLoader(self.config)
+        loader.log = self.log
 
         loader.process(repo_path, origin_url, authority_id, validity)
 
