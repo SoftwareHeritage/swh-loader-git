@@ -62,9 +62,6 @@ def tree_to_directory(id, repo, log=None):
             'perms': entry.filemode,
             'name': entry._name,
             'target': entry.id.raw,
-            'atime': None,
-            'mtime': None,
-            'ctime': None,
         })
 
     return ret
