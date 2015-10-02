@@ -60,11 +60,8 @@ def tree_to_directory(id, repo, log=None):
         entries.append({
             'type': entry_type_map[entry.type],
             'perms': entry.filemode,
-            'name': entry.name,
+            'name': entry._name,
             'target': entry.id.raw,
-            'atime': None,
-            'mtime': None,
-            'ctime': None,
         })
 
     return ret
