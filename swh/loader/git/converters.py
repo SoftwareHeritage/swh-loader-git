@@ -28,7 +28,12 @@ def blob_to_content(id, repo, log=None, max_content_size=None, origin_id=None):
         if size > max_content_size:
             if log:
                 log.info('Skipping content %s, too large (%s > %s)' %
-                         (id.hex, size, max_content_size))
+                         (id.hex, size, max_content_size), extra={
+                             'swh_type': 'loader_git_content_skip',
+                             'swh_repo': repo.path,
+                             'swh_id': id.hex,
+                             'swh_size': size,
+                         })
             ret['reason'] = 'Content too large'
             ret['origin'] = origin_id
             return ret
@@ -99,7 +104,15 @@ def annotated_tag_to_release(id, repo, log=None):
         if log:
             log.warn("Ignoring tag %s pointing at %s %s" % (
                 tag.id.hex, tag_pointer.__class__.__name__,
-                tag_pointer.id.hex))
+                tag_pointer.id.hex), extra={
+                    'swh_type': 'loader_git_tag_ignore',
+                    'swh_repo': repo.path,
+                    'swh_tag_id': tag.id.hex,
+                    'swh_tag_dest': {
+                        'type': tag_pointer.__class__.__name__,
+                        'id': tag_pointer.id.hex,
+                    },
+                })
         return
 
     author = tag.tagger
@@ -107,7 +120,11 @@ def annotated_tag_to_release(id, repo, log=None):
     if not author:
         if log:
             log.warn("Tag %s has no author, using default values"
-                     % id.hex)
+                     % id.hex,  extra={
+                         'swh_type': 'loader_git_tag_author_default',
+                         'swh_repo': repo.path,
+                         'swh_tag_id': tag.id.hex,
+                     })
         author_name = ''
         author_email = ''
         date = None
