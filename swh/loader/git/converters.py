@@ -141,6 +141,7 @@ def annotated_tag_to_release(id, repo, log=None):
         'date_offset': date_offset,
         'revision': tag.target.raw,
         'comment': tag._message,
+        'name': tag.name,
         'author_name': author_name,
         'author_email': author_email,
     }
