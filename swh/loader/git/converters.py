@@ -28,7 +28,12 @@ def blob_to_content(id, repo, log=None, max_content_size=None, origin_id=None):
         if size > max_content_size:
             if log:
                 log.info('Skipping content %s, too large (%s > %s)' %
-                         (id.hex, size, max_content_size))
+                         (id.hex, size, max_content_size), extra={
+                             'swh_type': 'loader_git_content_skip',
+                             'swh_repo': repo.path,
+                             'swh_id': id.hex,
+                             'swh_size': size,
+                         })
             ret['reason'] = 'Content too large'
             ret['origin'] = origin_id
             return ret
@@ -82,10 +87,10 @@ def commit_to_revision(id, repo, log=None):
         'type': 'git',
         'directory': commit.tree_id.raw,
         'message': commit.raw_message,
-        'author_name': author.name,
-        'author_email': author.email,
-        'committer_name': committer.name,
-        'committer_email': committer.email,
+        'author_name': author.raw_name,
+        'author_email': author.raw_email,
+        'committer_name': committer.raw_name,
+        'committer_email': committer.raw_email,
         'parents': [p.raw for p in commit.parent_ids],
     }
 
@@ -99,7 +104,15 @@ def annotated_tag_to_release(id, repo, log=None):
         if log:
             log.warn("Ignoring tag %s pointing at %s %s" % (
                 tag.id.hex, tag_pointer.__class__.__name__,
-                tag_pointer.id.hex))
+                tag_pointer.id.hex), extra={
+                    'swh_type': 'loader_git_tag_ignore',
+                    'swh_repo': repo.path,
+                    'swh_tag_id': tag.id.hex,
+                    'swh_tag_dest': {
+                        'type': tag_pointer.__class__.__name__,
+                        'id': tag_pointer.id.hex,
+                    },
+                })
         return
 
     author = tag.tagger
@@ -107,14 +120,18 @@ def annotated_tag_to_release(id, repo, log=None):
     if not author:
         if log:
             log.warn("Tag %s has no author, using default values"
-                     % id.hex)
-        author_name = ''
-        author_email = ''
+                     % id.hex,  extra={
+                         'swh_type': 'loader_git_tag_author_default',
+                         'swh_repo': repo.path,
+                         'swh_tag_id': tag.id.hex,
+                     })
+        author_name = b''
+        author_email = b''
         date = None
         date_offset = 0
     else:
-        author_name = author.name
-        author_email = author.email
+        author_name = author.raw_name
+        author_email = author.raw_email
         date = format_date(author)
         date_offset = author.offset
 
@@ -123,7 +140,8 @@ def annotated_tag_to_release(id, repo, log=None):
         'date': date,
         'date_offset': date_offset,
         'revision': tag.target.raw,
-        'comment': tag.message.encode('utf-8'),
+        'comment': tag._message,
+        'name': tag.name,
         'author_name': author_name,
         'author_email': author_email,
     }

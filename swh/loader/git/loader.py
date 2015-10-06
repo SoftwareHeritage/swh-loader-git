@@ -10,6 +10,7 @@ import uuid
 import psycopg2
 import pygit2
 from pygit2 import Oid, GIT_OBJ_BLOB, GIT_OBJ_TREE, GIT_OBJ_COMMIT, GIT_OBJ_TAG
+import requests
 from retrying import retry
 
 from swh.core import config
@@ -47,8 +48,15 @@ def send_in_packets(source_list, formatter, sender, packet_size,
 
 
 def retry_loading(error):
-    """Retry policy when the database raises an integrity error"""
-    if not isinstance(error, psycopg2.IntegrityError):
+    """Retry policy when we catch a recoverable error"""
+    exception_classes = [
+        # raised when two parallel insertions insert the same data.
+        psycopg2.IntegrityError,
+        # raised when uWSGI restarts and hungs up on the worker.
+        requests.exceptions.ConnectionError,
+    ]
+
+    if not any(isinstance(error, exc) for exc in exception_classes):
         return False
 
     logger = logging.getLogger('swh.loader.git.BulkLoader')
