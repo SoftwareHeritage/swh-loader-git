@@ -87,10 +87,10 @@ def commit_to_revision(id, repo, log=None):
         'type': 'git',
         'directory': commit.tree_id.raw,
         'message': commit.raw_message,
-        'author_name': author.name,
-        'author_email': author.email,
-        'committer_name': committer.name,
-        'committer_email': committer.email,
+        'author_name': author.raw_name,
+        'author_email': author.raw_email,
+        'committer_name': committer.raw_name,
+        'committer_email': committer.raw_email,
         'parents': [p.raw for p in commit.parent_ids],
     }
 
@@ -125,13 +125,13 @@ def annotated_tag_to_release(id, repo, log=None):
                          'swh_repo': repo.path,
                          'swh_tag_id': tag.id.hex,
                      })
-        author_name = ''
-        author_email = ''
+        author_name = b''
+        author_email = b''
         date = None
         date_offset = 0
     else:
-        author_name = author.name
-        author_email = author.email
+        author_name = author.raw_name
+        author_email = author.raw_email
         date = format_date(author)
         date_offset = author.offset
 
