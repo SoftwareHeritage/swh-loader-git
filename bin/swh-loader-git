@@ -14,8 +14,8 @@ ADDITIONAL_CONFIG = {
     'validity': ('str', '2015-01-01 00:00:00+00'),
 }
 
-my_config = BulkLoader.parse_config_file(config_filename=sys.argv[1],
-                                         additional_configs=[ADDITIONAL_CONFIG])
+my_config = BulkLoader.parse_config_file(
+    config_filename=sys.argv[1], additional_configs=[ADDITIONAL_CONFIG])
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -28,8 +28,6 @@ logging.basicConfig(
 
 requests_log = logging.getLogger("requests")
 requests_log.setLevel(logging.CRITICAL)
-
-
 
 loader = BulkLoader(my_config)
 loader.process(my_config['repo_path'],
