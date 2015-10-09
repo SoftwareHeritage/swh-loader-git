@@ -14,6 +14,8 @@ from .loader import BulkLoader
 class LoadGitRepository(Task):
     """Import a git repository to Software Heritage"""
 
+    task_queue = 'swh_loader_git'
+
     CONFIG_BASE_FILENAME = 'loader/git.ini'
     ADDITIONAL_CONFIG = {}
 
@@ -33,6 +35,8 @@ class LoadGitRepository(Task):
 
 class LoadGitHubRepository(LoadGitRepository):
     """Import a github repository to Software Heritage"""
+
+    task_queue = 'swh_loader_git'
 
     CONFIG_BASE_FILENAME = 'loader/github.ini'
     ADDITIONAL_CONFIG = {
@@ -57,3 +61,37 @@ class LoadGitHubRepository(LoadGitRepository):
         origin_url = 'https://github.com/%s' % repo_fullname
 
         super().run(repo_path, origin_url, authority_id, validity)
+
+
+class LoadGitHubRepositoryReleases(LoadGitHubRepository):
+    """Import a GitHub repository to SoftwareHeritage, only with releases"""
+
+    task_queue = 'swh_loader_git_express'
+
+    def __init__(self):
+        super(self.__class__, self).__init__()
+
+        self.config.update({
+            'send_contents': False,
+            'send_directories': False,
+            'send_revisions': False,
+            'send_releases': True,
+            'send_occurrences': False,
+        })
+
+
+class LoadGitHubRepositoryContents(LoadGitHubRepository):
+    """Import a GitHub repository to SoftwareHeritage, only with contents"""
+
+    task_queue = 'swh_loader_git_express'
+
+    def __init__(self):
+        super(self.__class__, self).__init__()
+
+        self.config.update({
+            'send_contents': True,
+            'send_directories': False,
+            'send_revisions': False,
+            'send_releases': False,
+            'send_occurrences': False,
+        })
