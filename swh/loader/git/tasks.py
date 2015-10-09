@@ -14,6 +14,8 @@ from .loader import BulkLoader
 class LoadGitRepository(Task):
     """Import a git repository to Software Heritage"""
 
+    task_queue = 'swh_loader_git'
+
     CONFIG_BASE_FILENAME = 'loader/git.ini'
     ADDITIONAL_CONFIG = {}
 
@@ -33,6 +35,8 @@ class LoadGitRepository(Task):
 
 class LoadGitHubRepository(LoadGitRepository):
     """Import a github repository to Software Heritage"""
+
+    task_queue = 'swh_loader_git'
 
     CONFIG_BASE_FILENAME = 'loader/github.ini'
     ADDITIONAL_CONFIG = {
@@ -62,6 +66,8 @@ class LoadGitHubRepository(LoadGitRepository):
 class LoadGitHubRepositoryReleases(LoadGitHubRepository):
     """Import a GitHub repository to SoftwareHeritage, only with releases"""
 
+    task_queue = 'swh_loader_git_express'
+
     def __init__(self):
         super(self.__class__, self).__init__()
 
@@ -76,6 +82,8 @@ class LoadGitHubRepositoryReleases(LoadGitHubRepository):
 
 class LoadGitHubRepositoryContents(LoadGitHubRepository):
     """Import a GitHub repository to SoftwareHeritage, only with contents"""
+
+    task_queue = 'swh_loader_git_express'
 
     def __init__(self):
         super(self.__class__, self).__init__()
