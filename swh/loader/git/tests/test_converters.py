@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import datetime
 
 from nose.tools import istest
 import pygit2
@@ -89,3 +90,35 @@ class TestConverters(unittest.TestCase):
         content = converters.blob_to_content(self.blob_id, self.repo,
                                              max_content_size=max_length)
         self.assertEqual(self.blob_hidden, content)
+
+    @istest
+    def commit_to_revision(self):
+        sha1 = '9768d0b576dbaaecd80abedad6dfd0d72f1476da'
+        commit = self.repo.revparse_single(sha1)
+
+        # when
+        actual_revision = converters.commit_to_revision(commit.id, self.repo)
+
+        expected_revision = {
+            'author_email': b'zack@upsilon.cc',
+            'id': hex_to_hash('9768d0b576dbaaecd80abedad6dfd0d72f1476da'),
+            'directory': b'\xf0i\\./\xa7\xce\x9dW@#\xc3A7a\xa4s\xe5\x00\xca',
+            'type': 'git',
+            'committer_name': b'Stefano Zacchiroli',
+            'date_offset': 120,
+            'committer_email': b'zack@upsilon.cc',
+            'committer_date': datetime.datetime(2015, 9, 24, 8, 36, 5,
+                                                tzinfo=datetime.timezone.utc),
+            'author_name': b'Stefano Zacchiroli',
+            'message': b'add submodule dependency\n',
+            'date': datetime.datetime(2015, 9, 24, 8, 36, 5,
+                                      tzinfo=datetime.timezone.utc),
+            'committer_date_offset': 120,
+            'parents': [
+                b'\xc3\xc5\x88q23`\x9f[\xbb\xb2\xd9\xe7\xf3\xfbJf\x0f?r'
+            ],
+            'synthetic': False,
+        }
+
+        # then
+        self.assertEquals(actual_revision, expected_revision)
