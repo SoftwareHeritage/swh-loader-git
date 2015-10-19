@@ -91,6 +91,7 @@ def commit_to_revision(id, repo, log=None):
         'author_email': author.raw_email,
         'committer_name': committer.raw_name,
         'committer_email': committer.raw_email,
+        'synthetic': False,
         'parents': [p.raw for p in commit.parent_ids],
     }
 
@@ -144,6 +145,7 @@ def annotated_tag_to_release(id, repo, log=None):
         'name': tag.name,
         'author_name': author_name,
         'author_email': author_email,
+        'synthetic': False,
     }
 
 
