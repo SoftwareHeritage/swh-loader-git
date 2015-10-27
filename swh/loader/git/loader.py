@@ -296,7 +296,7 @@ class BulkLoader(config.SWHConfig):
                 taken
             - validity (datetime.datetime): the validity date for the
                 repository's refs
-            - authority_id (int): the id of the authority on `validity`.
+            - authority_id (str): the uuid of the authority on `validity`.
 
         Returns:
             A list of dicts with keys:
@@ -304,7 +304,7 @@ class BulkLoader(config.SWHConfig):
                 - revision (sha1_git): revision pointed at by the ref
                 - origin (int)
                 - validity (datetime.DateTime)
-                - authority (int)
+                - authority (str)
             Compatible with occurrence_add.
         """
 
