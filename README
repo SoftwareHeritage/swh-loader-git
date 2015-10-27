@@ -67,8 +67,8 @@ repo_path = /tmp/git_repo
 # The URL of the origin for the repo
 origin_url = https://github.com/hylang/hy
 
-# The ID of the authority that dated the validity of the repo
-authority = 1
+# The UUID of the authority that dated the validity of the repo
+authority = 5f4d4c51-498a-4e28-88b3-b3e4e8396cba
 
 # The validity date of the refs in the given repo, in Postgres
 # timestamptz format

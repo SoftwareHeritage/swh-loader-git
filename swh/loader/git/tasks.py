@@ -41,7 +41,7 @@ class LoadGitHubRepository(LoadGitRepository):
     CONFIG_BASE_FILENAME = 'loader/github.ini'
     ADDITIONAL_CONFIG = {
         'github_basepath': ('str', '/srv/storage/space/data/github'),
-        'authority_id': ('int', 1),
+        'authority_id': ('str', '5f4d4c51-498a-4e28-88b3-b3e4e8396cba'),
         'default_validity': ('str', '1970-01-01 00:00:00+00'),
     }
 
