@@ -1,3 +1,11 @@
+swh-loader-git (0.0.8-1~swh1) unstable-swh; urgency=medium
+
+  * Prepare deployment of swh.loader.git v0.0.8
+  * New database schema (v028)
+  * Populate fetch_history (T121)
+
+ -- Nicolas Dandrimont <nicolas@dandrimont.eu>  Tue, 27 Oct 2015 18:11:26 +0100
+
 swh-loader-git (0.0.7-1~swh1) unstable-swh; urgency=medium
 
   * Prepare swh.loader.git v0.0.7 deployment
