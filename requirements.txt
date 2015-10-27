@@ -2,4 +2,4 @@ pygit2
 retrying
 vcversioner
 swh.core >= 0.0.7
-swh.storage >= 0.0.8
+swh.storage >= 0.0.15
