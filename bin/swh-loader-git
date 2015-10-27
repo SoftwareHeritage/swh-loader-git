@@ -10,7 +10,7 @@ ADDITIONAL_CONFIG = {
     'repo_path': ('str', None),
 
     'origin_url': ('str', 'file:///dev/null'),
-    'authority': ('int', 1),
+    'authority': ('str', '5f4d4c51-498a-4e28-88b3-b3e4e8396cba'),
     'validity': ('str', '2015-01-01 00:00:00+00'),
 }
 

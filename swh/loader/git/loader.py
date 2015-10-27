@@ -296,7 +296,7 @@ class BulkLoader(config.SWHConfig):
                 taken
             - validity (datetime.datetime): the validity date for the
                 repository's refs
-            - authority_id (int): the id of the authority on `validity`.
+            - authority_id (str): the uuid of the authority on `validity`.
 
         Returns:
             A list of dicts with keys:
@@ -304,7 +304,7 @@ class BulkLoader(config.SWHConfig):
                 - revision (sha1_git): revision pointed at by the ref
                 - origin (int)
                 - validity (datetime.DateTime)
-                - authority (int)
+                - authority (str)
             Compatible with occurrence_add.
         """
 
@@ -401,6 +401,22 @@ class BulkLoader(config.SWHConfig):
     def open_repo(self, repo_path):
         return pygit2.Repository(repo_path)
 
+    def open_fetch_history(self, origin_id):
+        return self.storage.fetch_history_start(origin_id)
+
+    def close_fetch_history(self, fetch_history_id, objects, refs):
+        data = {
+            'status': True,
+            'result': {
+                'contents': len(objects.get(GIT_OBJ_BLOB, [])),
+                'directories': len(objects.get(GIT_OBJ_TREE, [])),
+                'revisions': len(objects.get(GIT_OBJ_COMMIT, [])),
+                'releases': len(objects.get(GIT_OBJ_TAG, [])),
+                'occurrences': len(refs),
+            },
+        }
+        return self.storage.fetch_history_end(fetch_history_id, data)
+
     def load_repo(self, repo, objects, refs, origin_id):
 
         if self.config['send_contents']:
@@ -435,6 +451,9 @@ class BulkLoader(config.SWHConfig):
         # Add origin to storage if needed, use the one from config if not
         origin = self.repo_origin(repo, origin_url)
 
+        # Create fetch_history
+        fetch_history = self.open_fetch_history(origin['id'])
+
         # Parse all the refs from our repo
         refs = self.list_repo_refs(repo, origin['id'], authority_id,
                                    validity)
@@ -445,6 +464,8 @@ class BulkLoader(config.SWHConfig):
                 'swh_repo': repo_path,
                 'swh_num_refs': 0,
             })
+            # End fetch_history
+            self.close_fetch_history(fetch_history, {}, refs)
             return
         else:
             self.log.info('Listed %d refs for repo %s' % (
@@ -459,3 +480,6 @@ class BulkLoader(config.SWHConfig):
 
         # Finally, load the repository
         self.load_repo(repo, objects, refs, origin['id'])
+
+        # End fetch_history
+        self.close_fetch_history(fetch_history, objects, refs)
