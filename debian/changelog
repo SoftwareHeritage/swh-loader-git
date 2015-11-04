@@ -1,3 +1,10 @@
+swh-loader-git (0.0.9-1~swh1) unstable-swh; urgency=medium
+
+  * Prepare deployment of swh.loader.git v0.0.9
+  * Close fetch_history on failure too
+
+ -- Nicolas Dandrimont <nicolas@dandrimont.eu>  Wed, 04 Nov 2015 10:54:37 +0100
+
 swh-loader-git (0.0.8-1~swh1) unstable-swh; urgency=medium
 
   * Prepare deployment of swh.loader.git v0.0.8
