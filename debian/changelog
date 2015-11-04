@@ -1,8 +1,9 @@
-swh-loader-git (0.0.8-1~swh1~bpo9+1) stretch-swh; urgency=medium
+swh-loader-git (0.0.9-1~swh1) unstable-swh; urgency=medium
 
-  * Rebuild for stretch-backports.
+  * Prepare deployment of swh.loader.git v0.0.9
+  * Close fetch_history on failure too
 
- -- Nicolas Dandrimont <nicolas@dandrimont.eu>  Tue, 27 Oct 2015 18:11:26 +0100
+ -- Nicolas Dandrimont <nicolas@dandrimont.eu>  Wed, 04 Nov 2015 10:54:37 +0100
 
 swh-loader-git (0.0.8-1~swh1) unstable-swh; urgency=medium
 
