@@ -404,7 +404,7 @@ class BulkLoader(config.SWHConfig):
     def open_fetch_history(self, origin_id):
         return self.storage.fetch_history_start(origin_id)
 
-    def close_fetch_history(self, fetch_history_id, objects, refs):
+    def close_fetch_history_success(self, fetch_history_id, objects, refs):
         data = {
             'status': True,
             'result': {
@@ -414,6 +414,14 @@ class BulkLoader(config.SWHConfig):
                 'releases': len(objects.get(GIT_OBJ_TAG, [])),
                 'occurrences': len(refs),
             },
+        }
+        return self.storage.fetch_history_end(fetch_history_id, data)
+
+    def close_fetch_history_failure(self, fetch_history_id):
+        import traceback
+        data = {
+            'status': False,
+            'stderr': traceback.format_exc(),
         }
         return self.storage.fetch_history_end(fetch_history_id, data)
 
@@ -453,33 +461,42 @@ class BulkLoader(config.SWHConfig):
 
         # Create fetch_history
         fetch_history = self.open_fetch_history(origin['id'])
+        closed = False
 
-        # Parse all the refs from our repo
-        refs = self.list_repo_refs(repo, origin['id'], authority_id,
-                                   validity)
+        try:
+            # Parse all the refs from our repo
+            refs = self.list_repo_refs(repo, origin['id'], authority_id,
+                                       validity)
 
-        if not refs:
-            self.log.info('Skipping empty repository %s' % repo_path, extra={
-                'swh_type': 'git_repo_list_refs',
-                'swh_repo': repo_path,
-                'swh_num_refs': 0,
-            })
+            if not refs:
+                self.log.info('Skipping empty repository %s' % repo_path,
+                              extra={
+                                  'swh_type': 'git_repo_list_refs',
+                                  'swh_repo': repo_path,
+                                  'swh_num_refs': 0,
+                              })
+                # End fetch_history
+                self.close_fetch_history_success(fetch_history, {}, refs)
+                closed = True
+                return
+            else:
+                self.log.info('Listed %d refs for repo %s' % (
+                    len(refs), repo_path), extra={
+                        'swh_type': 'git_repo_list_refs',
+                        'swh_repo': repo_path,
+                        'swh_num_refs': len(refs),
+                    })
+
+            # We want to load the repository, walk all the objects
+            objects = self.list_repo_objs(repo)
+
+            # Finally, load the repository
+            self.load_repo(repo, objects, refs, origin['id'])
+
             # End fetch_history
-            self.close_fetch_history(fetch_history, {}, refs)
-            return
-        else:
-            self.log.info('Listed %d refs for repo %s' % (
-                len(refs), repo_path), extra={
-                    'swh_type': 'git_repo_list_refs',
-                    'swh_repo': repo_path,
-                    'swh_num_refs': len(refs),
-                })
+            self.close_fetch_history_success(fetch_history, objects, refs)
+            closed = True
 
-        # We want to load the repository, walk all the objects
-        objects = self.list_repo_objs(repo)
-
-        # Finally, load the repository
-        self.load_repo(repo, objects, refs, origin['id'])
-
-        # End fetch_history
-        self.close_fetch_history(fetch_history, objects, refs)
+        finally:
+            if not closed:
+                self.close_fetch_history_failure(fetch_history)
