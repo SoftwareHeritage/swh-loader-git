@@ -15,8 +15,8 @@ from pygit2 import Oid
 
 def format_date(signature):
     """Convert the date from a signature to a datetime"""
-    return datetime.datetime.fromtimestamp(signature.time,
-                                           datetime.timezone.utc)
+    tz = datetime.timezone(datetime.timedelta(minutes=signature.offset))
+    return datetime.datetime.fromtimestamp(signature.time, tz)
 
 
 def list_objects_from_packfile_index(packfile_index):

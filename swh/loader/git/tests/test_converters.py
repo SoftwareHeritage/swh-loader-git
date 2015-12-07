@@ -99,21 +99,26 @@ class TestConverters(unittest.TestCase):
         # when
         actual_revision = converters.commit_to_revision(commit.id, self.repo)
 
+        offset = datetime.timedelta(minutes=120)
+        tzoffset = datetime.timezone(offset)
         expected_revision = {
-            'author_email': b'zack@upsilon.cc',
             'id': hex_to_hash('9768d0b576dbaaecd80abedad6dfd0d72f1476da'),
             'directory': b'\xf0i\\./\xa7\xce\x9dW@#\xc3A7a\xa4s\xe5\x00\xca',
             'type': 'git',
-            'committer_name': b'Stefano Zacchiroli',
-            'date_offset': 120,
-            'committer_email': b'zack@upsilon.cc',
-            'committer_date': datetime.datetime(2015, 9, 24, 8, 36, 5,
-                                                tzinfo=datetime.timezone.utc),
-            'author_name': b'Stefano Zacchiroli',
+            'committer': {
+                'name': b'Stefano Zacchiroli',
+                'email': b'zack@upsilon.cc',
+            },
+            'author': {
+                'name': b'Stefano Zacchiroli',
+                'email': b'zack@upsilon.cc',
+            },
+            'committer_date': datetime.datetime(2015, 9, 24, 10, 36, 5,
+                                                tzinfo=tzoffset),
             'message': b'add submodule dependency\n',
-            'date': datetime.datetime(2015, 9, 24, 8, 36, 5,
-                                      tzinfo=datetime.timezone.utc),
-            'committer_date_offset': 120,
+            'metadata': None,
+            'date': datetime.datetime(2015, 9, 24, 10, 36, 5,
+                                      tzinfo=tzoffset),
             'parents': [
                 b'\xc3\xc5\x88q23`\x9f[\xbb\xb2\xd9\xe7\xf3\xfbJf\x0f?r'
             ],
@@ -122,3 +127,6 @@ class TestConverters(unittest.TestCase):
 
         # then
         self.assertEquals(actual_revision, expected_revision)
+        self.assertEquals(offset, expected_revision['date'].utcoffset())
+        self.assertEquals(offset,
+                          expected_revision['committer_date'].utcoffset())
