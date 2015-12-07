@@ -81,16 +81,19 @@ def commit_to_revision(id, repo, log=None):
     return {
         'id': id.raw,
         'date': format_date(author),
-        'date_offset': author.offset,
         'committer_date': format_date(committer),
-        'committer_date_offset': committer.offset,
         'type': 'git',
         'directory': commit.tree_id.raw,
         'message': commit.raw_message,
-        'author_name': author.raw_name,
-        'author_email': author.raw_email,
-        'committer_name': committer.raw_name,
-        'committer_email': committer.raw_email,
+        'metadata': None,
+        'author': {
+            'name': author.raw_name,
+            'email': author.raw_email,
+        },
+        'committer': {
+            'name': committer.raw_name,
+            'email': committer.raw_email,
+        },
         'synthetic': False,
         'parents': [p.raw for p in commit.parent_ids],
     }
@@ -116,9 +119,7 @@ def annotated_tag_to_release(id, repo, log=None):
                 })
         return
 
-    author = tag.tagger
-
-    if not author:
+    if not tag.tagger:
         if log:
             log.warn("Tag %s has no author, using default values"
                      % id.hex,  extra={
@@ -126,25 +127,24 @@ def annotated_tag_to_release(id, repo, log=None):
                          'swh_repo': repo.path,
                          'swh_tag_id': tag.id.hex,
                      })
-        author_name = b''
-        author_email = b''
+        author = None
         date = None
-        date_offset = 0
     else:
-        author_name = author.raw_name
-        author_email = author.raw_email
-        date = format_date(author)
-        date_offset = author.offset
+        author = {
+            'name': tag.tagger.raw_name,
+            'email': tag.tagger.raw_email,
+        }
+        date = format_date(tag.tagger)
 
     return {
         'id': id.raw,
         'date': date,
-        'date_offset': date_offset,
-        'revision': tag.target.raw,
-        'comment': tag._message,
-        'name': tag.name,
-        'author_name': author_name,
-        'author_email': author_email,
+        'target': tag.target.raw,
+        'target_type': 'revision',
+        'message': tag._message,
+        'name': tag.name.encode('utf-8'),
+        'author': author,
+        'metadata': None,
         'synthetic': False,
     }
 

@@ -1,5 +1,6 @@
 pygit2
 retrying
 swh.core>=0.0.7
-swh.storage>=0.0.15
+swh.model
+swh.storage>=0.0.20
 vcversioner
