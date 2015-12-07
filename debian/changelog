@@ -1,3 +1,11 @@
+swh-loader-git (0.0.10-1~swh1) unstable-swh; urgency=medium
+
+  * Prepare swh.loader.git release v0.0.10
+  * Update for swh.model
+  * Use new swh.storage
+
+ -- Nicolas Dandrimont <nicolas@dandrimont.eu>  Mon, 07 Dec 2015 18:59:46 +0100
+
 swh-loader-git (0.0.9-1~swh1) unstable-swh; urgency=medium
 
   * Prepare deployment of swh.loader.git v0.0.9
