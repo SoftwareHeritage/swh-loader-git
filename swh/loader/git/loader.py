@@ -14,6 +14,7 @@ import requests
 from retrying import retry
 
 from swh.core import config
+from swh.storage import get_storage
 
 from . import converters
 from .utils import get_objects_per_object_type
@@ -98,14 +99,8 @@ class BulkLoader(config.SWHConfig):
 
     def __init__(self, config):
         self.config = config
-
-        if self.config['storage_class'] == 'remote_storage':
-            from swh.storage.api.client import RemoteStorage as Storage
-        else:
-            from swh.storage import Storage
-
-        self.storage = Storage(*self.config['storage_args'])
-
+        self.storage = get_storage(config['storage_class'],
+                                   config['storage_args'])
         self.log = logging.getLogger('swh.loader.git.BulkLoader')
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
