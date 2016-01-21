@@ -142,7 +142,7 @@ def annotated_tag_to_release(id, repo, log=None):
         'target': tag.target.raw,
         'target_type': 'revision',
         'message': tag._message,
-        'name': tag.name.encode('utf-8'),
+        'name': tag.name,
         'author': author,
         'metadata': None,
         'synthetic': False,
