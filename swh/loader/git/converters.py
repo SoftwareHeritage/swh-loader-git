@@ -5,6 +5,8 @@
 
 """Convert pygit2 objects to dictionaries suitable for swh.storage"""
 
+import sys
+
 from pygit2 import GIT_OBJ_COMMIT
 
 from swh.core import hashutil
@@ -12,6 +14,9 @@ from swh.core import hashutil
 from .utils import format_date
 
 HASH_ALGORITHMS = ['sha1', 'sha256']
+
+
+sys_encoding = sys.getfilesystemencoding()
 
 
 def blob_to_content(id, repo, log=None, max_content_size=None, origin_id=None):
@@ -142,7 +147,7 @@ def annotated_tag_to_release(id, repo, log=None):
         'target': tag.target.raw,
         'target_type': 'revision',
         'message': tag._message,
-        'name': tag.name,
+        'name': tag.name.encode(sys_encoding),
         'author': author,
         'metadata': None,
         'synthetic': False,
@@ -151,7 +156,14 @@ def annotated_tag_to_release(id, repo, log=None):
 
 def ref_to_occurrence(ref):
     """Format a reference as an occurrence"""
-    return ref
+    occ = ref.copy()
+    if 'branch' in ref:
+        branch = ref['branch']
+        if isinstance(branch, str):
+            occ['branch'] = branch.encode(sys_encoding)
+        else:
+            occ['branch'] = branch
+    return occ
 
 
 def origin_url_to_origin(origin_url):
