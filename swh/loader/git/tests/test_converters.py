@@ -144,6 +144,7 @@ class TestConverters(unittest.TestCase):
             'branch': b'some/branch'
         })
 
+    @istest
     def ref_to_occurrence_2(self):
         # when
         actual_occ = converters.ref_to_occurrence({
