@@ -3,16 +3,20 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import dulwich.client
+from io import BytesIO
 import logging
 import sys
 
 from collections import defaultdict
+import dulwich.client
 from dulwich.object_store import ObjectStoreGraphWalker
+from dulwich.pack import PackData, PackInflater
 from urllib.parse import urlparse
 
 from swh.core import config, hashutil
 from swh.storage import get_storage
+
+from . import converters
 
 
 class BulkUpdater(config.SWHConfig):
@@ -48,56 +52,54 @@ class SWHRepoRepresentation:
     """Repository representation for a Software Heritage origin."""
     def __init__(self, storage, origin_url):
         self.storage = storage
+
+        self._parents_cache = {}
+
         origin = storage.origin_get({'url': origin_url, 'type': 'git'})
         if origin:
             origin_id = origin['id']
-
-            self.parents = self._cache_parents(origin_id)
             self.heads = self._cache_heads(origin_id)
             self.tags = self._cache_tags(origin_id)
         else:
-            raise ValueError('Unexpected error, the origin %s was not found.'
-                             % origin_url)
+            self.heads = []
+            self.tags = []
 
-    def _cache_parents(self, origin_id):
-        """Return an id -> parent_ids mapping for the repository at
-           `origin_id`"""
-        occurrences = self.storage.occurrence_get(origin_id)
-        root_revisions = (occ['revision'] for occ in occurrences)
-
-        ret_parents = defaultdict(list)
-        for revision in self.storage.revision_log(root_revisions):
-            rev_id = hashutil.hash_to_bytehex(revision['id'])
-            for parent in revision['parents']:
-                parent_id = hashutil.hash_to_bytehex(parent)
-                ret_parents[rev_id].append(parent_id)
-
-        return ret_parents
+    def _fill_parents_cache(self, commit):
+        """When querying for a commit's parents, we fill the cache to a depth of 100
+        commits."""
+        root_rev = hashutil.hex_to_hash(commit.decode())
+        for rev, parents in self.storage.revision_shortlog([root_rev], 100):
+            rev_id = hashutil.hash_to_bytehex(rev)
+            if rev_id not in self._parents_cache:
+                self._parents_cache[rev_id] = [
+                    hashutil.hash_to_bytehex(parent) for parent in parents
+                ]
 
     def _cache_heads(self, origin_id):
         """Return all the known head commits for `origin_id`"""
-        for revision in self.storage.revision_get_by(origin_id,
-                                                     branch_name=None,
-                                                     timestamp=None,
-                                                     limit=None):
-            yield hashutil.hash_to_bytehex(revision['id'])
+        return [
+            hashutil.hash_to_bytehex(revision['id'])
+            for revision in self.storage.revision_get_by(
+                    origin_id, branch_name=None, timestamp=None, limit=None)
+        ]
 
     def _cache_tags(self, origin_id):
         """Return all the tag objects pointing to heads of `origin_id`"""
-        for release in self.storage.release_get_by(origin_id):
-            yield hashutil.hash_to_bytehex(release['id'])
+        return [
+            hashutil.hash_to_bytehex(release['id'])
+            for release in self.storage.release_get_by(origin_id)
+        ]
 
     def get_parents(self, commit):
         """get the parent commits for `commit`"""
-        print('########################### Request commit %s' % commit)
-        return self.parents[commit]
+        if commit not in self._parents_cache:
+            self._fill_parents_cache(commit)
+        return self._parents_cache.get(commit, [])
 
     def get_heads(self):
-        print('########################### Request heads!')
         return self.heads
 
     def get_tags(self):
-        print('########################### Request tags!')
         return self.tags
 
     def graph_walker(self):
@@ -124,14 +126,10 @@ class SWHRepoRepresentation:
         return ret
 
 
-def fetch_pack_from_origin(storage, origin_url, buf):
+def fetch_pack_from_origin(storage, origin_url, base_url, pack_buffer,
+                           activity_buffer):
 
-    def report_activity(arg):
-        print('########################### Report activity %s!' % arg)
-        # sys.stderr.buffer.write(arg)
-        # sys.stderr.buffer.flush()
-
-    repo = SWHRepoRepresentation(storage, origin_url)
+    base_repo = SWHRepoRepresentation(storage, base_url)
 
     parsed_uri = urlparse(origin_url)
 
@@ -142,13 +140,10 @@ def fetch_pack_from_origin(storage, origin_url, buf):
     client = dulwich.client.TCPGitClient(parsed_uri.netloc, thin_packs=False)
 
     pack = client.fetch_pack(path.encode('ascii'),
-                             repo.determine_wants,
-                             repo.graph_walker(),
-                             buf.write,
-                             progress=report_activity)
-
-    # refs = client.get_refs(path.encode('ascii'))
-    # print(refs)
+                             base_repo.determine_wants,
+                             base_repo.graph_walker(),
+                             pack_buffer.write,
+                             progress=activity_buffer.write)
 
     return pack
 
@@ -160,7 +155,22 @@ if __name__ == '__main__':
     bulkupdater = BulkUpdater(config)
 
     origin_url = sys.argv[1]
-    pack = fetch_pack_from_origin(bulkupdater.storage,
-                                  origin_url,
-                                  sys.stdout.buffer)
-    print(pack)
+    base_url = origin_url
+    if len(sys.argv) > 2:
+        base_url = sys.argv[2]
+
+    pack = BytesIO()
+    refs = fetch_pack_from_origin(
+        bulkupdater.storage, origin_url, base_url, pack, sys.stderr.buffer)
+
+    pack_size = pack.tell()
+    pack.seek(0)
+    pack_data = PackInflater.for_pack_data(PackData.from_file(pack, pack_size))
+    objs_per_type = defaultdict(list)
+    for obj in pack_data:
+        obj_type = obj.type_name
+        conv = converters.DULWICH_CONVERTERS[obj_type]
+        objs_per_type[obj_type].append(conv(obj))
+
+    print({k: len(l) for k, l in objs_per_type.items()})
+    print(len(refs))

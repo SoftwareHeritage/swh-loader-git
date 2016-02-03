@@ -167,3 +167,76 @@ def origin_url_to_origin(origin_url):
         'type': 'git',
         'url': origin_url,
     }
+
+
+def dulwich_blob_to_content(blob, log=None, max_content_size=None,
+                            origin_id=None):
+    """Convert a dulwich blob to a Software Heritage content"""
+
+    size = blob.raw_length()
+
+    ret = {
+        'sha1_git': blob.sha().digest(),
+        'length': size,
+        'status': 'absent'
+    }
+
+    if max_content_size:
+        if size > max_content_size:
+            if log:
+                log.info('Skipping content %s, too large (%s > %s)' %
+                         (blob.id.encode(), size, max_content_size), extra={
+                             'swh_type': 'loader_git_content_skip',
+                             'swh_id': id.hex,
+                             'swh_size': size,
+                         })
+            ret['reason'] = 'Content too large'
+            ret['origin'] = origin_id
+            return ret
+
+    data = blob.as_raw_string()
+    hashes = hashutil.hashdata(data, HASH_ALGORITHMS)
+    ret.update(hashes)
+    ret['data'] = data
+    ret['status'] = 'visible'
+
+    return ret
+
+
+def dulwich_tree_to_directory(tree, log=None):
+    """Format a tree as a directory"""
+    ret = {
+        'id': tree.sha().digest(),
+    }
+    entries = []
+    ret['entries'] = entries
+
+    entry_mode_map = {
+        0o040000: 'dir',
+        0o160000: 'rev',
+        0o100644: 'file',
+        0o100755: 'file',
+        0o120000: 'file',
+    }
+
+    for entry in tree.iteritems():
+        entries.append({
+            'type': entry_mode_map[entry.mode],
+            'perms': entry.mode,
+            'name': entry.path,
+            'target': hashutil.hex_to_hash(entry.sha.decode('ascii')),
+        })
+
+    return ret
+
+
+def dulwich_commit_to_revision(commit, log=None):
+    pass
+
+
+DULWICH_CONVERTERS = {
+    b'blob': dulwich_blob_to_content,
+    b'tree': dulwich_tree_to_directory,
+    b'commit': lambda x: x,
+    b'tag': lambda x: x,
+}
