@@ -230,13 +230,90 @@ def dulwich_tree_to_directory(tree, log=None):
     return ret
 
 
+def parse_author(name_email):
+    """Parse an author line"""
+
+    name, email = name_email.split(b' <', 1)
+    email = email[:-1]
+
+    return {
+        'name': name,
+        'email': email,
+    }
+
+
+def dulwich_tsinfo_to_timestamp(timestamp, timezone, timezone_neg_utc):
+    """Convert the dulwich timestamp information to a structure compatible with
+    Software Heritage"""
+    return {
+        'timestamp': timestamp,
+        'offset': timezone,
+        'negative_utc': timezone_neg_utc if timezone == 0 else None,
+    }
+
+
 def dulwich_commit_to_revision(commit, log=None):
+    ret = {
+        'id': commit.sha().digest(),
+        'author': parse_author(commit.author),
+        'date': dulwich_tsinfo_to_timestamp(
+            commit.author_time,
+            commit.author_timezone,
+            commit._author_timezone_neg_utc,
+        ),
+        'committer': parse_author(commit.committer),
+        'committer_date': dulwich_tsinfo_to_timestamp(
+            commit.commit_time,
+            commit.commit_timezone,
+            commit._commit_timezone_neg_utc,
+        ),
+        'type': 'git',
+        'directory': bytes.fromhex(commit.tree.decode()),
+        'message': commit.message,
+        'metadata': None,
+        'synthetic': False,
+        'parents': [bytes.fromhex(p.decode()) for p in commit.parents],
+    }
+
+    return ret
+
+
+DULWICH_TYPES = {
+    b'blob': 'content',
+    b'tree': 'directory',
+    b'commit': 'revision',
+    b'tag': 'release',
+}
+
+
+def dulwich_tag_to_revision(tag, log=None):
+    target, target_type = tag.object
+    ret = {
+        'id': tag.sha().digest(),
+        'name': tag.name,
+        'author': parse_author(tag.tagger),
+        'date': dulwich_tsinfo_to_timestamp(
+            tag.tag_time,
+            tag.tag_timezone,
+            tag._tag_timezone_neg_utc,
+        ),
+        'target': bytes.fromhex(target.decode()),
+        'target_type': DULWICH_TYPES[target_type],
+        'message': tag._message,
+        'metadata': None,
+        'synthetic': False,
+    }
+
+    return ret
+
+
+def dulwich_ref_to_occurrence(ref, objects, timestamp, log=None):
     pass
 
 
 DULWICH_CONVERTERS = {
     b'blob': dulwich_blob_to_content,
     b'tree': dulwich_tree_to_directory,
-    b'commit': lambda x: x,
+    b'commit': dulwich_commit_to_revision,
     b'tag': lambda x: x,
 }
