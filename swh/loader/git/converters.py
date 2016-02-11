@@ -173,6 +173,9 @@ def dulwich_blob_to_content(blob, log=None, max_content_size=None,
                             origin_id=None):
     """Convert a dulwich blob to a Software Heritage content"""
 
+    if blob.type_name != b'blob':
+        return
+
     size = blob.raw_length()
 
     ret = {
@@ -205,6 +208,9 @@ def dulwich_blob_to_content(blob, log=None, max_content_size=None,
 
 def dulwich_tree_to_directory(tree, log=None):
     """Format a tree as a directory"""
+    if tree.type_name != b'tree':
+        return
+
     ret = {
         'id': tree.sha().digest(),
     }
@@ -221,7 +227,7 @@ def dulwich_tree_to_directory(tree, log=None):
 
     for entry in tree.iteritems():
         entries.append({
-            'type': entry_mode_map[entry.mode],
+            'type': entry_mode_map.get(entry.mode, 'file'),
             'perms': entry.mode,
             'name': entry.path,
             'target': hashutil.hex_to_hash(entry.sha.decode('ascii')),
@@ -232,6 +238,9 @@ def dulwich_tree_to_directory(tree, log=None):
 
 def parse_author(name_email):
     """Parse an author line"""
+
+    if not name_email:
+        return None
 
     name, email = name_email.split(b' <', 1)
     email = email[:-1]
@@ -247,12 +256,15 @@ def dulwich_tsinfo_to_timestamp(timestamp, timezone, timezone_neg_utc):
     Software Heritage"""
     return {
         'timestamp': timestamp,
-        'offset': timezone,
+        'offset': timezone // 60,
         'negative_utc': timezone_neg_utc if timezone == 0 else None,
     }
 
 
 def dulwich_commit_to_revision(commit, log=None):
+    if commit.type_name != b'commit':
+        return
+
     ret = {
         'id': commit.sha().digest(),
         'author': parse_author(commit.author),
@@ -275,6 +287,22 @@ def dulwich_commit_to_revision(commit, log=None):
         'parents': [bytes.fromhex(p.decode()) for p in commit.parents],
     }
 
+    git_metadata = []
+    if commit.mergetag:
+        for mergetag in commit.mergetag:
+            git_metadata.append(['mergetag', mergetag.as_raw_string()])
+
+    if commit.extra:
+        git_metadata.extend([k, v] for k, v in commit.extra)
+
+    if commit.gpgsig:
+        git_metadata.append(['gpgsig', commit.gpgsig])
+
+    if git_metadata:
+        ret['metadata'] = {
+            'extra_git_headers': git_metadata,
+        }
+
     return ret
 
 
@@ -286,34 +314,28 @@ DULWICH_TYPES = {
 }
 
 
-def dulwich_tag_to_revision(tag, log=None):
-    target, target_type = tag.object
+def dulwich_tag_to_release(tag, log=None):
+    if tag.type_name != b'tag':
+        return
+
+    target_type, target = tag.object
     ret = {
         'id': tag.sha().digest(),
         'name': tag.name,
-        'author': parse_author(tag.tagger),
-        'date': dulwich_tsinfo_to_timestamp(
-            tag.tag_time,
-            tag.tag_timezone,
-            tag._tag_timezone_neg_utc,
-        ),
         'target': bytes.fromhex(target.decode()),
-        'target_type': DULWICH_TYPES[target_type],
+        'target_type': DULWICH_TYPES[target_type.type_name],
         'message': tag._message,
         'metadata': None,
         'synthetic': False,
     }
+    if tag.tagger:
+        ret['author'] = parse_author(tag.tagger)
+        ret['date'] = dulwich_tsinfo_to_timestamp(
+            tag.tag_time,
+            tag.tag_timezone,
+            tag._tag_timezone_neg_utc,
+        )
+    else:
+        ret['author'] = ret['date'] = None
 
     return ret
-
-
-def dulwich_ref_to_occurrence(ref, objects, timestamp, log=None):
-    pass
-
-
-DULWICH_CONVERTERS = {
-    b'blob': dulwich_blob_to_content,
-    b'tree': dulwich_tree_to_directory,
-    b'commit': dulwich_commit_to_revision,
-    b'tag': lambda x: x,
-}
