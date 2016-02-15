@@ -574,7 +574,9 @@ class BulkUpdater(config.SWHConfig):
 
         # Add origin to storage if needed, use the one from config if not
         origin = self.create_origin(origin_url)
-        base_origin = self.get_origin(base_url)
+        base_origin = origin
+        if base_url:
+            base_origin = self.get_origin(base_url)
 
         # Create fetch_history
         fetch_history = self.open_fetch_history(origin['id'])
