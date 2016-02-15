@@ -6,7 +6,7 @@
 import datetime
 import os
 
-from swh.core.scheduling import Task
+from swh.scheduler.task import Task
 
 from .loader import BulkLoader
 
