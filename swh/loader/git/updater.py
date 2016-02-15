@@ -232,7 +232,7 @@ def retry_loading(error):
 
 class BulkUpdater(config.SWHConfig):
     """A bulk loader for a git repository"""
-    CONFIG_BASE_FILENAME = 'loader/git/updater.ini'
+    CONFIG_BASE_FILENAME = 'loader/git-updater.ini'
 
     DEFAULT_CONFIG = {
         'storage_class': ('str', 'remote_storage'),
@@ -638,7 +638,7 @@ if __name__ == '__main__':
         format='%(asctime)s %(process)d %(message)s'
     )
     config = BulkUpdater.parse_config_file(
-            base_filename='loader/git/updater.ini'
+            base_filename='loader/git-updater.ini'
         )
 
     bulkupdater = BulkUpdater(config)

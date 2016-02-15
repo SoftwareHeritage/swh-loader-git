@@ -9,6 +9,7 @@ import os
 from swh.scheduler.task import Task
 
 from .loader import BulkLoader
+from .updater import BulkUpdater
 
 
 class LoadGitRepository(Task):
@@ -31,6 +32,27 @@ class LoadGitRepository(Task):
         loader.log = self.log
 
         loader.process(repo_path, origin_url, authority_id, validity)
+
+
+class UpdateGitRepository(Task):
+    """Import a git repository as an update"""
+    task_queue = 'swh_loader_git'
+
+    CONFIG_BASE_FILENAME = 'loader/git-updater.ini'
+    ADDITIONAL_CONFIG = {}
+
+    def __init__(self):
+        self.config = BulkUpdater.parse_config_file(
+            base_filename=self.CONFIG_BASE_FILENAME,
+            additional_configs=[self.ADDITIONAL_CONFIG],
+        )
+
+    def run(self, repo_url, base_url=None):
+        """Import a git repository"""
+        loader = BulkUpdater(self.config)
+        loader.log = self.log
+
+        loader.process(repo_url, base_url)
 
 
 class LoadGitHubRepository(LoadGitRepository):
