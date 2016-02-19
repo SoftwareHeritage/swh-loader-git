@@ -21,6 +21,7 @@ doc/attic/api-backend-protocol.txt
 doc/attic/git-loading-design.txt
 resources/local-loader-git.ini
 resources/remote-loader-git.ini
+resources/updater.ini
 resources/test/back.ini
 resources/test/db-manager.ini
 scratch/analyse-profile.py
@@ -34,5 +35,6 @@ swh/loader/git/__init__.py
 swh/loader/git/converters.py
 swh/loader/git/loader.py
 swh/loader/git/tasks.py
+swh/loader/git/updater.py
 swh/loader/git/utils.py
 swh/loader/git/tests/test_converters.py
