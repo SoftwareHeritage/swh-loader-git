@@ -570,6 +570,8 @@ class BulkUpdater(config.SWHConfig):
             self.log.info('Not sending occurrences')
 
     def process(self, origin_url, base_url):
+        eventful = False
+
         date = datetime.datetime.now(tz=datetime.timezone.utc)
 
         # Add origin to storage if needed, use the one from config if not
@@ -587,6 +589,9 @@ class BulkUpdater(config.SWHConfig):
             sys.stderr.flush()
 
         try:
+            original_repo = SWHRepoRepresentation(self.storage, origin['id'])
+            original_heads = original_repo.get_heads()
+
             fetch_info = self.fetch_pack_from_origin(
                 origin_url, base_origin['id'], do_progress)
 
@@ -625,6 +630,11 @@ class BulkUpdater(config.SWHConfig):
             # Finally, load the repository
             self.load_pack(pack_buffer, pack_size, refs, origin['id'])
 
+            end_repo = SWHRepoRepresentation(self.storage, origin['id'])
+            end_heads = end_repo.get_heads()
+
+            eventful = original_heads != end_heads
+
             # End fetch_history
             self.close_fetch_history_success(fetch_history, type_to_ids, refs)
             closed = True
@@ -632,6 +642,8 @@ class BulkUpdater(config.SWHConfig):
         finally:
             if not closed:
                 self.close_fetch_history_failure(fetch_history)
+
+        return eventful
 
 
 if __name__ == '__main__':
@@ -650,4 +662,4 @@ if __name__ == '__main__':
     if len(sys.argv) > 2:
         base_url = sys.argv[2]
 
-    bulkupdater.process(origin_url, base_url)
+    print(bulkupdater.process(origin_url, base_url))

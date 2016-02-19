@@ -52,7 +52,7 @@ class UpdateGitRepository(Task):
         loader = BulkUpdater(self.config)
         loader.log = self.log
 
-        loader.process(repo_url, base_url)
+        return loader.process(repo_url, base_url)
 
 
 class LoadGitHubRepository(LoadGitRepository):
