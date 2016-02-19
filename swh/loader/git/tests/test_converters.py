@@ -130,3 +130,30 @@ class TestConverters(unittest.TestCase):
         self.assertEquals(offset, expected_revision['date'].utcoffset())
         self.assertEquals(offset,
                           expected_revision['committer_date'].utcoffset())
+
+    @istest
+    def ref_to_occurrence_1(self):
+        # when
+        actual_occ = converters.ref_to_occurrence({
+            'id': 'some-id',
+            'branch': 'some/branch'
+        })
+        # then
+        self.assertEquals(actual_occ, {
+            'id': 'some-id',
+            'branch': b'some/branch'
+        })
+
+    @istest
+    def ref_to_occurrence_2(self):
+        # when
+        actual_occ = converters.ref_to_occurrence({
+            'id': 'some-id',
+            'branch': b'some/branch'
+        })
+
+        # then
+        self.assertEquals(actual_occ, {
+            'id': 'some-id',
+            'branch': b'some/branch'
+        })

@@ -1,6 +1,8 @@
+dulwich
 pygit2
 retrying
 vcversioner
 swh.core >= 0.0.7
-swh.model
-swh.storage >= 0.0.20
+swh.model >= 0.0.3
+swh.scheduler
+swh.storage >= 0.0.31

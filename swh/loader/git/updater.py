@@ -3,21 +3,175 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import datetime
+from io import BytesIO
 import logging
+import sys
 import traceback
 import uuid
 
+from collections import defaultdict
+import dulwich.client
+from dulwich.object_store import ObjectStoreGraphWalker
+from dulwich.pack import PackData, PackInflater
 import psycopg2
-import pygit2
-from pygit2 import Oid, GIT_OBJ_BLOB, GIT_OBJ_TREE, GIT_OBJ_COMMIT, GIT_OBJ_TAG
 import requests
 from retrying import retry
+from urllib.parse import urlparse
 
-from swh.core import config
+from swh.core import config, hashutil
 from swh.storage import get_storage
 
 from . import converters
-from .utils import get_objects_per_object_type
+
+
+class SWHRepoRepresentation:
+    """Repository representation for a Software Heritage origin."""
+    def __init__(self, storage, origin_id):
+        self.storage = storage
+
+        self._parents_cache = {}
+        self._type_cache = {}
+
+        if origin_id:
+            self.heads = self._cache_heads(origin_id)
+        else:
+            self.heads = []
+
+    def _fill_parents_cache(self, commit):
+        """When querying for a commit's parents, we fill the cache to a depth of 100
+        commits."""
+        root_rev = hashutil.bytehex_to_hash(commit)
+        for rev, parents in self.storage.revision_shortlog([root_rev], 100):
+            rev_id = hashutil.hash_to_bytehex(rev)
+            if rev_id not in self._parents_cache:
+                self._parents_cache[rev_id] = [
+                    hashutil.hash_to_bytehex(parent) for parent in parents
+                ]
+
+    def _cache_heads(self, origin_id):
+        """Return all the known head commits for `origin_id`"""
+        return [
+            hashutil.hash_to_bytehex(revision['id'])
+            for revision in self.storage.revision_get_by(
+                    origin_id, branch_name=None, timestamp=None, limit=None)
+        ]
+
+    def get_parents(self, commit):
+        """get the parent commits for `commit`"""
+        if commit not in self._parents_cache:
+            self._fill_parents_cache(commit)
+        return self._parents_cache.get(commit, [])
+
+    def get_heads(self):
+        return self.heads
+
+    @staticmethod
+    def _encode_for_storage(objects):
+        return [hashutil.bytehex_to_hash(object) for object in objects]
+
+    @staticmethod
+    def _decode_from_storage(objects):
+        return set(hashutil.hash_to_bytehex(object) for object in objects)
+
+    def get_stored_commits(self, commits):
+        return commits - self._decode_from_storage(
+            self.storage.revision_missing(
+                self._encode_for_storage(commits)
+            )
+        )
+
+    def get_stored_tags(self, tags):
+        return tags - self._decode_from_storage(
+            self.storage.release_missing(
+                self._encode_for_storage(tags)
+            )
+        )
+
+    def get_stored_trees(self, trees):
+        return trees - self._decode_from_storage(
+            self.storage.directory_missing(
+                self._encode_for_storage(trees)
+            )
+        )
+
+    def get_stored_blobs(self, blobs):
+        ret = set()
+        for blob in blobs:
+            if self.storage.content_find({
+                    'sha1_git': hashutil.bytehex_to_hash(blob),
+            }):
+                ret.add(blob)
+
+        return ret
+
+    def graph_walker(self):
+        return ObjectStoreGraphWalker(self.get_heads(), self.get_parents)
+
+    @staticmethod
+    def filter_unwanted_refs(refs):
+        """Filter the unwanted references from refs"""
+        ret = {}
+        for ref, val in refs.items():
+            if ref.endswith(b'^{}'):
+                # Peeled refs make the git protocol explode
+                continue
+            elif ref.startswith(b'refs/pull/') and ref.endswith(b'/merge'):
+                # We filter-out auto-merged GitHub pull requests
+                continue
+            else:
+                ret[ref] = val
+
+        return ret
+
+    def determine_wants(self, refs):
+        if not refs:
+            return []
+        refs = self.parse_local_refs(refs)
+        ret = set()
+        for ref, target in self.filter_unwanted_refs(refs).items():
+            if target['target_type'] is None:
+                # The target doesn't exist in Software Heritage
+                ret.add(target['target'])
+
+        return list(ret)
+
+    def parse_local_refs(self, remote_refs):
+        """Parse the remote refs information and list the objects that exist in
+        Software Heritage"""
+
+        all_objs = set(remote_refs.values()) - set(self._type_cache)
+        type_by_id = {}
+
+        tags = self.get_stored_tags(all_objs)
+        all_objs -= tags
+        for tag in tags:
+            type_by_id[tag] = 'release'
+
+        commits = self.get_stored_commits(all_objs)
+        all_objs -= commits
+        for commit in commits:
+            type_by_id[commit] = 'revision'
+
+        trees = self.get_stored_trees(all_objs)
+        all_objs -= trees
+        for tree in trees:
+            type_by_id[tree] = 'directory'
+
+        blobs = self.get_stored_blobs(all_objs)
+        all_objs -= blobs
+        for blob in blobs:
+            type_by_id[blob] = 'content'
+
+        self._type_cache.update(type_by_id)
+
+        ret = {}
+        for ref, id in remote_refs.items():
+            ret[ref] = {
+                'target': id,
+                'target_type': self._type_cache.get(id),
+            }
+        return ret
 
 
 def send_in_packets(source_list, formatter, sender, packet_size,
@@ -76,8 +230,9 @@ def retry_loading(error):
     return True
 
 
-class BulkLoader(config.SWHConfig):
+class BulkUpdater(config.SWHConfig):
     """A bulk loader for a git repository"""
+    CONFIG_BASE_FILENAME = 'loader/git-updater.ini'
 
     DEFAULT_CONFIG = {
         'storage_class': ('str', 'remote_storage'),
@@ -208,6 +363,50 @@ class BulkLoader(config.SWHConfig):
                            'swh_id': log_id,
                        })
 
+    def fetch_pack_from_origin(self, origin_url, base_origin_id, do_activity):
+        """Fetch a pack from the origin"""
+        pack_buffer = BytesIO()
+
+        base_repo = SWHRepoRepresentation(self.storage, base_origin_id)
+
+        parsed_uri = urlparse(origin_url)
+
+        path = parsed_uri.path
+        if not path.endswith('.git'):
+            path += '.git'
+
+        client = dulwich.client.TCPGitClient(parsed_uri.netloc,
+                                             thin_packs=False)
+
+        def do_pack(data, pack_buffer=pack_buffer):
+            pack_buffer.write(data)
+
+        remote_refs = client.fetch_pack(path.encode('ascii'),
+                                        base_repo.determine_wants,
+                                        base_repo.graph_walker(),
+                                        do_pack,
+                                        progress=do_activity)
+
+        if remote_refs:
+            local_refs = base_repo.parse_local_refs(remote_refs)
+        else:
+            local_refs = remote_refs = {}
+
+        pack_buffer.flush()
+        pack_size = pack_buffer.tell()
+        pack_buffer.seek(0)
+        return {
+            'remote_refs': base_repo.filter_unwanted_refs(remote_refs),
+            'local_refs': local_refs,
+            'pack_buffer': pack_buffer,
+            'pack_size': pack_size,
+        }
+
+    def get_origin(self, origin_url):
+        origin = converters.origin_url_to_origin(origin_url)
+
+        return self.storage.origin_get(origin)
+
     def get_or_create_origin(self, origin_url):
         origin = converters.origin_url_to_origin(origin_url)
 
@@ -215,7 +414,7 @@ class BulkLoader(config.SWHConfig):
 
         return origin
 
-    def repo_origin(self, repo, origin_url):
+    def create_origin(self, origin_url):
         log_id = str(uuid.uuid4())
         self.log.debug('Creating origin for %s' % origin_url,
                        extra={
@@ -235,166 +434,51 @@ class BulkLoader(config.SWHConfig):
 
         return origin
 
-    def bulk_send_blobs(self, repo, blobs, origin_id):
+    def bulk_send_blobs(self, inflater, origin_id):
         """Format blobs as swh contents and send them to the database"""
         packet_size = self.config['content_packet_size']
         packet_size_bytes = self.config['content_packet_size_bytes']
         max_content_size = self.config['content_size_limit']
 
-        send_in_packets(blobs, converters.blob_to_content,
-                        self.send_contents, packet_size, repo=repo,
+        send_in_packets(inflater, converters.dulwich_blob_to_content,
+                        self.send_contents, packet_size,
                         packet_size_bytes=packet_size_bytes,
                         log=self.log, max_content_size=max_content_size,
                         origin_id=origin_id)
 
-    def bulk_send_trees(self, repo, trees):
+    def bulk_send_trees(self, inflater):
         """Format trees as swh directories and send them to the database"""
         packet_size = self.config['directory_packet_size']
 
-        send_in_packets(trees, converters.tree_to_directory,
-                        self.send_directories, packet_size, repo=repo,
+        send_in_packets(inflater, converters.dulwich_tree_to_directory,
+                        self.send_directories, packet_size,
                         log=self.log)
 
-    def bulk_send_commits(self, repo, commits):
+    def bulk_send_commits(self, inflater):
         """Format commits as swh revisions and send them to the database"""
         packet_size = self.config['revision_packet_size']
 
-        send_in_packets(commits, converters.commit_to_revision,
-                        self.send_revisions, packet_size, repo=repo,
+        send_in_packets(inflater, converters.dulwich_commit_to_revision,
+                        self.send_revisions, packet_size,
                         log=self.log)
 
-    def bulk_send_annotated_tags(self, repo, tags):
-        """Format annotated tags (pygit2.Tag objects) as swh releases and send
+    def bulk_send_tags(self, inflater):
+        """Format annotated tags (dulwich.objects.Tag objects) as swh releases and send
         them to the database
         """
         packet_size = self.config['release_packet_size']
 
-        send_in_packets(tags, converters.annotated_tag_to_release,
-                        self.send_releases, packet_size, repo=repo,
+        send_in_packets(inflater, converters.dulwich_tag_to_release,
+                        self.send_releases, packet_size,
                         log=self.log)
 
-    def bulk_send_refs(self, repo, refs):
+    def bulk_send_refs(self, refs):
         """Format git references as swh occurrences and send them to the
         database
         """
         packet_size = self.config['occurrence_packet_size']
 
-        send_in_packets(refs, converters.ref_to_occurrence,
-                        self.send_occurrences, packet_size)
-
-    def list_repo_refs(self, repo, origin_id, authority_id, validity):
-        """List all the refs from the given repository.
-
-        Args:
-            - repo (pygit2.Repository): the repository to list
-            - origin_id (int): the id of the origin from which the repo is
-                taken
-            - validity (datetime.datetime): the validity date for the
-                repository's refs
-            - authority_id (str): the uuid of the authority on `validity`.
-
-        Returns:
-            A list of dicts with keys:
-                - branch (str): name of the ref
-                - revision (sha1_git): revision pointed at by the ref
-                - origin (int)
-                - validity (datetime.DateTime)
-                - authority (str)
-            Compatible with occurrence_add.
-        """
-
-        log_id = str(uuid.uuid4())
-
-        refs = []
-        ref_names = repo.listall_references()
-        for ref_name in ref_names:
-            ref = repo.lookup_reference(ref_name)
-            target = ref.target
-
-            if not isinstance(target, Oid):
-                self.log.debug("Peeling symbolic ref %s pointing at %s" % (
-                    ref_name, ref.target), extra={
-                        'swh_type': 'git_sym_ref_peel',
-                        'swh_name': ref_name,
-                        'swh_target': str(ref.target),
-                        'swh_id': log_id,
-                    })
-                target_obj = ref.peel()
-            else:
-                target_obj = repo[target]
-
-            if target_obj.type == GIT_OBJ_TAG:
-                self.log.debug("Peeling ref %s pointing at tag %s" % (
-                    ref_name, target_obj.name), extra={
-                        'swh_type': 'git_ref_peel',
-                        'swh_name': ref_name,
-                        'swh_target': str(target_obj.name),
-                        'swh_id': log_id,
-                    })
-                target_obj = ref.peel()
-
-            if not target_obj.type == GIT_OBJ_COMMIT:
-                self.log.info("Skipping ref %s pointing to %s %s" % (
-                    ref_name, target_obj.__class__.__name__,
-                    target_obj.id.hex), extra={
-                        'swh_type': 'git_ref_skip',
-                        'swh_name': ref_name,
-                        'swh_target': str(target_obj),
-                        'swh_id': log_id,
-                    })
-
-            refs.append({
-                'branch': ref_name,
-                'revision': target_obj.id.raw,
-                'origin': origin_id,
-                'validity': validity,
-                'authority': authority_id,
-            })
-
-        return refs
-
-    def list_repo_objs(self, repo):
-        """List all the objects from repo.
-
-        Args:
-            - repo (pygit2.Repository): the repository to list
-
-        Returns:
-            a dict containing lists of `Oid`s with keys for each object type:
-            - GIT_OBJ_BLOB
-            - GIT_OBJ_TREE
-            - GIT_OBJ_COMMIT
-            - GIT_OBJ_TAG
-        """
-        log_id = str(uuid.uuid4())
-
-        self.log.info("Started listing %s" % repo.path, extra={
-            'swh_type': 'git_list_objs_start',
-            'swh_repo': repo.path,
-            'swh_id': log_id,
-        })
-        objects = get_objects_per_object_type(repo)
-        self.log.info("Done listing the objects in %s: %d contents, "
-                      "%d directories, %d revisions, %d releases" % (
-                         repo.path,
-                         len(objects[GIT_OBJ_BLOB]),
-                         len(objects[GIT_OBJ_TREE]),
-                         len(objects[GIT_OBJ_COMMIT]),
-                         len(objects[GIT_OBJ_TAG]),
-                      ), extra={
-                          'swh_type': 'git_list_objs_end',
-                          'swh_repo': repo.path,
-                          'swh_num_blobs': len(objects[GIT_OBJ_BLOB]),
-                          'swh_num_trees': len(objects[GIT_OBJ_TREE]),
-                          'swh_num_commits': len(objects[GIT_OBJ_COMMIT]),
-                          'swh_num_tags': len(objects[GIT_OBJ_TAG]),
-                          'swh_id': log_id,
-                      })
-
-        return objects
-
-    def open_repo(self, repo_path):
-        return pygit2.Repository(repo_path)
+        send_in_packets(refs, lambda x: x, self.send_occurrences, packet_size)
 
     def open_fetch_history(self, origin_id):
         return self.storage.fetch_history_start(origin_id)
@@ -403,10 +487,10 @@ class BulkLoader(config.SWHConfig):
         data = {
             'status': True,
             'result': {
-                'contents': len(objects.get(GIT_OBJ_BLOB, [])),
-                'directories': len(objects.get(GIT_OBJ_TREE, [])),
-                'revisions': len(objects.get(GIT_OBJ_COMMIT, [])),
-                'releases': len(objects.get(GIT_OBJ_TAG, [])),
+                'contents': len(objects[b'blob']),
+                'directories': len(objects[b'tree']),
+                'revisions': len(objects[b'commit']),
+                'releases': len(objects[b'tag']),
                 'occurrences': len(refs),
             },
         }
@@ -420,78 +504,162 @@ class BulkLoader(config.SWHConfig):
         }
         return self.storage.fetch_history_end(fetch_history_id, data)
 
-    def load_repo(self, repo, objects, refs, origin_id):
+    def get_inflater(self, pack_buffer, pack_size):
+        """Reset the pack buffer and get an object inflater from it"""
+        pack_buffer.seek(0)
+        return PackInflater.for_pack_data(
+            PackData.from_file(pack_buffer, pack_size))
 
+    def list_pack(self, pack_data, pack_size):
+        id_to_type = {}
+        type_to_ids = defaultdict(set)
+
+        inflater = self.get_inflater(pack_data, pack_size)
+
+        for obj in inflater:
+            type, id = obj.type_name, obj.id
+            id_to_type[id] = type
+            type_to_ids[type].add(id)
+
+        return id_to_type, type_to_ids
+
+    def list_refs(self, remote_refs, local_refs, id_to_type, origin_id, date):
+        ret = []
+        for ref in remote_refs:
+            ret_ref = local_refs[ref].copy()
+            ret_ref.update({
+                'branch': ref,
+                'origin': origin_id,
+                'date': date,
+            })
+            if not ret_ref['target_type']:
+                target_type = id_to_type[ret_ref['target']]
+                ret_ref['target_type'] = converters.DULWICH_TYPES[target_type]
+
+            ret_ref['target'] = hashutil.bytehex_to_hash(ret_ref['target'])
+
+            ret.append(ret_ref)
+
+        return ret
+
+    def load_pack(self, pack_buffer, pack_size, refs, origin_id):
         if self.config['send_contents']:
-            self.bulk_send_blobs(repo, objects[GIT_OBJ_BLOB], origin_id)
+            self.bulk_send_blobs(self.get_inflater(pack_buffer, pack_size),
+                                 origin_id)
         else:
             self.log.info('Not sending contents')
 
         if self.config['send_directories']:
-            self.bulk_send_trees(repo, objects[GIT_OBJ_TREE])
+            self.bulk_send_trees(self.get_inflater(pack_buffer, pack_size))
         else:
             self.log.info('Not sending directories')
 
         if self.config['send_revisions']:
-            self.bulk_send_commits(repo, objects[GIT_OBJ_COMMIT])
+            self.bulk_send_commits(self.get_inflater(pack_buffer, pack_size))
         else:
             self.log.info('Not sending revisions')
 
         if self.config['send_releases']:
-            self.bulk_send_annotated_tags(repo, objects[GIT_OBJ_TAG])
+            self.bulk_send_tags(self.get_inflater(pack_buffer, pack_size))
         else:
             self.log.info('Not sending releases')
 
         if self.config['send_occurrences']:
-            self.bulk_send_refs(repo, refs)
+            self.bulk_send_refs(refs)
         else:
             self.log.info('Not sending occurrences')
 
-    def process(self, repo_path, origin_url, authority_id, validity):
-        # Open repository
-        repo = self.open_repo(repo_path)
+    def process(self, origin_url, base_url):
+        eventful = False
+
+        date = datetime.datetime.now(tz=datetime.timezone.utc)
 
         # Add origin to storage if needed, use the one from config if not
-        origin = self.repo_origin(repo, origin_url)
+        origin = self.create_origin(origin_url)
+        base_origin = origin
+        if base_url:
+            base_origin = self.get_origin(base_url)
 
         # Create fetch_history
         fetch_history = self.open_fetch_history(origin['id'])
         closed = False
 
-        try:
-            # Parse all the refs from our repo
-            refs = self.list_repo_refs(repo, origin['id'], authority_id,
-                                       validity)
+        def do_progress(msg):
+            sys.stderr.buffer.write(msg)
+            sys.stderr.flush()
 
-            if not refs:
-                self.log.info('Skipping empty repository %s' % repo_path,
+        try:
+            original_heads = list(self.storage.occurrence_get(origin['id']))
+            original_heads.sort(key=lambda h: h['branch'])
+
+            fetch_info = self.fetch_pack_from_origin(
+                origin_url, base_origin['id'], do_progress)
+
+            pack_buffer = fetch_info['pack_buffer']
+            pack_size = fetch_info['pack_size']
+
+            remote_refs = fetch_info['remote_refs']
+            local_refs = fetch_info['local_refs']
+            if not remote_refs:
+                self.log.info('Skipping empty repository %s' % origin_url,
                               extra={
                                   'swh_type': 'git_repo_list_refs',
-                                  'swh_repo': repo_path,
+                                  'swh_repo': origin_url,
                                   'swh_num_refs': 0,
                               })
                 # End fetch_history
-                self.close_fetch_history_success(fetch_history, {}, refs)
+                self.close_fetch_history_success(fetch_history,
+                                                 defaultdict(set), [])
                 closed = True
                 return
             else:
                 self.log.info('Listed %d refs for repo %s' % (
-                    len(refs), repo_path), extra={
+                    len(remote_refs), origin_url), extra={
                         'swh_type': 'git_repo_list_refs',
-                        'swh_repo': repo_path,
-                        'swh_num_refs': len(refs),
+                        'swh_repo': origin_url,
+                        'swh_num_refs': len(remote_refs),
                     })
 
             # We want to load the repository, walk all the objects
-            objects = self.list_repo_objs(repo)
+            id_to_type, type_to_ids = self.list_pack(pack_buffer, pack_size)
+
+            # Parse the remote references and add info from the local ones
+            refs = self.list_refs(remote_refs, local_refs,
+                                  id_to_type, origin['id'], date)
 
             # Finally, load the repository
-            self.load_repo(repo, objects, refs, origin['id'])
+            self.load_pack(pack_buffer, pack_size, refs, origin['id'])
+
+            end_heads = list(self.storage.occurrence_get(origin['id']))
+            end_heads.sort(key=lambda h: h['branch'])
+
+            eventful = original_heads != end_heads
 
             # End fetch_history
-            self.close_fetch_history_success(fetch_history, objects, refs)
+            self.close_fetch_history_success(fetch_history, type_to_ids, refs)
             closed = True
 
         finally:
             if not closed:
                 self.close_fetch_history_failure(fetch_history)
+
+        return eventful
+
+
+if __name__ == '__main__':
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s %(process)d %(message)s'
+    )
+    config = BulkUpdater.parse_config_file(
+            base_filename='loader/git-updater.ini'
+        )
+
+    bulkupdater = BulkUpdater(config)
+
+    origin_url = sys.argv[1]
+    base_url = origin_url
+    if len(sys.argv) > 2:
+        base_url = sys.argv[2]
+
+    print(bulkupdater.process(origin_url, base_url))
