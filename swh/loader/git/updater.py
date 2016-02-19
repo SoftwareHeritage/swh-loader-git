@@ -589,8 +589,8 @@ class BulkUpdater(config.SWHConfig):
             sys.stderr.flush()
 
         try:
-            original_repo = SWHRepoRepresentation(self.storage, origin['id'])
-            original_heads = original_repo.get_heads()
+            original_heads = list(self.storage.occurrence_get(origin['id']))
+            original_heads.sort(key=lambda h: h['branch'])
 
             fetch_info = self.fetch_pack_from_origin(
                 origin_url, base_origin['id'], do_progress)
@@ -630,8 +630,8 @@ class BulkUpdater(config.SWHConfig):
             # Finally, load the repository
             self.load_pack(pack_buffer, pack_size, refs, origin['id'])
 
-            end_repo = SWHRepoRepresentation(self.storage, origin['id'])
-            end_heads = end_repo.get_heads()
+            end_heads = list(self.storage.occurrence_get(origin['id']))
+            end_heads.sort(key=lambda h: h['branch'])
 
             eventful = original_heads != end_heads
 
