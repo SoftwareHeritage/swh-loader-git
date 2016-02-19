@@ -1,3 +1,4 @@
+dulwich
 pygit2
 retrying
 vcversioner
