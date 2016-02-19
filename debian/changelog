@@ -1,3 +1,10 @@
+swh-loader-git (0.0.11-1~swh1) unstable-swh; urgency=medium
+
+  * Release swh.loader.git v0.0.11
+  * Implement git updater
+
+ -- Nicolas Dandrimont <nicolas@dandrimont.eu>  Fri, 19 Feb 2016 19:13:22 +0100
+
 swh-loader-git (0.0.10-1~swh1) unstable-swh; urgency=medium
 
   * Prepare swh.loader.git release v0.0.10
