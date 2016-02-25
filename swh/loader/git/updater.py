@@ -222,6 +222,8 @@ class BulkUpdater(config.SWHConfig):
         'revision_packet_size': ('int', 100000),
         'release_packet_size': ('int', 100000),
         'occurrence_packet_size': ('int', 100000),
+
+        'pack_size_bytes': ('int', 4 * 1024 * 1024 * 1024),
     }
 
     def __init__(self, config):
@@ -352,7 +354,17 @@ class BulkUpdater(config.SWHConfig):
         client = dulwich.client.TCPGitClient(parsed_uri.netloc,
                                              thin_packs=False)
 
-        def do_pack(data, pack_buffer=pack_buffer):
+        size_limit = self.config['pack_size_bytes']
+
+        def do_pack(data, pack_buffer=pack_buffer, limit=size_limit):
+            cur_size = pack_buffer.tell()
+            would_write = len(data)
+            if cur_size + would_write > limit:
+                raise IOError('Pack file too big for repository %s, '
+                              'limit is %d bytes, current size is %d, '
+                              'would write %d' %
+                              (origin_url, limit, cur_size, would_write))
+
             pack_buffer.write(data)
 
         remote_refs = client.fetch_pack(path.encode('ascii'),
