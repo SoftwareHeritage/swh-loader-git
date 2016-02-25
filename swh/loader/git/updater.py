@@ -528,25 +528,30 @@ class BulkUpdater(config.SWHConfig):
 
         return ret
 
-    def load_pack(self, pack_buffer, pack_size, refs, origin_id):
+    def load_pack(self, pack_buffer, pack_size, refs, type_to_ids, origin_id):
         if self.config['send_contents']:
-            self.bulk_send_blobs(self.get_inflater(pack_buffer, pack_size),
-                                 origin_id)
+            if type_to_ids[b'blob']:
+                self.bulk_send_blobs(self.get_inflater(pack_buffer, pack_size),
+                                     origin_id)
         else:
             self.log.info('Not sending contents')
 
         if self.config['send_directories']:
-            self.bulk_send_trees(self.get_inflater(pack_buffer, pack_size))
+            if type_to_ids[b'tree']:
+                self.bulk_send_trees(self.get_inflater(pack_buffer, pack_size))
         else:
             self.log.info('Not sending directories')
 
         if self.config['send_revisions']:
-            self.bulk_send_commits(self.get_inflater(pack_buffer, pack_size))
+            if type_to_ids[b'commit']:
+                self.bulk_send_commits(self.get_inflater(pack_buffer,
+                                                         pack_size))
         else:
             self.log.info('Not sending revisions')
 
         if self.config['send_releases']:
-            self.bulk_send_tags(self.get_inflater(pack_buffer, pack_size))
+            if type_to_ids[b'tag']:
+                self.bulk_send_tags(self.get_inflater(pack_buffer, pack_size))
         else:
             self.log.info('Not sending releases')
 
@@ -618,7 +623,8 @@ class BulkUpdater(config.SWHConfig):
                                   id_to_type, origin['id'], date)
 
             # Finally, load the repository
-            self.load_pack(pack_buffer, pack_size, refs, origin['id'])
+            self.load_pack(pack_buffer, pack_size, refs, type_to_ids,
+                           origin['id'])
 
             end_heads = list(self.storage.occurrence_get(origin['id']))
             end_heads.sort(key=lambda h: h['branch'])
