@@ -5,4 +5,4 @@ vcversioner
 swh.core >= 0.0.7
 swh.model >= 0.0.3
 swh.scheduler
-swh.storage >= 0.0.31
+swh.storage >= 0.0.35
