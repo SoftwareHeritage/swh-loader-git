@@ -599,7 +599,9 @@ class BulkUpdater(config.SWHConfig):
                 self.close_fetch_history_success(fetch_history,
                                                  defaultdict(set), [])
                 closed = True
-                return
+
+                # If the original repo was not empty, then the run was eventful
+                return bool(original_heads)
             else:
                 self.log.info('Listed %d refs for repo %s' % (
                     len(remote_refs), origin_url), extra={
