@@ -27,16 +27,16 @@ from . import converters
 
 class SWHRepoRepresentation:
     """Repository representation for a Software Heritage origin."""
-    def __init__(self, storage, origin_id):
+    def __init__(self, storage, origin_id, occurrences=None):
         self.storage = storage
 
         self._parents_cache = {}
         self._type_cache = {}
 
         if origin_id:
-            self.heads = self._cache_heads(origin_id)
+            self.heads = set(self._cache_heads(origin_id, occurrences))
         else:
-            self.heads = []
+            self.heads = set()
 
     def _fill_parents_cache(self, commit):
         """When querying for a commit's parents, we fill the cache to a depth of 100
@@ -49,13 +49,14 @@ class SWHRepoRepresentation:
                     hashutil.hash_to_bytehex(parent) for parent in parents
                 ]
 
-    def _cache_heads(self, origin_id):
+    def _cache_heads(self, origin_id, occurrences):
         """Return all the known head commits for `origin_id`"""
-        return [
-            hashutil.hash_to_bytehex(revision['id'])
-            for revision in self.storage.revision_get_by(
-                    origin_id, branch_name=None, timestamp=None, limit=None)
-        ]
+        if not occurrences:
+            occurrences = self.storage.occurrence_get(origin_id)
+
+        return self._decode_from_storage(
+            occurrence['target'] for occurrence in occurrences
+        )
 
     def get_parents(self, commit):
         """get the parent commits for `commit`"""
@@ -73,37 +74,6 @@ class SWHRepoRepresentation:
     @staticmethod
     def _decode_from_storage(objects):
         return set(hashutil.hash_to_bytehex(object) for object in objects)
-
-    def get_stored_commits(self, commits):
-        return commits - self._decode_from_storage(
-            self.storage.revision_missing(
-                self._encode_for_storage(commits)
-            )
-        )
-
-    def get_stored_tags(self, tags):
-        return tags - self._decode_from_storage(
-            self.storage.release_missing(
-                self._encode_for_storage(tags)
-            )
-        )
-
-    def get_stored_trees(self, trees):
-        return trees - self._decode_from_storage(
-            self.storage.directory_missing(
-                self._encode_for_storage(trees)
-            )
-        )
-
-    def get_stored_blobs(self, blobs):
-        ret = set()
-        for blob in blobs:
-            if self.storage.content_find({
-                    'sha1_git': hashutil.bytehex_to_hash(blob),
-            }):
-                ret.add(blob)
-
-        return ret
 
     def graph_walker(self):
         return ObjectStoreGraphWalker(self.get_heads(), self.get_parents)
@@ -125,43 +95,45 @@ class SWHRepoRepresentation:
         return ret
 
     def determine_wants(self, refs):
+        """Filter the remote references to figure out which ones
+        Software Heritage needs.
+        """
         if not refs:
             return []
-        refs = self.parse_local_refs(refs)
+
+        # Find what objects Software Heritage has
+        refs = self.find_remote_ref_types_in_swh(refs)
+
+        # Cache the objects found in swh as existing heads
+        for target in refs.values():
+            if target['target_type'] is not None:
+                self.heads.add(target['target'])
+
         ret = set()
-        for ref, target in self.filter_unwanted_refs(refs).items():
+        for target in self.filter_unwanted_refs(refs).values():
             if target['target_type'] is None:
-                # The target doesn't exist in Software Heritage
+                # The target doesn't exist in Software Heritage, let's retrieve
+                # it.
                 ret.add(target['target'])
 
         return list(ret)
 
-    def parse_local_refs(self, remote_refs):
+    def get_stored_objects(self, objects):
+        return self.storage.object_find_by_sha1_git(
+            self._encode_for_storage(objects))
+
+    def find_remote_ref_types_in_swh(self, remote_refs):
         """Parse the remote refs information and list the objects that exist in
-        Software Heritage"""
+        Software Heritage.
+        """
 
         all_objs = set(remote_refs.values()) - set(self._type_cache)
         type_by_id = {}
 
-        tags = self.get_stored_tags(all_objs)
-        all_objs -= tags
-        for tag in tags:
-            type_by_id[tag] = 'release'
-
-        commits = self.get_stored_commits(all_objs)
-        all_objs -= commits
-        for commit in commits:
-            type_by_id[commit] = 'revision'
-
-        trees = self.get_stored_trees(all_objs)
-        all_objs -= trees
-        for tree in trees:
-            type_by_id[tree] = 'directory'
-
-        blobs = self.get_stored_blobs(all_objs)
-        all_objs -= blobs
-        for blob in blobs:
-            type_by_id[blob] = 'content'
+        for id, objs in self.get_stored_objects(all_objs).items():
+            id = hashutil.hash_to_bytehex(id)
+            if objs:
+                type_by_id[id] = objs[0]['type']
 
         self._type_cache.update(type_by_id)
 
@@ -250,6 +222,8 @@ class BulkUpdater(config.SWHConfig):
         'revision_packet_size': ('int', 100000),
         'release_packet_size': ('int', 100000),
         'occurrence_packet_size': ('int', 100000),
+
+        'pack_size_bytes': ('int', 4 * 1024 * 1024 * 1024),
     }
 
     def __init__(self, config):
@@ -363,11 +337,13 @@ class BulkUpdater(config.SWHConfig):
                            'swh_id': log_id,
                        })
 
-    def fetch_pack_from_origin(self, origin_url, base_origin_id, do_activity):
+    def fetch_pack_from_origin(self, origin_url, base_origin_id,
+                               base_occurrences, do_activity):
         """Fetch a pack from the origin"""
         pack_buffer = BytesIO()
 
-        base_repo = SWHRepoRepresentation(self.storage, base_origin_id)
+        base_repo = SWHRepoRepresentation(self.storage, base_origin_id,
+                                          base_occurrences)
 
         parsed_uri = urlparse(origin_url)
 
@@ -378,7 +354,17 @@ class BulkUpdater(config.SWHConfig):
         client = dulwich.client.TCPGitClient(parsed_uri.netloc,
                                              thin_packs=False)
 
-        def do_pack(data, pack_buffer=pack_buffer):
+        size_limit = self.config['pack_size_bytes']
+
+        def do_pack(data, pack_buffer=pack_buffer, limit=size_limit):
+            cur_size = pack_buffer.tell()
+            would_write = len(data)
+            if cur_size + would_write > limit:
+                raise IOError('Pack file too big for repository %s, '
+                              'limit is %d bytes, current size is %d, '
+                              'would write %d' %
+                              (origin_url, limit, cur_size, would_write))
+
             pack_buffer.write(data)
 
         remote_refs = client.fetch_pack(path.encode('ascii'),
@@ -388,7 +374,7 @@ class BulkUpdater(config.SWHConfig):
                                         progress=do_activity)
 
         if remote_refs:
-            local_refs = base_repo.parse_local_refs(remote_refs)
+            local_refs = base_repo.find_remote_ref_types_in_swh(remote_refs)
         else:
             local_refs = remote_refs = {}
 
@@ -542,25 +528,30 @@ class BulkUpdater(config.SWHConfig):
 
         return ret
 
-    def load_pack(self, pack_buffer, pack_size, refs, origin_id):
+    def load_pack(self, pack_buffer, pack_size, refs, type_to_ids, origin_id):
         if self.config['send_contents']:
-            self.bulk_send_blobs(self.get_inflater(pack_buffer, pack_size),
-                                 origin_id)
+            if type_to_ids[b'blob']:
+                self.bulk_send_blobs(self.get_inflater(pack_buffer, pack_size),
+                                     origin_id)
         else:
             self.log.info('Not sending contents')
 
         if self.config['send_directories']:
-            self.bulk_send_trees(self.get_inflater(pack_buffer, pack_size))
+            if type_to_ids[b'tree']:
+                self.bulk_send_trees(self.get_inflater(pack_buffer, pack_size))
         else:
             self.log.info('Not sending directories')
 
         if self.config['send_revisions']:
-            self.bulk_send_commits(self.get_inflater(pack_buffer, pack_size))
+            if type_to_ids[b'commit']:
+                self.bulk_send_commits(self.get_inflater(pack_buffer,
+                                                         pack_size))
         else:
             self.log.info('Not sending revisions')
 
         if self.config['send_releases']:
-            self.bulk_send_tags(self.get_inflater(pack_buffer, pack_size))
+            if type_to_ids[b'tag']:
+                self.bulk_send_tags(self.get_inflater(pack_buffer, pack_size))
         else:
             self.log.info('Not sending releases')
 
@@ -574,11 +565,16 @@ class BulkUpdater(config.SWHConfig):
 
         date = datetime.datetime.now(tz=datetime.timezone.utc)
 
-        # Add origin to storage if needed, use the one from config if not
         origin = self.create_origin(origin_url)
         base_origin = origin
-        if base_url:
+        base_occurrences = list(self.storage.occurrence_get(origin['id']))
+
+        original_heads = list(sorted(base_occurrences,
+                                     key=lambda h: h['branch']))
+
+        if base_url and not original_heads:
             base_origin = self.get_origin(base_url)
+            base_occurrences = None
 
         # Create fetch_history
         fetch_history = self.open_fetch_history(origin['id'])
@@ -589,11 +585,8 @@ class BulkUpdater(config.SWHConfig):
             sys.stderr.flush()
 
         try:
-            original_heads = list(self.storage.occurrence_get(origin['id']))
-            original_heads.sort(key=lambda h: h['branch'])
-
             fetch_info = self.fetch_pack_from_origin(
-                origin_url, base_origin['id'], do_progress)
+                origin_url, base_origin['id'], base_occurrences, do_progress)
 
             pack_buffer = fetch_info['pack_buffer']
             pack_size = fetch_info['pack_size']
@@ -611,7 +604,9 @@ class BulkUpdater(config.SWHConfig):
                 self.close_fetch_history_success(fetch_history,
                                                  defaultdict(set), [])
                 closed = True
-                return
+
+                # If the original repo was not empty, then the run was eventful
+                return bool(original_heads)
             else:
                 self.log.info('Listed %d refs for repo %s' % (
                     len(remote_refs), origin_url), extra={
@@ -628,7 +623,8 @@ class BulkUpdater(config.SWHConfig):
                                   id_to_type, origin['id'], date)
 
             # Finally, load the repository
-            self.load_pack(pack_buffer, pack_size, refs, origin['id'])
+            self.load_pack(pack_buffer, pack_size, refs, type_to_ids,
+                           origin['id'])
 
             end_heads = list(self.storage.occurrence_get(origin['id']))
             end_heads.sort(key=lambda h: h['branch'])
