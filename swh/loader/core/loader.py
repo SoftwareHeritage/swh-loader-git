@@ -56,7 +56,7 @@ class SWHLoader(config.SWHConfig):
     This will load the svn repository.
 
     """
-    def __init__(self, config, revision_type, origin_id, logging_class):
+    def __init__(self, config, origin_id, revision_type, logging_class):
         self.config = config
 
         self.origin_id = origin_id
