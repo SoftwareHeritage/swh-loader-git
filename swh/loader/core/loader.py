@@ -295,8 +295,7 @@ class SWHLoader(config.SWHConfig):
             shallow_tags.append(converters.shallow_tag(tag))
             self.releases_seen.add(key)
 
-        for sha in self.storage.release_missing(shallow_tags,
-                                                type=self.revision_type):
+        for sha in self.storage.release_missing(shallow_tags):
             yield tags_per_sha1[sha]
 
     def bulk_send_annotated_tags(self, tags):
