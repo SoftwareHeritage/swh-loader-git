@@ -1,0 +1,20 @@
+Source: swh-loader-core
+Maintainer: Software Heritage developers <swh-devel@inria.fr>
+Section: python
+Priority: optional
+Build-Depends: debhelper (>= 9),
+               dh-python,
+               python3-all,
+               python3-nose,
+               python3-setuptools,
+               python3-swh.core,
+               python3-swh.storage,
+               python3-retrying,
+               python3-vcversioner
+Standards-Version: 3.9.6
+Homepage: https://forge.softwareheritage.org/diffusion/DLDC/
+
+Package: python3-swh.loader.core
+Architecture: all
+Depends: ${misc:Depends}, ${python3:Depends}
+Description: Software Heritage <module-description>
