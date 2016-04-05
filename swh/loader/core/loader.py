@@ -1,4 +1,4 @@
-# Copyright (C) 2015  The Software Heritage developers
+# Copyright (C) 2015-2016  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -13,13 +13,13 @@ from retrying import retry
 
 from swh.core import config
 
-from swh.loader.dir import converters
+from . import converters
 from swh.model.git import GitType
 from swh.storage import get_storage
 
-from swh.loader.core.queue import QueuePerSizeAndNbUniqueElements
-from swh.loader.core.queue import QueuePerNbUniqueElements
-from swh.loader.core.queue import QueuePerNbElements
+from .queue import QueuePerSizeAndNbUniqueElements
+from .queue import QueuePerNbUniqueElements
+from .queue import QueuePerNbElements
 
 
 def retry_loading(error):
@@ -48,55 +48,6 @@ def retry_loading(error):
     })
 
     return True
-
-
-def shallow_blob(obj):
-    """Convert a full swh content/blob to just what's needed by
-    swh-storage for filtering.
-
-    Returns:
-        A shallow copy of a full swh content/blob object.
-
-    """
-    return {
-        'sha1': obj['sha1'],
-        'sha256': obj['sha256'],
-        'sha1_git': obj['sha1_git'],
-        'length': obj['length']
-    }
-
-
-def shallow_tree(tree):
-    """Convert a full swh directory/tree to just what's needed by
-    swh-storage for filtering.
-
-    Returns:
-        A shallow copy of a full swh directory/tree object.
-
-    """
-    return tree['sha1_git']
-
-
-def shallow_commit(commit):
-    """Convert a full swh revision/commit to just what's needed by
-    swh-storage for filtering.
-
-    Returns:
-        A shallow copy of a full swh revision/commit object.
-
-    """
-    return commit['id']
-
-
-def shallow_tag(tag):
-    """Convert a full swh release/tag to just what's needed by
-    swh-storage for filtering.
-
-    Returns:
-        A shallow copy of a full swh release/tag object.
-
-    """
-    return tag['id']
 
 
 class SWHLoader(config.SWHConfig):
@@ -266,7 +217,7 @@ class SWHLoader(config.SWHConfig):
         for key, blob in ((b['sha1'], b) for b in blobs
                           if b['sha1'] not in self.contents_seen):
             blobs_per_sha1[key] = blob
-            shallow_blobs.append(shallow_blob(blob))
+            shallow_blobs.append(converters.shallow_blob(blob))
             self.contents_seen.add(key)
 
         for sha1 in self.storage.content_missing(shallow_blobs,
@@ -291,7 +242,7 @@ class SWHLoader(config.SWHConfig):
         for key, tree in ((t['sha1_git'], t) for t in trees
                           if t['sha1_git'] not in self.directories_seen):
             trees_per_sha1[key] = tree
-            shallow_trees.append(shallow_tree(tree))
+            shallow_trees.append(converters.shallow_tree(tree))
             self.directories_seen.add(key)
 
         for sha in self.storage.directory_missing(shallow_trees):
@@ -314,7 +265,7 @@ class SWHLoader(config.SWHConfig):
         for key, commit in ((c['id'], c) for c in commits
                             if c['id'] not in self.revisions_seen):
             commits_per_sha1[key] = commit
-            shallow_commits.append(shallow_commit(commit))
+            shallow_commits.append(converters.shallow_commit(commit))
             self.revisions_seen.add(key)
 
         for sha in self.storage.revision_missing(shallow_commits,
@@ -341,7 +292,7 @@ class SWHLoader(config.SWHConfig):
         for key, tag in ((t['id'], t) for t in tags
                          if t['id'] not in self.releases_seen):
             tags_per_sha1[key] = tag
-            shallow_tags.append(shallow_tag(tag))
+            shallow_tags.append(converters.shallow_tag(tag))
             self.releases_seen.add(key)
 
         for sha in self.storage.release_missing(shallow_tags,
