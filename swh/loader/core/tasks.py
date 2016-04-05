@@ -38,5 +38,5 @@ class LoaderCoreTask(Task):
         }
         return storage.fetch_history_end(fetch_history_id, data)
 
-    def run(self, *args, **kwds):
+    def run(self, *args, **kwargs):
         raise NotImplemented('Need to be overriden by subclass.')
