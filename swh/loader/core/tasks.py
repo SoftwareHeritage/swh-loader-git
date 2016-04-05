@@ -3,6 +3,8 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import logging
+
 from swh.scheduler.task import Task
 from swh.model.git import GitType
 
@@ -11,6 +13,10 @@ class LoaderCoreTask(Task):
     """Main task to inherit from and implement run function.
 
     """
+    def __init__(self):
+        l = logging.getLogger('requests.packages.urllib3.connectionpool')
+        l.setLevel(logging.WARN)
+
     def open_fetch_history(self, storage, origin_id):
         return storage.fetch_history_start(origin_id)
 
