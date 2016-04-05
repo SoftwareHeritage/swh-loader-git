@@ -22,7 +22,7 @@ class LoaderCoreTask(Task):
 
     def close_fetch_history(self, storage, fetch_history_id, res):
         result = None
-        if 'objects' in res:
+        if res and 'objects' in res:
             result = {
                 'contents': len(res['objects'].get(GitType.BLOB, [])),
                 'directories': len(res['objects'].get(GitType.TREE, [])),
