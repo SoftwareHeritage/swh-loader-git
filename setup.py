@@ -13,14 +13,12 @@ def parse_requirements():
     return requirements
 
 
-# Edit this part to match your module
-# full sample: https://forge.softwareheritage.org/diffusion/DCORE/browse/master/setup.py
 setup(
     name='swh.loader.core',
     description='Software Heritage Loader Core',
     author='Software Heritage developers',
     author_email='swh-devel@inria.fr',
-    url='https://forge.softwareheritage.org/diffusion/DLDC',
+    url='https://forge.softwareheritage.org/diffusion/60/',
     packages=['swh.loader.core'],  # packages's modules
     scripts=[],   # scripts to package
     install_requires=parse_requirements(),
