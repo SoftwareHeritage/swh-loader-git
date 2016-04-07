@@ -239,15 +239,35 @@ def dulwich_tree_to_directory(tree, log=None):
 def parse_author(name_email):
     """Parse an author line"""
 
-    if not name_email:
+    if name_email is None:
         return None
 
-    name, email = name_email.split(b' <', 1)
-    email = email[:-1]
+    try:
+        open_bracket = name_email.index(b'<')
+    except ValueError:
+        name = email = None
+    else:
+        raw_name = name_email[:open_bracket]
+        raw_email = name_email[open_bracket+1:]
+
+        if not raw_name:
+            name = None
+        elif raw_name.endswith(b' '):
+            name = raw_name[:-1]
+        else:
+            name = raw_name
+
+        try:
+            close_bracket = raw_email.index(b'>')
+        except ValueError:
+            email = None
+        else:
+            email = raw_email[:close_bracket]
 
     return {
         'name': name,
         'email': email,
+        'fullname': name_email,
     }
 
 
