@@ -239,15 +239,35 @@ def dulwich_tree_to_directory(tree, log=None):
 def parse_author(name_email):
     """Parse an author line"""
 
-    if not name_email:
+    if name_email is None:
         return None
 
-    name, email = name_email.split(b' <', 1)
-    email = email[:-1]
+    try:
+        open_bracket = name_email.index(b'<')
+    except ValueError:
+        name = email = None
+    else:
+        raw_name = name_email[:open_bracket]
+        raw_email = name_email[open_bracket+1:]
+
+        if not raw_name:
+            name = None
+        elif raw_name.endswith(b' '):
+            name = raw_name[:-1]
+        else:
+            name = raw_name
+
+        try:
+            close_bracket = raw_email.index(b'>')
+        except ValueError:
+            email = None
+        else:
+            email = raw_email[:close_bracket]
 
     return {
         'name': name,
         'email': email,
+        'fullname': name_email,
     }
 
 
@@ -288,19 +308,21 @@ def dulwich_commit_to_revision(commit, log=None):
     }
 
     git_metadata = []
+    if commit.encoding is not None:
+        git_metadata.append(['encoding', commit.encoding])
     if commit.mergetag:
         for mergetag in commit.mergetag:
             git_metadata.append(['mergetag', mergetag.as_raw_string()])
 
     if commit.extra:
-        git_metadata.extend([k, v] for k, v in commit.extra)
+        git_metadata.extend([k.decode('utf-8'), v] for k, v in commit.extra)
 
     if commit.gpgsig:
         git_metadata.append(['gpgsig', commit.gpgsig])
 
     if git_metadata:
         ret['metadata'] = {
-            'extra_git_headers': git_metadata,
+            'extra_headers': git_metadata,
         }
 
     return ret

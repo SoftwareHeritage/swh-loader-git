@@ -157,3 +157,43 @@ class TestConverters(unittest.TestCase):
             'id': 'some-id',
             'branch': b'some/branch'
         })
+
+    @istest
+    def author_line_to_author(self):
+        tests = {
+            b'a <b@c.com>': {
+                'name': b'a',
+                'email': b'b@c.com',
+                'fullname': b'a <b@c.com>',
+            },
+            b'<foo@bar.com>': {
+                'name': None,
+                'email': b'foo@bar.com',
+                'fullname': b'<foo@bar.com>',
+            },
+            b'malformed <email': {
+                'name': b'malformed',
+                'email': None,
+                'fullname': b'malformed <email'
+            },
+            b'trailing <sp@c.e> ': {
+                'name': b'trailing',
+                'email': b'sp@c.e',
+                'fullname': b'trailing <sp@c.e> ',
+            },
+            b'no<sp@c.e>': {
+                'name': b'no',
+                'email': b'sp@c.e',
+                'fullname': b'no<sp@c.e>',
+            },
+            b' <>': {
+                'name': b'',
+                'email': b'',
+                'fullname': b' <>',
+            },
+        }
+
+        for author in sorted(tests):
+            parsed_author = tests[author]
+            self.assertEquals(parsed_author,
+                              converters.parse_author(author))
