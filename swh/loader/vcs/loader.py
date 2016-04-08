@@ -56,13 +56,12 @@ class SWHLoader(config.SWHConfig):
     This will load the svn repository.
 
     """
-    def __init__(self, config, origin_id, revision_type, logging_class):
+    def __init__(self, config, origin_id, logging_class):
         self.config = config
 
         self.origin_id = origin_id
         self.storage = get_storage(config['storage_class'],
                                    config['storage_args'])
-        self.revision_type = revision_type
 
         self.log = logging.getLogger(logging_class)
 
@@ -268,8 +267,7 @@ class SWHLoader(config.SWHConfig):
             shallow_commits.append(converters.shallow_commit(commit))
             self.revisions_seen.add(key)
 
-        for sha in self.storage.revision_missing(shallow_commits,
-                                                 type=self.revision_type):
+        for sha in self.storage.revision_missing(shallow_commits):
             yield commits_per_sha1[sha]
 
     def bulk_send_commits(self, commits):
