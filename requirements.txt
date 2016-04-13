@@ -5,3 +5,4 @@ vcversioner
 swh-core
 swh-storage
 swh-model
+retrying

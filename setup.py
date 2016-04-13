@@ -14,7 +14,7 @@ def parse_requirements():
 
 
 setup(
-    name='swh.loader.core',
+    name='swh.loader.vcs',
     description='Software Heritage Loader VCS',
     author='Software Heritage developers',
     author_email='swh-devel@inria.fr',
