@@ -146,25 +146,20 @@ class SWHRepoRepresentation:
         return ret
 
 
-def send_in_packets(source_list, formatter, sender, packet_size,
-                    packet_size_bytes=None, *args, **kwargs):
-    """Send objects from `source_list`, passed through `formatter` (with
-    extra args *args, **kwargs), using the `sender`, in packets of
-    `packet_size` objects (and of max `packet_size_bytes`).
-
+def send_in_packets(objects, sender, packet_size, packet_size_bytes=None):
+    """Send `objects`, using the `sender`, in packets of `packet_size` objects (and
+    of max `packet_size_bytes`).
     """
     formatted_objects = []
     count = 0
     if not packet_size_bytes:
         packet_size_bytes = 0
-    for obj in source_list:
-        formatted_object = formatter(obj, *args, **kwargs)
-        if formatted_object:
-            formatted_objects.append(formatted_object)
-        else:
+    for obj in objects:
+        if not obj:
             continue
+        formatted_objects.append(obj)
         if packet_size_bytes:
-            count += formatted_object['length']
+            count += obj['length']
         if len(formatted_objects) >= packet_size or count > packet_size_bytes:
             sender(formatted_objects)
             formatted_objects = []
@@ -202,9 +197,28 @@ def retry_loading(error):
     return True
 
 
-class BulkUpdater(config.SWHConfig):
-    """A bulk loader for a git repository"""
-    CONFIG_BASE_FILENAME = 'loader/git-updater.ini'
+class BaseLoader(config.SWHConfig):
+    """This base class is a pattern for loaders.
+
+    The external calling convention is as such:
+      - instantiate the class once (loads storage and the configuration)
+      - for each origin, call load with the origin-specific arguments (for
+        instance, an origin URL).
+
+    load calls several methods that must be implemented in subclasses:
+
+     - prepare(*args, **kwargs) prepares the loader for the new origin
+     - get_origin gets the origin object associated to the current loader
+     - fetch_data downloads the necessary data from the origin
+     - get_{contents,directories,revisions,releases,occurrences} retrieve each
+       kind of object from the origin
+     - has_* checks whether there are some objects to load for that object type
+     - get_fetch_history_result retrieves the data to insert in the
+       fetch_history table once the load was successful
+     - eventful returns whether the load was eventful or not
+    """
+
+    CONFIG_BASE_FILENAME = None
 
     DEFAULT_CONFIG = {
         'storage_class': ('str', 'remote_storage'),
@@ -222,15 +236,77 @@ class BulkUpdater(config.SWHConfig):
         'revision_packet_size': ('int', 100000),
         'release_packet_size': ('int', 100000),
         'occurrence_packet_size': ('int', 100000),
-
-        'pack_size_bytes': ('int', 4 * 1024 * 1024 * 1024),
     }
 
-    def __init__(self, config):
-        self.config = config
-        self.storage = get_storage(config['storage_class'],
-                                   config['storage_args'])
+    ADDITIONAL_CONFIG = {}
+
+    def __init__(self):
+        self.config = self.parse_config_file(
+            additional_configs=[self.ADDITIONAL_CONFIG])
+
+        self.storage = get_storage(self.config['storage_class'],
+                                   self.config['storage_args'])
         self.log = logging.getLogger('swh.loader.git.BulkLoader')
+
+    def prepare(self, *args, **kwargs):
+        """Prepare the data source to be loaded"""
+        raise NotImplementedError
+
+    def get_origin(self):
+        """Get the origin that is currently being loaded"""
+        raise NotImplementedError
+
+    def fetch_data(self):
+        """Fetch the data from the data source"""
+        raise NotImplementedError
+
+    def has_contents(self):
+        """Checks whether we need to load contents"""
+        return True
+
+    def get_contents(self):
+        """Get the contents that need to be loaded"""
+        raise NotImplementedError
+
+    def has_directories(self):
+        """Checks whether we need to load directories"""
+        return True
+
+    def get_directories(self):
+        """Get the directories that need to be loaded"""
+        raise NotImplementedError
+
+    def has_revisions(self):
+        """Checks whether we need to load revisions"""
+        return True
+
+    def get_revisions(self):
+        """Get the revisions that need to be loaded"""
+        raise NotImplementedError
+
+    def has_releases(self):
+        """Checks whether we need to load releases"""
+        return True
+
+    def get_releases(self):
+        """Get the releases that need to be loaded"""
+        raise NotImplementedError
+
+    def has_occurrences(self):
+        """Checks whether we need to load occurrences"""
+        return True
+
+    def get_occurrences(self, refs):
+        """Get the occurrences that need to be loaded"""
+        raise NotImplementedError
+
+    def get_fetch_history_result(self):
+        """Return the data to store in fetch_history for the current loader"""
+        raise NotImplementedError
+
+    def eventful(self):
+        """Whether the load was eventful"""
+        raise NotImplementedError
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
     def send_contents(self, content_list):
@@ -337,6 +413,123 @@ class BulkUpdater(config.SWHConfig):
                            'swh_id': log_id,
                        })
 
+    def send_origin(self, origin):
+        log_id = str(uuid.uuid4())
+        self.log.debug('Creating origin for %s' % origin_url,
+                       extra={
+                           'swh_type': 'storage_send_start',
+                           'swh_content_type': 'origin',
+                           'swh_num': 1,
+                           'swh_id': log_id
+                       })
+        origin_id = self.storage.origin_add_one(origin)
+        self.log.debug('Done creating origin for %s' % origin_url,
+                       extra={
+                           'swh_type': 'storage_send_end',
+                           'swh_content_type': 'origin',
+                           'swh_num': 1,
+                           'swh_id': log_id
+                       })
+
+        return origin_id
+
+    def send_all_contents(self, contents):
+        """Send all the contents to the database"""
+        packet_size = self.config['content_packet_size']
+        packet_size_bytes = self.config['content_packet_size_bytes']
+
+        send_in_packets(contents, self.send_contents, packet_size,
+                        packet_size_bytes=packet_size_bytes, log=self.log)
+
+    def send_all_directories(self, directories):
+        """Send all the directories to the database"""
+        packet_size = self.config['directory_packet_size']
+
+        send_in_packets(directories, self.send_directories, packet_size,
+                        log=self.log)
+
+    def send_all_revisions(self, revisions):
+        """Send all the revisions to the database"""
+        packet_size = self.config['revision_packet_size']
+
+        send_in_packets(revisions, self.send_revisions, packet_size,
+                        log=self.log)
+
+    def send_all_releases(self, releases):
+        """Send all the releases to the database
+        """
+        packet_size = self.config['release_packet_size']
+
+        send_in_packets(releases, self.send_releases, packet_size,
+                        log=self.log)
+
+    def send_all_occurrences(self, occurrences):
+        """Send all the occurrences to the database
+        """
+        packet_size = self.config['occurrence_packet_size']
+
+        send_in_packets(occurrences, self.send_occurrences, packet_size)
+
+    def open_fetch_history(self):
+        return self.storage.fetch_history_start(self.origin_id)
+
+    def close_fetch_history_success(self, fetch_history_id, result):
+        data = {
+            'status': True,
+            'result': result,
+        }
+        return self.storage.fetch_history_end(fetch_history_id, data)
+
+    def close_fetch_history_failure(self, fetch_history_id):
+        import traceback
+        data = {
+            'status': False,
+            'stderr': traceback.format_exc(),
+        }
+        return self.storage.fetch_history_end(fetch_history_id, data)
+
+    def load(self, *args, **kwargs):
+
+        self.prepare(*args, **kwargs)
+        origin = self.get_origin()
+        self.origin_id = self.send_origin(origin)
+
+        fetch_history_id = self.open_fetch_history()
+        try:
+            self.fetch_data()
+
+            if self.config['send_contents'] and self.has_contents():
+                self.send_all_contents(self.get_contents())
+
+            if self.config['send_directories'] and self.has_directories():
+                self.send_all_directories(self.get_directories())
+
+            if self.config['send_revisions'] and self.has_revisions():
+                self.send_all_revisions(self.get_revisions())
+
+            if self.config['send_releases'] and self.has_releases():
+                self.send_all_releases(self.get_releases())
+
+            if self.config['send_occurrences'] and self.has_occurrences():
+                self.send_all_occurrences(self.get_occurrences())
+
+            self.close_fetch_history_success(fetch_history_id,
+                                             self.get_fetch_history_result())
+        except:
+            self.close_fetch_history_failure(fetch_history_id)
+            raise
+
+        return self.eventful()
+
+
+class BulkUpdater(BaseLoader):
+    """A bulk loader for a git repository"""
+    CONFIG_BASE_FILENAME = 'loader/git-updater.ini'
+
+    ADDITIONAL_CONFIG = {
+        'pack_size_bytes': ('int', 4 * 1024 * 1024 * 1024),
+    }
+
     def fetch_pack_from_origin(self, origin_url, base_origin_id,
                                base_occurrences, do_activity):
         """Fetch a pack from the origin"""
@@ -388,119 +581,11 @@ class BulkUpdater(config.SWHConfig):
             'pack_size': pack_size,
         }
 
-    def get_origin(self, origin_url):
-        origin = converters.origin_url_to_origin(origin_url)
-
-        return self.storage.origin_get(origin)
-
-    def get_or_create_origin(self, origin_url):
-        origin = converters.origin_url_to_origin(origin_url)
-
-        origin['id'] = self.storage.origin_add_one(origin)
-
-        return origin
-
-    def create_origin(self, origin_url):
-        log_id = str(uuid.uuid4())
-        self.log.debug('Creating origin for %s' % origin_url,
-                       extra={
-                           'swh_type': 'storage_send_start',
-                           'swh_content_type': 'origin',
-                           'swh_num': 1,
-                           'swh_id': log_id
-                       })
-        origin = self.get_or_create_origin(origin_url)
-        self.log.debug('Done creating origin for %s' % origin_url,
-                       extra={
-                           'swh_type': 'storage_send_end',
-                           'swh_content_type': 'origin',
-                           'swh_num': 1,
-                           'swh_id': log_id
-                       })
-
-        return origin
-
-    def bulk_send_blobs(self, inflater, origin_id):
-        """Format blobs as swh contents and send them to the database"""
-        packet_size = self.config['content_packet_size']
-        packet_size_bytes = self.config['content_packet_size_bytes']
-        max_content_size = self.config['content_size_limit']
-
-        send_in_packets(inflater, converters.dulwich_blob_to_content,
-                        self.send_contents, packet_size,
-                        packet_size_bytes=packet_size_bytes,
-                        log=self.log, max_content_size=max_content_size,
-                        origin_id=origin_id)
-
-    def bulk_send_trees(self, inflater):
-        """Format trees as swh directories and send them to the database"""
-        packet_size = self.config['directory_packet_size']
-
-        send_in_packets(inflater, converters.dulwich_tree_to_directory,
-                        self.send_directories, packet_size,
-                        log=self.log)
-
-    def bulk_send_commits(self, inflater):
-        """Format commits as swh revisions and send them to the database"""
-        packet_size = self.config['revision_packet_size']
-
-        send_in_packets(inflater, converters.dulwich_commit_to_revision,
-                        self.send_revisions, packet_size,
-                        log=self.log)
-
-    def bulk_send_tags(self, inflater):
-        """Format annotated tags (dulwich.objects.Tag objects) as swh releases and send
-        them to the database
-        """
-        packet_size = self.config['release_packet_size']
-
-        send_in_packets(inflater, converters.dulwich_tag_to_release,
-                        self.send_releases, packet_size,
-                        log=self.log)
-
-    def bulk_send_refs(self, refs):
-        """Format git references as swh occurrences and send them to the
-        database
-        """
-        packet_size = self.config['occurrence_packet_size']
-
-        send_in_packets(refs, lambda x: x, self.send_occurrences, packet_size)
-
-    def open_fetch_history(self, origin_id):
-        return self.storage.fetch_history_start(origin_id)
-
-    def close_fetch_history_success(self, fetch_history_id, objects, refs):
-        data = {
-            'status': True,
-            'result': {
-                'contents': len(objects[b'blob']),
-                'directories': len(objects[b'tree']),
-                'revisions': len(objects[b'commit']),
-                'releases': len(objects[b'tag']),
-                'occurrences': len(refs),
-            },
-        }
-        return self.storage.fetch_history_end(fetch_history_id, data)
-
-    def close_fetch_history_failure(self, fetch_history_id):
-        import traceback
-        data = {
-            'status': False,
-            'stderr': traceback.format_exc(),
-        }
-        return self.storage.fetch_history_end(fetch_history_id, data)
-
-    def get_inflater(self, pack_buffer, pack_size):
-        """Reset the pack buffer and get an object inflater from it"""
-        pack_buffer.seek(0)
-        return PackInflater.for_pack_data(
-            PackData.from_file(pack_buffer, pack_size))
-
     def list_pack(self, pack_data, pack_size):
         id_to_type = {}
         type_to_ids = defaultdict(set)
 
-        inflater = self.get_inflater(pack_data, pack_size)
+        inflater = self.get_inflater()
 
         for obj in inflater:
             type, id = obj.type_name, obj.id
@@ -509,17 +594,136 @@ class BulkUpdater(config.SWHConfig):
 
         return id_to_type, type_to_ids
 
-    def list_refs(self, remote_refs, local_refs, id_to_type, origin_id, date):
+    def prepare(self, origin_url, base_url=None):
+        origin = converters.origin_url_to_origin(origin_url)
+        base_origin = converters.origin_url_to_origin(base_url)
+
+        base_occurrences = []
+        base_origin_id = origin_id = None
+
+        db_origin = self.storage.origin_get(origin)
+        if db_origin:
+            base_origin_id = origin_id = db_origin['id']
+
+        if origin_id:
+            base_occurrences = self.storage.occurrence_get(origin_id)
+
+        if base_url and not base_occurrences:
+            base_origin = self.storage.origin_get(base_origin)
+            if base_origin:
+                base_origin_id = base_origin['id']
+                base_occurrences = self.storage.occurrence_get(base_origin_id)
+
+        self.base_occurrences = list(sorted(base_occurrences,
+                                            key=lambda occ: occ['branch']))
+        self.base_origin_id = base_origin_id
+        self.origin = origin
+
+    def get_origin(self):
+        return self.origin
+
+    def fetch_data(self):
+        def do_progress(msg):
+            sys.stderr.buffer.write(msg)
+            sys.stderr.flush()
+
+        self.fetch_date = datetime.datetime.now(tz=datetime.timezone.utc)
+
+        fetch_info = self.fetch_pack_from_origin(
+            self.origin['url'], self.base_origin_id, self.base_occurrences,
+            do_progress)
+
+        self.pack_buffer = fetch_info['pack_buffer']
+        self.pack_size = fetch_info['pack_size']
+
+        self.remote_refs = fetch_info['remote_refs']
+        self.local_refs = fetch_info['local_refs']
+        if not self.remote_refs:
+            raise ValueError('Handle no remote refs')
+
+        origin_url = self.origin['url']
+
+        self.log.info('Listed %d refs for repo %s' % (
+            len(self.remote_refs), origin_url), extra={
+                'swh_type': 'git_repo_list_refs',
+                'swh_repo': origin_url,
+                'swh_num_refs': len(self.remote_refs),
+            })
+
+        # We want to load the repository, walk all the objects
+        id_to_type, type_to_ids = self.list_pack(self.pack_buffer,
+                                                 self.pack_size)
+
+        self.id_to_type = id_to_type
+        self.type_to_ids = type_to_ids
+
+    def get_inflater(self):
+        """Reset the pack buffer and get an object inflater from it"""
+        self.pack_buffer.seek(0)
+        return PackInflater.for_pack_data(
+            PackData.from_file(self.pack_buffer, self.pack_size))
+
+    def has_contents(self):
+        return bool(self.type_to_ids[b'blob'])
+
+    def get_contents(self):
+        """Format the blobs from the git repository as swh contents"""
+        max_content_size = self.config['content_size_limit']
+        for raw_obj in self.get_inflater():
+            if raw_obj.type_name != b'blob':
+                continue
+
+            yield converters.dulwich_blob_to_content(
+                raw_obj, log=self.log, max_content_size=max_content_size,
+                origin_id=self.origin_id)
+
+    def has_directories(self):
+        return bool(self.type_to_ids[b'tree'])
+
+    def get_directories(self):
+        """Format the trees as swh directories"""
+        for raw_obj in self.get_inflater():
+            if raw_obj.type_name != b'tree':
+                continue
+
+            yield converters.dulwich_tree_to_directory(raw_obj, log=self.log)
+
+    def has_revisions(self):
+        return bool(self.type_to_ids[b'commit'])
+
+    def get_revisions(self):
+        """Format commits as swh revisions"""
+        for raw_obj in self.get_inflater():
+            if raw_obj.type_name != b'commit':
+                continue
+
+            yield converters.dulwich_commit_to_revision(raw_obj, log=self.log)
+
+    def has_releases(self):
+        return bool(self.type_to_ids[b'tag'])
+
+    def get_releases(self):
+        """Retrieve all the release objects from the git repository"""
+        for raw_obj in self.get_inflater():
+            if raw_obj.type_name != b'tag':
+                continue
+
+            yield converters.dulwich_tag_to_release(raw_obj, log=self.log)
+
+    def has_occurrences(self):
+        return bool(self.remote_refs)
+
+    def get_occurrences(self):
         ret = []
-        for ref in remote_refs:
-            ret_ref = local_refs[ref].copy()
+        for ref in self.remote_refs:
+            ret_ref = self.local_refs[ref].copy()
             ret_ref.update({
                 'branch': ref,
-                'origin': origin_id,
-                'date': date,
+                'origin': self.origin_id,
+                'date': self.fetch_date,
             })
             if not ret_ref['target_type']:
-                target_type = id_to_type[ret_ref['target']]
+                target_type = self.id_to_type[ret_ref['target']]
                 ret_ref['target_type'] = converters.DULWICH_TYPES[target_type]
 
             ret_ref['target'] = hashutil.bytehex_to_hash(ret_ref['target'])
@@ -528,118 +732,24 @@ class BulkUpdater(config.SWHConfig):
 
         return ret
 
-    def load_pack(self, pack_buffer, pack_size, refs, type_to_ids, origin_id):
-        if self.config['send_contents']:
-            if type_to_ids[b'blob']:
-                self.bulk_send_blobs(self.get_inflater(pack_buffer, pack_size),
-                                     origin_id)
-        else:
-            self.log.info('Not sending contents')
+    def get_fetch_history_result(self):
+        return {
+            'contents': len(self.type_to_ids[b'blob']),
+            'directories': len(self.type_to_ids[b'tree']),
+            'revisions': len(self.type_to_ids[b'commit']),
+            'releases': len(self.type_to_ids[b'tag']),
+            'occurrences': len(self.remote_refs),
+        }
 
-        if self.config['send_directories']:
-            if type_to_ids[b'tree']:
-                self.bulk_send_trees(self.get_inflater(pack_buffer, pack_size))
-        else:
-            self.log.info('Not sending directories')
+    def eventful(self):
+        """The load was eventful if the current occurrences are different to
+           the ones we retrieved at the beginning of the run"""
+        current_occurrences = list(sorted(
+            self.storage.occurrence_get(self.origin_id),
+            key=lambda occ: occ['branch'],
+        ))
 
-        if self.config['send_revisions']:
-            if type_to_ids[b'commit']:
-                self.bulk_send_commits(self.get_inflater(pack_buffer,
-                                                         pack_size))
-        else:
-            self.log.info('Not sending revisions')
-
-        if self.config['send_releases']:
-            if type_to_ids[b'tag']:
-                self.bulk_send_tags(self.get_inflater(pack_buffer, pack_size))
-        else:
-            self.log.info('Not sending releases')
-
-        if self.config['send_occurrences']:
-            self.bulk_send_refs(refs)
-        else:
-            self.log.info('Not sending occurrences')
-
-    def process(self, origin_url, base_url):
-        eventful = False
-
-        date = datetime.datetime.now(tz=datetime.timezone.utc)
-
-        origin = self.create_origin(origin_url)
-        base_origin = origin
-        base_occurrences = list(self.storage.occurrence_get(origin['id']))
-
-        original_heads = list(sorted(base_occurrences,
-                                     key=lambda h: h['branch']))
-
-        if base_url and not original_heads:
-            base_origin = self.get_origin(base_url)
-            base_occurrences = None
-
-        # Create fetch_history
-        fetch_history = self.open_fetch_history(origin['id'])
-        closed = False
-
-        def do_progress(msg):
-            sys.stderr.buffer.write(msg)
-            sys.stderr.flush()
-
-        try:
-            fetch_info = self.fetch_pack_from_origin(
-                origin_url, base_origin['id'], base_occurrences, do_progress)
-
-            pack_buffer = fetch_info['pack_buffer']
-            pack_size = fetch_info['pack_size']
-
-            remote_refs = fetch_info['remote_refs']
-            local_refs = fetch_info['local_refs']
-            if not remote_refs:
-                self.log.info('Skipping empty repository %s' % origin_url,
-                              extra={
-                                  'swh_type': 'git_repo_list_refs',
-                                  'swh_repo': origin_url,
-                                  'swh_num_refs': 0,
-                              })
-                # End fetch_history
-                self.close_fetch_history_success(fetch_history,
-                                                 defaultdict(set), [])
-                closed = True
-
-                # If the original repo was not empty, then the run was eventful
-                return bool(original_heads)
-            else:
-                self.log.info('Listed %d refs for repo %s' % (
-                    len(remote_refs), origin_url), extra={
-                        'swh_type': 'git_repo_list_refs',
-                        'swh_repo': origin_url,
-                        'swh_num_refs': len(remote_refs),
-                    })
-
-            # We want to load the repository, walk all the objects
-            id_to_type, type_to_ids = self.list_pack(pack_buffer, pack_size)
-
-            # Parse the remote references and add info from the local ones
-            refs = self.list_refs(remote_refs, local_refs,
-                                  id_to_type, origin['id'], date)
-
-            # Finally, load the repository
-            self.load_pack(pack_buffer, pack_size, refs, type_to_ids,
-                           origin['id'])
-
-            end_heads = list(self.storage.occurrence_get(origin['id']))
-            end_heads.sort(key=lambda h: h['branch'])
-
-            eventful = original_heads != end_heads
-
-            # End fetch_history
-            self.close_fetch_history_success(fetch_history, type_to_ids, refs)
-            closed = True
-
-        finally:
-            if not closed:
-                self.close_fetch_history_failure(fetch_history)
-
-        return eventful
+        return self.base_occurrences != current_occurrences
 
 
 if __name__ == '__main__':
@@ -647,15 +757,11 @@ if __name__ == '__main__':
         level=logging.DEBUG,
         format='%(asctime)s %(process)d %(message)s'
     )
-    config = BulkUpdater.parse_config_file(
-            base_filename='loader/git-updater.ini'
-        )
-
-    bulkupdater = BulkUpdater(config)
+    bulkupdater = BulkUpdater()
 
     origin_url = sys.argv[1]
     base_url = origin_url
     if len(sys.argv) > 2:
         base_url = sys.argv[2]
 
-    print(bulkupdater.process(origin_url, base_url))
+    print(bulkupdater.load(origin_url, base_url))
