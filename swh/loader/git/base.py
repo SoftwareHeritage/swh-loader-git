@@ -165,7 +165,7 @@ class BaseLoader(config.SWHConfig):
         """Checks whether we need to load occurrences"""
         return True
 
-    def get_occurrences(self, refs):
+    def get_occurrences(self):
         """Get the occurrences that need to be loaded"""
         raise NotImplementedError
 
