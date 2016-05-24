@@ -98,7 +98,9 @@ class SWHLoader(config.SWHConfig):
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
     def send_contents(self, content_list):
-        """Actually send properly formatted contents to the database"""
+        """Actually send properly formatted contents to the database.
+
+        """
         num_contents = len(content_list)
         if num_contents > 0:
             log_id = str(uuid.uuid4())
@@ -120,7 +122,9 @@ class SWHLoader(config.SWHConfig):
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
     def send_directories(self, directory_list):
-        """Actually send properly formatted directories to the database"""
+        """Actually send properly formatted directories to the database.
+
+        """
         num_directories = len(directory_list)
         if num_directories > 0:
             log_id = str(uuid.uuid4())
@@ -142,7 +146,9 @@ class SWHLoader(config.SWHConfig):
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
     def send_revisions(self, revision_list):
-        """Actually send properly formatted revisions to the database"""
+        """Actually send properly formatted revisions to the database.
+
+        """
         num_revisions = len(revision_list)
         if num_revisions > 0:
             log_id = str(uuid.uuid4())
@@ -164,7 +170,9 @@ class SWHLoader(config.SWHConfig):
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
     def send_releases(self, release_list):
-        """Actually send properly formatted releases to the database"""
+        """Actually send properly formatted releases to the database.
+
+        """
         num_releases = len(release_list)
         if num_releases > 0:
             log_id = str(uuid.uuid4())
@@ -186,7 +194,9 @@ class SWHLoader(config.SWHConfig):
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
     def send_occurrences(self, occurrence_list):
-        """Actually send properly formatted occurrences to the database"""
+        """Actually send properly formatted occurrences to the database.
+
+        """
         num_occurrences = len(occurrence_list)
         if num_occurrences > 0:
             log_id = str(uuid.uuid4())
@@ -207,7 +217,7 @@ class SWHLoader(config.SWHConfig):
                            })
 
     def filter_missing_blobs(self, blobs):
-        """Filter missing blob from swh.
+        """Filter missing blobs from swh.
 
         """
         max_content_size = self.config['content_packet_size_bytes']
@@ -226,7 +236,9 @@ class SWHLoader(config.SWHConfig):
                                              origin_id=self.origin_id)
 
     def bulk_send_blobs(self, blobs):
-        """Format blobs as swh contents and send them to the database"""
+        """Format blobs as swh contents and send them to the database.
+
+        """
         threshold_reached = self.contents.add(
             self.filter_missing_blobs(blobs))
         if threshold_reached:
@@ -248,7 +260,9 @@ class SWHLoader(config.SWHConfig):
             yield converters.tree_to_directory(trees_per_sha1[sha], objects)
 
     def bulk_send_trees(self, objects, trees):
-        """Format trees as swh directories and send them to the database"""
+        """Format trees as swh directories and send them to the database.
+
+        """
         threshold_reached = self.directories.add(
             self.filter_missing_trees(trees, objects))
         if threshold_reached:
@@ -324,36 +338,63 @@ class SWHLoader(config.SWHConfig):
             self.send_occurrences(self.occurrences.pop())
 
     def maybe_load_contents(self, contents):
+        """Load contents in swh-storage if need be.
+
+        """
         if self.config['send_contents']:
             self.bulk_send_blobs(contents)
         else:
             self.log.info('Not sending contents')
 
     def maybe_load_directories(self, trees, objects_per_path):
+        """Load directories in swh-storage if need be.
+
+        """
         if self.config['send_directories']:
             self.bulk_send_trees(objects_per_path, trees)
         else:
             self.log.info('Not sending directories')
 
     def maybe_load_revisions(self, revisions):
+        """Load revisions in swh-storage if need be.
+
+        """
         if self.config['send_revisions']:
             self.bulk_send_commits(revisions)
         else:
             self.log.info('Not sending revisions')
 
     def maybe_load_releases(self, releases):
+        """Load releases in swh-storage if need be.
+
+        """
         if self.config['send_releases']:
             self.bulk_send_annotated_tags(releases)
         else:
             self.log.info('Not sending releases')
 
     def maybe_load_occurrences(self, occurrences):
+        """Load occurrences in swh-storage if need be.
+
+        """
         if self.config['send_occurrences']:
             self.bulk_send_refs(occurrences)
         else:
             self.log.info('Not sending occurrences')
 
     def load(self, objects_per_type, objects_per_path):
+        """Main entry point to load data to swh-storage.
+
+        Args:
+            objects_per_type: Dictionary of:
+            - GitType.BLOB: blob/content,
+            - GitType.TREE: tree/directory
+            - GitType.COMM: commit/revision
+            - GitType.RELE: annotated tag/release
+            - GitType.REFS: reference/occurrence
+            objects_per_path: Dictionary of path, children information.
+
+        """
         self.maybe_load_contents(objects_per_type[GitType.BLOB])
         self.maybe_load_directories(objects_per_type[GitType.TREE],
                                     objects_per_path)
@@ -362,7 +403,9 @@ class SWHLoader(config.SWHConfig):
         self.maybe_load_occurrences(objects_per_type[GitType.REFS])
 
     def flush(self):
-        # pop any data
+        """Flush any potential dangling data not sent to swh-storage.
+
+        """
         contents = self.contents.pop()
         directories = self.directories.pop()
         revisions = self.revisions.pop()
