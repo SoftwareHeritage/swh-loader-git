@@ -362,13 +362,20 @@ class SWHLoader(config.SWHConfig):
         self.maybe_load_occurrences(objects_per_type[GitType.REFS])
 
     def flush(self):
+        # pop any data
+        contents = self.contents.pop()
+        directories = self.directories.pop()
+        revisions = self.revisions.pop()
+        occurrences = self.occurrences.pop()
+        releases = self.releases.pop()
+        # and send those to storage if asked
         if self.config['send_contents']:
-            self.send_contents(self.contents.pop())
+            self.send_contents(contents)
         if self.config['send_directories']:
-            self.send_directories(self.directories.pop())
+            self.send_directories(directories)
         if self.config['send_revisions']:
-            self.send_revisions(self.revisions.pop())
+            self.send_revisions(revisions)
         if self.config['send_occurrences']:
-            self.send_occurrences(self.occurrences.pop())
+            self.send_occurrences(occurrences)
         if self.config['send_releases']:
-            self.send_releases(self.releases.pop())
+            self.send_releases(releases)
