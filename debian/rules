@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-export PYBUILD_NAME=swh-loader-vcs
+export PYBUILD_NAME=swh-loader
 
 %:
 	dh $@ --with python3 --buildsystem=pybuild

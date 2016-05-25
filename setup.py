@@ -14,12 +14,12 @@ def parse_requirements():
 
 
 setup(
-    name='swh.loader.vcs',
-    description='Software Heritage Loader VCS',
+    name='swh.loader',
+    description='Software Heritage Base Loader',
     author='Software Heritage developers',
     author_email='swh-devel@inria.fr',
     url='https://forge.softwareheritage.org/diffusion/60/',
-    packages=['swh.loader.vcs'],  # packages's modules
+    packages=['swh.loader'],  # packages's modules
     scripts=[],   # scripts to package
     install_requires=parse_requirements(),
     setup_requires=['vcversioner'],
