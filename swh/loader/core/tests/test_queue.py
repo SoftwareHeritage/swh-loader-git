@@ -7,9 +7,9 @@ import unittest
 
 from nose.tools import istest
 
-from swh.loader.queue import QueuePerNbElements
-from swh.loader.queue import QueuePerNbUniqueElements
-from swh.loader.queue import QueuePerSizeAndNbUniqueElements
+from swh.loader.core.queue import QueuePerNbElements
+from swh.loader.core.queue import QueuePerNbUniqueElements
+from swh.loader.core.queue import QueuePerSizeAndNbUniqueElements
 
 
 class TestQueuePerNbElements(unittest.TestCase):
