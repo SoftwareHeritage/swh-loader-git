@@ -1,4 +1,4 @@
-Source: swh-loader
+Source: swh-loader-core
 Maintainer: Software Heritage developers <swh-devel@inria.fr>
 Section: python
 Priority: optional
@@ -14,7 +14,7 @@ Build-Depends: debhelper (>= 9),
 Standards-Version: 3.9.6
 Homepage: https://forge.softwareheritage.org/diffusion/60/
 
-Package: python3-swh.loader
+Package: python3-swh.loader.core
 Architecture: all
 Depends: ${misc:Depends}, ${python3:Depends}
 Description: Software Heritage <module-description>
