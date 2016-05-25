@@ -10,7 +10,7 @@ import unittest
 
 from nose.tools import istest
 
-from swh.loader.vcs import converters
+from swh.loader import converters
 from swh.model import git
 
 
