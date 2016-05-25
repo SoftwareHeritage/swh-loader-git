@@ -344,7 +344,7 @@ class SWHLoader(config.SWHConfig):
         if self.config['send_contents']:
             self.bulk_send_blobs(contents)
         else:
-            self.log.info('Not sending contents')
+            self.log.debug('Not sending contents')
 
     def maybe_load_directories(self, trees, objects_per_path):
         """Load directories in swh-storage if need be.
@@ -353,7 +353,7 @@ class SWHLoader(config.SWHConfig):
         if self.config['send_directories']:
             self.bulk_send_trees(objects_per_path, trees)
         else:
-            self.log.info('Not sending directories')
+            self.log.debug('Not sending directories')
 
     def maybe_load_revisions(self, revisions):
         """Load revisions in swh-storage if need be.
@@ -362,7 +362,7 @@ class SWHLoader(config.SWHConfig):
         if self.config['send_revisions']:
             self.bulk_send_commits(revisions)
         else:
-            self.log.info('Not sending revisions')
+            self.log.debug('Not sending revisions')
 
     def maybe_load_releases(self, releases):
         """Load releases in swh-storage if need be.
@@ -371,7 +371,7 @@ class SWHLoader(config.SWHConfig):
         if self.config['send_releases']:
             self.bulk_send_annotated_tags(releases)
         else:
-            self.log.info('Not sending releases')
+            self.log.debug('Not sending releases')
 
     def maybe_load_occurrences(self, occurrences):
         """Load occurrences in swh-storage if need be.
@@ -380,10 +380,10 @@ class SWHLoader(config.SWHConfig):
         if self.config['send_occurrences']:
             self.bulk_send_refs(occurrences)
         else:
-            self.log.info('Not sending occurrences')
+            self.log.debug('Not sending occurrences')
 
     def load(self, objects_per_type, objects_per_path):
-        """Main entry point to load data to swh-storage.
+        """Load all data to swh-storage.
 
         Args:
             objects_per_type: Dictionary of:
