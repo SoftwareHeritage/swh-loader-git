@@ -90,6 +90,8 @@ class SWHLoader(config.SWHConfig):
             self.config = self.parse_config_file(
                 additional_configs=[self.ADDITIONAL_CONFIG])
 
+        self.origin_id = origin_id
+
         self.storage = get_storage(self.config['storage_class'],
                                    self.config['storage_args'])
 
