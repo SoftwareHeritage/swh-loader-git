@@ -6,6 +6,8 @@
 import datetime
 from io import BytesIO
 import logging
+import os
+import pickle
 import sys
 
 from collections import defaultdict
@@ -146,7 +148,37 @@ class BulkUpdater(base.BaseLoader):
 
     ADDITIONAL_CONFIG = {
         'pack_size_bytes': ('int', 4 * 1024 * 1024 * 1024),
+        'pack_storage_base': ('str', ''),
     }
+
+    def store_pack_and_refs(self, pack_buffer, remote_refs):
+        """Store a pack for archival"""
+
+        write_size = 8192
+
+        origin_id = "%08d" % self.origin_id
+        year = str(self.fetch_date.year)
+
+        pack_dir = os.path.join(
+            self.config['pack_storage_base'],
+            origin_id,
+            year,
+        )
+        pack_name = "%s.pack" % self.fetch_date.isoformat()
+        refs_name = "%s.refs" % self.fetch_date.isoformat()
+
+        os.makedirs(pack_dir)
+        with open(os.path.join(pack_dir, pack_name), 'xb') as f:
+            while True:
+                r = pack_buffer.read(write_size)
+                if not r:
+                    break
+                f.write(r)
+
+        pack_buffer.seek(0)
+
+        with open(os.path.join(pack_dir, refs_name), 'xb') as f:
+            pickle.dump(remote_refs, f)
 
     def fetch_pack_from_origin(self, origin_url, base_origin_id,
                                base_occurrences, do_activity):
@@ -192,6 +224,10 @@ class BulkUpdater(base.BaseLoader):
         pack_buffer.flush()
         pack_size = pack_buffer.tell()
         pack_buffer.seek(0)
+
+        if self.config['pack_storage_base']:
+            self.store_pack_and_refs(pack_buffer, remote_refs)
+
         return {
             'remote_refs': base_repo.filter_unwanted_refs(remote_refs),
             'local_refs': local_refs,
