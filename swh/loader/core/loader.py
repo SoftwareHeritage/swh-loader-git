@@ -73,8 +73,13 @@ class SWHLoader(config.SWHConfig):
         'send_releases': ('bool', True),
         'send_occurrences': ('bool', True),
 
+        # Number of contents
         'content_packet_size': ('int', 10000),
+        # If this size threshold is reached, the content is condidered missing
+        # in swh-storage
         'content_packet_size_bytes': ('int', 1024 * 1024 * 1024),
+        # packet of 100Mib contents
+        'content_packet_block_size_bytes': ('int', 100 * 1024 * 1024),
         'directory_packet_size': ('int', 25000),
         'revision_packet_size': ('int', 100000),
         'release_packet_size': ('int', 100000),
