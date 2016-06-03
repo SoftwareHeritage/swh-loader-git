@@ -296,7 +296,7 @@ class SWHLoader(config.SWHConfig):
         for sha in self.storage.directory_missing(shallow_trees):
             yield converters.tree_to_directory(trees_per_sha1[sha], objects)
 
-    def bulk_send_trees(self, objects, trees):
+    def bulk_send_trees(self, trees, objects):
         """Format trees as swh directories and send them to the database.
 
         """
@@ -386,7 +386,7 @@ class SWHLoader(config.SWHConfig):
 
         """
         if self.config['send_directories']:
-            self.bulk_send_trees(objects_per_path, trees)
+            self.bulk_send_trees(trees, objects_per_path)
 
     def maybe_load_revisions(self, revisions):
         """Load revisions in swh-storage if need be.
