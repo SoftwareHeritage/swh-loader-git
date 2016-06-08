@@ -224,17 +224,15 @@ class TestConverters(unittest.TestCase):
         # given
         tree = {
             'path': 'foo',
-            'sha1_git': b'tree_sha1_git'
-        }
-        objects = {
-            'foo': [{'type': git.GitType.TREE,
-                     'perms': git.GitPerm.TREE,
-                     'name': 'bar',
-                     'sha1_git': b'sha1-target'},
-                    {'type': git.GitType.BLOB,
-                     'perms': git.GitPerm.BLOB,
-                     'name': 'file-foo',
-                     'sha1_git': b'file-foo-sha1-target'}]
+            'sha1_git': b'tree_sha1_git',
+            'children': [{'type': git.GitType.TREE,
+                          'perms': git.GitPerm.TREE,
+                          'name': 'bar',
+                          'sha1_git': b'sha1-target'},
+                         {'type': git.GitType.BLOB,
+                          'perms': git.GitPerm.BLOB,
+                          'name': 'file-foo',
+                          'sha1_git': b'file-foo-sha1-target'}]
         }
 
         expected_directory = {
@@ -250,7 +248,7 @@ class TestConverters(unittest.TestCase):
         }
 
         # when
-        actual_directory = converters.tree_to_directory(tree, objects)
+        actual_directory = converters.tree_to_directory(tree)
 
         # then
         self.assertEqual(actual_directory, expected_directory)

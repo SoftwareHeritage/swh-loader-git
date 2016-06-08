@@ -97,12 +97,12 @@ _entry_type_map = {
 }
 
 
-def tree_to_directory(tree, objects, log=None):
+def tree_to_directory(tree, log=None):
     """Format a tree as a directory
 
     """
     entries = []
-    for entry in objects[tree['path']]:
+    for entry in tree['children']:
         entries.append({
             'type': _entry_type_map[entry['type']],
             'perms': int(entry['perms'].value),
