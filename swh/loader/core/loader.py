@@ -294,7 +294,8 @@ class SWHLoader(config.SWHConfig):
             self.directories_seen.add(key)
 
         for sha in self.storage.directory_missing(shallow_trees):
-            yield converters.tree_to_directory(trees_per_sha1[sha])
+            t = trees_per_sha1[sha]
+            yield converters.tree_to_directory(t)
 
     def bulk_send_trees(self, trees):
         """Format trees as swh directories and send them to the database.
@@ -381,12 +382,12 @@ class SWHLoader(config.SWHConfig):
         if self.config['send_contents']:
             self.bulk_send_blobs(contents)
 
-    def maybe_load_directories(self, trees, objects_per_path):
+    def maybe_load_directories(self, trees):
         """Load directories in swh-storage if need be.
 
         """
         if self.config['send_directories']:
-            self.bulk_send_trees(trees, objects_per_path)
+            self.bulk_send_trees(trees)
 
     def maybe_load_revisions(self, revisions):
         """Load revisions in swh-storage if need be.
@@ -409,11 +410,11 @@ class SWHLoader(config.SWHConfig):
         if self.config['send_occurrences']:
             self.bulk_send_refs(occurrences)
 
-    def load(self, objects_per_type):
+    def load(self, objects):
         """Load all data to swh-storage.
 
         Args:
-            objects_per_type: Dictionary of:
+            objects: Dictionary of:
             - GitType.BLOB: blob/content,
             - GitType.TREE: tree/directory
             - GitType.COMM: commit/revision
@@ -422,11 +423,11 @@ class SWHLoader(config.SWHConfig):
             objects_per_path: Dictionary of path, children information.
 
         """
-        self.maybe_load_contents(objects_per_type[GitType.BLOB])
-        self.maybe_load_directories(objects_per_type[GitType.TREE])
-        self.maybe_load_revisions(objects_per_type[GitType.COMM])
-        self.maybe_load_releases(objects_per_type[GitType.RELE])
-        self.maybe_load_occurrences(objects_per_type[GitType.REFS])
+        self.maybe_load_contents(objects[GitType.BLOB])
+        self.maybe_load_directories(objects[GitType.TREE])
+        self.maybe_load_revisions(objects[GitType.COMM])
+        self.maybe_load_releases(objects[GitType.RELE])
+        self.maybe_load_occurrences(objects[GitType.REFS])
 
     def flush(self):
         """Flush any potential dangling data not sent to swh-storage.
