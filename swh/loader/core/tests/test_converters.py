@@ -258,6 +258,7 @@ class TestConverters(unittest.TestCase):
         # given
         commit = {
             'sha1_git': 'commit-git-sha1',
+            'directory': 'targeted-tree-sha1',
             'author_date': 1444054085,
             'author_offset': '+0000',
             'committer_date': 1444054085,
@@ -270,10 +271,6 @@ class TestConverters(unittest.TestCase):
             'committer_email': 'committer-email',
             'metadata': {'checksums': {'sha1': b'sha1-as-bytes'}},
             'directory': 'targeted-tree-sha1',
-        }
-
-        objects = {
-            git.ROOT_TREE_KEY: [{'sha1_git': 'targeted-tree-sha1'}]
         }
 
         expected_revision = {
@@ -302,7 +299,7 @@ class TestConverters(unittest.TestCase):
         }
 
         # when
-        actual_revision = converters.commit_to_revision(commit, objects)
+        actual_revision = converters.commit_to_revision(commit)
 
         # then
         self.assertEquals(actual_revision, expected_revision)

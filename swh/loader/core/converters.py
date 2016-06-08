@@ -116,11 +116,10 @@ def tree_to_directory(tree, log=None):
     }
 
 
-def commit_to_revision(commit, objects, log=None):
+def commit_to_revision(commit, log=None):
     """Format a commit as a revision.
 
     """
-    upper_directory = objects[git.ROOT_TREE_KEY][0]
     return {
         'date': {
             'timestamp': commit['author_date'],
@@ -131,7 +130,7 @@ def commit_to_revision(commit, objects, log=None):
             'offset': format_to_minutes(commit['committer_offset']),
         },
         'type': commit['type'],
-        'directory': upper_directory['sha1_git'],
+        'directory': commit['directory'],
         'message': commit['message'].encode('utf-8'),
         'author': {
             'name': commit['author_name'].encode('utf-8'),
