@@ -4,5 +4,5 @@
 vcversioner
 swh-core
 swh-storage
-swh-model
+swh-model >= 0.0.6
 retrying
