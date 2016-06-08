@@ -17,4 +17,4 @@ Homepage: https://forge.softwareheritage.org/diffusion/60/
 Package: python3-swh.loader.core
 Architecture: all
 Depends: ${misc:Depends}, ${python3:Depends}
-Description: Software Heritage <module-description>
+Description: Software Heritage Loader Core
