@@ -42,51 +42,6 @@ class TestConverters(unittest.TestCase):
         super().tearDownClass()
 
     @istest
-    def format_to_minutes(self):
-        self.assertEquals(converters.format_to_minutes('+0100'), 60)
-        self.assertEquals(converters.format_to_minutes('-0200'), -120)
-        self.assertEquals(converters.format_to_minutes('+1250'), 12*60+50)
-        self.assertEquals(converters.format_to_minutes('+0000'), 0)
-        self.assertEquals(converters.format_to_minutes('-0000'), 0)
-
-    @istest
-    def annotated_tag_to_release(self):
-        # given
-        release = {
-            'id': '123',
-            'target': '456',
-            'target_type': 'revision',
-            'name': 'some-release',
-            'comment': 'some-comment-on-release',
-            'date': 1444054085,
-            'offset': '-0300',
-            'author_name': 'someone',
-            'author_email': 'someone@whatelse.eu',
-        }
-
-        expected_release = {
-            'target': '456',
-            'target_type': 'revision',
-            'name': b'some-release',
-            'message': b'some-comment-on-release',
-            'date': {
-                'timestamp': 1444054085,
-                'offset': -180
-            },
-            'author': {
-                'name': b'someone',
-                'email': b'someone@whatelse.eu',
-            },
-            'synthetic': True,
-        }
-
-        # when
-        actual_release = converters.annotated_tag_to_release(release)
-
-        # then
-        self.assertDictEqual(actual_release, expected_release)
-
-    @istest
     def blob_to_content_visible_data(self):
         # given
         contentfile = b'temp file for testing blob to content conversion'
@@ -252,57 +207,6 @@ class TestConverters(unittest.TestCase):
 
         # then
         self.assertEqual(actual_directory, expected_directory)
-
-    @istest
-    def commit_to_revision(self):
-        # given
-        commit = {
-            'sha1_git': 'commit-git-sha1',
-            'directory': 'targeted-tree-sha1',
-            'author_date': 1444054085,
-            'author_offset': '+0000',
-            'committer_date': 1444054085,
-            'committer_offset': '-0000',
-            'type': 'tar',
-            'message': 'synthetic-message-input',
-            'author_name': 'author-name',
-            'author_email': 'author-email',
-            'committer_name': 'committer-name',
-            'committer_email': 'committer-email',
-            'metadata': {'checksums': {'sha1': b'sha1-as-bytes'}},
-            'directory': 'targeted-tree-sha1',
-        }
-
-        expected_revision = {
-            'date': {
-                'timestamp': 1444054085,
-                'offset': 0,
-            },
-            'committer_date': {
-                'timestamp': 1444054085,
-                'offset': 0,
-            },
-            'type': 'tar',
-            'directory': 'targeted-tree-sha1',
-            'message': b'synthetic-message-input',
-            'author': {
-                'name': b'author-name',
-                'email': b'author-email',
-            },
-            'committer': {
-                'name': b'committer-name',
-                'email': b'committer-email',
-            },
-            'synthetic': True,
-            'metadata': {'checksums': {'sha1': b'sha1-as-bytes'}},
-            'parents': [],
-        }
-
-        # when
-        actual_revision = converters.commit_to_revision(commit)
-
-        # then
-        self.assertEquals(actual_revision, expected_revision)
 
     @istest
     def ref_to_occurrence_1(self):

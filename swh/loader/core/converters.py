@@ -5,36 +5,11 @@
 
 """Convert objects to dictionaries suitable for swh.storage"""
 
-import datetime
 import os
 
 from swh.model.hashutil import hash_to_hex
 
 from swh.model import git
-
-
-def to_datetime(ts):
-    """Convert a timestamp to utc datetime.
-
-    """
-    return datetime.datetime.utcfromtimestamp(ts).replace(
-        tzinfo=datetime.timezone.utc)
-
-
-def format_to_minutes(offset_str):
-    """Convert a git string timezone format string (e.g  +0200, -0310) to minutes.
-
-    Args:
-        offset_str: a string representing an offset.
-
-    Returns:
-        A positive or negative number of minutes of such input
-
-    """
-    sign = offset_str[0]
-    hours = int(offset_str[1:3])
-    minutes = int(offset_str[3:]) + (hours * 60)
-    return minutes if sign == '+' else -1 * minutes
 
 
 def blob_to_content(obj, log=None, max_content_size=None,
@@ -113,57 +88,6 @@ def tree_to_directory(tree, log=None):
     return {
         'id': tree['sha1_git'],
         'entries': entries
-    }
-
-
-def commit_to_revision(commit, log=None):
-    """Format a commit as a revision.
-
-    """
-    return {
-        'date': {
-            'timestamp': commit['author_date'],
-            'offset': format_to_minutes(commit['author_offset']),
-        },
-        'committer_date': {
-            'timestamp': commit['committer_date'],
-            'offset': format_to_minutes(commit['committer_offset']),
-        },
-        'type': commit['type'],
-        'directory': commit['directory'],
-        'message': commit['message'].encode('utf-8'),
-        'author': {
-            'name': commit['author_name'].encode('utf-8'),
-            'email': commit['author_email'].encode('utf-8'),
-        },
-        'committer': {
-            'name': commit['committer_name'].encode('utf-8'),
-            'email': commit['committer_email'].encode('utf-8'),
-        },
-        'synthetic': True,
-        'metadata': commit['metadata'],
-        'parents': [],
-    }
-
-
-def annotated_tag_to_release(release, log=None):
-    """Format a swh release.
-
-    """
-    return {
-        'target': release['target'],
-        'target_type': release['target_type'],
-        'name': release['name'].encode('utf-8'),
-        'message': release['comment'].encode('utf-8'),
-        'date': {
-            'timestamp': release['date'],
-            'offset': format_to_minutes(release['offset']),
-        },
-        'author': {
-            'name': release['author_name'].encode('utf-8'),
-            'email': release['author_email'].encode('utf-8'),
-        },
-        'synthetic': True,
     }
 
 
