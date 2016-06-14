@@ -25,8 +25,10 @@ Runtime
 -------
 
 -   python3
--   python3-pygit2
+-   python3-dulwich
+-   python3-retrying
 -   python3-swh.core
+-   python3-swh.model
 -   python3-swh.storage
 
 Test
@@ -39,12 +41,14 @@ Requirements
 
 -   implementation language, Python3
 -   coding guidelines: conform to PEP8
--   Git access: via libgit2/pygit
+-   Git access: via dulwich
 
 Configuration
 =============
 
-bin/swh-loader-git takes one argument: a configuration file in .ini format.
+You can run the loader or the updater directly by calling python3 -m swh.loader.git.{loader,updater}.
+
+Both tools expect a configuration file in .ini format to be present in ~/.config/swh/loader/git-{loader,updater}.ini
 
 The configuration file contains the following directives:
 
@@ -61,19 +65,6 @@ storage_args = http://localhost:5000/
 # storage, comma separated
 # storage_args = dbname=softwareheritage-dev, /tmp/swh/storage
 
-# The path to the repository to load
-repo_path = /tmp/git_repo
-
-# The URL of the origin for the repo
-origin_url = https://github.com/hylang/hy
-
-# The UUID of the authority that dated the validity of the repo
-authority = 5f4d4c51-498a-4e28-88b3-b3e4e8396cba
-
-# The validity date of the refs in the given repo, in Postgres
-# timestamptz format
-validity = 2015-01-01 00:00:00+00
-
 # Whether to send the given types of objects
 send_contents = True
 send_directories = True
@@ -88,19 +79,4 @@ directory_packet_size = 25000
 revision_packet_size = 100000
 release_packet_size = 100000
 occurrence_packet_size = 100000
-```
-
-bin/swh-loader-git-multi takes the same arguments, and adds:
-
-```
-[main]
-# database connection string to the lister-github database
-lister_db = dbname=lister-github
-
-# base path of the github repositories
-repo_basepath = /srv/storage/space/data/github
-
-# Whether to run the mass loading or just list the repos
-dry_run = False
-
 ```
