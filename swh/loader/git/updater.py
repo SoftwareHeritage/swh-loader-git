@@ -292,8 +292,6 @@ class BulkUpdater(base.BaseLoader):
 
         self.remote_refs = fetch_info['remote_refs']
         self.local_refs = fetch_info['local_refs']
-        if not self.remote_refs:
-            raise ValueError('Handle no remote refs')
 
         origin_url = self.origin['url']
 
