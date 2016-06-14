@@ -22,7 +22,7 @@ setup(
     author_email='swh-devel@inria.fr',
     url='https://forge.softwareheritage.org/diffusion/DCORE/',
     packages=['swh.loader.git', 'swh.loader.git.tests'],
-    scripts=['bin/swh-loader-git'],
+    scripts=[],
     install_requires=parse_requirements(),
     setup_requires=['vcversioner'],
     vcversioner={},
