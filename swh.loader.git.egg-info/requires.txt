@@ -1,5 +1,4 @@
 dulwich
-pygit2
 retrying
 swh.core>=0.0.7
 swh.model>=0.0.3

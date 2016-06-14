@@ -1,5 +1,4 @@
 dulwich
-pygit2
 retrying
 vcversioner
 swh.core >= 0.0.7
