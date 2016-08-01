@@ -167,7 +167,7 @@ class BulkUpdater(base.BaseLoader):
         pack_name = "%s.pack" % self.fetch_date.isoformat()
         refs_name = "%s.refs" % self.fetch_date.isoformat()
 
-        os.makedirs(pack_dir)
+        os.makedirs(pack_dir, exist_ok=True)
         with open(os.path.join(pack_dir, pack_name), 'xb') as f:
             while True:
                 r = pack_buffer.read(write_size)
