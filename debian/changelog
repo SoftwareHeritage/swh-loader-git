@@ -1,3 +1,10 @@
+swh-loader-git (0.0.16-1~swh1) unstable-swh; urgency=medium
+
+  * Release swh.loader.git v0.0.16
+  * Add exist_ok to packfile cache directory creation
+
+ -- Nicolas Dandrimont <nicolas@dandrimont.eu>  Mon, 01 Aug 2016 15:53:07 +0200
+
 swh-loader-git (0.0.15-1~swh1) unstable-swh; urgency=medium
 
   * Release swh.loader.git v0.0.15
