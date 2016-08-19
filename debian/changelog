@@ -1,3 +1,10 @@
+swh-loader-git (0.0.18-1~swh1) unstable-swh; urgency=medium
+
+  * Release swh.loader.git v0.0.18
+  * Properly handle skipped contents
+
+ -- Nicolas Dandrimont <nicolas@dandrimont.eu>  Fri, 19 Aug 2016 18:12:44 +0200
+
 swh-loader-git (0.0.16-1~swh1) unstable-swh; urgency=medium
 
   * Release swh.loader.git v0.0.16
