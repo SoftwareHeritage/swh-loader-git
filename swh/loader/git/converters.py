@@ -36,11 +36,12 @@ def dulwich_blob_to_content(blob, log=None, max_content_size=None,
 
     if max_content_size:
         if size > max_content_size:
+            id = hashutil.hash_to_hex(ret['sha1_git'])
             if log:
                 log.info('Skipping content %s, too large (%s > %s)' %
-                         (blob.id.encode(), size, max_content_size), extra={
+                         (id, size, max_content_size), extra={
                              'swh_type': 'loader_git_content_skip',
-                             'swh_id': id.hex,
+                             'swh_id': id,
                              'swh_size': size,
                          })
             ret['reason'] = 'Content too large'
