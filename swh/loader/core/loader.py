@@ -51,15 +51,20 @@ def retry_loading(error):
 
 
 class SWHLoader(config.SWHConfig):
-    """This base class is a pattern for loaders.
+    """Mixin base class for loader.
 
-    The external calling convention is as such:
-      - instantiate the class once (loads storage and the configuration)
-      - for each origin, call process with the origin-specific arguments (for
-        instance, an origin URL).
+    The calling convention is as such:
+      - inherit from this class
+      - implement a method and use those provided here
 
-        Method to implement in subclass:
-        - process(*args, **kwargs)
+    Required steps are:
+    - create an origin
+    - create an origin_visit
+    - create a fetch_history entry
+    - load the data into swh-storage
+    - close the origin_visit
+    - close the fetch_history entry
+
     """
     CONFIG_BASE_FILENAME = None
 
@@ -427,7 +432,7 @@ class SWHLoader(config.SWHConfig):
         return self.storage.fetch_history_end(fetch_history_id, data)
 
     def load(self, objects):
-        """Load all data to swh-storage.
+        """Load all data to swh-storage depending one the configuration.
 
         Args:
             objects: Dictionary of:
@@ -465,7 +470,3 @@ class SWHLoader(config.SWHConfig):
             self.send_occurrences(occurrences)
         if self.config['send_releases']:
             self.send_releases(releases)
-
-    def process(self, *args, **kwargs):
-        """Method to implement in subclass."""
-        raise NotImplementedError
