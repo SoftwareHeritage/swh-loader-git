@@ -17,8 +17,9 @@ from dulwich.pack import PackData, PackInflater
 from urllib.parse import urlparse
 
 from swh.core import hashutil
+from swh.loader.core import base
 
-from . import base, converters
+from . import converters
 
 
 class SWHRepoRepresentation:

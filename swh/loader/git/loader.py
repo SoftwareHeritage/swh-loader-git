@@ -9,8 +9,9 @@ import datetime
 import dulwich.repo
 
 from swh.core import hashutil
+from swh.loader.core import base
 
-from . import base, converters
+from . import converters
 
 
 class GitLoader(base.BaseLoader):
