@@ -88,14 +88,12 @@ class SWHLoader(config.SWHConfig):
 
     ADDITIONAL_CONFIG = {}
 
-    def __init__(self, origin_id, logging_class, config=None):
+    def __init__(self, logging_class, config=None):
         if config:
             self.config = config
         else:
             self.config = self.parse_config_file(
                 additional_configs=[self.ADDITIONAL_CONFIG])
-
-        self.origin_id = origin_id
 
         self.storage = get_storage(self.config['storage_class'],
                                    self.config['storage_args'])
