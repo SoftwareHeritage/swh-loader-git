@@ -14,7 +14,7 @@ from retrying import retry
 from swh.core import config
 
 from . import converters
-from swh.model.git import GitType
+
 from swh.storage import get_storage
 
 from .queue import QueuePerSizeAndNbUniqueElements
@@ -55,7 +55,7 @@ class SWHLoader(config.SWHConfig):
 
     The calling convention is as such:
       - inherit from this class
-      - implement a method and use those provided here
+      - implement the load function
 
     Required steps are:
     - create an origin
@@ -431,25 +431,6 @@ class SWHLoader(config.SWHConfig):
         }
         return self.storage.fetch_history_end(fetch_history_id, data)
 
-    def load(self, objects):
-        """Load all data to swh-storage depending one the configuration.
-
-        Args:
-            objects: Dictionary of:
-            - GitType.BLOB: blob/content,
-            - GitType.TREE: tree/directory
-            - GitType.COMM: commit/revision
-            - GitType.RELE: annotated tag/release
-            - GitType.REFS: reference/occurrence
-            objects_per_path: Dictionary of path, children information.
-
-        """
-        self.maybe_load_contents(objects[GitType.BLOB])
-        self.maybe_load_directories(objects[GitType.TREE])
-        self.maybe_load_revisions(objects[GitType.COMM])
-        self.maybe_load_releases(objects[GitType.RELE])
-        self.maybe_load_occurrences(objects[GitType.REFS])
-
     def flush(self):
         """Flush any potential dangling data not sent to swh-storage.
 
@@ -470,3 +451,7 @@ class SWHLoader(config.SWHConfig):
             self.send_occurrences(occurrences)
         if self.config['send_releases']:
             self.send_releases(releases)
+
+    def load(self, *args, **kwargs):
+        """Method to implement in subclass."""
+        raise NotImplementedError
