@@ -408,6 +408,24 @@ class SWHLoader(config.SWHConfig):
         if self.config['send_occurrences']:
             self.bulk_send_refs(occurrences)
 
+    def open_fetch_history(self):
+        return self.storage.fetch_history_start(self.origin_id)
+
+    def close_fetch_history_success(self, fetch_history_id, result):
+        data = {
+            'status': True,
+            'result': result,
+        }
+        return self.storage.fetch_history_end(fetch_history_id, data)
+
+    def close_fetch_history_failure(self, fetch_history_id):
+        import traceback
+        data = {
+            'status': False,
+            'stderr': traceback.format_exc(),
+        }
+        return self.storage.fetch_history_end(fetch_history_id, data)
+
     def load(self, objects):
         """Load all data to swh-storage.
 
