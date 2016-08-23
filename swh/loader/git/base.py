@@ -3,6 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import datetime
 import logging
 import traceback
 import uuid
@@ -363,6 +364,12 @@ class BaseLoader(config.SWHConfig):
         self.origin_id = self.send_origin(origin)
 
         fetch_history_id = self.open_fetch_history()
+        date_visit = datetime.datetime.now(tz=datetime.timezone.utc)
+        origin_visit = self.storage.origin_visit_add(
+            self.origin_id,
+            date_visit)
+        self.visit = origin_visit['visit']
+
         try:
             self.fetch_data()
 
@@ -383,8 +390,13 @@ class BaseLoader(config.SWHConfig):
 
             self.close_fetch_history_success(fetch_history_id,
                                              self.get_fetch_history_result())
+            self.storage.origin_visit_update(
+                self.origin_id, self.visit, status='full')
+
         except:
             self.close_fetch_history_failure(fetch_history_id)
+            self.storage.origin_visit_update(
+                self.origin_id, self.visit, status='partial')
             raise
 
         return self.eventful()

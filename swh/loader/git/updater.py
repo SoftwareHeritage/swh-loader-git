@@ -366,13 +366,16 @@ class BulkUpdater(base.BaseLoader):
         return bool(self.remote_refs)
 
     def get_occurrences(self):
+        origin_id = self.origin_id
+        visit = self.visit
+
         ret = []
         for ref in self.remote_refs:
             ret_ref = self.local_refs[ref].copy()
             ret_ref.update({
                 'branch': ref,
-                'origin': self.origin_id,
-                'date': self.fetch_date,
+                'origin': origin_id,
+                'visit': visit,
             })
             if not ret_ref['target_type']:
                 target_type = self.id_to_type[ret_ref['target']]
