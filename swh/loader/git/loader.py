@@ -101,7 +101,7 @@ class GitLoader(base.BaseLoader):
         """Get the occurrences that need to be loaded"""
         repo = self.repo
         origin_id = self.origin_id
-        fetch_date = self.fetch_date
+        visit = self.visit
 
         for ref, target in repo.refs.as_dict().items():
             target_type_name = repo[target].type_name
@@ -111,7 +111,7 @@ class GitLoader(base.BaseLoader):
                 'origin': origin_id,
                 'target': hashutil.bytehex_to_hash(target),
                 'target_type': target_type,
-                'date': fetch_date,
+                'visit': visit,
             }
 
     def get_fetch_history_result(self):
