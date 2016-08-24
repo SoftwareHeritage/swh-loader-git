@@ -11,10 +11,9 @@ import uuid
 
 from retrying import retry
 
-from swh.core import config
-
 from . import converters
 
+from swh.core import config
 from swh.storage import get_storage
 
 from .queue import QueuePerSizeAndNbUniqueElements
@@ -136,6 +135,14 @@ class SWHLoader(config.SWHConfig):
         l = logging.getLogger('requests.packages.urllib3.connectionpool')
         l.setLevel(logging.WARN)
 
+        self.counters = {
+            'contents': 0,
+            'directories': 0,
+            'revisions': 0,
+            'releases': 0,
+            'occurrences': 0,
+        }
+
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
     def send_contents(self, content_list):
         """Actually send properly formatted contents to the database.
@@ -152,6 +159,7 @@ class SWHLoader(config.SWHConfig):
                                'swh_id': log_id,
                            })
             self.storage.content_add(content_list)
+            self.counters['contents'] += num_contents
             self.log.debug("Done sending %d contents" % num_contents,
                            extra={
                                'swh_type': 'storage_send_end',
@@ -176,6 +184,7 @@ class SWHLoader(config.SWHConfig):
                                'swh_id': log_id,
                            })
             self.storage.directory_add(directory_list)
+            self.counters['directories'] += num_directories
             self.log.debug("Done sending %d directories" % num_directories,
                            extra={
                                'swh_type': 'storage_send_end',
@@ -200,6 +209,7 @@ class SWHLoader(config.SWHConfig):
                                'swh_id': log_id,
                            })
             self.storage.revision_add(revision_list)
+            self.counters['revisions'] += num_revisions
             self.log.debug("Done sending %d revisions" % num_revisions,
                            extra={
                                'swh_type': 'storage_send_end',
@@ -224,6 +234,7 @@ class SWHLoader(config.SWHConfig):
                                'swh_id': log_id,
                            })
             self.storage.release_add(release_list)
+            self.counters['releases'] += num_releases
             self.log.debug("Done sending %d releases" % num_releases,
                            extra={
                                'swh_type': 'storage_send_end',
@@ -248,6 +259,7 @@ class SWHLoader(config.SWHConfig):
                                'swh_id': log_id,
                            })
             self.storage.occurrence_add(occurrence_list)
+            self.counters['occurrences'] += num_occurrences
             self.log.debug("Done sending %d occurrences" % num_occurrences,
                            extra={
                                'swh_type': 'storage_send_end',
@@ -416,10 +428,10 @@ class SWHLoader(config.SWHConfig):
     def open_fetch_history(self):
         return self.storage.fetch_history_start(self.origin_id)
 
-    def close_fetch_history_success(self, fetch_history_id, result):
+    def close_fetch_history_success(self, fetch_history_id):
         data = {
             'status': True,
-            'result': result,
+            'result': self.counters,
         }
         return self.storage.fetch_history_end(fetch_history_id, data)
 
