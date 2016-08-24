@@ -441,6 +441,13 @@ class SWHLoader(config.SWHConfig):
             'status': False,
             'stderr': traceback.format_exc(),
         }
+        if self.counters['contents'] > 0 or \
+           self.counters['directories'] or \
+           self.counters['revisions'] > 0 or \
+           self.counters['releases'] > 0 or \
+           self.counters['occurrences'] > 0:
+            data['result'] = self.counters
+
         return self.storage.fetch_history_end(fetch_history_id, data)
 
     def flush(self):
