@@ -8,6 +8,8 @@ import datetime
 
 from collections import defaultdict
 
+from swh.core import hashutil, utils
+
 from .updater import BulkUpdater
 from .loader import GitLoader
 
@@ -22,21 +24,38 @@ class GitSha1Reader(GitLoader):
             type_name = self.repo[oid].type_name
             if type_name != b'blob':
                 continue
-            yield oid
+            yield hashutil.hex_to_hash(oid.decode('utf-8'))
 
     def load(self, *args, **kwargs):
         self.prepare(*args, **kwargs)
-        try:
-            for oid in self.fetch_data():
-                yield oid.decode('utf-8')
-        except:
-            pass
+        yield from self.fetch_data()
 
 
 class GitSha1RemoteReader(BulkUpdater):
     """Disk git sha1 reader to dump only repo's content sha1 list.
 
     """
+    CONFIG_BASE_FILENAME = 'loader/git-remote-reader'
+
+    ADDITIONAL_CONFIG = {
+        'pack_size_bytes': ('int', 4 * 1024 * 1024 * 1024),
+        'pack_storage_base': ('str', ''),  # don't want to store packs so empty
+        'next_task': (
+            'dict', {
+                'queue': 'swh.storage.archiver.tasks.SWHArchiverToBackendTask',
+                'batch_size': 100,
+                'destination': 'azure'
+            }
+        )
+    }
+
+    def __init__(self):
+        super().__init__()
+        self.next_task = self.config['next_task']
+        self.batch_size = self.next_task['batch_size']
+        self.task_destination = self.next_task.get('queue')
+        self.destination = self.next_task['destination']
+
     def list_pack(self, pack_data, pack_size):
         """Override list_pack to only keep blobs data.
 
@@ -48,10 +67,11 @@ class GitSha1RemoteReader(BulkUpdater):
 
         for obj in inflater:
             type, id = obj.type_name, obj.id
-            if type != b'blob':
+            if type != b'blob':  # don't keep other types
                 continue
-            id_to_type[id] = type
-            type_to_ids[type].add(id)
+            oid = hashutil.hex_to_hash(id.decode('utf-8'))
+            id_to_type[oid] = type
+            type_to_ids[type].add(oid)
 
         return id_to_type, type_to_ids
 
@@ -60,12 +80,27 @@ class GitSha1RemoteReader(BulkUpdater):
         origin = self.get_origin()
         self.origin_id = self.send_origin(origin)
 
+        self.fetch_data()
+        data = self.id_to_type.keys()
+        if not self.task_destination:  # to stdout
+            yield from data
+            return
+
+        from swh.scheduler.celery_backend.config import app
         try:
-            self.fetch_data()
-            for oid in self.id_to_type.keys():
-                yield oid.decode('utf-8')
-        except:
+            # optional dependency
+            from swh.storage.archiver import tasks  # noqa
+        except ImportError:
             pass
+        from celery import group
+
+        task_destination = app.tasks[self.task_destination]
+        groups = []
+        for ids in utils.grouper(data, self.batch_size):
+            sig_ids = task_destination.s(destination=self.destination,
+                                         batch=list(ids))
+            groups.append(sig_ids)
+        group(groups).delay()
 
 
 @click.command()
@@ -82,13 +117,13 @@ def main(origin_url, source):
     if source.startswith('/'):
         loader = GitSha1Reader()
         fetch_date = datetime.datetime.now(tz=datetime.timezone.utc)
-        r = loader.load(origin_url, source, fetch_date)
+        ids = loader.load(origin_url, source, fetch_date)
     else:
         loader = GitSha1RemoteReader()
-        r = loader.load(origin_url, source)
+        ids = loader.load(origin_url, source)
 
-    for id in r:
-        print(id)
+    for oid in ids:
+        print(oid)
 
 
 if __name__ == '__main__':
