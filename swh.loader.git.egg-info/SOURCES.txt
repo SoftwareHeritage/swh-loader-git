@@ -32,6 +32,7 @@ swh/loader/git/__init__.py
 swh/loader/git/base.py
 swh/loader/git/converters.py
 swh/loader/git/loader.py
+swh/loader/git/reader.py
 swh/loader/git/tasks.py
 swh/loader/git/updater.py
 swh/loader/git/tests/test_converters.py
