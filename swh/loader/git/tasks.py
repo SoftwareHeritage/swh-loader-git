@@ -9,6 +9,7 @@ from swh.scheduler.task import Task
 
 from .loader import GitLoader
 from .updater import BulkUpdater
+from .reader import GitSha1RemoteReader
 
 
 # TODO: rename to LoadRemoteGitRepository
@@ -36,3 +37,17 @@ class LoadDiskGitRepository(Task):
         loader.log = self.log
 
         return loader.load(origin_url, directory, dateutil.parser.parse(date))
+
+
+class ReaderGitRepository(Task):
+    task_queue = 'swh_reader_git'
+
+    def run(self, repo_url, base_url=None):
+        """Read a git repository from a remote location and send sha1 to
+        archival.
+
+        """
+        loader = GitSha1RemoteReader()
+        loader.log = self.log
+
+        loader.load(repo_url, base_url)
