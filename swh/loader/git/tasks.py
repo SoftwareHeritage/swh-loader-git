@@ -1,4 +1,4 @@
-# Copyright (C) 2015  The Software Heritage developers
+# Copyright (C) 2015-2016  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -50,4 +50,4 @@ class ReaderGitRepository(Task):
         loader = GitSha1RemoteReader()
         loader.log = self.log
 
-        loader.load(repo_url, base_url)
+        return loader.load(repo_url)
