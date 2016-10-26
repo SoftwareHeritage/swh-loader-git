@@ -95,7 +95,7 @@ class GitSha1RemoteReader(BulkUpdater):
         self.origin_id = self.send_origin(origin)
 
         self.fetch_data()
-        data = self.id_to_type.keys()
+        data = self.type_to_ids[b'blob']
         if not self.task_destination:  # to stdout
             return data
 
