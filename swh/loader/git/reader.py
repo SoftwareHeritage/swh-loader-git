@@ -113,10 +113,15 @@ class GitSha1RemoteReader(BulkUpdater):
         inflater = self.get_inflater()
 
         for obj in inflater:
-            type, id = obj.type_name, obj.id
+            type = obj.type_name
             if type != b'blob':  # don't keep other types
                 continue
-            oid = hashutil.hex_to_hash(id.decode('utf-8'))
+
+            # compute the sha1 (obj.id is the sha1_git)
+            data = obj.as_raw_string()
+            hashes = hashutil.hashdata(data, {'sha1'})
+            oid = hashes['sha1']
+
             id_to_type[oid] = type
             type_to_ids[type].add(oid)
 
