@@ -96,6 +96,7 @@ class GitSha1RemoteReader(BulkUpdater):
 
         self.fetch_data()
         data = self.type_to_ids[b'blob']
+
         if not self.task_destination:  # to stdout
             return data
 
@@ -114,6 +115,8 @@ class GitSha1RemoteReader(BulkUpdater):
                                          batch=list(ids))
             groups.append(sig_ids)
         group(groups).delay()
+
+        return None
 
 
 @click.command()
@@ -135,8 +138,9 @@ def main(origin_url, source):
         loader = GitSha1RemoteReader()
         ids = loader.load(origin_url, source)
 
-    for oid in ids:
-        print(oid)
+    if ids:
+        for oid in ids:
+            print(oid)
 
 
 if __name__ == '__main__':
