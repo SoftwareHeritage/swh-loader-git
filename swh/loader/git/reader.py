@@ -66,6 +66,18 @@ class SWHRepoFullRepresentation(SWHRepoRepresentation):
         return {}
 
 
+class DummyGraphWalker(object):
+    """Dummy graph walker which claims that the client doesn’t have any
+       objects.
+
+    """
+    def ack(self, sha): pass
+
+    def next(self): pass
+
+    def __next__(self): pass
+
+
 class GitSha1RemoteReader(BulkUpdater):
     """Disk git sha1 reader to dump only repo's content sha1 list.
 
@@ -90,6 +102,9 @@ class GitSha1RemoteReader(BulkUpdater):
         self.batch_size = self.next_task['batch_size']
         self.task_destination = self.next_task.get('queue')
         self.destination = self.next_task['destination']
+
+    def graph_walker(self):
+        return DummyGraphWalker()
 
     def prepare(self, origin_url, base_url=None):
         """Only retrieve information about the origin, set everything else to
