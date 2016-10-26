@@ -5,6 +5,7 @@
 
 import click
 import datetime
+import logging
 
 from collections import defaultdict
 
@@ -135,9 +136,10 @@ class GitSha1RemoteReader(BulkUpdater):
             returns the list of discovered sha1s.
 
         """
-        self.prepare(*args, **kwargs)
-
-        if not self.origin_id:  # Stop if we do not know the origin
+        try:
+            self.prepare(*args, **kwargs)
+        except:
+            self.log.error('Unknown repository, skipping...')
             return []
 
         self.fetch_data()
@@ -169,8 +171,6 @@ class GitSha1RemoteReader(BulkUpdater):
 @click.option('--source', default=None,
               help='origin\'s source url (disk or remote)')
 def main(origin_url, source):
-    import logging
-
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s %(process)d %(message)s'
