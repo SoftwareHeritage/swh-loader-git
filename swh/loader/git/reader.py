@@ -10,8 +10,9 @@ from collections import defaultdict
 
 from swh.core import hashutil, utils
 
-from .updater import BulkUpdater
+from .updater import BulkUpdater, SWHRepoRepresentation
 from .loader import GitLoader
+from . import converters
 
 
 class GitSha1Reader(GitLoader):
@@ -29,6 +30,39 @@ class GitSha1Reader(GitLoader):
     def load(self, *args, **kwargs):
         self.prepare(*args, **kwargs)
         yield from self.fetch_data()
+
+
+class SWHRepoFullRepresentation(SWHRepoRepresentation):
+    """Overridden representation of a swh repository to permit to read
+    completely the remote repository.
+
+    """
+    def __init__(self, storage, origin_id, occurrences=None):
+        self.storage = storage
+        self._parents_cache = {}
+        self._type_cache = {}
+        self.heads = set()
+
+    def determine_wants(self, refs):
+        """Filter the remote references to figure out which ones Software
+           Heritage needs. In this particular context, we want to know
+           everything.
+
+        """
+        if not refs:
+            return []
+
+        for target in refs.values():
+            self.heads.add(target)
+
+        return self.filter_unwanted_refs(refs).values()
+
+    def find_remote_ref_types_in_swh(self, remote_refs):
+        """Find the known swh remote.
+        In that particular context, we know nothing.
+
+        """
+        return {}
 
 
 class GitSha1RemoteReader(BulkUpdater):
@@ -50,11 +84,22 @@ class GitSha1RemoteReader(BulkUpdater):
     }
 
     def __init__(self):
-        super().__init__()
+        super().__init__(SWHRepoFullRepresentation)
         self.next_task = self.config['next_task']
         self.batch_size = self.next_task['batch_size']
         self.task_destination = self.next_task.get('queue')
         self.destination = self.next_task['destination']
+
+    def prepare(self, origin_url, base_url=None):
+        """Only retrieve information about the origin, set everything else to
+           empty.
+
+        """
+        ori = converters.origin_url_to_origin(origin_url)
+        self.origin = self.storage.origin_get(ori)
+        self.origin_id = self.origin['id']
+        self.base_occurrences = []
+        self.base_origin_id = self.origin['id']
 
     def list_pack(self, pack_data, pack_size):
         """Override list_pack to only keep contents' sha1.
@@ -91,8 +136,9 @@ class GitSha1RemoteReader(BulkUpdater):
 
         """
         self.prepare(*args, **kwargs)
-        origin = self.get_origin()
-        self.origin_id = self.send_origin(origin)
+
+        if not self.origin_id:  # Stop if we do not know the origin
+            return []
 
         self.fetch_data()
         data = self.type_to_ids[b'blob']
