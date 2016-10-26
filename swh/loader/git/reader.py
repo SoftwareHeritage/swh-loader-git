@@ -4,7 +4,6 @@
 # See top-level LICENSE file for more information
 
 import click
-import datetime
 import logging
 
 from collections import defaultdict
@@ -12,25 +11,7 @@ from collections import defaultdict
 from swh.core import hashutil, utils
 
 from .updater import BulkUpdater, SWHRepoRepresentation
-from .loader import GitLoader
 from . import converters
-
-
-class GitSha1Reader(GitLoader):
-    """Disk git sha1 reader. Only read and dump sha1s in stdout.
-
-    """
-    def fetch_data(self):
-        """Fetch the data from the data source"""
-        for oid in self.iter_objects():
-            type_name = self.repo[oid].type_name
-            if type_name != b'blob':
-                continue
-            yield hashutil.hex_to_hash(oid.decode('utf-8'))
-
-    def load(self, *args, **kwargs):
-        self.prepare(*args, **kwargs)
-        yield from self.fetch_data()
 
 
 class SWHRepoFullRepresentation(SWHRepoRepresentation):
@@ -183,23 +164,14 @@ class GitSha1RemoteReader(BulkUpdater):
 
 @click.command()
 @click.option('--origin-url', help='Origin\'s url')
-@click.option('--source', default=None,
-              help='origin\'s source url (disk or remote)')
 def main(origin_url, source):
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s %(process)d %(message)s'
     )
 
-    local_reader = (source and source.startswith('/')) or origin_url.startswith('/')  # noqa
-
-    if local_reader:
-        loader = GitSha1Reader()
-        fetch_date = datetime.datetime.now(tz=datetime.timezone.utc)
-        ids = loader.load(origin_url, source, fetch_date)
-    else:
-        loader = GitSha1RemoteReader()
-        ids = loader.load(origin_url, source)
+    loader = GitSha1RemoteReader()
+    ids = loader.load(origin_url, source)
 
     if ids:
         count = 0
