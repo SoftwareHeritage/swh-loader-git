@@ -211,7 +211,10 @@ class BulkUpdater(base.BaseLoader):
 
         size_limit = self.config['pack_size_bytes']
 
-        def do_pack(data, pack_buffer=pack_buffer, limit=size_limit):
+        def do_pack(data,
+                    pack_buffer=pack_buffer,
+                    limit=size_limit,
+                    origin_url=origin_url):
             cur_size = pack_buffer.tell()
             would_write = len(data)
             if cur_size + would_write > limit:
