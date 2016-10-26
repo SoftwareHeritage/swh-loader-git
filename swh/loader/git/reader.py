@@ -115,13 +115,13 @@ class GitSha1RemoteReader(BulkUpdater):
                                          batch=list(ids))
             groups.append(sig_ids)
         group(groups).delay()
-
-        return None
+        return data
 
 
 @click.command()
 @click.option('--origin-url', help='Origin\'s url')
-@click.option('--source', help='origin\'s source url (disk or remote)')
+@click.option('--source', default=None,
+              help='origin\'s source url (disk or remote)')
 def main(origin_url, source):
     import logging
 
@@ -130,7 +130,9 @@ def main(origin_url, source):
         format='%(asctime)s %(process)d %(message)s'
     )
 
-    if source.startswith('/'):
+    local_reader = (source and source.startswith('/')) or origin_url.startswith('/')  # noqa
+
+    if local_reader:
         loader = GitSha1Reader()
         fetch_date = datetime.datetime.now(tz=datetime.timezone.utc)
         ids = loader.load(origin_url, source, fetch_date)
@@ -139,8 +141,11 @@ def main(origin_url, source):
         ids = loader.load(origin_url, source)
 
     if ids:
+        count = 0
         for oid in ids:
             print(oid)
+            count += 1
+        print("sha1s: %s" % count)
 
 
 if __name__ == '__main__':
