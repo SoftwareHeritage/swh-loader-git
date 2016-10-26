@@ -57,7 +57,12 @@ class GitSha1RemoteReader(BulkUpdater):
         self.destination = self.next_task['destination']
 
     def list_pack(self, pack_data, pack_size):
-        """Override list_pack to only keep blobs data.
+        """Override list_pack to only keep contents' sha1.
+
+        Returns:
+            id_to_type (dict): keys are sha1, values are their associated type
+            type_to_ids (dict): keys are types, values are list of associated
+            ids (sha1 for blobs)
 
         """
         id_to_type = {}
@@ -76,6 +81,15 @@ class GitSha1RemoteReader(BulkUpdater):
         return id_to_type, type_to_ids
 
     def load(self, *args, **kwargs):
+        """Override the loading part which simply reads the repository's
+           contents' sha1.
+
+        Returns:
+            If the configuration holds a destination queue, send those
+            sha1s as batch of sha1s to it for consumption.  Otherwise,
+            returns the list of discovered sha1s.
+
+        """
         self.prepare(*args, **kwargs)
         origin = self.get_origin()
         self.origin_id = self.send_origin(origin)
