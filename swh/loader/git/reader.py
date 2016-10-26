@@ -83,8 +83,7 @@ class GitSha1RemoteReader(BulkUpdater):
         self.fetch_data()
         data = self.id_to_type.keys()
         if not self.task_destination:  # to stdout
-            yield from data
-            return
+            return data
 
         from swh.scheduler.celery_backend.config import app
         try:
