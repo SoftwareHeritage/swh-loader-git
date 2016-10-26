@@ -5,13 +5,15 @@
 
 import click
 import datetime
+import logging
 
 from collections import defaultdict
 
 from swh.core import hashutil, utils
 
-from .updater import BulkUpdater
+from .updater import BulkUpdater, SWHRepoRepresentation
 from .loader import GitLoader
+from . import converters
 
 
 class GitSha1Reader(GitLoader):
@@ -29,6 +31,51 @@ class GitSha1Reader(GitLoader):
     def load(self, *args, **kwargs):
         self.prepare(*args, **kwargs)
         yield from self.fetch_data()
+
+
+class SWHRepoFullRepresentation(SWHRepoRepresentation):
+    """Overridden representation of a swh repository to permit to read
+    completely the remote repository.
+
+    """
+    def __init__(self, storage, origin_id, occurrences=None):
+        self.storage = storage
+        self._parents_cache = {}
+        self._type_cache = {}
+        self.heads = set()
+
+    def determine_wants(self, refs):
+        """Filter the remote references to figure out which ones Software
+           Heritage needs. In this particular context, we want to know
+           everything.
+
+        """
+        if not refs:
+            return []
+
+        for target in refs.values():
+            self.heads.add(target)
+
+        return self.filter_unwanted_refs(refs).values()
+
+    def find_remote_ref_types_in_swh(self, remote_refs):
+        """Find the known swh remote.
+        In that particular context, we know nothing.
+
+        """
+        return {}
+
+
+class DummyGraphWalker(object):
+    """Dummy graph walker which claims that the client doesn’t have any
+       objects.
+
+    """
+    def ack(self, sha): pass
+
+    def next(self): pass
+
+    def __next__(self): pass
 
 
 class GitSha1RemoteReader(BulkUpdater):
@@ -50,14 +97,33 @@ class GitSha1RemoteReader(BulkUpdater):
     }
 
     def __init__(self):
-        super().__init__()
+        super().__init__(SWHRepoFullRepresentation)
         self.next_task = self.config['next_task']
         self.batch_size = self.next_task['batch_size']
         self.task_destination = self.next_task.get('queue')
         self.destination = self.next_task['destination']
 
+    def graph_walker(self):
+        return DummyGraphWalker()
+
+    def prepare(self, origin_url, base_url=None):
+        """Only retrieve information about the origin, set everything else to
+           empty.
+
+        """
+        ori = converters.origin_url_to_origin(origin_url)
+        self.origin = self.storage.origin_get(ori)
+        self.origin_id = self.origin['id']
+        self.base_occurrences = []
+        self.base_origin_id = self.origin['id']
+
     def list_pack(self, pack_data, pack_size):
-        """Override list_pack to only keep blobs data.
+        """Override list_pack to only keep contents' sha1.
+
+        Returns:
+            id_to_type (dict): keys are sha1, values are their associated type
+            type_to_ids (dict): keys are types, values are list of associated
+            ids (sha1 for blobs)
 
         """
         id_to_type = {}
@@ -76,15 +142,26 @@ class GitSha1RemoteReader(BulkUpdater):
         return id_to_type, type_to_ids
 
     def load(self, *args, **kwargs):
-        self.prepare(*args, **kwargs)
-        origin = self.get_origin()
-        self.origin_id = self.send_origin(origin)
+        """Override the loading part which simply reads the repository's
+           contents' sha1.
+
+        Returns:
+            If the configuration holds a destination queue, send those
+            sha1s as batch of sha1s to it for consumption.  Otherwise,
+            returns the list of discovered sha1s.
+
+        """
+        try:
+            self.prepare(*args, **kwargs)
+        except:
+            self.log.error('Unknown repository, skipping...')
+            return []
 
         self.fetch_data()
-        data = self.id_to_type.keys()
+        data = self.type_to_ids[b'blob']
+
         if not self.task_destination:  # to stdout
-            yield from data
-            return
+            return data
 
         from swh.scheduler.celery_backend.config import app
         try:
@@ -101,20 +178,22 @@ class GitSha1RemoteReader(BulkUpdater):
                                          batch=list(ids))
             groups.append(sig_ids)
         group(groups).delay()
+        return data
 
 
 @click.command()
 @click.option('--origin-url', help='Origin\'s url')
-@click.option('--source', help='origin\'s source url (disk or remote)')
+@click.option('--source', default=None,
+              help='origin\'s source url (disk or remote)')
 def main(origin_url, source):
-    import logging
-
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s %(process)d %(message)s'
     )
 
-    if source.startswith('/'):
+    local_reader = (source and source.startswith('/')) or origin_url.startswith('/')  # noqa
+
+    if local_reader:
         loader = GitSha1Reader()
         fetch_date = datetime.datetime.now(tz=datetime.timezone.utc)
         ids = loader.load(origin_url, source, fetch_date)
@@ -122,8 +201,12 @@ def main(origin_url, source):
         loader = GitSha1RemoteReader()
         ids = loader.load(origin_url, source)
 
-    for oid in ids:
-        print(oid)
+    if ids:
+        count = 0
+        for oid in ids:
+            print(oid)
+            count += 1
+        print("sha1s: %s" % count)
 
 
 if __name__ == '__main__':

@@ -151,6 +151,18 @@ class BulkUpdater(base.BaseLoader):
         'pack_storage_base': ('str', ''),
     }
 
+    def __init__(self, repo_representation=SWHRepoRepresentation):
+        """Initialize the bulk updater.
+
+        Args:
+            repo_representation: swh's repository representation
+            which is in charge of filtering between known and remote
+            data.
+
+        """
+        super().__init__()
+        self.repo_representation = repo_representation
+
     def store_pack_and_refs(self, pack_buffer, remote_refs):
         """Store a pack for archival"""
 
@@ -185,8 +197,8 @@ class BulkUpdater(base.BaseLoader):
         """Fetch a pack from the origin"""
         pack_buffer = BytesIO()
 
-        base_repo = SWHRepoRepresentation(self.storage, base_origin_id,
-                                          base_occurrences)
+        base_repo = self.repo_representation(self.storage, base_origin_id,
+                                             base_occurrences)
 
         parsed_uri = urlparse(origin_url)
 
@@ -199,7 +211,10 @@ class BulkUpdater(base.BaseLoader):
 
         size_limit = self.config['pack_size_bytes']
 
-        def do_pack(data, pack_buffer=pack_buffer, limit=size_limit):
+        def do_pack(data,
+                    pack_buffer=pack_buffer,
+                    limit=size_limit,
+                    origin_url=origin_url):
             cur_size = pack_buffer.tell()
             would_write = len(data)
             if cur_size + would_write > limit:
