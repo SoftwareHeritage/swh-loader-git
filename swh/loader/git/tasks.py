@@ -50,4 +50,4 @@ class ReaderGitRepository(Task):
         loader = GitSha1RemoteReader()
         loader.log = self.log
 
-        return loader.load(repo_url, base_url)
+        return loader.load(repo_url)
