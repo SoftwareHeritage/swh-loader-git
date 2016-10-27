@@ -169,14 +169,14 @@ class GitSha1RemoteReader(BulkUpdater):
 
 @click.command()
 @click.option('--origin-url', help='Origin\'s url')
-def main(origin_url, source):
+def main(origin_url):
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s %(process)d %(message)s'
     )
 
     loader = GitSha1RemoteReader()
-    ids = loader.load(origin_url, source)
+    ids = loader.load(origin_url)
 
     if ids:
         count = 0
