@@ -4,7 +4,6 @@
 # See top-level LICENSE file for more information
 
 import click
-import datetime
 import logging
 
 from collections import defaultdict
@@ -12,25 +11,7 @@ from collections import defaultdict
 from swh.core import hashutil, utils
 
 from .updater import BulkUpdater, SWHRepoRepresentation
-from .loader import GitLoader
 from . import converters
-
-
-class GitSha1Reader(GitLoader):
-    """Disk git sha1 reader. Only read and dump sha1s in stdout.
-
-    """
-    def fetch_data(self):
-        """Fetch the data from the data source"""
-        for oid in self.iter_objects():
-            type_name = self.repo[oid].type_name
-            if type_name != b'blob':
-                continue
-            yield hashutil.hex_to_hash(oid.decode('utf-8'))
-
-    def load(self, *args, **kwargs):
-        self.prepare(*args, **kwargs)
-        yield from self.fetch_data()
 
 
 class SWHRepoFullRepresentation(SWHRepoRepresentation):
@@ -79,7 +60,8 @@ class DummyGraphWalker(object):
 
 
 class GitSha1RemoteReader(BulkUpdater):
-    """Disk git sha1 reader to dump only repo's content sha1 list.
+    """Read sha1 git from a remote repository and dump only repository's
+       content sha1 as list.
 
     """
     CONFIG_BASE_FILENAME = 'loader/git-remote-reader'
@@ -100,7 +82,7 @@ class GitSha1RemoteReader(BulkUpdater):
         super().__init__(SWHRepoFullRepresentation)
         self.next_task = self.config['next_task']
         self.batch_size = self.next_task['batch_size']
-        self.task_destination = self.next_task.get('queue')
+        self.task_destination = self.next_task['queue']
         self.destination = self.next_task['destination']
 
     def graph_walker(self):
@@ -132,10 +114,15 @@ class GitSha1RemoteReader(BulkUpdater):
         inflater = self.get_inflater()
 
         for obj in inflater:
-            type, id = obj.type_name, obj.id
+            type = obj.type_name
             if type != b'blob':  # don't keep other types
                 continue
-            oid = hashutil.hex_to_hash(id.decode('utf-8'))
+
+            # compute the sha1 (obj.id is the sha1_git)
+            data = obj.as_raw_string()
+            hashes = hashutil.hashdata(data, {'sha1'})
+            oid = hashes['sha1']
+
             id_to_type[oid] = type
             type_to_ids[type].add(oid)
 
@@ -146,9 +133,7 @@ class GitSha1RemoteReader(BulkUpdater):
            contents' sha1.
 
         Returns:
-            If the configuration holds a destination queue, send those
-            sha1s as batch of sha1s to it for consumption.  Otherwise,
-            returns the list of discovered sha1s.
+            Returns the list of discovered sha1s for that origin.
 
         """
         try:
@@ -158,10 +143,21 @@ class GitSha1RemoteReader(BulkUpdater):
             return []
 
         self.fetch_data()
-        data = self.type_to_ids[b'blob']
+        return self.type_to_ids[b'blob']
 
-        if not self.task_destination:  # to stdout
-            return data
+
+class GitSha1RemoteReaderAndSendToQueue(GitSha1RemoteReader):
+    """Read sha1 git from a remote repository and dump only repository's
+       content sha1 as list and send batch of those sha1s to a celery
+       queue for consumption.
+
+    """
+    def load(self, *args, **kwargs):
+        """Retrieve the list of sha1s for a particular origin and send those
+           sha1s as group of sha1s to a specific queue.
+
+        """
+        data = super().load(*args, **kwargs)
 
         from swh.scheduler.celery_backend.config import app
         try:
@@ -183,30 +179,25 @@ class GitSha1RemoteReader(BulkUpdater):
 
 @click.command()
 @click.option('--origin-url', help='Origin\'s url')
-@click.option('--source', default=None,
-              help='origin\'s source url (disk or remote)')
-def main(origin_url, source):
+@click.option('--send/--nosend', default=False, help='Origin\'s url')
+def main(origin_url, send):
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s %(process)d %(message)s'
     )
 
-    local_reader = (source and source.startswith('/')) or origin_url.startswith('/')  # noqa
+    if send:
+        loader = GitSha1RemoteReaderAndSendToQueue()
+        ids = loader.load(origin_url)
+        print('%s sha1s were sent to queue' % len(ids))
+        return
 
-    if local_reader:
-        loader = GitSha1Reader()
-        fetch_date = datetime.datetime.now(tz=datetime.timezone.utc)
-        ids = loader.load(origin_url, source, fetch_date)
-    else:
-        loader = GitSha1RemoteReader()
-        ids = loader.load(origin_url, source)
+    loader = GitSha1RemoteReader()
+    ids = loader.load(origin_url)
 
     if ids:
-        count = 0
         for oid in ids:
-            print(oid)
-            count += 1
-        print("sha1s: %s" % count)
+            print(hashutil.hash_to_hex(oid))
 
 
 if __name__ == '__main__':
