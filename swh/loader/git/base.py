@@ -5,6 +5,7 @@
 
 import datetime
 import logging
+import os
 import traceback
 import uuid
 
@@ -100,6 +101,9 @@ class BaseLoader(config.SWHConfig):
         'send_releases': ('bool', True),
         'send_occurrences': ('bool', True),
 
+        'save_data': ('bool', False),
+        'save_data_path': ('str', ''),
+
         'content_packet_size': ('int', 10000),
         'content_packet_size_bytes': ('int', 1024 * 1024 * 1024),
         'directory_packet_size': ('int', 25000),
@@ -114,8 +118,16 @@ class BaseLoader(config.SWHConfig):
         self.config = self.parse_config_file(
             additional_configs=[self.ADDITIONAL_CONFIG])
 
+        # Make sure the config is sane
+        if self.config['save_data']:
+            path = self.config['save_data_path']
+            os.stat(path)
+            if not os.access(path, os.R_OK | os.W_OK):
+                raise PermissionError("Permission denied: %r" % path)
+
         self.storage = get_storage(self.config['storage_class'],
                                    self.config['storage_args'])
+
         self.log = logging.getLogger('swh.loader.git.BulkLoader')
 
     def prepare(self, *args, **kwargs):
@@ -177,6 +189,28 @@ class BaseLoader(config.SWHConfig):
     def eventful(self):
         """Whether the load was eventful"""
         raise NotImplementedError
+
+    def save_data(self):
+        """Save the data associated to the current load"""
+        raise NotImplementedError
+
+    def get_save_data_path(self):
+        """The path to which we save the data"""
+        if not hasattr(self, '__save_data_path'):
+            origin_id = self.origin_id
+            year = str(self.fetch_date.year)
+
+            path = os.path.join(
+                self.config['save_data_path'],
+                "%04d" % (origin_id % 10000),
+                "%08d" % origin_id,
+                year,
+            )
+
+            os.makedirs(path, exist_ok=True)
+            self.__save_data_path = path
+
+        return self.__save_data_path
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
     def send_contents(self, content_list):
@@ -371,7 +405,11 @@ class BaseLoader(config.SWHConfig):
         self.visit = origin_visit['visit']
 
         try:
+            self.fetch_date = datetime.datetime.now(tz=datetime.timezone.utc)
             self.fetch_data()
+
+            if self.config['save_data']:
+                self.save_data()
 
             if self.config['send_contents'] and self.has_contents():
                 self.send_all_contents(self.get_contents())
