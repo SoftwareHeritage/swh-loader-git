@@ -1,3 +1,10 @@
+swh-loader-git (0.0.23-1~swh1) unstable-swh; urgency=medium
+
+  * Release swh.loader.git v0.0.23
+  * Make the save_data mechanism generic
+
+ -- Nicolas Dandrimont <nicolas@dandrimont.eu>  Fri, 02 Dec 2016 15:34:05 +0100
+
 swh-loader-git (0.0.22-1~swh1) unstable-swh; urgency=medium
 
   * v0.0.22
