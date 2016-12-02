@@ -124,9 +124,14 @@ class GitLoader(base.BaseLoader):
             'occurrences': len(self.repo.refs.allkeys()),
         }
 
+    def save_data(self):
+        """We already have the data locally, no need to save it"""
+        pass
+
     def eventful(self):
         """Whether the load was eventful"""
         return True
+
 
 if __name__ == '__main__':
     import logging
