@@ -60,8 +60,7 @@ class DummyGraphWalker(object):
 
 
 class GitSha1RemoteReader(BulkUpdater):
-    """Read sha1 git from a remote repository and dump only repository's
-       content sha1 as list.
+    """Disk git sha1 reader to dump only repo's content sha1 list.
 
     """
     CONFIG_BASE_FILENAME = 'loader/git-remote-reader'
@@ -82,7 +81,7 @@ class GitSha1RemoteReader(BulkUpdater):
         super().__init__(SWHRepoFullRepresentation)
         self.next_task = self.config['next_task']
         self.batch_size = self.next_task['batch_size']
-        self.task_destination = self.next_task['queue']
+        self.task_destination = self.next_task.get('queue')
         self.destination = self.next_task['destination']
 
     def graph_walker(self):
@@ -133,7 +132,9 @@ class GitSha1RemoteReader(BulkUpdater):
            contents' sha1.
 
         Returns:
-            Returns the list of discovered sha1s for that origin.
+            If the configuration holds a destination queue, send those
+            sha1s as batch of sha1s to it for consumption.  Otherwise,
+            returns the list of discovered sha1s.
 
         """
         try:
@@ -143,21 +144,10 @@ class GitSha1RemoteReader(BulkUpdater):
             return []
 
         self.fetch_data()
-        return self.type_to_ids[b'blob']
+        data = self.type_to_ids[b'blob']
 
-
-class GitSha1RemoteReaderAndSendToQueue(GitSha1RemoteReader):
-    """Read sha1 git from a remote repository and dump only repository's
-       content sha1 as list and send batch of those sha1s to a celery
-       queue for consumption.
-
-    """
-    def load(self, *args, **kwargs):
-        """Retrieve the list of sha1s for a particular origin and send those
-           sha1s as group of sha1s to a specific queue.
-
-        """
-        data = super().load(*args, **kwargs)
+        if not self.task_destination:  # to stdout
+            return data
 
         from swh.scheduler.celery_backend.config import app
         try:
@@ -179,25 +169,21 @@ class GitSha1RemoteReaderAndSendToQueue(GitSha1RemoteReader):
 
 @click.command()
 @click.option('--origin-url', help='Origin\'s url')
-@click.option('--send/--nosend', default=False, help='Origin\'s url')
-def main(origin_url, send):
+def main(origin_url, source):
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s %(process)d %(message)s'
     )
 
-    if send:
-        loader = GitSha1RemoteReaderAndSendToQueue()
-        ids = loader.load(origin_url)
-        print('%s sha1s were sent to queue' % len(ids))
-        return
-
     loader = GitSha1RemoteReader()
-    ids = loader.load(origin_url)
+    ids = loader.load(origin_url, source)
 
     if ids:
+        count = 0
         for oid in ids:
-            print(hashutil.hash_to_hex(oid))
+            print(oid)
+            count += 1
+        print("sha1s: %s" % count)
 
 
 if __name__ == '__main__':

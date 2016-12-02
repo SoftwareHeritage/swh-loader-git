@@ -3,7 +3,6 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import datetime
 from io import BytesIO
 import logging
 import os
@@ -148,7 +147,6 @@ class BulkUpdater(base.BaseLoader):
 
     ADDITIONAL_CONFIG = {
         'pack_size_bytes': ('int', 4 * 1024 * 1024 * 1024),
-        'pack_storage_base': ('str', ''),
     }
 
     def __init__(self, repo_representation=SWHRepoRepresentation):
@@ -162,35 +160,6 @@ class BulkUpdater(base.BaseLoader):
         """
         super().__init__()
         self.repo_representation = repo_representation
-
-    def store_pack_and_refs(self, pack_buffer, remote_refs):
-        """Store a pack for archival"""
-
-        write_size = 8192
-
-        origin_id = "%08d" % self.origin_id
-        year = str(self.fetch_date.year)
-
-        pack_dir = os.path.join(
-            self.config['pack_storage_base'],
-            origin_id,
-            year,
-        )
-        pack_name = "%s.pack" % self.fetch_date.isoformat()
-        refs_name = "%s.refs" % self.fetch_date.isoformat()
-
-        os.makedirs(pack_dir, exist_ok=True)
-        with open(os.path.join(pack_dir, pack_name), 'xb') as f:
-            while True:
-                r = pack_buffer.read(write_size)
-                if not r:
-                    break
-                f.write(r)
-
-        pack_buffer.seek(0)
-
-        with open(os.path.join(pack_dir, refs_name), 'xb') as f:
-            pickle.dump(remote_refs, f)
 
     def fetch_pack_from_origin(self, origin_url, base_origin_id,
                                base_occurrences, do_activity):
@@ -239,9 +208,6 @@ class BulkUpdater(base.BaseLoader):
         pack_buffer.flush()
         pack_size = pack_buffer.tell()
         pack_buffer.seek(0)
-
-        if self.config['pack_storage_base']:
-            self.store_pack_and_refs(pack_buffer, remote_refs)
 
         return {
             'remote_refs': base_repo.filter_unwanted_refs(remote_refs),
@@ -296,8 +262,6 @@ class BulkUpdater(base.BaseLoader):
             sys.stderr.buffer.write(msg)
             sys.stderr.flush()
 
-        self.fetch_date = datetime.datetime.now(tz=datetime.timezone.utc)
-
         fetch_info = self.fetch_pack_from_origin(
             self.origin['url'], self.base_origin_id, self.base_occurrences,
             do_progress)
@@ -323,6 +287,27 @@ class BulkUpdater(base.BaseLoader):
 
         self.id_to_type = id_to_type
         self.type_to_ids = type_to_ids
+
+    def save_data(self):
+        """Store a pack for archival"""
+
+        write_size = 8192
+        pack_dir = self.get_save_data_path()
+
+        pack_name = "%s.pack" % self.fetch_date.isoformat()
+        refs_name = "%s.refs" % self.fetch_date.isoformat()
+
+        with open(os.path.join(pack_dir, pack_name), 'xb') as f:
+            while True:
+                r = self.pack_buffer.read(write_size)
+                if not r:
+                    break
+                f.write(r)
+
+        self.pack_buffer.seek(0)
+
+        with open(os.path.join(pack_dir, refs_name), 'xb') as f:
+            pickle.dump(self.remote_refs, f)
 
     def get_inflater(self):
         """Reset the pack buffer and get an object inflater from it"""

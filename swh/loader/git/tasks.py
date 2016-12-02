@@ -9,7 +9,7 @@ from swh.scheduler.task import Task
 
 from .loader import GitLoader
 from .updater import BulkUpdater
-from .reader import GitSha1RemoteReaderAndSendToQueue
+from .reader import GitSha1RemoteReader
 
 
 # TODO: rename to LoadRemoteGitRepository
@@ -47,7 +47,7 @@ class ReaderGitRepository(Task):
         archival.
 
         """
-        loader = GitSha1RemoteReaderAndSendToQueue()
+        loader = GitSha1RemoteReader()
         loader.log = self.log
 
         return loader.load(repo_url)
