@@ -17,7 +17,7 @@ class GitLoader(base.BaseLoader):
     """Load a git repository from a directory.
     """
 
-    CONFIG_BASE_FILENAME = 'loader/git-loader.ini'
+    CONFIG_BASE_FILENAME = 'loader/git-loader'
 
     def prepare(self, origin_url, directory, fetch_date):
         self.origin_url = origin_url

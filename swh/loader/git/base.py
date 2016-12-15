@@ -92,9 +92,12 @@ class BaseLoader(config.SWHConfig):
     CONFIG_BASE_FILENAME = None
 
     DEFAULT_CONFIG = {
-        'storage_class': ('str', 'remote_storage'),
-        'storage_args': ('list[str]', ['http://localhost:5000/']),
-
+        'storage': ('dict', {
+            'cls': 'remote',
+            'args': {
+              'url': 'http://localhost:5000/'
+            },
+        }),
         'send_contents': ('bool', True),
         'send_directories': ('bool', True),
         'send_revisions': ('bool', True),
@@ -125,8 +128,7 @@ class BaseLoader(config.SWHConfig):
             if not os.access(path, os.R_OK | os.W_OK):
                 raise PermissionError("Permission denied: %r" % path)
 
-        self.storage = get_storage(self.config['storage_class'],
-                                   self.config['storage_args'])
+        self.storage = get_storage(**self.config['storage'])
 
         self.log = logging.getLogger('swh.loader.git.BulkLoader')
 
