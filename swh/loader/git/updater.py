@@ -143,7 +143,7 @@ class SWHRepoRepresentation:
 
 class BulkUpdater(base.BaseLoader):
     """A bulk loader for a git repository"""
-    CONFIG_BASE_FILENAME = 'loader/git-updater.ini'
+    CONFIG_BASE_FILENAME = 'loader/git-updater'
 
     ADDITIONAL_CONFIG = {
         'pack_size_bytes': ('int', 4 * 1024 * 1024 * 1024),

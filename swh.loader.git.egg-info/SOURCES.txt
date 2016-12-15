@@ -9,7 +9,6 @@ requirements.txt
 setup.py
 version.txt
 bin/dir-git-repo-meta.sh
-bin/send-url.py
 debian/changelog
 debian/compat
 debian/control
