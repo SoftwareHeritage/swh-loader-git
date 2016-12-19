@@ -68,8 +68,12 @@ class SWHLoader(config.SWHConfig):
     CONFIG_BASE_FILENAME = None
 
     DEFAULT_CONFIG = {
-        'storage_class': ('str', 'remote_storage'),
-        'storage_args': ('list[str]', ['http://localhost:5000/']),
+        'storage': ('dict', {
+            'cls': 'remote',
+            'args': {
+                'url': 'http://localhost:5002/',
+            }
+        }),
 
         'send_contents': ('bool', True),
         'send_directories': ('bool', True),
