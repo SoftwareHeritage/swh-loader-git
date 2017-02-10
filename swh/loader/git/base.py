@@ -407,7 +407,6 @@ class BaseLoader(config.SWHConfig):
         self.visit = origin_visit['visit']
 
         try:
-            self.fetch_date = datetime.datetime.now(tz=datetime.timezone.utc)
             self.fetch_data()
 
             if self.config['save_data']:
