@@ -1,9 +1,10 @@
-# Copyright (C) 2016 The Software Heritage developers
+# Copyright (C) 2016-2017 The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
 from io import BytesIO
+import datetime
 import logging
 import os
 import pickle
@@ -230,6 +231,8 @@ class BulkUpdater(base.BaseLoader):
         return id_to_type, type_to_ids
 
     def prepare(self, origin_url, base_url=None):
+        self.fetch_date = datetime.datetime.now(tz=datetime.timezone.utc)
+
         origin = converters.origin_url_to_origin(origin_url)
         base_origin = converters.origin_url_to_origin(base_url)
 
