@@ -30,6 +30,7 @@ Runtime
 -   python3-swh.core
 -   python3-swh.model
 -   python3-swh.storage
+-   python3-swh.scheduler
 
 Test
 ----
