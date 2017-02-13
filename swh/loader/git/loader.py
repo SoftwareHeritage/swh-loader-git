@@ -150,20 +150,11 @@ class GitLoaderFromArchive(GitLoader):
             self.project_name, os.path.basename(archive_path), self.repo_path))
         super().prepare(origin_url, self.repo_path, fetch_date)
 
-    def load(self, *args, **kwargs):
-        """1. Load as GitLoader does
-           2. Finally clean up temporary location
-
-        """
-        try:
-            super().load(*args, **kwargs)
-        except Exception as e:
-            raise e
-        finally:
-            if self.temp_dir and os.path.exists(self.temp_dir):
-                shutil.rmtree(self.temp_dir)
-            self.log.info('Project %s - Done injecting %s' % (
-                self.project_name, self.repo_path))
+    def cleanup(self):
+        if self.temp_dir and os.path.exists(self.temp_dir):
+            shutil.rmtree(self.temp_dir)
+        self.log.info('Project %s - Done injecting %s' % (
+            self.project_name, self.repo_path))
 
 
 if __name__ == '__main__':
