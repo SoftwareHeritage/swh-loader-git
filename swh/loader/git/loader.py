@@ -1,16 +1,17 @@
-# Copyright (C) 2015  The Software Heritage developers
+# Copyright (C) 2015-2017  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-from collections import defaultdict
 import datetime
-
 import dulwich.repo
+import os
+import shutil
+
+from collections import defaultdict
 
 from swh.core import hashutil
-
-from . import base, converters
+from . import base, converters, utils
 
 
 class GitLoader(base.BaseLoader):
@@ -131,6 +132,38 @@ class GitLoader(base.BaseLoader):
     def eventful(self):
         """Whether the load was eventful"""
         return True
+
+
+class GitLoaderFromArchive(GitLoader):
+    CONFIG_BASE_FILENAME = 'loader/zip-git-loader'
+
+    def prepare(self, origin_url, archive_path, fetch_date):
+        """1. Uncompress the archive in temporary location.
+           2. Prepare as the GitLoader does
+
+        """
+        self.temp_dir, self.repo_path = utils.init_git_repo_from_archive(
+            archive_path)
+        self.project_name = os.path.basename(self.repo_path)
+
+        self.log.info('Project %s - Uncompressing archive %s at %s' % (
+            self.project_name, os.path.basename(archive_path), self.repo_path))
+        super().prepare(origin_url, self.repo_path, fetch_date)
+
+    def load(self, *args, **kwargs):
+        """1. Load as GitLoader does
+           2. Finally clean up temporary location
+
+        """
+        try:
+            super().load(*args, **kwargs)
+        except Exception as e:
+            raise e
+        finally:
+            if self.temp_dir and os.path.exists(self.temp_dir):
+                shutil.rmtree(self.temp_dir)
+            self.log.info('Project %s - Done injecting %s' % (
+                self.project_name, self.repo_path))
 
 
 if __name__ == '__main__':
