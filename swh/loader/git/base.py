@@ -1,4 +1,4 @@
-# Copyright (C) 2016 The Software Heritage developers
+# Copyright (C) 2016-2017 The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -86,6 +86,7 @@ class BaseLoader(config.SWHConfig):
      - has_* checks whether there are some objects to load for that object type
      - get_fetch_history_result retrieves the data to insert in the
        fetch_history table once the load was successful
+     - cleanup cleans up an eventual state installed for computations
      - eventful returns whether the load was eventful or not
     """
 
@@ -135,6 +136,10 @@ class BaseLoader(config.SWHConfig):
     def prepare(self, *args, **kwargs):
         """Prepare the data source to be loaded"""
         raise NotImplementedError
+
+    def cleanup(self):
+        """Clean up an eventual state installed for computations."""
+        pass
 
     def get_origin(self):
         """Get the origin that is currently being loaded"""
@@ -437,5 +442,7 @@ class BaseLoader(config.SWHConfig):
             self.storage.origin_visit_update(
                 self.origin_id, self.visit, status='partial')
             raise
+        finally:
+            self.cleanup()
 
         return self.eventful()
