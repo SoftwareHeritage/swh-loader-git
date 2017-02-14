@@ -27,7 +27,7 @@ class UpdateGitRepository(Task):
 
 class LoadDiskGitRepository(Task):
     """Import a git repository from disk"""
-    task_queue = 'swh_loader_git'
+    task_queue = 'swh_loader_git_express'
 
     def run(self, origin_url, directory, date):
         """Import a git repository, cloned in `directory` from `origin_url` at
@@ -41,7 +41,7 @@ class LoadDiskGitRepository(Task):
 
 class UncompressAndLoadDiskGitRepository(Task):
     """Import a git repository from a zip archive"""
-    task_queue = 'swh_loader_git_express'
+    task_queue = 'swh_loader_git_archive'
 
     def run(self, origin_url, archive_path, date):
         """1. Uncompress an archive repository in a local and temporary folder
