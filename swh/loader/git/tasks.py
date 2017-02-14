@@ -27,7 +27,7 @@ class UpdateGitRepository(Task):
 
 class LoadDiskGitRepository(Task):
     """Import a git repository from disk"""
-    task_queue = 'swh_loader_git'
+    task_queue = 'swh_loader_git_express'
 
     def run(self, origin_url, directory, date):
         """Import a git repository, cloned in `directory` from `origin_url` at
