@@ -1,3 +1,10 @@
+swh-loader-git (0.0.26-1~swh1) unstable-swh; urgency=medium
+
+  * v0.0.26
+  * Add a git loader able to deal with git repository in archive
+
+ -- Antoine R. Dumont (@ardumont) <antoine.romain.dumont@gmail.com>  Tue, 14 Feb 2017 16:24:50 +0100
+
 swh-loader-git (0.0.25-1~swh1) unstable-swh; urgency=medium
 
   * v0.0.25
