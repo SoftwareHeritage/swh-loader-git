@@ -135,11 +135,15 @@ class GitLoader(base.BaseLoader):
 
 
 class GitLoaderFromArchive(GitLoader):
-    CONFIG_BASE_FILENAME = 'loader/zip-git-loader'
+    """Load a git repository from an archive.
+
+    """
+    CONFIG_BASE_FILENAME = 'loader/archive-git-loader'
 
     def prepare(self, origin_url, archive_path, fetch_date):
         """1. Uncompress the archive in temporary location.
            2. Prepare as the GitLoader does
+           3. Load as GitLoader does
 
         """
         self.temp_dir, self.repo_path = utils.init_git_repo_from_archive(
@@ -151,6 +155,9 @@ class GitLoaderFromArchive(GitLoader):
         super().prepare(origin_url, self.repo_path, fetch_date)
 
     def cleanup(self):
+        """Cleanup the temporary location (if it exists).
+
+        """
         if self.temp_dir and os.path.exists(self.temp_dir):
             shutil.rmtree(self.temp_dir)
         self.log.info('Project %s - Done injecting %s' % (
