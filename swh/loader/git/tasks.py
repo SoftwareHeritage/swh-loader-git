@@ -41,7 +41,7 @@ class LoadDiskGitRepository(Task):
 
 class UncompressAndLoadDiskGitRepository(Task):
     """Import a git repository from a zip archive"""
-    task_queue = 'swh_loader_git_express'
+    task_queue = 'swh_loader_git_archive'
 
     def run(self, origin_url, archive_path, date):
         """1. Uncompress an archive repository in a local and temporary folder
