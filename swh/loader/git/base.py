@@ -132,6 +132,7 @@ class BaseLoader(config.SWHConfig):
         self.storage = get_storage(**self.config['storage'])
 
         self.log = logging.getLogger('swh.loader.git.BulkLoader')
+        self.fetch_date = None  # possibly overridden in self.prepare method
 
     def prepare(self, *args, **kwargs):
         """Prepare the data source to be loaded"""
@@ -405,7 +406,11 @@ class BaseLoader(config.SWHConfig):
         self.origin_id = self.send_origin(origin)
 
         fetch_history_id = self.open_fetch_history()
-        date_visit = datetime.datetime.now(tz=datetime.timezone.utc)
+        if self.fetch_date:  # overwriting the visit_date the fetching date
+            date_visit = self.fetch_date
+        else:
+            date_visit = datetime.datetime.now(tz=datetime.timezone.utc)
+
         origin_visit = self.storage.origin_visit_add(
             self.origin_id,
             date_visit)
