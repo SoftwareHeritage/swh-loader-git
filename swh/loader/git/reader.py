@@ -3,10 +3,11 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import click
-import logging
-
 from collections import defaultdict
+import logging
+import pprint
+
+import click
 
 from swh.core import hashutil, utils
 
@@ -59,11 +60,7 @@ class DummyGraphWalker(object):
     def __next__(self): pass
 
 
-class GitSha1RemoteReader(BulkUpdater):
-    """Read sha1 git from a remote repository and dump only repository's
-       content sha1 as list.
-
-    """
+class BaseGitRemoteReader(BulkUpdater):
     CONFIG_BASE_FILENAME = 'loader/git-remote-reader'
 
     ADDITIONAL_CONFIG = {
@@ -93,11 +90,18 @@ class GitSha1RemoteReader(BulkUpdater):
            empty.
 
         """
-        ori = converters.origin_url_to_origin(origin_url)
-        self.origin = self.storage.origin_get(ori)
-        self.origin_id = self.origin['id']
+        self.origin = converters.origin_url_to_origin(origin_url)
+        self.origin_id = 0
         self.base_occurrences = []
-        self.base_origin_id = self.origin['id']
+        self.base_origin_id = 0
+
+    def keep_object(self, obj):
+        """Do we want to keep this object or not?"""
+        raise NotImplementedError('Please implement keep_object')
+
+    def get_id_and_data(self, obj):
+        """Get the id, type and data of the given object"""
+        raise NotImplementedError('Please implement get_id_and_data')
 
     def list_pack(self, pack_data, pack_size):
         """Override list_pack to only keep contents' sha1.
@@ -105,26 +109,24 @@ class GitSha1RemoteReader(BulkUpdater):
         Returns:
             id_to_type (dict): keys are sha1, values are their associated type
             type_to_ids (dict): keys are types, values are list of associated
-            ids (sha1 for blobs)
+            data (sha1 for blobs)
 
         """
+        self.data = {}
         id_to_type = {}
         type_to_ids = defaultdict(set)
 
         inflater = self.get_inflater()
 
         for obj in inflater:
-            type = obj.type_name
-            if type != b'blob':  # don't keep other types
+            if not self.keep_object(obj):
                 continue
 
-            # compute the sha1 (obj.id is the sha1_git)
-            data = obj.as_raw_string()
-            hashes = hashutil.hashdata(data, {'sha1'})
-            oid = hashes['sha1']
+            object_id, type, data = self.get_id_and_data(obj)
 
-            id_to_type[oid] = type
-            type_to_ids[type].add(oid)
+            id_to_type[object_id] = type
+            type_to_ids[type].add(object_id)
+            self.data[object_id] = data
 
         return id_to_type, type_to_ids
 
@@ -136,14 +138,26 @@ class GitSha1RemoteReader(BulkUpdater):
             Returns the list of discovered sha1s for that origin.
 
         """
-        try:
-            self.prepare(*args, **kwargs)
-        except:
-            self.log.error('Unknown repository, skipping...')
-            return []
-
+        self.prepare(*args, **kwargs)
         self.fetch_data()
-        return self.type_to_ids[b'blob']
+
+
+class GitSha1RemoteReader(BaseGitRemoteReader):
+    """Read sha1 git from a remote repository and dump only repository's
+       content sha1 as list.
+
+    """
+    def keep_object(self, obj):
+        """Only keep blobs"""
+        return obj.type_name == b'blob'
+
+    def get_id_and_data(self, obj):
+        """We want to store only object identifiers"""
+        # compute the sha1 (obj.id is the sha1_git)
+        data = obj.as_raw_string()
+        hashes = hashutil.hashdata(data, {'sha1'})
+        oid = hashes['sha1']
+        return (oid, b'blob', oid)
 
 
 class GitSha1RemoteReaderAndSendToQueue(GitSha1RemoteReader):
@@ -157,7 +171,9 @@ class GitSha1RemoteReaderAndSendToQueue(GitSha1RemoteReader):
            sha1s as group of sha1s to a specific queue.
 
         """
-        data = super().load(*args, **kwargs)
+        super().load(*args, **kwargs)
+
+        data = self.type_to_ids[b'blob']
 
         from swh.scheduler.celery_backend.config import app
         try:
@@ -177,14 +193,34 @@ class GitSha1RemoteReaderAndSendToQueue(GitSha1RemoteReader):
         return data
 
 
-@click.command()
-@click.option('--origin-url', help='Origin\'s url')
-@click.option('--send/--nosend', default=False, help='Origin\'s url')
-def main(origin_url, send):
+class GitCommitRemoteReader(BaseGitRemoteReader):
+    def keep_object(self, obj):
+        return obj.type_name == b'commit'
+
+    def get_id_and_data(self, obj):
+        return obj.id, b'commit', converters.dulwich_commit_to_revision(obj)
+
+    def load(self, *args, **kwargs):
+        super().load(*args, **kwargs)
+        return self.data
+
+
+@click.group()
+@click.option('--origin-url', help='Origin url')
+@click.pass_context
+def main(ctx, origin_url):
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s %(process)d %(message)s'
     )
+    ctx.obj['origin_url'] = origin_url
+
+
+@main.command()
+@click.option('--send/--nosend', default=False, help='Origin\'s url')
+@click.pass_context
+def blobs(ctx, send):
+    origin_url = ctx.obj['origin_url']
 
     if send:
         loader = GitSha1RemoteReaderAndSendToQueue()
@@ -200,5 +236,20 @@ def main(origin_url, send):
             print(hashutil.hash_to_hex(oid))
 
 
+@main.command()
+@click.option('--ids-only', is_flag=True, help='print ids only')
+@click.pass_context
+def commits(ctx, ids_only):
+    origin_url = ctx.obj['origin_url']
+
+    reader = GitCommitRemoteReader()
+    commits = reader.load(origin_url)
+    for commit_id, commit in commits.items():
+        if ids_only:
+            print(commit_id.decode())
+        else:
+            pprint.pprint(commit)
+
+
 if __name__ == '__main__':
-    main()
+    main(obj={})
