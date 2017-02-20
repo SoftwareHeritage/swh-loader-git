@@ -1,3 +1,12 @@
+swh-loader-git (0.0.29-1~swh1) unstable-swh; urgency=medium
+
+  * v0.0.29
+  * GitLoaderFromArchive: Use the same configuration file as
+  * GitLoader (permit to deploy both as the same unit)
+  * git reader: Refactor to allow listing revisions as well as contents
+
+ -- Antoine R. Dumont (@ardumont) <antoine.romain.dumont@gmail.com>  Mon, 20 Feb 2017 11:32:24 +0100
+
 swh-loader-git (0.0.28-1~swh1) unstable-swh; urgency=medium
 
   * v0.0.28
