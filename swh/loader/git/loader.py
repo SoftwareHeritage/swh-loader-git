@@ -138,8 +138,6 @@ class GitLoaderFromArchive(GitLoader):
     """Load a git repository from an archive.
 
     """
-    CONFIG_BASE_FILENAME = 'loader/archive-git-loader'
-
     def prepare(self, origin_url, archive_path, fetch_date):
         """1. Uncompress the archive in temporary location.
            2. Prepare as the GitLoader does
