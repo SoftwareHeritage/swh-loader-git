@@ -138,18 +138,24 @@ class GitLoaderFromArchive(GitLoader):
     """Load a git repository from an archive.
 
     """
+    def project_name_from_archive(self, archive_path):
+        """Compute the project name from the archive's path.
+
+        """
+        return os.path.basename(os.path.dirname(archive_path))
+
     def prepare(self, origin_url, archive_path, fetch_date):
         """1. Uncompress the archive in temporary location.
            2. Prepare as the GitLoader does
            3. Load as GitLoader does
 
         """
+        project_name = self.project_name_from_archive(archive_path)
         self.temp_dir, self.repo_path = utils.init_git_repo_from_archive(
-            archive_path)
-        self.project_name = os.path.basename(self.repo_path)
+            project_name, archive_path)
 
         self.log.info('Project %s - Uncompressing archive %s at %s' % (
-            self.project_name, os.path.basename(archive_path), self.repo_path))
+            origin_url, os.path.basename(archive_path), self.repo_path))
         super().prepare(origin_url, self.repo_path, fetch_date)
 
     def cleanup(self):
@@ -159,7 +165,7 @@ class GitLoaderFromArchive(GitLoader):
         if self.temp_dir and os.path.exists(self.temp_dir):
             shutil.rmtree(self.temp_dir)
         self.log.info('Project %s - Done injecting %s' % (
-            self.project_name, self.repo_path))
+            self.origin_url, self.repo_path))
 
 
 if __name__ == '__main__':
