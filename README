@@ -60,7 +60,7 @@ storage_class = remote_storage
 
 # arguments passed to the storage class
 # for remote_storage: URI of the storage server
-storage_args = http://localhost:5000/
+storage_args = http://localhost:5002/
 
 # for local_storage: database connection string and root of the
 # storage, comma separated
