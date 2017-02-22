@@ -1,14 +1,16 @@
-# Copyright (C) 2015-2016  The Software Heritage developers
+# Copyright (C) 2015-2017  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import datetime
 import logging
 import psycopg2
 import requests
 import traceback
 import uuid
 
+from abc import ABCMeta, abstractmethod
 from retrying import retry
 
 from . import converters
@@ -49,7 +51,7 @@ def retry_loading(error):
     return True
 
 
-class SWHLoader(config.SWHConfig):
+class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
     """Mixin base class for loader.
 
     The calling convention is as such:
@@ -145,6 +147,29 @@ class SWHLoader(config.SWHConfig):
             'releases': 0,
             'occurrences': 0,
         }
+
+    @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
+    def send_origin(self, origin):
+        log_id = str(uuid.uuid4())
+        self.log.debug('Creating %s origin for %s' % (origin['type'],
+                                                      origin['url']),
+                       extra={
+                           'swh_type': 'storage_send_start',
+                           'swh_content_type': 'origin',
+                           'swh_num': 1,
+                           'swh_id': log_id
+                       })
+        origin_id = self.storage.origin_add_one(origin)
+        self.log.debug('Done creating %s origin for %s' % (origin['type'],
+                                                           origin['url']),
+                       extra={
+                           'swh_type': 'storage_send_end',
+                           'swh_content_type': 'origin',
+                           'swh_num': 1,
+                           'swh_id': log_id
+                       })
+
+        return origin_id
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
     def send_contents(self, content_list):
@@ -474,6 +499,79 @@ class SWHLoader(config.SWHConfig):
         if self.config['send_releases']:
             self.send_releases(releases)
 
+    @abstractmethod
+    def cleanup(self):
+        """Last step executed by the loader.
+
+        """
+        pass
+
+    @abstractmethod
+    def prepare(self, *args, **kwargs):
+        """First step executed by the loader to prepare some state needed by
+           the loader.
+
+        """
+        pass
+
+    @abstractmethod
+    def get_origin(self):
+        """Get the origin that is currently being loaded.
+
+        """
+        pass
+
+    @abstractmethod
+    def fetch_data(self):
+        """Fetch the data we want to store.
+
+        """
+        pass
+
+    @abstractmethod
+    def store_data(self):
+        """Store the data we actually fetched.
+
+        """
+        pass
+
     def load(self, *args, **kwargs):
-        """Method to implement in subclass."""
-        raise NotImplementedError
+        """Loading logic for the loader to follow:
+        1. def prepare(*args, **kwargs): Prepare any eventual state
+        2. def get_origin(): Get the origin we work with and store
+        3. def fetch_data(): Fetch the data to store
+        4. def store_data(): Store the data
+        5. def cleanup(): Clean up any eventual state put in place in
+        prepare method.
+
+        """
+        self.prepare(*args, **kwargs)
+        origin = self.get_origin()
+        self.origin_id = self.send_origin(origin)
+
+        fetch_history_id = self.open_fetch_history()
+        if self.fetch_date:  # overwriting the visit_date with fetching date
+            date_visit = self.fetch_date
+        else:
+            date_visit = datetime.datetime.now(tz=datetime.timezone.utc)
+
+        origin_visit = self.storage.origin_visit_add(
+            self.origin_id,
+            date_visit)
+        self.visit = origin_visit['visit']
+
+        try:
+            self.fetch_data()
+            self.store_data()
+
+            self.close_fetch_history_success(fetch_history_id)
+            self.storage.origin_visit_update(
+                self.origin_id, self.visit, status='full')
+        except Exception as e:
+            print('problem: %s' % e)
+            self.close_fetch_history_failure(fetch_history_id)
+            self.storage.origin_visit_update(
+                self.origin_id, self.visit, status='partial')
+        finally:
+            self.flush()
+            self.cleanup()
