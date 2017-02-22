@@ -550,14 +550,14 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         self.origin_id = self.send_origin(origin)
 
         fetch_history_id = self.open_fetch_history()
-        if self.fetch_date:  # overwriting the visit_date with fetching date
-            date_visit = self.fetch_date
+        if self.visit_date:  # overwriting the visit_date if provided
+            visit_date = self.visit_date
         else:
-            date_visit = datetime.datetime.now(tz=datetime.timezone.utc)
+            visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
 
         origin_visit = self.storage.origin_visit_add(
             self.origin_id,
-            date_visit)
+            visit_date)
         self.visit = origin_visit['visit']
 
         try:
