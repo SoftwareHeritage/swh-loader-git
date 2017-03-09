@@ -96,7 +96,7 @@ class BaseLoader(config.SWHConfig):
         'storage': ('dict', {
             'cls': 'remote',
             'args': {
-              'url': 'http://localhost:5000/'
+              'url': 'http://localhost:5002/'
             },
         }),
         'send_contents': ('bool', True),
