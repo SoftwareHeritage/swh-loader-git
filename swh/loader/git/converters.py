@@ -163,7 +163,9 @@ def dulwich_commit_to_revision(commit, log=None):
         git_metadata.append(['encoding', commit.encoding])
     if commit.mergetag:
         for mergetag in commit.mergetag:
-            git_metadata.append(['mergetag', mergetag.as_raw_string()])
+            raw_string = mergetag.as_raw_string()
+            assert raw_string.endswith(b'\n')
+            git_metadata.append(['mergetag', raw_string[:-1]])
 
     if commit.extra:
         git_metadata.extend([k.decode('utf-8'), v] for k, v in commit.extra)
