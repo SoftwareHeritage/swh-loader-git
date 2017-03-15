@@ -1,11 +1,11 @@
-# Copyright (C) 2015  The Software Heritage developers
+# Copyright (C) 2015-2017  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
 """Convert dulwich objects to dictionaries suitable for swh.storage"""
 
-from swh.core import hashutil
+from swh.model import hashutil
 
 
 HASH_ALGORITHMS = hashutil.ALGORITHMS - {'sha1_git'}
@@ -49,7 +49,7 @@ def dulwich_blob_to_content(blob, log=None, max_content_size=None,
             return ret
 
     data = blob.as_raw_string()
-    hashes = hashutil.hashdata(data, HASH_ALGORITHMS)
+    hashes = hashutil.hash_data(data, HASH_ALGORITHMS)
     ret.update(hashes)
     ret['data'] = data
     ret['status'] = 'visible'
@@ -81,7 +81,7 @@ def dulwich_tree_to_directory(tree, log=None):
             'type': entry_mode_map.get(entry.mode, 'file'),
             'perms': entry.mode,
             'name': entry.path,
-            'target': hashutil.hex_to_hash(entry.sha.decode('ascii')),
+            'target': hashutil.hash_to_bytes(entry.sha.decode('ascii')),
         })
 
     return ret

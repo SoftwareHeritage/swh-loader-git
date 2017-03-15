@@ -16,7 +16,7 @@ from dulwich.object_store import ObjectStoreGraphWalker
 from dulwich.pack import PackData, PackInflater
 from urllib.parse import urlparse
 
-from swh.core import hashutil
+from swh.model import hashutil
 
 from . import base, converters
 

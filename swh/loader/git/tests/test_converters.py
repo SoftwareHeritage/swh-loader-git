@@ -1,4 +1,4 @@
-# Copyright (C) 2015  The Software Heritage developers
+# Copyright (C) 2015-2017  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -13,7 +13,7 @@ from nose.tools import istest
 import dulwich.repo
 
 import swh.loader.git.converters as converters
-from swh.core.hashutil import bytehex_to_hash, hex_to_hash
+from swh.model.hashutil import bytehex_to_hash, hash_to_bytes
 
 
 class TestConverters(unittest.TestCase):
@@ -58,9 +58,9 @@ class TestConverters(unittest.TestCase):
         self.blob_id = b'28c6f4023d65f74e3b59a2dea3c4277ed9ee07b0'
         self.blob = {
             'sha1_git': bytehex_to_hash(self.blob_id),
-            'sha1': hex_to_hash('4850a3420a2262ff061cb296fb915430fa92301c'),
-            'sha256': hex_to_hash('fee7c8a485a10321ad94b64135073cb5'
-                                  '5f22cb9f57fa2417d2adfb09d310adef'),
+            'sha1': hash_to_bytes('4850a3420a2262ff061cb296fb915430fa92301c'),
+            'sha256': hash_to_bytes('fee7c8a485a10321ad94b64135073cb5'
+                                    '5f22cb9f57fa2417d2adfb09d310adef'),
             'data': (b'[submodule "example-dependency"]\n'
                      b'\tpath = example-dependency\n'
                      b'\turl = https://github.com/githubtraining/'
@@ -96,7 +96,7 @@ class TestConverters(unittest.TestCase):
         revision = converters.dulwich_commit_to_revision(self.repo[sha1])
 
         expected_revision = {
-            'id': hex_to_hash('9768d0b576dbaaecd80abedad6dfd0d72f1476da'),
+            'id': hash_to_bytes('9768d0b576dbaaecd80abedad6dfd0d72f1476da'),
             'directory': b'\xf0i\\./\xa7\xce\x9dW@#\xc3A7a\xa4s\xe5\x00\xca',
             'type': 'git',
             'committer': {

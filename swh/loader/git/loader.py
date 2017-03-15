@@ -10,7 +10,7 @@ import shutil
 
 from collections import defaultdict
 
-from swh.core import hashutil
+from swh.model import hashutil
 from . import base, converters, utils
 
 
