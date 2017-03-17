@@ -71,6 +71,9 @@ class TestConverters(unittest.TestCase):
 
         self.blob_hidden = {
             'sha1_git': bytehex_to_hash(self.blob_id),
+            'sha1': hash_to_bytes('4850a3420a2262ff061cb296fb915430fa92301c'),
+            'sha256': hash_to_bytes('fee7c8a485a10321ad94b64135073cb5'
+                                    '5f22cb9f57fa2417d2adfb09d310adef'),
             'length': 124,
             'status': 'absent',
             'reason': 'Content too large',

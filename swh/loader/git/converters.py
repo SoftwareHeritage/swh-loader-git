@@ -19,6 +19,24 @@ def origin_url_to_origin(origin_url):
     }
 
 
+def dulwich_blob_to_content_id(blob):
+    """Convert a dulwich blob to a Software Heritage content id"""
+
+    if blob.type_name != b'blob':
+        return
+
+    size = blob.raw_length()
+    ret = {
+        'sha1_git': blob.sha().digest(),
+        'length': size,
+    }
+
+    data = blob.as_raw_string()
+    ret.update(hashutil.hash_data(data, HASH_ALGORITHMS))
+
+    return ret
+
+
 def dulwich_blob_to_content(blob, log=None, max_content_size=None,
                             origin_id=None):
     """Convert a dulwich blob to a Software Heritage content"""
@@ -26,13 +44,9 @@ def dulwich_blob_to_content(blob, log=None, max_content_size=None,
     if blob.type_name != b'blob':
         return
 
-    size = blob.raw_length()
+    ret = dulwich_blob_to_content_id(blob)
 
-    ret = {
-        'sha1_git': blob.sha().digest(),
-        'length': size,
-        'status': 'absent'
-    }
+    size = ret['length']
 
     if max_content_size:
         if size > max_content_size:
@@ -44,13 +58,12 @@ def dulwich_blob_to_content(blob, log=None, max_content_size=None,
                              'swh_id': id,
                              'swh_size': size,
                          })
+            ret['status'] = 'absent'
             ret['reason'] = 'Content too large'
             ret['origin'] = origin_id
             return ret
 
     data = blob.as_raw_string()
-    hashes = hashutil.hash_data(data, HASH_ALGORITHMS)
-    ret.update(hashes)
     ret['data'] = data
     ret['status'] = 'visible'
 

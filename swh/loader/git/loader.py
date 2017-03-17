@@ -54,13 +54,22 @@ class GitLoader(base.BaseLoader):
         """Checks whether we need to load contents"""
         return bool(self.type_to_ids[b'blob'])
 
+    def get_content_ids(self):
+        """Get the content identifiers from the git repository"""
+        for oid in self.type_to_ids[b'blob']:
+
+            yield converters.dulwich_blob_to_content_id(self.repo[oid])
+
     def get_contents(self):
         """Get the contents that need to be loaded"""
         max_content_size = self.config['content_size_limit']
 
-        for oid in self.type_to_ids[b'blob']:
+        missing_contents = set(self.storage.content_missing(
+            self.get_content_ids(), 'sha1_git'))
+
+        for oid in missing_contents:
             yield converters.dulwich_blob_to_content(
-                self.repo[oid], log=self.log,
+                self.repo[hashutil.hash_to_bytehex(oid)], log=self.log,
                 max_content_size=max_content_size,
                 origin_id=self.origin_id)
 
@@ -68,31 +77,55 @@ class GitLoader(base.BaseLoader):
         """Checks whether we need to load directories"""
         return bool(self.type_to_ids[b'tree'])
 
+    def get_directory_ids(self):
+        """Get the directory identifiers from the git repository"""
+        return (hashutil.hash_to_bytes(id.decode())
+                for id in self.type_to_ids[b'tree'])
+
     def get_directories(self):
         """Get the directories that need to be loaded"""
-        for oid in self.type_to_ids[b'tree']:
+        missing_dirs = set(self.storage.directory_missing(
+            sorted(self.get_directory_ids())))
+
+        for oid in missing_dirs:
             yield converters.dulwich_tree_to_directory(
-                self.repo[oid], log=self.log)
+                self.repo[hashutil.hash_to_bytehex(oid)], log=self.log)
 
     def has_revisions(self):
         """Checks whether we need to load revisions"""
         return bool(self.type_to_ids[b'commit'])
 
+    def get_revision_ids(self):
+        """Get the revision identifiers from the git repository"""
+        return (hashutil.hash_to_bytes(id.decode())
+                for id in self.type_to_ids[b'commit'])
+
     def get_revisions(self):
         """Get the revisions that need to be loaded"""
-        for oid in self.type_to_ids[b'commit']:
+        missing_revs = set(self.storage.revision_missing(
+            sorted(self.get_revision_ids())))
+
+        for oid in missing_revs:
             yield converters.dulwich_commit_to_revision(
-                self.repo[oid], log=self.log)
+                self.repo[hashutil.hash_to_bytehex(oid)], log=self.log)
 
     def has_releases(self):
         """Checks whether we need to load releases"""
         return bool(self.type_to_ids[b'tag'])
 
+    def get_release_ids(self):
+        """Get the release identifiers from the git repository"""
+        return (hashutil.hash_to_bytes(id.decode())
+                for id in self.type_to_ids[b'tag'])
+
     def get_releases(self):
         """Get the releases that need to be loaded"""
-        for oid in self.type_to_ids[b'tag']:
+        missing_rels = set(self.storage.release_missing(
+            sorted(self.get_release_ids())))
+
+        for oid in missing_rels:
             yield converters.dulwich_tag_to_release(
-                self.repo[oid], log=self.log)
+                self.repo[hashutil.hash_to_bytehex(oid)], log=self.log)
 
     def has_occurrences(self):
         """Checks whether we need to load occurrences"""

@@ -321,11 +321,26 @@ class BulkUpdater(base.BaseLoader):
     def has_contents(self):
         return bool(self.type_to_ids[b'blob'])
 
+    def get_content_ids(self):
+        """Get the content identifiers from the git repository"""
+        for raw_obj in self.get_inflater():
+            if raw_obj.type_name != b'blob':
+                continue
+
+            yield converters.dulwich_blob_to_content_id(raw_obj)
+
     def get_contents(self):
         """Format the blobs from the git repository as swh contents"""
         max_content_size = self.config['content_size_limit']
+
+        missing_contents = set(self.storage.content_missing(
+            self.get_content_ids(), 'sha1_git'))
+
         for raw_obj in self.get_inflater():
             if raw_obj.type_name != b'blob':
+                continue
+
+            if raw_obj.sha().digest() not in missing_contents:
                 continue
 
             yield converters.dulwich_blob_to_content(
@@ -335,10 +350,21 @@ class BulkUpdater(base.BaseLoader):
     def has_directories(self):
         return bool(self.type_to_ids[b'tree'])
 
+    def get_directory_ids(self):
+        """Get the directory identifiers from the git repository"""
+        return (hashutil.hash_to_bytes(id.decode())
+                for id in self.type_to_ids[b'tree'])
+
     def get_directories(self):
         """Format the trees as swh directories"""
+        missing_dirs = set(self.storage.directory_missing(
+            sorted(self.get_directory_ids())))
+
         for raw_obj in self.get_inflater():
             if raw_obj.type_name != b'tree':
+                continue
+
+            if raw_obj.sha().digest() not in missing_dirs:
                 continue
 
             yield converters.dulwich_tree_to_directory(raw_obj, log=self.log)
@@ -346,10 +372,21 @@ class BulkUpdater(base.BaseLoader):
     def has_revisions(self):
         return bool(self.type_to_ids[b'commit'])
 
+    def get_revision_ids(self):
+        """Get the revision identifiers from the git repository"""
+        return (hashutil.hash_to_bytes(id.decode())
+                for id in self.type_to_ids[b'commit'])
+
     def get_revisions(self):
         """Format commits as swh revisions"""
+        missing_revs = set(self.storage.revision_missing(
+            sorted(self.get_revision_ids())))
+
         for raw_obj in self.get_inflater():
             if raw_obj.type_name != b'commit':
+                continue
+
+            if raw_obj.sha().digest() not in missing_revs:
                 continue
 
             yield converters.dulwich_commit_to_revision(raw_obj, log=self.log)
@@ -357,10 +394,21 @@ class BulkUpdater(base.BaseLoader):
     def has_releases(self):
         return bool(self.type_to_ids[b'tag'])
 
+    def get_release_ids(self):
+        """Get the release identifiers from the git repository"""
+        return (hashutil.hash_to_bytes(id.decode())
+                for id in self.type_to_ids[b'tag'])
+
     def get_releases(self):
         """Retrieve all the release objects from the git repository"""
+        missing_rels = set(self.storage.release_missing(
+            sorted(self.get_release_ids())))
+
         for raw_obj in self.get_inflater():
             if raw_obj.type_name != b'tag':
+                continue
+
+            if raw_obj.sha().digest() not in missing_rels:
                 continue
 
             yield converters.dulwich_tag_to_release(raw_obj, log=self.log)
