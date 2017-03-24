@@ -50,7 +50,6 @@ class TestConverters(unittest.TestCase):
         super().tearDownClass()
 
         shutil.rmtree(cls.repo_path)
-        print(cls.repo_path)
 
     def setUp(self):
         super().setUp()
