@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2016  The Software Heritage developers
+# Copyright (C) 2015-2017  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -35,6 +35,7 @@ def blob_to_content(obj, log=None, max_content_size=None,
         'sha1': obj['sha1'],
         'sha256': obj['sha256'],
         'sha1_git': obj['sha1_git'],
+        'blake2s256': obj['blake2s256'],
         'length': size,
         'perms': obj['perms'].value,
         'type': obj['type'].value,
@@ -115,6 +116,7 @@ def shallow_blob(obj):
         'sha1': obj['sha1'],
         'sha256': obj['sha256'],
         'sha1_git': obj['sha1_git'],
+        'blake2s256': obj['blake2s256'],
         'length': obj['length']
     }
 

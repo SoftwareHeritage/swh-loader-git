@@ -1,4 +1,4 @@
-# Copyright (C) 2015  The Software Heritage developers
+# Copyright (C) 2015-2017  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -53,6 +53,7 @@ class TestConverters(unittest.TestCase):
             'type': git.GitType.BLOB,
             'sha1': 'some-sha1',
             'sha256': 'some-sha256',
+            'blake2s256': 'some-blak2s256',
             'sha1_git': 'some-sha1git',
         }
 
@@ -62,6 +63,7 @@ class TestConverters(unittest.TestCase):
             'status': 'visible',
             'sha1': 'some-sha1',
             'sha256': 'some-sha256',
+            'blake2s256': 'some-blak2s256',
             'sha1_git': 'some-sha1git',
             'perms': git.GitPerm.BLOB.value,
             'type': git.GitType.BLOB.value,
@@ -88,6 +90,7 @@ class TestConverters(unittest.TestCase):
             'sha1': 'some-sha1',
             'sha256': 'some-sha256',
             'sha1_git': 'some-sha1git',
+            'blake2s256': 'some-blak2s256',
         }
 
         expected_blob = {
@@ -97,6 +100,7 @@ class TestConverters(unittest.TestCase):
             'sha1': 'some-sha1',
             'sha256': 'some-sha256',
             'sha1_git': 'some-sha1git',
+            'blake2s256': 'some-blak2s256',
             'perms': git.GitPerm.BLOB.value,
             'type': git.GitType.BLOB.value,
         }
@@ -120,6 +124,7 @@ class TestConverters(unittest.TestCase):
             'sha1': 'some-sha1',
             'sha256': 'some-sha256',
             'sha1_git': 'some-sha1git',
+            'blake2s256': 'some-blak2s256',
         }
 
         expected_blob = {
@@ -129,6 +134,7 @@ class TestConverters(unittest.TestCase):
             'sha1': 'some-sha1',
             'sha256': 'some-sha256',
             'sha1_git': 'some-sha1git',
+            'blake2s256': 'some-blak2s256',
             'perms': git.GitPerm.BLOB.value,
             'type': git.GitType.BLOB.value,
         }
@@ -152,6 +158,7 @@ class TestConverters(unittest.TestCase):
             'sha1': 'some-sha1',
             'sha256': 'some-sha256',
             'sha1_git': 'some-sha1git',
+            'blake2s256': 'some-blak2s256',
         }
 
         expected_blob = {
@@ -160,6 +167,7 @@ class TestConverters(unittest.TestCase):
             'sha1': 'some-sha1',
             'sha256': 'some-sha256',
             'sha1_git': 'some-sha1git',
+            'blake2s256': 'some-blak2s256',
             'perms': git.GitPerm.BLOB.value,
             'type': git.GitType.BLOB.value,
             'reason': 'Content too large',
@@ -249,6 +257,7 @@ class TestConverters(unittest.TestCase):
             'perms': b'100644',
             'sha1':
             b'.\x18Y\xd6M\x8c\x9a\xa4\xe1\xf1\xc7\x95\x082\xcf\xc9\xd8\nV)',
+            'blake2s256': 'some-blak2s256',
             'path':
             b'/tmp/tmp.c86tq5o9.swh.loader/pkg-doc-linux/copyrights/non-free/LDPCL'  # noqa
         })
@@ -261,6 +270,7 @@ class TestConverters(unittest.TestCase):
             b'\xd1\xdd\x9a@\xeb\xf6!\x99\xd4[S\x05\xa8Y\xa3\x80\xa7\xb1;\x9c',
             'sha256':
             b'\xe6it!\x99\xb37UT\x8f\x0e\x8f\xd7o\x92"\xce\xa3\x1d\xd2\xe5D>M\xaaj/\x03\x138\xad\x1b',  # noqa
+            'blake2s256': 'some-blak2s256',
             'length': 1451,
         })
 
