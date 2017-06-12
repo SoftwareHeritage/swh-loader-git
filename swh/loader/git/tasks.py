@@ -17,7 +17,7 @@ class UpdateGitRepository(Task):
     """Import a git repository from a remote location"""
     task_queue = 'swh_loader_git'
 
-    def run(self, repo_url, base_url=None):
+    def run_task(self, repo_url, base_url=None):
         """Import a git repository"""
         loader = BulkUpdater()
         loader.log = self.log
@@ -29,7 +29,7 @@ class LoadDiskGitRepository(Task):
     """Import a git repository from disk"""
     task_queue = 'swh_loader_git_express'
 
-    def run(self, origin_url, directory, date):
+    def run_task(self, origin_url, directory, date):
         """Import a git repository, cloned in `directory` from `origin_url` at
         `date`."""
 
@@ -43,7 +43,7 @@ class UncompressAndLoadDiskGitRepository(Task):
     """Import a git repository from a zip archive"""
     task_queue = 'swh_loader_git_archive'
 
-    def run(self, origin_url, archive_path, date):
+    def run_task(self, origin_url, archive_path, date):
         """1. Uncompress an archive repository in a local and temporary folder
            2. Load it through the git disk loader
            3. Clean up the temporary folder
@@ -59,7 +59,7 @@ class UncompressAndLoadDiskGitRepository(Task):
 class ReaderGitRepository(Task):
     task_queue = 'swh_reader_git'
 
-    def run(self, repo_url, base_url=None):
+    def run_task(self, repo_url, base_url=None):
         """Read a git repository from a remote location and send sha1 to
         archival.
 
