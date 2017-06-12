@@ -8,7 +8,7 @@
 from swh.model import hashutil
 
 
-HASH_ALGORITHMS = hashutil.ALGORITHMS - {'sha1_git'}
+HASH_ALGORITHMS = hashutil.DEFAULT_ALGORITHMS - {'sha1_git'}
 
 
 def origin_url_to_origin(origin_url):

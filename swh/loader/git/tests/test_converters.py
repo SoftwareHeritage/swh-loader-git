@@ -50,7 +50,6 @@ class TestConverters(unittest.TestCase):
         super().tearDownClass()
 
         shutil.rmtree(cls.repo_path)
-        print(cls.repo_path)
 
     def setUp(self):
         super().setUp()
@@ -61,24 +60,28 @@ class TestConverters(unittest.TestCase):
             'sha1': hash_to_bytes('4850a3420a2262ff061cb296fb915430fa92301c'),
             'sha256': hash_to_bytes('fee7c8a485a10321ad94b64135073cb5'
                                     '5f22cb9f57fa2417d2adfb09d310adef'),
+            'blake2s256': hash_to_bytes('5d71873f42a137f6d89286e43677721e574'
+                                        '1fa05ce4cd5e3c7ea7c44d4c2d10b'),
             'data': (b'[submodule "example-dependency"]\n'
                      b'\tpath = example-dependency\n'
                      b'\turl = https://github.com/githubtraining/'
                      b'example-dependency.git\n'),
             'length': 124,
             'status': 'visible',
-            }
+        }
 
         self.blob_hidden = {
             'sha1_git': bytehex_to_hash(self.blob_id),
             'sha1': hash_to_bytes('4850a3420a2262ff061cb296fb915430fa92301c'),
             'sha256': hash_to_bytes('fee7c8a485a10321ad94b64135073cb5'
                                     '5f22cb9f57fa2417d2adfb09d310adef'),
+            'blake2s256': hash_to_bytes('5d71873f42a137f6d89286e43677721e574'
+                                        '1fa05ce4cd5e3c7ea7c44d4c2d10b'),
             'length': 124,
             'status': 'absent',
             'reason': 'Content too large',
             'origin': None,
-            }
+        }
 
     @istest
     def blob_to_content(self):
