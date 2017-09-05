@@ -55,10 +55,12 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
     """Mixin base class for loader.
 
     The calling convention is as such:
-      - inherit from this class
-      - implement the load function
+
+    - inherit from this class
+    - implement the load function
 
     Required steps are:
+
     - create an origin
     - create an origin_visit
     - create a fetch_history entry
@@ -537,12 +539,13 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
 
     def load(self, *args, **kwargs):
         """Loading logic for the loader to follow:
-        1. def prepare(*args, **kwargs): Prepare any eventual state
+
+        1. def prepare(\*args, \**kwargs): Prepare any eventual state
         2. def get_origin(): Get the origin we work with and store
         3. def fetch_data(): Fetch the data to store
         4. def store_data(): Store the data
-        5. def cleanup(): Clean up any eventual state put in place in
-        prepare method.
+        5. def cleanup(): Clean up any eventual state put in place in prepare
+           method.
 
         """
         self.prepare(*args, **kwargs)
