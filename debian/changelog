@@ -1,3 +1,10 @@
+swh-loader-git (0.0.33-1~swh1) unstable-swh; urgency=medium
+
+  * Release swh.loader.git v0.0.33
+  * make the updater's parent commit cache more useful
+
+ -- Nicolas Dandrimont <nicolas@dandrimont.eu>  Fri, 15 Sep 2017 18:45:41 +0200
+
 swh-loader-git (0.0.32-1~swh1) unstable-swh; urgency=medium
 
   * Release swh.loader.git 0.0.32
