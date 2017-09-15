@@ -34,16 +34,19 @@ class SWHRepoRepresentation:
         else:
             self.heads = set()
 
-    def _fill_parents_cache(self, commit):
-        """When querying for a commit's parents, we fill the cache to a depth of 100
+    def _fill_parents_cache(self, commits):
+        """When querying for a commit's parents, we fill the cache to a depth of 1000
         commits."""
-        root_rev = hashutil.bytehex_to_hash(commit)
-        for rev, parents in self.storage.revision_shortlog([root_rev], 100):
+        root_revs = self._encode_for_storage(commits)
+        for rev, parents in self.storage.revision_shortlog(root_revs, 1000):
             rev_id = hashutil.hash_to_bytehex(rev)
             if rev_id not in self._parents_cache:
                 self._parents_cache[rev_id] = [
                     hashutil.hash_to_bytehex(parent) for parent in parents
                 ]
+        for rev in commits:
+            if rev not in self._parents_cache:
+                self._parents_cache[rev] = []
 
     def _cache_heads(self, origin_id, occurrences):
         """Return all the known head commits for `origin_id`"""
@@ -56,9 +59,13 @@ class SWHRepoRepresentation:
 
     def get_parents(self, commit):
         """get the parent commits for `commit`"""
+        # Prime the parents cache
+        if not self._parents_cache and self.heads:
+            self._fill_parents_cache(self.heads)
+
         if commit not in self._parents_cache:
-            self._fill_parents_cache(commit)
-        return self._parents_cache.get(commit, [])
+            self._fill_parents_cache([commit])
+        return self._parents_cache[commit]
 
     def get_heads(self):
         return self.heads
