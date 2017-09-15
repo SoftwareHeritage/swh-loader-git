@@ -72,22 +72,24 @@ class BaseLoader(config.SWHConfig):
     """This base class is a pattern for loaders.
 
     The external calling convention is as such:
-      - instantiate the class once (loads storage and the configuration)
-      - for each origin, call load with the origin-specific arguments (for
-        instance, an origin URL).
+
+    - instantiate the class once (loads storage and the configuration)
+    - for each origin, call load with the origin-specific arguments (for
+      instance, an origin URL).
 
     load calls several methods that must be implemented in subclasses:
 
-     - prepare(*args, **kwargs) prepares the loader for the new origin
-     - get_origin gets the origin object associated to the current loader
-     - fetch_data downloads the necessary data from the origin
-     - get_{contents,directories,revisions,releases,occurrences} retrieve each
-       kind of object from the origin
-     - has_* checks whether there are some objects to load for that object type
-     - get_fetch_history_result retrieves the data to insert in the
-       fetch_history table once the load was successful
-     - cleanup cleans up an eventual state installed for computations
-     - eventful returns whether the load was eventful or not
+    - prepare(\*args, \**kwargs) prepares the loader for the new origin
+    - get_origin gets the origin object associated to the current loader
+    - fetch_data downloads the necessary data from the origin
+    - get_{contents,directories,revisions,releases,occurrences} retrieve each
+      kind of object from the origin
+    - has\_* checks whether there are some objects to load for that object type
+    - get_fetch_history_result retrieves the data to insert in the
+      fetch_history table once the load was successful
+    - cleanup cleans up an eventual state installed for computations
+    - eventful returns whether the load was eventful or not
+
     """
 
     CONFIG_BASE_FILENAME = None
