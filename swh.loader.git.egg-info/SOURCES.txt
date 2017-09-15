@@ -16,6 +16,12 @@ debian/control
 debian/copyright
 debian/rules
 debian/source/format
+docs/.gitignore
+docs/Makefile
+docs/conf.py
+docs/index.rst
+docs/_static/.placeholder
+docs/_templates/.placeholder
 docs/attic/api-backend-protocol.txt
 docs/attic/git-loading-design.txt
 resources/local-loader-git.ini
@@ -23,7 +29,6 @@ resources/remote-loader-git.ini
 resources/updater.ini
 resources/test/back.ini
 resources/test/db-manager.ini
-scratch/analyse-profile.py
 swh.loader.git.egg-info/PKG-INFO
 swh.loader.git.egg-info/SOURCES.txt
 swh.loader.git.egg-info/dependency_links.txt
