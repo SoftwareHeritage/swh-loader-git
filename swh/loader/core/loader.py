@@ -54,19 +54,31 @@ def retry_loading(error):
 class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
     """Mixin base class for loader.
 
-    The calling convention is as such:
+    To use this class, you must:
 
     - inherit from this class
-    - implement the load function
 
-    Required steps are:
+    - and implement the @abstractmethod methods
 
-    - create an origin
-    - create an origin_visit
-    - create a fetch_history entry
-    - load the data into swh-storage
-    - close the origin_visit
-    - close the fetch_history entry
+    :func:`cleanup`: Last step executed by the loader.
+
+    :func:`prepare`: First step executed by the loader to prepare some state
+                     needed by the `func`:load method.
+
+    :func:`get_origin`: Retrieve the origin that is currently being
+                        loaded.
+
+    :func:`fetch_data`: Fetch the data is actually the method to
+                        implement to compute data to inject in swh
+                        (through the store_data method)
+
+    :func:`store_data`: Store data fetched.
+
+    You can take a look at some example classes:
+
+        :class:BaseSvnLoader
+        :class:TarLoader
+        :class:DirLoader
 
     """
     CONFIG_BASE_FILENAME = None
