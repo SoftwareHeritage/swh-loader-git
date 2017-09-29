@@ -570,8 +570,8 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
             self.close_fetch_history_success(fetch_history_id)
             self.storage.origin_visit_update(
                 self.origin_id, self.visit, status='full')
-        except Exception as e:
-            print('problem: %s' % e)
+        except Exception:
+            self.log.exception('Loading failure, updating to `partial` status')
             self.close_fetch_history_failure(fetch_history_id)
             self.storage.origin_visit_update(
                 self.origin_id, self.visit, status='partial')
