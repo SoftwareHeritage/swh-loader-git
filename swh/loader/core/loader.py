@@ -174,6 +174,54 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         return origin_id
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
+    def send_origin_visit(self, origin_id, visit_date):
+        log_id = str(uuid.uuid4())
+        self.log.debug(
+            'Creating origin_visit for origin %s at time %s' % (
+                origin_id, visit_date),
+            extra={
+                'swh_type': 'storage_send_start',
+                'swh_content_type': 'origin_visit',
+                'swh_num': 1,
+                'swh_id': log_id
+            })
+        origin_visit = self.storage.origin_visit_add(origin_id, visit_date)
+        self.log.debug(
+            'Done Creating origin_visit for origin %s at time %s' % (
+                origin_id, visit_date),
+            extra={
+                'swh_type': 'storage_send_end',
+                'swh_content_type': 'origin_visit',
+                'swh_num': 1,
+                'swh_id': log_id
+            })
+
+        return origin_visit
+
+    @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
+    def update_origin_visit(self, origin_id, visit, status):
+        log_id = str(uuid.uuid4())
+        self.log.debug(
+            'Updating origin_visit for origin %s with status %s' % (
+                origin_id, status),
+            extra={
+                'swh_type': 'storage_send_start',
+                'swh_content_type': 'origin_visit',
+                'swh_num': 1,
+                'swh_id': log_id
+            })
+        self.storage.origin_visit_update(origin_id, visit, status)
+        self.log.debug(
+            'Done updating origin_visit for origin %s with status %s' % (
+                origin_id, status),
+            extra={
+                'swh_type': 'storage_send_end',
+                'swh_content_type': 'origin_visit',
+                'swh_num': 1,
+                'swh_id': log_id
+            })
+
+    @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
     def send_contents(self, content_list):
         """Actually send properly formatted contents to the database.
 
@@ -558,7 +606,7 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         else:
             visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
 
-        origin_visit = self.storage.origin_visit_add(
+        origin_visit = self.send_origin_visit(
             self.origin_id,
             visit_date)
         self.visit = origin_visit['visit']
@@ -568,12 +616,12 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
             self.store_data()
 
             self.close_fetch_history_success(fetch_history_id)
-            self.storage.origin_visit_update(
+            self.update_origin_visit(
                 self.origin_id, self.visit, status='full')
         except Exception:
             self.log.exception('Loading failure, updating to `partial` status')
             self.close_fetch_history_failure(fetch_history_id)
-            self.storage.origin_visit_update(
+            self.update_origin_visit(
                 self.origin_id, self.visit, status='partial')
         finally:
             self.flush()
