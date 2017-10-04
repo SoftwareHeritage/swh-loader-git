@@ -358,121 +358,120 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
                                'swh_id': log_id,
                            })
 
-    def filter_missing_blobs(self, blobs):
-        """Filter missing blobs from swh.
-
-        """
+    def filter_missing_contents(self, contents):
+        """Return only the contents missing from swh"""
         max_content_size = self.config['content_packet_size_bytes']
-        blobs_per_sha1 = {}
-        shallow_blobs = []
-        for key, blob in ((b['sha1'], b) for b in blobs
-                          if b['sha1'] not in self.contents_seen):
-            blobs_per_sha1[key] = blob
-            shallow_blobs.append(converters.shallow_blob(blob))
+        contents_per_key = {}
+        content_key = 'blake2s256'
+
+        for content in contents:
+            if content[content_key] in self.contents_seen:
+                continue
+            key = content[content_key]
+            contents_per_key[key] = content
             self.contents_seen.add(key)
 
-        for sha1 in self.storage.content_missing(shallow_blobs,
-                                                 key_hash='sha1'):
-            yield converters.blob_to_content(blobs_per_sha1[sha1],
-                                             max_content_size=max_content_size,
-                                             origin_id=self.origin_id)
+        for key in self.storage.content_missing(
+                list(contents_per_key.values()),
+                key_hash=content_key
+        ):
+            yield converters.content_for_storage(
+                contents_per_key[key],
+                max_content_size=max_content_size,
+                origin_id=self.origin_id,
+            )
 
-    def bulk_send_blobs(self, blobs):
-        """Format blobs as swh contents and send them to the database.
+    def bulk_send_contents(self, contents):
+        """Format contents as swh contents and send them to the database.
 
         """
         threshold_reached = self.contents.add(
-            self.filter_missing_blobs(blobs))
+            self.filter_missing_contents(contents))
         if threshold_reached:
             self.send_contents(self.contents.pop())
 
-    def filter_missing_trees(self, trees):
-        """Filter missing tree from swh.
+    def filter_missing_directories(self, directories):
+        """Return only directories missing from swh"""
 
-        """
-        trees_per_sha1 = {}
-        shallow_trees = []
-        for key, tree in ((t['sha1_git'], t) for t in trees
-                          if t['sha1_git'] not in self.directories_seen):
-            trees_per_sha1[key] = tree
-            shallow_trees.append(converters.shallow_tree(tree))
-            self.directories_seen.add(key)
+        directories_per_id = {}
+        search_dirs = []
 
-        for sha in self.storage.directory_missing(shallow_trees):
-            t = trees_per_sha1[sha]
-            yield converters.tree_to_directory(t)
+        for directory in directories:
+            dir_id = directory['id']
+            if dir_id in self.directories_seen:
+                continue
 
-    def bulk_send_trees(self, trees):
-        """Format trees as swh directories and send them to the database.
+            search_dirs.append(dir_id)
+            directories_per_id[dir_id] = directory
+            self.directories_seen.add(dir_id)
 
-        """
+        for dir_id in self.storage.directory_missing(search_dirs):
+            yield directories_per_id[dir_id]
+
+    def bulk_send_directories(self, directories):
+        """Send missing directories to the database"""
         threshold_reached = self.directories.add(
-            self.filter_missing_trees(trees))
+            self.filter_missing_directories(directories))
         if threshold_reached:
             self.send_contents(self.contents.pop())
             self.send_directories(self.directories.pop())
 
-    def filter_missing_commits(self, commits):
-        """Filter missing commit from swh.
+    def filter_missing_revisions(self, revisions):
+        """Return only revisions missing from swh"""
+        revisions_per_id = {}
+        search_revs = []
 
-        """
-        commits_per_sha1 = {}
-        shallow_commits = []
-        for key, commit in ((c['id'], c) for c in commits
-                            if c['id'] not in self.revisions_seen):
-            commits_per_sha1[key] = commit
-            shallow_commits.append(converters.shallow_commit(commit))
-            self.revisions_seen.add(key)
+        for revision in revisions:
+            rev_id = revision['id']
+            if rev_id in self.revisions_seen:
+                continue
 
-        for sha in self.storage.revision_missing(shallow_commits):
-            yield commits_per_sha1[sha]
+            search_revs.append(rev_id)
+            revisions_per_id[rev_id] = revision
+            self.revisions_seen.add(rev_id)
 
-    def bulk_send_commits(self, commits):
-        """Format commits as swh revisions and send them to the database.
+        for rev_id in self.storage.revision_missing(search_revs):
+            yield revisions_per_id[rev_id]
 
-        """
+    def bulk_send_revisions(self, revisions):
+        """Send missing revisions to the database"""
         threshold_reached = self.revisions.add(
-            self.filter_missing_commits(commits))
+            self.filter_missing_revisions(revisions))
         if threshold_reached:
             self.send_contents(self.contents.pop())
             self.send_directories(self.directories.pop())
             self.send_revisions(self.revisions.pop())
 
-    def filter_missing_tags(self, tags):
-        """Filter missing tags from swh.
+    def filter_missing_releases(self, releases):
+        """Return only releases missing from swh"""
+        releases_per_id = {}
+        search_rels = []
 
-        """
-        tags_per_sha1 = {}
-        shallow_tags = []
-        for key, tag in ((t['id'], t) for t in tags
-                         if t['id'] not in self.releases_seen):
-            tags_per_sha1[key] = tag
-            shallow_tags.append(converters.shallow_tag(tag))
-            self.releases_seen.add(key)
+        for release in releases:
+            rel_id = release['id']
+            if rel_id in self.releases_seen:
+                continue
 
-        for sha in self.storage.release_missing(shallow_tags):
-            yield tags_per_sha1[sha]
+            search_rels.append(rel_id)
+            releases_per_id[rel_id] = release
+            self.releases_seen.add(rel_id)
 
-    def bulk_send_annotated_tags(self, tags):
-        """Format annotated tags (pygit2.Tag objects) as swh releases and send
-        them to the database.
+        for rel_id in self.storage.release_missing(search_rels):
+            yield releases_per_id[rel_id]
 
-        """
+    def bulk_send_releases(self, releases):
+        """Send missing releases to the database"""
         threshold_reached = self.releases.add(
-            self.filter_missing_tags(tags))
+            self.filter_missing_releases(releases))
         if threshold_reached:
             self.send_contents(self.contents.pop())
             self.send_directories(self.directories.pop())
             self.send_revisions(self.revisions.pop())
             self.send_releases(self.releases.pop())
 
-    def bulk_send_refs(self, refs):
-        """Format git references as swh occurrences and send them to the
-        database.
-
-        """
-        threshold_reached = self.occurrences.add(
-            (converters.ref_to_occurrence(r) for r in refs))
+    def bulk_send_occurrences(self, occurrences):
+        """Send the occurrences to the SWH archive"""
+        threshold_reached = self.occurrences.add(occurrences)
         if threshold_reached:
             self.send_contents(self.contents.pop())
             self.send_directories(self.directories.pop())
@@ -485,35 +484,35 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
 
         """
         if self.config['send_contents']:
-            self.bulk_send_blobs(contents)
+            self.bulk_send_contents(contents)
 
-    def maybe_load_directories(self, trees):
+    def maybe_load_directories(self, directories):
         """Load directories in swh-storage if need be.
 
         """
         if self.config['send_directories']:
-            self.bulk_send_trees(trees)
+            self.bulk_send_directories(directories)
 
     def maybe_load_revisions(self, revisions):
         """Load revisions in swh-storage if need be.
 
         """
         if self.config['send_revisions']:
-            self.bulk_send_commits(revisions)
+            self.bulk_send_revisions(revisions)
 
     def maybe_load_releases(self, releases):
         """Load releases in swh-storage if need be.
 
         """
         if self.config['send_releases']:
-            self.bulk_send_annotated_tags(releases)
+            self.bulk_send_releases(releases)
 
     def maybe_load_occurrences(self, occurrences):
         """Load occurrences in swh-storage if need be.
 
         """
         if self.config['send_occurrences']:
-            self.bulk_send_refs(occurrences)
+            self.bulk_send_occurrences(occurrences)
 
     def open_fetch_history(self):
         return self.storage.fetch_history_start(self.origin_id)
