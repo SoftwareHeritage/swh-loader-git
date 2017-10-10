@@ -60,8 +60,6 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
 
     - and implement the @abstractmethod methods
 
-    :func:`cleanup`: Last step executed by the loader.
-
     :func:`prepare`: First step executed by the loader to prepare some state
                      needed by the `func`:load method.
 
@@ -73,6 +71,10 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
                         (through the store_data method)
 
     :func:`store_data`: Store data fetched.
+
+    :func:`cleanup`: Last step executed by the loader.
+
+    The entry point for the resulting loader is :func:`load`.
 
     You can take a look at some example classes:
 
@@ -579,6 +581,9 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
     def get_origin(self):
         """Get the origin that is currently being loaded.
 
+        Returns:
+          dict: an origin ready to be sent to storage by
+          :func:`origin_add_one`.
         """
         pass
 
@@ -586,13 +591,18 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
     def fetch_data(self):
         """Fetch the data we want to store.
 
+        Returns:
+          a value that is interpreted as a boolean. If True, fetch_data needs
+          to be called again to complete loading.
         """
         pass
 
     @abstractmethod
     def store_data(self):
-        """Store the data we actually fetched.
+        """Store the data we fetched in the database.
 
+        Should call the :func:`maybe_load_xyz` methods, which handle the
+        bundles sent to storage, rather than send directly.
         """
         pass
 
