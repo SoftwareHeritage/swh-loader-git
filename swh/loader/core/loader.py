@@ -72,6 +72,10 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
 
     :func:`store_data`: Store data fetched.
 
+    :func:`visit_status`: Explicit status of the visit ('partial' or 'full').
+    :func:`load_status`: Explicit status of the loading, for use by the
+      scheduler (eventful/uneventful/temporary failure/permanent failure).
+
     :func:`cleanup`: Last step executed by the loader.
 
     The entry point for the resulting loader is :func:`load`.
@@ -606,6 +610,26 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         """
         pass
 
+    def load_status(self):
+        """Detailed loading status.
+
+        Defaults to logging an eventful load.
+
+        Returns: a dictionary that is eventually passed back as the task's
+          result to the scheduler, allowing tuning of the task recurrence
+          mechanism.
+        """
+        return {
+            'status': 'eventful',
+        }
+
+    def visit_status(self):
+        """Detailed visit status.
+
+        Defaults to logging a full visit.
+        """
+        return 'full'
+
     def load(self, *args, **kwargs):
         """Loading logic for the loader to follow:
 
@@ -642,12 +666,15 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
 
             self.close_fetch_history_success(fetch_history_id)
             self.update_origin_visit(
-                self.origin_id, self.visit, status='full')
+                self.origin_id, self.visit, status=self.visit_status())
         except Exception:
             self.log.exception('Loading failure, updating to `partial` status')
             self.close_fetch_history_failure(fetch_history_id)
             self.update_origin_visit(
                 self.origin_id, self.visit, status='partial')
+            return {'status': 'failed'}
         finally:
             self.flush()
             self.cleanup()
+
+        return self.load_status()
