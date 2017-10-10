@@ -601,8 +601,9 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
 
         1. def prepare(\*args, \**kwargs): Prepare any eventual state
         2. def get_origin(): Get the origin we work with and store
-        3. def fetch_data(): Fetch the data to store
-        4. def store_data(): Store the data
+        While True:
+          3. def fetch_data(): Fetch the data to store
+          4. def store_data(): Store the data
         5. def cleanup(): Clean up any eventual state put in place in prepare
            method.
 
@@ -623,8 +624,11 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         self.visit = origin_visit['visit']
 
         try:
-            self.fetch_data()
-            self.store_data()
+            while True:
+                more_data_to_fetch = self.fetch_data()
+                self.store_data()
+                if not more_data_to_fetch:
+                    break
 
             self.close_fetch_history_success(fetch_history_id)
             self.update_origin_visit(
