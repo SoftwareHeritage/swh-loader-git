@@ -82,9 +82,10 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
 
     You can take a look at some example classes:
 
-        :class:BaseSvnLoader
-        :class:TarLoader
-        :class:DirLoader
+        :class:`BaseSvnLoader`
+        :class:`TarLoader`
+        :class:`DirLoader`
+        :class:`DebianLoader`
 
     """
     CONFIG_BASE_FILENAME = None
