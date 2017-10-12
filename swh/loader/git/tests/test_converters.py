@@ -10,12 +10,15 @@ import tempfile
 import unittest
 
 from nose.tools import istest
+from nose.plugins.attrib import attr
+
 import dulwich.repo
 
 import swh.loader.git.converters as converters
 from swh.model.hashutil import bytehex_to_hash, hash_to_bytes
 
 
+@attr('fs')
 class TestConverters(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
