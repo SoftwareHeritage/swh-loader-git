@@ -1,3 +1,9 @@
+swh-loader-git (0.0.34-1~swh1~bpo9+1) stretch-swh; urgency=medium
+
+  * Rebuild for stretch-backports.
+
+ -- Nicolas Dandrimont <nicolas@dandrimont.eu>  Thu, 12 Oct 2017 20:12:11 +0200
+
 swh-loader-git (0.0.34-1~swh1) unstable-swh; urgency=medium
 
   * Release swh.loader.git version 0.0.34
