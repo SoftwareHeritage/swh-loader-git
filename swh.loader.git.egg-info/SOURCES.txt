@@ -29,11 +29,13 @@ resources/remote-loader-git.ini
 resources/updater.ini
 resources/test/back.ini
 resources/test/db-manager.ini
+swh/__init__.py
 swh.loader.git.egg-info/PKG-INFO
 swh.loader.git.egg-info/SOURCES.txt
 swh.loader.git.egg-info/dependency_links.txt
 swh.loader.git.egg-info/requires.txt
 swh.loader.git.egg-info/top_level.txt
+swh/loader/__init__.py
 swh/loader/git/__init__.py
 swh/loader/git/base.py
 swh/loader/git/converters.py
