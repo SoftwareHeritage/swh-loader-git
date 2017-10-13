@@ -57,35 +57,34 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
     To use this class, you must:
 
     - inherit from this class
+    - and implement the @abstractmethod methods:
 
-    - and implement the @abstractmethod methods
+      - :func:`prepare`: First step executed by the loader to prepare some
+        state needed by the `func`:load method.
 
-    :func:`prepare`: First step executed by the loader to prepare some state
-                     needed by the `func`:load method.
+      - :func:`get_origin`: Retrieve the origin that is currently being loaded.
 
-    :func:`get_origin`: Retrieve the origin that is currently being
-                        loaded.
+      - :func:`fetch_data`: Fetch the data is actually the method to implement
+        to compute data to inject in swh (through the store_data method)
 
-    :func:`fetch_data`: Fetch the data is actually the method to
-                        implement to compute data to inject in swh
-                        (through the store_data method)
+      - :func:`store_data`: Store data fetched.
 
-    :func:`store_data`: Store data fetched.
+      - :func:`visit_status`: Explicit status of the visit ('partial' or
+        'full')
 
-    :func:`visit_status`: Explicit status of the visit ('partial' or 'full').
-    :func:`load_status`: Explicit status of the loading, for use by the
-      scheduler (eventful/uneventful/temporary failure/permanent failure).
+      - :func:`load_status`: Explicit status of the loading, for use by the
+        scheduler (eventful/uneventful/temporary failure/permanent failure).
 
-    :func:`cleanup`: Last step executed by the loader.
+      - :func:`cleanup`: Last step executed by the loader.
 
     The entry point for the resulting loader is :func:`load`.
 
     You can take a look at some example classes:
 
-        :class:`BaseSvnLoader`
-        :class:`TarLoader`
-        :class:`DirLoader`
-        :class:`DebianLoader`
+    - :class:`BaseSvnLoader`
+    - :class:`TarLoader`
+    - :class:`DirLoader`
+    - :class:`DebianLoader`
 
     """
     CONFIG_BASE_FILENAME = None
@@ -634,13 +633,15 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
     def load(self, *args, **kwargs):
         """Loading logic for the loader to follow:
 
-        1. def prepare(\*args, \**kwargs): Prepare any eventual state
-        2. def get_origin(): Get the origin we work with and store
-        While True:
-          3. def fetch_data(): Fetch the data to store
-          4. def store_data(): Store the data
-        5. def cleanup(): Clean up any eventual state put in place in prepare
-           method.
+        - 1. def prepare(\*args, \**kwargs): Prepare any eventual state
+        - 2. def get_origin(): Get the origin we work with and store
+        - while True:
+
+          - 3. def fetch_data(): Fetch the data to store
+          - 4. def store_data(): Store the data
+
+        - 5. def cleanup(): Clean up any eventual state put in place in prepare
+          method.
 
         """
         self.prepare(*args, **kwargs)
