@@ -623,6 +623,22 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
             'status': 'eventful',
         }
 
+    def post_load(self, success=True):
+        """Permit the loader to do some additional actions according to status
+        after the loading is done. The flag success indicates the
+        loading's status.
+
+        Defaults to doing nothing.
+
+        This is up to the implementer of this method to make sure this
+        does not break.
+
+        Args:
+            success (bool): the success status of the loading
+
+        """
+        pass
+
     def visit_status(self):
         """Detailed visit status.
 
@@ -669,11 +685,13 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
             self.close_fetch_history_success(fetch_history_id)
             self.update_origin_visit(
                 self.origin_id, self.visit, status=self.visit_status())
+            self.post_load()
         except Exception:
             self.log.exception('Loading failure, updating to `partial` status')
             self.close_fetch_history_failure(fetch_history_id)
             self.update_origin_visit(
                 self.origin_id, self.visit, status='partial')
+            self.post_load(success=False)
             return {'status': 'failed'}
         finally:
             self.flush()
