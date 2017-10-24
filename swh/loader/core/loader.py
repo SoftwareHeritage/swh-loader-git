@@ -662,7 +662,12 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         """
         self.prepare(*args, **kwargs)
         origin = self.get_origin()
-        self.origin_id = self.send_origin(origin)
+        origin_id = self.origin.get('id')
+        if origin_id:   # some loader may need the origin prior to the
+                        # `func`:load call, thus setting it up already
+            self.origin_id = origin_id
+        else:
+            self.origin_id = self.send_origin(origin)
 
         fetch_history_id = self.open_fetch_history()
         if self.visit_date:  # overwriting the visit_date if provided
