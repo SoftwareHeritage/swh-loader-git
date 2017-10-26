@@ -177,3 +177,141 @@ class TestConverters(unittest.TestCase):
             parsed_author = tests[author]
             self.assertEquals(parsed_author,
                               converters.parse_author(author))
+
+    @istest
+    def dulwich_tag_to_release_no_author_no_date(self):
+        target = b'641fb6e08ddb2e4fd096dcf18e80b894bf'
+        message = b'some release message'
+        tag = SWHTag(name='blah',
+                     type_name=b'tag',
+                     target=target,
+                     target_type=b'commit',
+                     message=message,
+                     tagger=None,
+                     tag_time=None, tag_timezone=None)
+
+        # when
+        actual_release = converters.dulwich_tag_to_release(tag)
+
+        # then
+        expected_release = {
+            'author': None,
+            'date': None,
+            'id': b'\xda9\xa3\xee^kK\r2U\xbf\xef\x95`\x18\x90\xaf\xd8\x07\t',
+            'message': message,
+            'metadata': None,
+            'name': 'blah',
+            'synthetic': False,
+            'target': hash_to_bytes(target.decode()),
+            'target_type': 'revision'
+        }
+
+        self.assertEquals(actual_release, expected_release)
+
+    @istest
+    def dulwich_tag_to_release_author_and_date(self):
+        tagger = b'hey dude <hello@mail.org>'
+        target = b'641fb6e08ddb2e4fd096dcf18e80b894bf'
+        message = b'some release message'
+
+        import datetime
+        date = datetime.datetime(2007, 12, 5).timestamp()
+
+        tag = SWHTag(name='blah',
+                     type_name=b'tag',
+                     target=target,
+                     target_type=b'commit',
+                     message=message,
+                     tagger=tagger,
+                     tag_time=date,
+                     tag_timezone=0)
+
+        # when
+        actual_release = converters.dulwich_tag_to_release(tag)
+
+        # then
+        expected_release = {
+            'author': {
+                'email': b'hello@mail.org',
+                'fullname': b'hey dude <hello@mail.org>',
+                'name': b'hey dude'
+            },
+            'date': {
+                'negative_utc': False,
+                'offset': 0,
+                'timestamp': 1196809200.0
+            },
+            'id': b'\xda9\xa3\xee^kK\r2U\xbf\xef\x95`\x18\x90\xaf\xd8\x07\t',
+            'message': message,
+            'metadata': None,
+            'name': 'blah',
+            'synthetic': False,
+            'target': hash_to_bytes(target.decode()),
+            'target_type': 'revision'
+        }
+
+        self.assertEquals(actual_release, expected_release)
+
+    @istest
+    def dulwich_tag_to_release_author_no_date(self):
+        # to reproduce bug T815 (fixed)
+        tagger = b'hey dude <hello@mail.org>'
+        target = b'641fb6e08ddb2e4fd096dcf18e80b894bf'
+        message = b'some release message'
+        tag = SWHTag(name='blah',
+                     type_name=b'tag',
+                     target=target,
+                     target_type=b'commit',
+                     message=message,
+                     tagger=tagger,
+                     tag_time=None, tag_timezone=None)
+
+        # when
+        actual_release = converters.dulwich_tag_to_release(tag)
+
+        # then
+        expected_release = {
+            'author': {
+                'email': b'hello@mail.org',
+                'fullname': b'hey dude <hello@mail.org>',
+                'name': b'hey dude'
+            },
+            'date': None,
+            'id': b'\xda9\xa3\xee^kK\r2U\xbf\xef\x95`\x18\x90\xaf\xd8\x07\t',
+            'message': message,
+            'metadata': None,
+            'name': 'blah',
+            'synthetic': False,
+            'target': hash_to_bytes(target.decode()),
+            'target_type': 'revision'
+        }
+
+        self.assertEquals(actual_release, expected_release)
+
+
+class SWHTargetType:
+    """Dulwich lookalike TargetType class
+
+    """
+    def __init__(self, type_name):
+        self.type_name = type_name
+
+
+class SWHTag:
+    """Dulwich lookalike tag class
+
+    """
+    def __init__(self, name, type_name, target, target_type, tagger, tag_time,
+                 tag_timezone, message):
+        self.name = name
+        self.type_name = type_name
+        self.object = SWHTargetType(target_type), target
+        self.tagger = tagger
+        self._message = message
+        self.tag_time = tag_time
+        self.tag_timezone = tag_timezone
+        self._tag_timezone_neg_utc = False
+
+    def sha(self):
+        from hashlib import sha1
+        return sha1()
