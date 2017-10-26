@@ -46,7 +46,13 @@ class GitLoader(base.BaseLoader):
         """Fetch the data from the data source"""
         type_to_ids = defaultdict(list)
         for oid in self.iter_objects():
-            type_name = self.repo[oid].type_name
+            try:
+                obj = self.repo[oid]
+            except KeyError:
+                self.log.warn('object %s not found, skipping' % (
+                    oid.decode('utf-8'), ))
+                continue
+            type_name = obj.type_name
             type_to_ids[type_name].append(oid)
 
         self.type_to_ids = type_to_ids
