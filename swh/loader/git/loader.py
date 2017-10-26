@@ -31,6 +31,7 @@ class GitLoader(base.BaseLoader):
         return converters.origin_url_to_origin(self.origin_url)
 
     def iter_objects(self):
+        # from dulwich import object_store
         object_store = self.repo.object_store
 
         for pack in object_store.packs:
@@ -46,7 +47,13 @@ class GitLoader(base.BaseLoader):
         """Fetch the data from the data source"""
         type_to_ids = defaultdict(list)
         for oid in self.iter_objects():
-            type_name = self.repo[oid].type_name
+            try:
+                obj = self.repo[oid]
+            except:
+                self.log.warn('object %s not found, skipping' % (
+                    oid.decode('utf-8'), ))
+                continue
+            type_name = obj.type_name
             type_to_ids[type_name].append(oid)
 
         self.type_to_ids = type_to_ids
