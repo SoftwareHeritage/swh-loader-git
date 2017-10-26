@@ -8,6 +8,7 @@ import dulwich.repo
 import os
 import shutil
 
+from dulwich.errors import ObjectFormatException
 from collections import defaultdict
 
 from swh.model import hashutil
@@ -50,6 +51,10 @@ class GitLoader(base.BaseLoader):
                 obj = self.repo[oid]
             except KeyError:
                 self.log.warn('object %s not found, skipping' % (
+                    oid.decode('utf-8'), ))
+                continue
+            except ObjectFormatException:
+                self.log.warn('Malformed object %s, skipping' % (
                     oid.decode('utf-8'), ))
                 continue
             type_name = obj.type_name
