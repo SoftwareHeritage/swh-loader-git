@@ -637,17 +637,19 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
 
     @abstractmethod
     def fetch_data(self):
-        """Fetch the data we want to store.
+        """Fetch the data from the source the loader is currently loading
+           (ex: git/hg/svn/... repository).
 
         Returns:
-          a value that is interpreted as a boolean. If True, fetch_data needs
-          to be called again to complete loading.
+            a value that is interpreted as a boolean. If True, fetch_data needs
+            to be called again to complete loading.
+
         """
         pass
 
     @abstractmethod
     def store_data(self):
-        """Store the data we fetched in the database.
+        """Store fetched data in the database.
 
         Should call the :func:`maybe_load_xyz` methods, which handle the
         bundles sent to storage, rather than send directly.
