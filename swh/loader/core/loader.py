@@ -23,6 +23,29 @@ from .queue import QueuePerNbUniqueElements
 from .queue import QueuePerNbElements
 
 
+def send_in_packets(objects, sender, packet_size, packet_size_bytes=None):
+    """Send `objects`, using the `sender`, in packets of `packet_size` objects (and
+    of max `packet_size_bytes`).
+    """
+    formatted_objects = []
+    count = 0
+    if not packet_size_bytes:
+        packet_size_bytes = 0
+    for obj in objects:
+        if not obj:
+            continue
+        formatted_objects.append(obj)
+        if packet_size_bytes:
+            count += obj['length']
+        if len(formatted_objects) >= packet_size or count > packet_size_bytes:
+            sender(formatted_objects)
+            formatted_objects = []
+            count = 0
+
+    if formatted_objects:
+        sender(formatted_objects)
+
+
 def retry_loading(error):
     """Retry policy when the database raises an integrity error"""
     exception_classes = [
@@ -394,7 +417,7 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         threshold_reached = self.contents.add(
             self.filter_missing_contents(contents))
         if threshold_reached:
-            self.send_contents(self.contents.pop())
+            self.send_batch_contents(self.contents.pop())
 
     def filter_missing_directories(self, directories):
         """Return only directories missing from swh"""
@@ -419,8 +442,8 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         threshold_reached = self.directories.add(
             self.filter_missing_directories(directories))
         if threshold_reached:
-            self.send_contents(self.contents.pop())
-            self.send_directories(self.directories.pop())
+            self.send_batch_contents(self.contents.pop())
+            self.send_batch_directories(self.directories.pop())
 
     def filter_missing_revisions(self, revisions):
         """Return only revisions missing from swh"""
@@ -444,9 +467,9 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         threshold_reached = self.revisions.add(
             self.filter_missing_revisions(revisions))
         if threshold_reached:
-            self.send_contents(self.contents.pop())
-            self.send_directories(self.directories.pop())
-            self.send_revisions(self.revisions.pop())
+            self.send_batch_contents(self.contents.pop())
+            self.send_batch_directories(self.directories.pop())
+            self.send_batch_revisions(self.revisions.pop())
 
     def filter_missing_releases(self, releases):
         """Return only releases missing from swh"""
@@ -470,20 +493,20 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         threshold_reached = self.releases.add(
             self.filter_missing_releases(releases))
         if threshold_reached:
-            self.send_contents(self.contents.pop())
-            self.send_directories(self.directories.pop())
-            self.send_revisions(self.revisions.pop())
-            self.send_releases(self.releases.pop())
+            self.send_batch_contents(self.contents.pop())
+            self.send_batch_directories(self.directories.pop())
+            self.send_batch_revisions(self.revisions.pop())
+            self.send_batch_releases(self.releases.pop())
 
     def bulk_send_occurrences(self, occurrences):
         """Send the occurrences to the SWH archive"""
         threshold_reached = self.occurrences.add(occurrences)
         if threshold_reached:
-            self.send_contents(self.contents.pop())
-            self.send_directories(self.directories.pop())
-            self.send_revisions(self.revisions.pop())
-            self.send_releases(self.releases.pop())
-            self.send_occurrences(self.occurrences.pop())
+            self.send_batch_contents(self.contents.pop())
+            self.send_batch_directories(self.directories.pop())
+            self.send_batch_revisions(self.revisions.pop())
+            self.send_batch_releases(self.releases.pop())
+            self.send_batch_occurrences(self.occurrences.pop())
 
     def maybe_load_contents(self, contents):
         """Load contents in swh-storage if need be.
@@ -520,6 +543,35 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         if self.config['send_occurrences']:
             self.bulk_send_occurrences(occurrences)
 
+    def send_batch_contents(self, contents):
+        """Send contents batches to the storage"""
+        packet_size = self.config['content_packet_size']
+        packet_size_bytes = self.config['content_packet_size_bytes']
+        send_in_packets(contents, self.send_contents, packet_size,
+                        packet_size_bytes=packet_size_bytes)
+
+    def send_batch_directories(self, directories):
+        """Send directories batches to the storage"""
+        packet_size = self.config['directory_packet_size']
+        send_in_packets(directories, self.send_directories, packet_size)
+
+    def send_batch_revisions(self, revisions):
+        """Send revisions batches to the storage"""
+        packet_size = self.config['revision_packet_size']
+        send_in_packets(revisions, self.send_revisions, packet_size)
+
+    def send_batch_releases(self, releases):
+        """Send releases batches to the storage
+        """
+        packet_size = self.config['release_packet_size']
+        send_in_packets(releases, self.send_releases, packet_size)
+
+    def send_batch_occurrences(self, occurrences):
+        """Send occurrences batches to the storage
+        """
+        packet_size = self.config['occurrence_packet_size']
+        send_in_packets(occurrences, self.send_occurrences, packet_size)
+
     def open_fetch_history(self):
         return self.storage.fetch_history_start(self.origin_id)
 
@@ -555,16 +607,11 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         occurrences = self.occurrences.pop()
         releases = self.releases.pop()
         # and send those to storage if asked
-        if self.config['send_contents']:
-            self.send_contents(contents)
-        if self.config['send_directories']:
-            self.send_directories(directories)
-        if self.config['send_revisions']:
-            self.send_revisions(revisions)
-        if self.config['send_occurrences']:
-            self.send_occurrences(occurrences)
-        if self.config['send_releases']:
-            self.send_releases(releases)
+        self.maybe_load_contents(contents)
+        self.maybe_load_directories(directories)
+        self.maybe_load_revisions(revisions)
+        self.maybe_load_occurrences(occurrences)
+        self.maybe_load_releases(releases)
 
     @abstractmethod
     def cleanup(self):
