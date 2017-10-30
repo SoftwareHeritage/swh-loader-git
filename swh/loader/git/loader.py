@@ -20,10 +20,11 @@ class GitLoader(base.BaseLoader):
 
     CONFIG_BASE_FILENAME = 'loader/git-loader'
 
-    def prepare(self, origin_url, directory, fetch_date):
+    def prepare(self, origin_url, directory, visit_date):
         self.origin_url = origin_url
+        self.origin = self.get_origin()
         self.repo = dulwich.repo.Repo(directory)
-        self.fetch_date = fetch_date
+        self.visit_date = visit_date
 
     def get_origin(self):
         """Get the origin that is currently being loaded"""
@@ -176,7 +177,7 @@ class GitLoaderFromArchive(GitLoader):
         """
         return os.path.basename(os.path.dirname(archive_path))
 
-    def prepare(self, origin_url, archive_path, fetch_date):
+    def prepare(self, origin_url, archive_path, visit_date):
         """1. Uncompress the archive in temporary location.
            2. Prepare as the GitLoader does
            3. Load as GitLoader does
@@ -188,7 +189,7 @@ class GitLoaderFromArchive(GitLoader):
 
         self.log.info('Project %s - Uncompressing archive %s at %s' % (
             origin_url, os.path.basename(archive_path), self.repo_path))
-        super().prepare(origin_url, self.repo_path, fetch_date)
+        super().prepare(origin_url, self.repo_path, visit_date)
 
     def cleanup(self):
         """Cleanup the temporary location (if it exists).
@@ -212,6 +213,6 @@ if __name__ == '__main__':
 
     origin_url = sys.argv[1]
     directory = sys.argv[2]
-    fetch_date = datetime.datetime.now(tz=datetime.timezone.utc)
+    visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
 
-    print(loader.load(origin_url, directory, fetch_date))
+    print(loader.load(origin_url, directory, visit_date))
