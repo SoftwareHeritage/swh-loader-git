@@ -57,7 +57,6 @@ class GitLoader(base.BaseLoader):
     def get_content_ids(self):
         """Get the content identifiers from the git repository"""
         for oid in self.type_to_ids[b'blob']:
-
             yield converters.dulwich_blob_to_content_id(self.repo[oid])
 
     def get_contents(self):
