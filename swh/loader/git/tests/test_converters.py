@@ -18,6 +18,34 @@ import swh.loader.git.converters as converters
 from swh.model.hashutil import bytehex_to_hash, hash_to_bytes
 
 
+class SWHTargetType:
+    """Dulwich lookalike TargetType class
+
+    """
+    def __init__(self, type_name):
+        self.type_name = type_name
+
+
+class SWHTag:
+    """Dulwich lookalike tag class
+
+    """
+    def __init__(self, name, type_name, target, target_type, tagger, tag_time,
+                 tag_timezone, message):
+        self.name = name
+        self.type_name = type_name
+        self.object = SWHTargetType(target_type), target
+        self.tagger = tagger
+        self._message = message
+        self.tag_time = tag_time
+        self.tag_timezone = tag_timezone
+        self._tag_timezone_neg_utc = False
+
+    def sha(self):
+        from hashlib import sha1
+        return sha1()
+
+
 @attr('fs')
 class TestConverters(unittest.TestCase):
     @classmethod
@@ -287,31 +315,3 @@ class TestConverters(unittest.TestCase):
         }
 
         self.assertEquals(actual_release, expected_release)
-
-
-class SWHTargetType:
-    """Dulwich lookalike TargetType class
-
-    """
-    def __init__(self, type_name):
-        self.type_name = type_name
-
-
-class SWHTag:
-    """Dulwich lookalike tag class
-
-    """
-    def __init__(self, name, type_name, target, target_type, tagger, tag_time,
-                 tag_timezone, message):
-        self.name = name
-        self.type_name = type_name
-        self.object = SWHTargetType(target_type), target
-        self.tagger = tagger
-        self._message = message
-        self.tag_time = tag_time
-        self.tag_timezone = tag_timezone
-        self._tag_timezone_neg_utc = False
-
-    def sha(self):
-        from hashlib import sha1
-        return sha1()
