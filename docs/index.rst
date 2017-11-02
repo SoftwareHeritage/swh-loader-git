@@ -1,3 +1,5 @@
+.. _swh-loader-core:
+
 Software Heritage - Development Documentation
 =============================================
 
