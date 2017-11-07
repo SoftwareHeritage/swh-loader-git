@@ -597,18 +597,28 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
     def flush(self):
         """Flush any potential dangling data not sent to swh-storage.
 
+        Bypass the maybe_load_* methods which awaits threshold reached
+        signal. We actually want to store those as we are done
+        loading.
+
         """
         contents = self.contents.pop()
         directories = self.directories.pop()
         revisions = self.revisions.pop()
-        occurrences = self.occurrences.pop()
         releases = self.releases.pop()
+        occurrences = self.occurrences.pop()
+
         # and send those to storage if asked
-        self.maybe_load_contents(contents)
-        self.maybe_load_directories(directories)
-        self.maybe_load_revisions(revisions)
-        self.maybe_load_occurrences(occurrences)
-        self.maybe_load_releases(releases)
+        if self.config['send_contents']:
+            self.send_batch_contents(contents)
+        if self.config['send_contents']:
+            self.send_batch_directories(directories)
+        if self.config['send_revisions']:
+            self.send_batch_revisions(revisions)
+        if self.config['send_releases']:
+            self.send_batch_releases(releases)
+        if self.config['send_occurrences']:
+            self.send_batch_occurrences(occurrences)
 
     @abstractmethod
     def cleanup(self):
