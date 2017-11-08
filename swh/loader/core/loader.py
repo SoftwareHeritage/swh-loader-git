@@ -237,6 +237,37 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         return origin_visit
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
+    def send_origin_metadata(self, origin_id, visit_date, provider,
+                             tool, metadata):
+        log_id = str(uuid.uuid4())
+        self.log.debug(
+            """Creating origin_metadata for origin %s at time %s with provider
+               %s and tool %s""" % (
+                origin_id, visit_date, provider, tool),
+            extra={
+                'swh_type': 'storage_send_start',
+                'swh_content_type': 'origin_metadata',
+                'swh_num': 1,
+                'swh_id': log_id
+            })
+
+        self.storage.origin_metadata_add(origin_id,
+                                         visit_date,
+                                         provider,
+                                         tool,
+                                         metadata)
+        self.log.debug(
+            """Done Creating origin_metadata for origin %s at time %s with
+               provider %s and tool %s""" % (
+                origin_id, visit_date, provider, tool),
+            extra={
+                'swh_type': 'storage_send_end',
+                'swh_content_type': 'origin_metadata',
+                'swh_num': 1,
+                'swh_id': log_id
+            })
+
+    @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
     def update_origin_visit(self, origin_id, visit, status):
         log_id = str(uuid.uuid4())
         self.log.debug(
@@ -666,6 +697,13 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         """
         pass
 
+    def store_metadata(self):
+        """Store fetched metadata in the database.
+
+        For more information, see implementation in :class:`DepositLoader`.
+        """
+        pass
+
     def load_status(self):
         """Detailed loading status.
 
@@ -743,6 +781,7 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
                 if not more_data_to_fetch:
                     break
 
+            self.store_metadata()
             self.close_fetch_history_success(fetch_history_id)
             self.update_origin_visit(
                 self.origin_id, self.visit, status=self.visit_status())
