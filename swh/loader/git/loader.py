@@ -49,6 +49,7 @@ class GitLoader(base.BaseLoader):
         for oid in self.iter_objects():
             try:
                 obj = self.repo[oid]
+                obj.check()
             except KeyError:
                 self.log.warn('object %s not found, skipping' % (
                     oid.decode('utf-8'), ))
@@ -57,8 +58,9 @@ class GitLoader(base.BaseLoader):
                 self.log.warn('Malformed object %s, skipping' % (
                     oid.decode('utf-8'), ))
                 continue
-            type_name = obj.type_name
-            type_to_ids[type_name].append(oid)
+            else:
+                type_name = obj.type_name
+                type_to_ids[type_name].append(oid)
 
         self.type_to_ids = type_to_ids
 
