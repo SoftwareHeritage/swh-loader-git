@@ -86,12 +86,22 @@ class GitLoader(base.BaseLoader):
             # some we need to check ourselves
             self._check(obj)
         except KeyError:
-            self.log.warn('object %s not found, skipping' % (
-                oid.decode('utf-8'), ))
+            _id = oid.decode('utf-8')
+            self.log.warn('object %s not found, skipping' % _id,
+                          extra={
+                              'swh_type': 'swh_loader_git_missing_object',
+                              'swh_object_id': _id,
+                              'origin_id': self.origin_id,
+                          })
             return None
         except ObjectFormatException:
-            self.log.warn('object %s malformed, skipping' % (
-                oid.decode('utf-8'), ))
+            _id = oid.decode('utf-8')
+            self.log.warn('object %s malformed, skipping' % _id,
+                          extra={
+                              'swh_type': 'swh_loader_git_missing_object',
+                              'swh_object_id': _id,
+                              'origin_id': self.origin_id,
+                          })
             return None
         else:
             return obj
