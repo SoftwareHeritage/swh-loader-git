@@ -43,24 +43,36 @@ class GitLoader(base.BaseLoader):
         yield from object_store._iter_loose_objects()
         yield from object_store._iter_alternate_objects()
 
+    def get_object(self, oid):
+        """Given an object id, return the object if it is found and not
+           malformed in some way.
+
+        """
+        try:
+            # some errors are raised when reading the object
+            obj = self.repo[oid]
+            # some we need to check ourselves
+            obj.check()
+        except KeyError:
+            self.log.warn('object %s not found, skipping' % (
+                oid.decode('utf-8'), ))
+            return None
+        except ObjectFormatException:
+            self.log.warn('object %s malformed, skipping' % (
+                oid.decode('utf-8'), ))
+            return None
+        else:
+            return obj
+
     def fetch_data(self):
         """Fetch the data from the data source"""
         type_to_ids = defaultdict(list)
         for oid in self.iter_objects():
-            try:
-                obj = self.repo[oid]
-                obj.check()
-            except KeyError:
-                self.log.warn('object %s not found, skipping' % (
-                    oid.decode('utf-8'), ))
+            obj = self.get_object(oid)
+            if not obj:
                 continue
-            except ObjectFormatException:
-                self.log.warn('Malformed object %s, skipping' % (
-                    oid.decode('utf-8'), ))
-                continue
-            else:
-                type_name = obj.type_name
-                type_to_ids[type_name].append(oid)
+            type_name = obj.type_name
+            type_to_ids[type_name].append(oid)
 
         self.type_to_ids = type_to_ids
 
@@ -146,12 +158,14 @@ class GitLoader(base.BaseLoader):
 
     def get_occurrences(self):
         """Get the occurrences that need to be loaded"""
-        repo = self.repo
         origin_id = self.origin_id
         visit = self.visit
+        ref_objs = ((refs, target, self.get_object(target))
+                    for refs, target in self.repo.refs.as_dict().items()
+                    if self.get_object(target))
 
-        for ref, target in repo.refs.as_dict().items():
-            target_type_name = repo[target].type_name
+        for ref, target, obj in ref_objs:
+            target_type_name = obj.type_name
             target_type = converters.DULWICH_TYPES[target_type_name]
             yield {
                 'branch': ref,
