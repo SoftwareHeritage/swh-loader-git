@@ -43,16 +43,48 @@ class GitLoader(base.BaseLoader):
         yield from object_store._iter_loose_objects()
         yield from object_store._iter_alternate_objects()
 
+    def _check(self, obj):
+        """Check the object's repository representation.
+
+        If any errors in check exists, an ObjectFormatException is
+        raised.
+
+        Args:
+            obj (object): Dulwich object read from the repository.
+
+        """
+        obj.check()
+        from dulwich.objects import Commit, Tag
+        try:
+            # For additional checks on dulwich objects with date
+            # for now, only checks on *time
+            if isinstance(obj, Commit):
+                commit_time = obj._commit_time
+                utils.check_date_time(commit_time)
+                author_time = obj._author_time
+                utils.check_date_time(author_time)
+            elif isinstance(obj, Tag):
+                tag_time = obj._tag_time
+                utils.check_date_time(tag_time)
+        except Exception as e:
+            raise ObjectFormatException(e)
+
     def get_object(self, oid):
         """Given an object id, return the object if it is found and not
            malformed in some way.
+
+        Args:
+            oid (bytes): the object's identifier
+
+        Returns:
+            The object if found without malformation
 
         """
         try:
             # some errors are raised when reading the object
             obj = self.repo[oid]
             # some we need to check ourselves
-            obj.check()
+            self._check(obj)
         except KeyError:
             self.log.warn('object %s not found, skipping' % (
                 oid.decode('utf-8'), ))
