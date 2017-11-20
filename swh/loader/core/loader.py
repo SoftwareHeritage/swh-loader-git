@@ -237,13 +237,78 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         return origin_visit
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
-    def send_origin_metadata(self, origin_id, visit_date, provider,
-                             tool, metadata):
+    def send_tool(self, tool):
         log_id = str(uuid.uuid4())
         self.log.debug(
-            """Creating origin_metadata for origin %s at time %s with provider
-               %s and tool %s""" % (
-                origin_id, visit_date, provider, tool),
+            """Creating tool with name %s version %s configuration %s""" % (
+                 tool['tool_name'], tool['tool_version'],
+                 tool['tool_configuration']),
+            extra={
+                'swh_type': 'storage_send_start',
+                'swh_content_type': 'indexer_configuration',
+                'swh_num': 1,
+                'swh_id': log_id
+            })
+
+        tools = self.storage.indexer_configuration_add([tool])
+        tool_id = tools[0]['id']
+
+        self.log.debug(
+            """Done creating tool with name %s version %s and
+               configuration %s""" % (
+                 tool['tool_name'], tool['tool_version'],
+                 tool['tool_configuration']),
+            extra={
+                'swh_type': 'storage_send_end',
+                'swh_content_type': 'indexer_configuration',
+                'swh_num': 1,
+                'swh_id': log_id
+            })
+        return tool_id
+
+    @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
+    def send_provider(self, provider):
+        log_id = str(uuid.uuid4())
+        self.log.debug(
+            """Creating metadata_provider with name %s type %s url %s and
+               metadata %s""" % (
+                provider['provider_name'], provider['provider_type'],
+                provider['provider_url']),
+            extra={
+                'swh_type': 'storage_send_start',
+                'swh_content_type': 'metadata_provider',
+                'swh_num': 1,
+                'swh_id': log_id
+            })
+        # FIXME: align metadata_provider_add with indexer_configuration_add
+        provider_id = self.storage.metadata_provider_get_by(provider)
+        if not provider_id:
+            provider_id = self.storage.metadata_provider_add(
+                                provider['provider_name'],
+                                provider['provider_type'],
+                                provider['provider_url'],
+                                provider['metadata'])
+        self.log.debug(
+            """Done creating metadata_provider with name %s type %s url %s and
+               metadata %s""" % (
+                provider['provider_name'], provider['provider_type'],
+                provider['provider_url']),
+            extra={
+                'swh_type': 'storage_send_end',
+                'swh_content_type': 'metadata_provider',
+                'swh_num': 1,
+                'swh_id': log_id
+            })
+        return provider_id
+
+    @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
+    def send_origin_metadata(self, origin_id, visit_date, provider_id,
+                             tool_id, metadata):
+        log_id = str(uuid.uuid4())
+        self.log.debug(
+            """Creating origin_metadata for origin %s at time %s with provider_id
+               %s and tool_id %s""" % (
+                origin_id, visit_date, provider_id, tool_id),
             extra={
                 'swh_type': 'storage_send_start',
                 'swh_content_type': 'origin_metadata',
@@ -253,13 +318,13 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
 
         self.storage.origin_metadata_add(origin_id,
                                          visit_date,
-                                         provider,
-                                         tool,
+                                         provider_id,
+                                         tool_id,
                                          metadata)
         self.log.debug(
             """Done Creating origin_metadata for origin %s at time %s with
                provider %s and tool %s""" % (
-                origin_id, visit_date, provider, tool),
+                origin_id, visit_date, provider_id, tool_id),
             extra={
                 'swh_type': 'storage_send_end',
                 'swh_content_type': 'origin_metadata',
@@ -650,6 +715,30 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
             self.send_batch_releases(releases)
         if self.config['send_occurrences']:
             self.send_batch_occurrences(occurrences)
+
+    def prepare_metadata(self):
+        """First step for origin_metadata insertion, resolving the
+        provider_ id and the tool_id by fetching data from the storage
+        or creating tool and provider on the fly if the data isn't available
+
+        """
+        origin_metadata = self.origin_metadata
+
+        tool = origin_metadata['tool']
+        try:
+            tool_id = self.send_tool(tool)
+            self.origin_metadata['tool']['tool_id'] = tool_id
+        except:
+            self.log.exception('Problem when storing new tool')
+            raise
+
+        provider = origin_metadata['provider']
+        try:
+            provider_id = self.send_provider(provider)
+            self.origin_metadata['provider']['provider_id'] = provider_id
+        except:
+            self.log.exception('Problem when storing new provider')
+            raise
 
     @abstractmethod
     def cleanup(self):
