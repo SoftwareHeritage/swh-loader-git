@@ -270,8 +270,7 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
     def send_provider(self, provider):
         log_id = str(uuid.uuid4())
         self.log.debug(
-            """Creating metadata_provider with name %s type %s url %s and
-               metadata %s""" % (
+            'Creating metadata_provider with name %s type %s url %s' % (
                 provider['provider_name'], provider['provider_type'],
                 provider['provider_url']),
             extra={
@@ -289,8 +288,7 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
                                 provider['provider_url'],
                                 provider['metadata'])
         self.log.debug(
-            """Done creating metadata_provider with name %s type %s url %s and
-               metadata %s""" % (
+            'Done creating metadata_provider with name %s type %s url %s' % (
                 provider['provider_name'], provider['provider_type'],
                 provider['provider_url']),
             extra={
