@@ -279,13 +279,16 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
                 'swh_id': log_id
             })
         # FIXME: align metadata_provider_add with indexer_configuration_add
-        provider_id = self.storage.metadata_provider_get_by(provider)
-        if not provider_id:
+        provider = self.storage.metadata_provider_get_by(provider)
+        if provider and 'id' in provider:
+            provider_id = provider['id']
+        else:
             provider_id = self.storage.metadata_provider_add(
-                                provider['provider_name'],
-                                provider['provider_type'],
-                                provider['provider_url'],
-                                provider['metadata'])
+                provider['provider_name'],
+                provider['provider_type'],
+                provider['provider_url'],
+                provider['metadata'])
+
         self.log.debug(
             'Done creating metadata_provider with name %s type %s url %s' % (
                 provider['provider_name'], provider['provider_type'],
