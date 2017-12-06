@@ -241,25 +241,23 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         log_id = str(uuid.uuid4())
         self.log.debug(
             'Creating tool with name %s version %s configuration %s' % (
-                 tool['tool_name'], tool['tool_version'],
-                 tool['tool_configuration']),
+                 tool['name'], tool['version'], tool['configuration']),
             extra={
                 'swh_type': 'storage_send_start',
-                'swh_content_type': 'indexer_configuration',
+                'swh_content_type': 'tool',
                 'swh_num': 1,
                 'swh_id': log_id
             })
 
-        tools = self.storage.indexer_configuration_add([tool])
+        tools = self.storage.tool_add([tool])
         tool_id = tools[0]['id']
 
         self.log.debug(
             'Done creating tool with name %s version %s and configuration %s' % (  # noqa
-                 tool['tool_name'], tool['tool_version'],
-                 tool['tool_configuration']),
+                 tool['name'], tool['version'], tool['configuration']),
             extra={
                 'swh_type': 'storage_send_end',
-                'swh_content_type': 'indexer_configuration',
+                'swh_content_type': 'tool',
                 'swh_num': 1,
                 'swh_id': log_id
             })
