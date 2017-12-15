@@ -8,7 +8,7 @@ import dulwich.repo
 import os
 import shutil
 
-from dulwich.errors import ObjectFormatException
+from dulwich.errors import ObjectFormatException, EmptyFileException
 from collections import defaultdict
 
 from swh.model import hashutil
@@ -103,6 +103,14 @@ class GitLoader(base.BaseLoader):
                               'origin_id': self.origin_id,
                           })
             return None
+        except EmptyFileException:
+            _id = oid.decode('utf-8')
+            self.log.warn('object %s corrupted (empty file), skipping' % _id,
+                          extra={
+                              'swh_type': 'swh_loader_git_missing_object',
+                              'swh_object_id': _id,
+                              'origin_id': self.origin_id,
+                          })
         else:
             return obj
 
