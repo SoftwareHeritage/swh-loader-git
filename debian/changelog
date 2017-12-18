@@ -1,3 +1,19 @@
+swh-loader-git (0.0.35-1~swh1) unstable-swh; urgency=medium
+
+  * v0.0.35
+  * swh.loader.git.loader: Warn when object is corrupted and continue
+  * swh.loader.git.loader: Add structured data to the log message
+    regarding skipping objects
+  * swh.loader.git.loader: Force further checks on objects
+  * swh.loader.git.loader: Unify reading object from the repository
+  * swh.loader.git.loader: Warn when object malformed and continue
+  * swh.loader.git.loader: Trap missing object id and continue
+  * swh.loader.git.base: Reuse swh.loader.core base loader
+  * swh.loader.git.converters: Fix release time conversion issue when no
+    date provided
+
+ -- Antoine R. Dumont (@ardumont) <antoine.romain.dumont@gmail.com>  Mon, 18 Dec 2017 12:08:01 +0100
+
 swh-loader-git (0.0.34-1~swh1) unstable-swh; urgency=medium
 
   * Release swh.loader.git version 0.0.34
