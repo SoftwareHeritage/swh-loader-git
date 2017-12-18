@@ -1,3 +1,5 @@
+.. _swh-loader-git:
+
 Software Heritage - Development Documentation
 =============================================
 

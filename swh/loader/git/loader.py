@@ -8,6 +8,7 @@ import dulwich.repo
 import os
 import shutil
 
+from dulwich.errors import ObjectFormatException, EmptyFileException
 from collections import defaultdict
 
 from swh.model import hashutil
@@ -20,10 +21,11 @@ class GitLoader(base.BaseLoader):
 
     CONFIG_BASE_FILENAME = 'loader/git-loader'
 
-    def prepare(self, origin_url, directory, fetch_date):
+    def prepare(self, origin_url, directory, visit_date):
         self.origin_url = origin_url
+        self.origin = self.get_origin()
         self.repo = dulwich.repo.Repo(directory)
-        self.fetch_date = fetch_date
+        self.visit_date = visit_date
 
     def get_origin(self):
         """Get the origin that is currently being loaded"""
@@ -41,11 +43,85 @@ class GitLoader(base.BaseLoader):
         yield from object_store._iter_loose_objects()
         yield from object_store._iter_alternate_objects()
 
+    def _check(self, obj):
+        """Check the object's repository representation.
+
+        If any errors in check exists, an ObjectFormatException is
+        raised.
+
+        Args:
+            obj (object): Dulwich object read from the repository.
+
+        """
+        obj.check()
+        from dulwich.objects import Commit, Tag
+        try:
+            # For additional checks on dulwich objects with date
+            # for now, only checks on *time
+            if isinstance(obj, Commit):
+                commit_time = obj._commit_time
+                utils.check_date_time(commit_time)
+                author_time = obj._author_time
+                utils.check_date_time(author_time)
+            elif isinstance(obj, Tag):
+                tag_time = obj._tag_time
+                utils.check_date_time(tag_time)
+        except Exception as e:
+            raise ObjectFormatException(e)
+
+    def get_object(self, oid):
+        """Given an object id, return the object if it is found and not
+           malformed in some way.
+
+        Args:
+            oid (bytes): the object's identifier
+
+        Returns:
+            The object if found without malformation
+
+        """
+        try:
+            # some errors are raised when reading the object
+            obj = self.repo[oid]
+            # some we need to check ourselves
+            self._check(obj)
+        except KeyError:
+            _id = oid.decode('utf-8')
+            self.log.warn('object %s not found, skipping' % _id,
+                          extra={
+                              'swh_type': 'swh_loader_git_missing_object',
+                              'swh_object_id': _id,
+                              'origin_id': self.origin_id,
+                          })
+            return None
+        except ObjectFormatException:
+            _id = oid.decode('utf-8')
+            self.log.warn('object %s malformed, skipping' % _id,
+                          extra={
+                              'swh_type': 'swh_loader_git_missing_object',
+                              'swh_object_id': _id,
+                              'origin_id': self.origin_id,
+                          })
+            return None
+        except EmptyFileException:
+            _id = oid.decode('utf-8')
+            self.log.warn('object %s corrupted (empty file), skipping' % _id,
+                          extra={
+                              'swh_type': 'swh_loader_git_missing_object',
+                              'swh_object_id': _id,
+                              'origin_id': self.origin_id,
+                          })
+        else:
+            return obj
+
     def fetch_data(self):
         """Fetch the data from the data source"""
         type_to_ids = defaultdict(list)
         for oid in self.iter_objects():
-            type_name = self.repo[oid].type_name
+            obj = self.get_object(oid)
+            if not obj:
+                continue
+            type_name = obj.type_name
             type_to_ids[type_name].append(oid)
 
         self.type_to_ids = type_to_ids
@@ -57,7 +133,6 @@ class GitLoader(base.BaseLoader):
     def get_content_ids(self):
         """Get the content identifiers from the git repository"""
         for oid in self.type_to_ids[b'blob']:
-
             yield converters.dulwich_blob_to_content_id(self.repo[oid])
 
     def get_contents(self):
@@ -133,12 +208,14 @@ class GitLoader(base.BaseLoader):
 
     def get_occurrences(self):
         """Get the occurrences that need to be loaded"""
-        repo = self.repo
         origin_id = self.origin_id
         visit = self.visit
+        ref_objs = ((refs, target, self.get_object(target))
+                    for refs, target in self.repo.refs.as_dict().items()
+                    if self.get_object(target))
 
-        for ref, target in repo.refs.as_dict().items():
-            target_type_name = repo[target].type_name
+        for ref, target, obj in ref_objs:
+            target_type_name = obj.type_name
             target_type = converters.DULWICH_TYPES[target_type_name]
             yield {
                 'branch': ref,
@@ -177,7 +254,7 @@ class GitLoaderFromArchive(GitLoader):
         """
         return os.path.basename(os.path.dirname(archive_path))
 
-    def prepare(self, origin_url, archive_path, fetch_date):
+    def prepare(self, origin_url, archive_path, visit_date):
         """1. Uncompress the archive in temporary location.
            2. Prepare as the GitLoader does
            3. Load as GitLoader does
@@ -189,7 +266,7 @@ class GitLoaderFromArchive(GitLoader):
 
         self.log.info('Project %s - Uncompressing archive %s at %s' % (
             origin_url, os.path.basename(archive_path), self.repo_path))
-        super().prepare(origin_url, self.repo_path, fetch_date)
+        super().prepare(origin_url, self.repo_path, visit_date)
 
     def cleanup(self):
         """Cleanup the temporary location (if it exists).
@@ -213,6 +290,6 @@ if __name__ == '__main__':
 
     origin_url = sys.argv[1]
     directory = sys.argv[2]
-    fetch_date = datetime.datetime.now(tz=datetime.timezone.utc)
+    visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
 
-    print(loader.load(origin_url, directory, fetch_date))
+    print(loader.load(origin_url, directory, visit_date))
