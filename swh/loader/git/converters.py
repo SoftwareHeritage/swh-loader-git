@@ -218,11 +218,14 @@ def dulwich_tag_to_release(tag, log=None):
     }
     if tag.tagger:
         ret['author'] = parse_author(tag.tagger)
-        ret['date'] = dulwich_tsinfo_to_timestamp(
-            tag.tag_time,
-            tag.tag_timezone,
-            tag._tag_timezone_neg_utc,
-        )
+        if not tag.tag_time:
+            ret['date'] = None
+        else:
+            ret['date'] = dulwich_tsinfo_to_timestamp(
+                tag.tag_time,
+                tag.tag_timezone,
+                tag._tag_timezone_neg_utc,
+            )
     else:
         ret['author'] = ret['date'] = None
 

@@ -238,7 +238,7 @@ class BulkUpdater(base.BaseLoader):
         return id_to_type, type_to_ids
 
     def prepare(self, origin_url, base_url=None):
-        self.fetch_date = datetime.datetime.now(tz=datetime.timezone.utc)
+        self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
 
         origin = converters.origin_url_to_origin(origin_url)
         base_origin = converters.origin_url_to_origin(base_url)
@@ -304,8 +304,8 @@ class BulkUpdater(base.BaseLoader):
         write_size = 8192
         pack_dir = self.get_save_data_path()
 
-        pack_name = "%s.pack" % self.fetch_date.isoformat()
-        refs_name = "%s.refs" % self.fetch_date.isoformat()
+        pack_name = "%s.pack" % self.visit_date.isoformat()
+        refs_name = "%s.refs" % self.visit_date.isoformat()
 
         with open(os.path.join(pack_dir, pack_name), 'xb') as f:
             while True:
