@@ -12,14 +12,18 @@ from dulwich.errors import ObjectFormatException, EmptyFileException
 from collections import defaultdict
 
 from swh.model import hashutil
-from . import base, converters, utils
+from swh.loader.core.loader import SWHStatelessLoader
+from . import converters, utils
 
 
-class GitLoader(base.BaseLoader):
+class GitLoader(SWHStatelessLoader):
     """Load a git repository from a directory.
     """
 
     CONFIG_BASE_FILENAME = 'loader/git-loader'
+
+    def __init__(self, config=None):
+        super().__init__(logging_class='swh.loader.git.Loader', config=config)
 
     def prepare(self, origin_url, directory, visit_date):
         self.origin_url = origin_url

@@ -17,8 +17,8 @@ from dulwich.pack import PackData, PackInflater
 from urllib.parse import urlparse
 
 from swh.model import hashutil
-
-from . import base, converters
+from swh.loader.core.loader import SWHStatelessLoader
+from . import converters
 
 
 class SWHRepoRepresentation:
@@ -149,7 +149,7 @@ class SWHRepoRepresentation:
         return ret
 
 
-class BulkUpdater(base.BaseLoader):
+class BulkUpdater(SWHStatelessLoader):
     """A bulk loader for a git repository"""
     CONFIG_BASE_FILENAME = 'loader/git-updater'
 
@@ -157,7 +157,7 @@ class BulkUpdater(base.BaseLoader):
         'pack_size_bytes': ('int', 4 * 1024 * 1024 * 1024),
     }
 
-    def __init__(self, repo_representation=SWHRepoRepresentation):
+    def __init__(self, repo_representation=SWHRepoRepresentation, config=None):
         """Initialize the bulk updater.
 
         Args:
@@ -166,7 +166,8 @@ class BulkUpdater(base.BaseLoader):
             data.
 
         """
-        super().__init__()
+        super().__init__(logging_class='swh.loader.git.BulkLoader',
+                         config=config)
         self.repo_representation = repo_representation
 
     def fetch_pack_from_origin(self, origin_url, base_origin_id,
