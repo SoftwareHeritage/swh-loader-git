@@ -721,7 +721,7 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         try:
             tool_id = self.send_tool(tool)
             self.origin_metadata['tool']['tool_id'] = tool_id
-        except:
+        except Exception:
             self.log.exception('Problem when storing new tool')
             raise
 
@@ -729,7 +729,7 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         try:
             provider_id = self.send_provider(provider)
             self.origin_metadata['provider']['provider_id'] = provider_id
-        except:
+        except Exception:
             self.log.exception('Problem when storing new provider')
             raise
 
