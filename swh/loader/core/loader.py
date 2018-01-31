@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2017  The Software Heritage developers
+# Copyright (C) 2015-2018  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -903,7 +903,11 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
                 self.origin_id, self.visit, status=self.visit_status())
             self.post_load()
         except Exception:
-            self.log.exception('Loading failure, updating to `partial` status')
+            self.log.exception('Loading failure, updating to `partial` status',
+                               extra={
+                                   'swh_task_args': args,
+                                   'swh_task_kwargs': kwargs,
+                               })
             self.close_fetch_history_failure(fetch_history_id)
             self.update_origin_visit(
                 self.origin_id, self.visit, status='partial')
