@@ -181,8 +181,8 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         self.occurrences = QueuePerNbElements(
             self.config['occurrence_packet_size'])
 
-        l = logging.getLogger('requests.packages.urllib3.connectionpool')
-        l.setLevel(logging.WARN)
+        _log = logging.getLogger('requests.packages.urllib3.connectionpool')
+        _log.setLevel(logging.WARN)
 
         self.counters = {
             'contents': 0,
