@@ -993,6 +993,12 @@ class SWHStatelessLoader(SWHLoader):
         """Save the data associated to the current load"""
         raise NotImplementedError
 
+    def flush(self):
+        """Stateless loader does not flush since it has no state to flush.
+
+        """
+        pass
+
     def store_data(self):
         if self.config['save_data']:
             self.save_data()
