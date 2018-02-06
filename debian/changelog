@@ -1,3 +1,12 @@
+swh-loader-git (0.0.36-1~swh1) unstable-swh; urgency=medium
+
+  * Release swh.loader.git v0.0.36
+  * Update to use snapshots instead of occurrences
+  * Use dulwich get_transport_and_path rather than hardcode the tcp
+    transport
+
+ -- Nicolas Dandrimont <nicolas@dandrimont.eu>  Tue, 06 Feb 2018 14:42:36 +0100
+
 swh-loader-git (0.0.35-1~swh1) unstable-swh; urgency=medium
 
   * v0.0.35
