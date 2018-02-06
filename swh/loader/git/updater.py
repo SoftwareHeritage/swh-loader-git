@@ -14,7 +14,6 @@ from collections import defaultdict
 import dulwich.client
 from dulwich.object_store import ObjectStoreGraphWalker
 from dulwich.pack import PackData, PackInflater
-from urllib.parse import urlparse
 
 from swh.model import hashutil
 from swh.loader.core.loader import SWHStatelessLoader
@@ -178,14 +177,8 @@ class BulkUpdater(SWHStatelessLoader):
         base_repo = self.repo_representation(self.storage, base_origin_id,
                                              base_occurrences)
 
-        parsed_uri = urlparse(origin_url)
-
-        path = parsed_uri.path
-        if not path.endswith('.git'):
-            path += '.git'
-
-        client = dulwich.client.TCPGitClient(parsed_uri.netloc,
-                                             thin_packs=False)
+        client, path = dulwich.client.get_transport_and_path(origin_url,
+                                                             thin_packs=False)
 
         size_limit = self.config['pack_size_bytes']
 
@@ -203,7 +196,7 @@ class BulkUpdater(SWHStatelessLoader):
 
             pack_buffer.write(data)
 
-        remote_refs = client.fetch_pack(path.encode('ascii'),
+        remote_refs = client.fetch_pack(path,
                                         base_repo.determine_wants,
                                         base_repo.graph_walker(),
                                         do_pack,
