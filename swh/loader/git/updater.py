@@ -14,23 +14,22 @@ from collections import defaultdict
 import dulwich.client
 from dulwich.object_store import ObjectStoreGraphWalker
 from dulwich.pack import PackData, PackInflater
-from urllib.parse import urlparse
 
 from swh.model import hashutil
-
-from . import base, converters
+from swh.loader.core.loader import SWHStatelessLoader
+from . import converters
 
 
 class SWHRepoRepresentation:
     """Repository representation for a Software Heritage origin."""
-    def __init__(self, storage, origin_id, occurrences=None):
+    def __init__(self, storage, origin_id, base_snapshot=None):
         self.storage = storage
 
         self._parents_cache = {}
         self._type_cache = {}
 
         if origin_id:
-            self.heads = set(self._cache_heads(origin_id, occurrences))
+            self.heads = set(self._cache_heads(origin_id, base_snapshot))
         else:
             self.heads = set()
 
@@ -48,14 +47,18 @@ class SWHRepoRepresentation:
             if rev not in self._parents_cache:
                 self._parents_cache[rev] = []
 
-    def _cache_heads(self, origin_id, occurrences):
+    def _cache_heads(self, origin_id, base_snapshot):
         """Return all the known head commits for `origin_id`"""
-        if not occurrences:
-            occurrences = self.storage.occurrence_get(origin_id)
+        if not base_snapshot:
+            base_snapshot = self.storage.snapshot_get_latest(origin_id)
 
-        return self._decode_from_storage(
-            occurrence['target'] for occurrence in occurrences
-        )
+        if base_snapshot:
+            return self._decode_from_storage(
+                target['target']
+                for target in base_snapshot['branches'].values()
+            )
+        else:
+            return []
 
     def get_parents(self, commit):
         """get the parent commits for `commit`"""
@@ -149,7 +152,7 @@ class SWHRepoRepresentation:
         return ret
 
 
-class BulkUpdater(base.BaseLoader):
+class BulkUpdater(SWHStatelessLoader):
     """A bulk loader for a git repository"""
     CONFIG_BASE_FILENAME = 'loader/git-updater'
 
@@ -157,7 +160,7 @@ class BulkUpdater(base.BaseLoader):
         'pack_size_bytes': ('int', 4 * 1024 * 1024 * 1024),
     }
 
-    def __init__(self, repo_representation=SWHRepoRepresentation):
+    def __init__(self, repo_representation=SWHRepoRepresentation, config=None):
         """Initialize the bulk updater.
 
         Args:
@@ -166,25 +169,20 @@ class BulkUpdater(base.BaseLoader):
             data.
 
         """
-        super().__init__()
+        super().__init__(logging_class='swh.loader.git.BulkLoader',
+                         config=config)
         self.repo_representation = repo_representation
 
     def fetch_pack_from_origin(self, origin_url, base_origin_id,
-                               base_occurrences, do_activity):
+                               base_snapshot, do_activity):
         """Fetch a pack from the origin"""
         pack_buffer = BytesIO()
 
         base_repo = self.repo_representation(self.storage, base_origin_id,
-                                             base_occurrences)
+                                             base_snapshot)
 
-        parsed_uri = urlparse(origin_url)
-
-        path = parsed_uri.path
-        if not path.endswith('.git'):
-            path += '.git'
-
-        client = dulwich.client.TCPGitClient(parsed_uri.netloc,
-                                             thin_packs=False)
+        client, path = dulwich.client.get_transport_and_path(origin_url,
+                                                             thin_packs=False)
 
         size_limit = self.config['pack_size_bytes']
 
@@ -202,7 +200,7 @@ class BulkUpdater(base.BaseLoader):
 
             pack_buffer.write(data)
 
-        remote_refs = client.fetch_pack(path.encode('ascii'),
+        remote_refs = client.fetch_pack(path,
                                         base_repo.determine_wants,
                                         base_repo.graph_walker(),
                                         do_pack,
@@ -243,7 +241,7 @@ class BulkUpdater(base.BaseLoader):
         origin = converters.origin_url_to_origin(origin_url)
         base_origin = converters.origin_url_to_origin(base_url)
 
-        base_occurrences = []
+        prev_snapshot = {}
         base_origin_id = origin_id = None
 
         db_origin = self.storage.origin_get(origin)
@@ -251,16 +249,17 @@ class BulkUpdater(base.BaseLoader):
             base_origin_id = origin_id = db_origin['id']
 
         if origin_id:
-            base_occurrences = self.storage.occurrence_get(origin_id)
+            prev_snapshot = self.storage.snapshot_get_latest(origin_id)
 
-        if base_url and not base_occurrences:
+        if base_url and not prev_snapshot:
             base_origin = self.storage.origin_get(base_origin)
             if base_origin:
                 base_origin_id = base_origin['id']
-                base_occurrences = self.storage.occurrence_get(base_origin_id)
+                prev_snapshot = self.storage.snapshot_get_latest(
+                    base_origin_id
+                )
 
-        self.base_occurrences = list(sorted(base_occurrences,
-                                            key=lambda occ: occ['branch']))
+        self.base_snapshot = prev_snapshot
         self.base_origin_id = base_origin_id
         self.origin = origin
 
@@ -273,7 +272,7 @@ class BulkUpdater(base.BaseLoader):
             sys.stderr.flush()
 
         fetch_info = self.fetch_pack_from_origin(
-            self.origin['url'], self.base_origin_id, self.base_occurrences,
+            self.origin['url'], self.base_origin_id, self.base_snapshot,
             do_progress)
 
         self.pack_buffer = fetch_info['pack_buffer']
@@ -420,30 +419,21 @@ class BulkUpdater(base.BaseLoader):
 
             yield converters.dulwich_tag_to_release(raw_obj, log=self.log)
 
-    def has_occurrences(self):
-        return bool(self.remote_refs)
+    def get_snapshot(self):
+        branches = {}
 
-    def get_occurrences(self):
-        origin_id = self.origin_id
-        visit = self.visit
-
-        ret = []
         for ref in self.remote_refs:
             ret_ref = self.local_refs[ref].copy()
-            ret_ref.update({
-                'branch': ref,
-                'origin': origin_id,
-                'visit': visit,
-            })
             if not ret_ref['target_type']:
                 target_type = self.id_to_type[ret_ref['target']]
                 ret_ref['target_type'] = converters.DULWICH_TYPES[target_type]
 
             ret_ref['target'] = hashutil.bytehex_to_hash(ret_ref['target'])
 
-            ret.append(ret_ref)
+            branches[ref] = ret_ref
 
-        return ret
+        self.snapshot = converters.branches_to_snapshot(branches)
+        return self.snapshot
 
     def get_fetch_history_result(self):
         return {
@@ -451,18 +441,20 @@ class BulkUpdater(base.BaseLoader):
             'directories': len(self.type_to_ids[b'tree']),
             'revisions': len(self.type_to_ids[b'commit']),
             'releases': len(self.type_to_ids[b'tag']),
-            'occurrences': len(self.remote_refs),
         }
 
-    def eventful(self):
-        """The load was eventful if the current occurrences are different to
-           the ones we retrieved at the beginning of the run"""
-        current_occurrences = list(sorted(
-            self.storage.occurrence_get(self.origin_id),
-            key=lambda occ: occ['branch'],
-        ))
+    def load_status(self):
+        """The load was eventful if the current snapshot is different to
+           the one we retrieved at the beginning of the run"""
+        eventful = False
 
-        return self.base_occurrences != current_occurrences
+        if self.base_snapshot:
+            print(self.snapshot, self.base_snapshot)
+            eventful = self.snapshot['id'] != self.base_snapshot['id']
+        else:
+            eventful = bool(self.snapshot['branches'])
+
+        return {'status': ('eventful' if eventful else 'uneventful')}
 
 
 if __name__ == '__main__':
