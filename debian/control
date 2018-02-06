@@ -6,17 +6,27 @@ Build-Depends: debhelper (>= 9),
                dh-python (>= 2),
                python3-all,
                python3-nose,
+               python3-retrying,
                python3-setuptools,
                python3-swh.core,
                python3-swh.model (>= 0.0.18~),
-               python3-swh.storage (>= 0.0.95~),
-               python3-retrying,
+               python3-swh.storage (>= 0.0.97~),
                python3-vcversioner
 Standards-Version: 3.9.6
 Homepage: https://forge.softwareheritage.org/diffusion/60/
 
 Package: python3-swh.loader.core
 Architecture: all
-Depends: python3-swh.core, python3-swh.model (>= 0.0.18~), python3-swh.storage (>= 0.0.95~),
-         ${misc:Depends}, ${python3:Depends}
+Depends: python3-swh.core,
+         python3-swh.model (>= 0.0.18~),
+         python3-swh.storage (>= 0.0.97~),
+         ${misc:Depends},
+         ${python3:Depends}
+Breaks: python3-swh.deposit.loader (<< 0.0.48~),
+        python3-swh.loader.debian (<< 0.0.9~),
+        python3-swh.loader.dir (<< 0.0.31~),
+        python3-swh.loader.git (<< 0.0.36~),
+        python3-swh.loader.mercurial (<< 0.0.3~),
+        python3-swh.loader.svn (<< 0.0.35~),
+        python3-swh.loader.tar (<< 0.0.33~)
 Description: Software Heritage Loader Core
