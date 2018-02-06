@@ -5,7 +5,7 @@
 
 """Convert dulwich objects to dictionaries suitable for swh.storage"""
 
-from swh.model import hashutil
+from swh.model import hashutil, identifiers
 
 
 HASH_ALGORITHMS = hashutil.DEFAULT_ALGORITHMS - {'sha1_git'}
@@ -230,3 +230,11 @@ def dulwich_tag_to_release(tag, log=None):
         ret['author'] = ret['date'] = None
 
     return ret
+
+
+def branches_to_snapshot(branches):
+    snapshot = {'branches': branches}
+    snapshot_id = identifiers.snapshot_identifier(snapshot)
+    snapshot['id'] = identifiers.identifier_to_bytes(snapshot_id)
+
+    return snapshot

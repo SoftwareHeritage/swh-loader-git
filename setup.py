@@ -20,7 +20,7 @@ setup(
     description='Software Heritage git loader',
     author='Software Heritage developers',
     author_email='swh-devel@inria.fr',
-    url='https://forge.softwareheritage.org/diffusion/DCORE/',
+    url='https://forge.softwareheritage.org/diffusion/DLDG/',
     packages=find_packages(),
     scripts=[],
     install_requires=parse_requirements(),
