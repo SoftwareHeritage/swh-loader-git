@@ -449,7 +449,6 @@ class BulkUpdater(SWHStatelessLoader):
         eventful = False
 
         if self.base_snapshot:
-            print(self.snapshot, self.base_snapshot)
             eventful = self.snapshot['id'] != self.base_snapshot['id']
         else:
             eventful = bool(self.snapshot['branches'])
