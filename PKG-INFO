@@ -1,8 +1,8 @@
 Metadata-Version: 1.0
 Name: swh.loader.git
-Version: 0.0.35
+Version: 0.0.36
 Summary: Software Heritage git loader
-Home-page: https://forge.softwareheritage.org/diffusion/DCORE/
+Home-page: https://forge.softwareheritage.org/diffusion/DLDG/
 Author: Software Heritage developers
 Author-email: swh-devel@inria.fr
 License: UNKNOWN

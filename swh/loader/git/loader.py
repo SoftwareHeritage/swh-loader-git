@@ -12,14 +12,18 @@ from dulwich.errors import ObjectFormatException, EmptyFileException
 from collections import defaultdict
 
 from swh.model import hashutil
-from . import base, converters, utils
+from swh.loader.core.loader import SWHStatelessLoader
+from . import converters, utils
 
 
-class GitLoader(base.BaseLoader):
+class GitLoader(SWHStatelessLoader):
     """Load a git repository from a directory.
     """
 
     CONFIG_BASE_FILENAME = 'loader/git-loader'
+
+    def __init__(self, config=None):
+        super().__init__(logging_class='swh.loader.git.Loader', config=config)
 
     def prepare(self, origin_url, directory, visit_date):
         self.origin_url = origin_url
@@ -116,6 +120,10 @@ class GitLoader(base.BaseLoader):
 
     def fetch_data(self):
         """Fetch the data from the data source"""
+        self.previous_snapshot = self.storage.snapshot_get_latest(
+            self.origin_id
+        )
+
         type_to_ids = defaultdict(list)
         for oid in self.iter_objects():
             obj = self.get_object(oid)
@@ -202,28 +210,22 @@ class GitLoader(base.BaseLoader):
             yield converters.dulwich_tag_to_release(
                 self.repo[hashutil.hash_to_bytehex(oid)], log=self.log)
 
-    def has_occurrences(self):
-        """Checks whether we need to load occurrences"""
-        return True
+    def get_snapshot(self):
+        """Turn the list of branches into a snapshot to load"""
+        branches = {}
 
-    def get_occurrences(self):
-        """Get the occurrences that need to be loaded"""
-        origin_id = self.origin_id
-        visit = self.visit
-        ref_objs = ((refs, target, self.get_object(target))
-                    for refs, target in self.repo.refs.as_dict().items()
-                    if self.get_object(target))
+        for ref, target in self.repo.refs.as_dict().items():
+            obj = self.get_object(target)
+            if obj:
+                branches[ref] = {
+                    'target': hashutil.bytehex_to_hash(target),
+                    'target_type': converters.DULWICH_TYPES[obj.type_name],
+                }
+            else:
+                branches[ref] = None
 
-        for ref, target, obj in ref_objs:
-            target_type_name = obj.type_name
-            target_type = converters.DULWICH_TYPES[target_type_name]
-            yield {
-                'branch': ref,
-                'origin': origin_id,
-                'target': hashutil.bytehex_to_hash(target),
-                'target_type': target_type,
-                'visit': visit,
-            }
+        self.snapshot = converters.branches_to_snapshot(branches)
+        return self.snapshot
 
     def get_fetch_history_result(self):
         """Return the data to store in fetch_history for the current loader"""
@@ -232,16 +234,23 @@ class GitLoader(base.BaseLoader):
             'directories': len(self.type_to_ids[b'tree']),
             'revisions': len(self.type_to_ids[b'commit']),
             'releases': len(self.type_to_ids[b'tag']),
-            'occurrences': len(self.repo.refs.allkeys()),
         }
 
     def save_data(self):
         """We already have the data locally, no need to save it"""
         pass
 
-    def eventful(self):
-        """Whether the load was eventful"""
-        return True
+    def load_status(self):
+        """The load was eventful if the current occurrences are different to
+           the ones we retrieved at the beginning of the run"""
+        eventful = False
+
+        if self.previous_snapshot:
+            eventful = self.snapshot['id'] != self.previous_snapshot['id']
+        else:
+            eventful = bool(self.snapshot['branches'])
+
+        return {'status': ('eventful' if eventful else 'uneventful')}
 
 
 class GitLoaderFromArchive(GitLoader):
