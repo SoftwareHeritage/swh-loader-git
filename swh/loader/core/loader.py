@@ -21,7 +21,6 @@ from swh.storage import get_storage
 
 from .queue import QueuePerSizeAndNbUniqueElements
 from .queue import QueuePerNbUniqueElements
-from .queue import QueuePerNbElements
 
 
 def send_in_packets(objects, sender, packet_size, packet_size_bytes=None):
@@ -125,7 +124,7 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         'send_directories': ('bool', True),
         'send_revisions': ('bool', True),
         'send_releases': ('bool', True),
-        'send_occurrences': ('bool', True),
+        'send_snapshot': ('bool', True),
 
         'save_data': ('bool', False),
         'save_data_path': ('str', ''),
@@ -178,8 +177,7 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
 
         self.releases_seen = set()
 
-        self.occurrences = QueuePerNbElements(
-            self.config['occurrence_packet_size'])
+        self.snapshot = None
 
         _log = logging.getLogger('requests.packages.urllib3.connectionpool')
         _log.setLevel(logging.WARN)
@@ -189,7 +187,6 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
             'directories': 0,
             'revisions': 0,
             'releases': 0,
-            'occurrences': 0,
         }
 
         # Make sure the config is sane
@@ -483,30 +480,11 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
                            })
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
-    def send_occurrences(self, occurrence_list):
-        """Actually send properly formatted occurrences to the database.
+    def send_snapshot(self, snapshot, back_compat=True):
+        self.storage.snapshot_add(self.origin_id, self.visit, snapshot,
+                                  back_compat=back_compat)
 
-        """
-        num_occurrences = len(occurrence_list)
-        if num_occurrences > 0:
-            log_id = str(uuid.uuid4())
-            self.log.debug("Sending %d occurrences" % num_occurrences,
-                           extra={
-                               'swh_type': 'storage_send_start',
-                               'swh_content_type': 'occurrence',
-                               'swh_num': num_occurrences,
-                               'swh_id': log_id,
-                           })
-            self.storage.occurrence_add(occurrence_list)
-            self.counters['occurrences'] += num_occurrences
-            self.log.debug("Done sending %d occurrences" % num_occurrences,
-                           extra={
-                               'swh_type': 'storage_send_end',
-                               'swh_content_type': 'occurrence',
-                               'swh_num': num_occurrences,
-                               'swh_id': log_id,
-                           })
-
+    @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
     def filter_missing_contents(self, contents):
         """Return only the contents missing from swh"""
         max_content_size = self.config['content_size_limit']
@@ -618,15 +596,13 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
             self.send_batch_revisions(self.revisions.pop())
             self.send_batch_releases(self.releases.pop())
 
-    def bulk_send_occurrences(self, occurrences):
-        """Send the occurrences to the SWH archive"""
-        threshold_reached = self.occurrences.add(occurrences)
-        if threshold_reached:
-            self.send_batch_contents(self.contents.pop())
-            self.send_batch_directories(self.directories.pop())
-            self.send_batch_revisions(self.revisions.pop())
-            self.send_batch_releases(self.releases.pop())
-            self.send_batch_occurrences(self.occurrences.pop())
+    def bulk_send_snapshot(self, snapshot):
+        """Send missing releases to the database"""
+        self.send_batch_contents(self.contents.pop())
+        self.send_batch_directories(self.directories.pop())
+        self.send_batch_revisions(self.revisions.pop())
+        self.send_batch_releases(self.releases.pop())
+        self.send_snapshot(snapshot)
 
     def maybe_load_contents(self, contents):
         """Load contents in swh-storage if need be.
@@ -656,12 +632,10 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         if self.config['send_releases']:
             self.bulk_send_releases(releases)
 
-    def maybe_load_occurrences(self, occurrences):
-        """Load occurrences in swh-storage if need be.
-
-        """
-        if self.config['send_occurrences']:
-            self.bulk_send_occurrences(occurrences)
+    def maybe_load_snapshot(self, snapshot):
+        """Load the snapshot in swh-storage if need be."""
+        if self.config['send_snapshot']:
+            self.bulk_send_snapshot(snapshot)
 
     def send_batch_contents(self, contents):
         """Send contents batches to the storage"""
@@ -686,12 +660,6 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         packet_size = self.config['release_packet_size']
         send_in_packets(releases, self.send_releases, packet_size)
 
-    def send_batch_occurrences(self, occurrences):
-        """Send occurrences batches to the storage
-        """
-        packet_size = self.config['occurrence_packet_size']
-        send_in_packets(occurrences, self.send_occurrences, packet_size)
-
     def open_fetch_history(self):
         return self.storage.fetch_history_start(self.origin_id)
 
@@ -711,8 +679,7 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         if self.counters['contents'] > 0 or \
            self.counters['directories'] or \
            self.counters['revisions'] > 0 or \
-           self.counters['releases'] > 0 or \
-           self.counters['occurrences'] > 0:
+           self.counters['releases'] > 0:
             data['result'] = self.counters
 
         return self.storage.fetch_history_end(fetch_history_id, data)
@@ -729,7 +696,6 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         directories = self.directories.pop()
         revisions = self.revisions.pop()
         releases = self.releases.pop()
-        occurrences = self.occurrences.pop()
 
         # and send those to storage if asked
         if self.config['send_contents']:
@@ -740,8 +706,8 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
             self.send_batch_revisions(revisions)
         if self.config['send_releases']:
             self.send_batch_releases(releases)
-        if self.config['send_occurrences']:
-            self.send_batch_occurrences(occurrences)
+        if self.config['send_snapshot'] and self.snapshot:
+            self.send_snapshot(self.snapshot)
 
     def prepare_metadata(self):
         """First step for origin_metadata insertion, resolving the
@@ -973,12 +939,8 @@ class SWHStatelessLoader(SWHLoader):
         """Get the releases that need to be loaded"""
         raise NotImplementedError
 
-    def has_occurrences(self):
-        """Checks whether we need to load occurrences"""
-        return True
-
-    def get_occurrences(self):
-        """Get the occurrences that need to be loaded"""
+    def get_snapshot(self):
+        """Get the snapshot that needs to be loaded"""
         raise NotImplementedError
 
     def get_fetch_history_result(self):
@@ -1011,5 +973,5 @@ class SWHStatelessLoader(SWHLoader):
             self.send_batch_revisions(self.get_revisions())
         if self.config['send_releases'] and self.has_releases():
             self.send_batch_releases(self.get_releases())
-        if self.config['send_occurrences'] and self.has_occurrences():
-            self.send_batch_occurrences(self.get_occurrences())
+        if self.config['send_snapshot']:
+            self.send_snapshot(self.get_snapshot())
