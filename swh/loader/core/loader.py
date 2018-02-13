@@ -480,9 +480,8 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
                            })
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
-    def send_snapshot(self, snapshot, back_compat=True):
-        self.storage.snapshot_add(self.origin_id, self.visit, snapshot,
-                                  back_compat=back_compat)
+    def send_snapshot(self, snapshot):
+        self.storage.snapshot_add(self.origin_id, self.visit, snapshot)
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
     def filter_missing_contents(self, contents):
