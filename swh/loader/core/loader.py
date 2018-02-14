@@ -676,7 +676,7 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
             'stderr': traceback.format_exc(),
         }
         if self.counters['contents'] > 0 or \
-           self.counters['directories'] or \
+           self.counters['directories'] > 0 or \
            self.counters['revisions'] > 0 or \
            self.counters['releases'] > 0:
             data['result'] = self.counters
