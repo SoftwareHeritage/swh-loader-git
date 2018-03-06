@@ -747,15 +747,15 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         """
         pass
 
-    @abstractmethod
     def get_origin(self):
         """Get the origin that is currently being loaded.
+        self.origin should be set in :func:`prepare_origin`
 
         Returns:
           dict: an origin ready to be sent to storage by
           :func:`origin_add_one`.
         """
-        pass
+        return self.origin
 
     @abstractmethod
     def fetch_data(self):
@@ -821,9 +821,25 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         """
         return 'full'
 
+    def prepare_origin(self, *args, **kwargs):
+        """Prepare the origin and store it in storage.
+        Will set/update the self.origin and self.origin_id reference
+
+        """
+        origin_id = self.origin.get('id')
+        if origin_id:   # some loader may need the origin prior to the
+                        # `func`:load call, thus setting it up already
+            self.origin_id = origin_id
+        else:
+            self.origin_id = self.send_origin(self.origin)
+        self.origin['id'] = self.origin_id
+        return self.origin_id
+
     def load(self, *args, **kwargs):
         """Loading logic for the loader to follow:
 
+        - 1. def prepare_origin(\*args, \**kwargs): Prepare the origin to
+            associate load data with
         - 1. def prepare(\*args, \**kwargs): Prepare any eventual state
         - 2. def get_origin(): Get the origin we work with and store
         - while True:
@@ -835,14 +851,8 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
           method.
 
         """
+        self.prepare_origin(*args, **kwargs)
         self.prepare(*args, **kwargs)
-        origin = self.get_origin()
-        origin_id = self.origin.get('id')
-        if origin_id:   # some loader may need the origin prior to the
-                        # `func`:load call, thus setting it up already
-            self.origin_id = origin_id
-        else:
-            self.origin_id = self.send_origin(origin)
 
         fetch_history_id = self.open_fetch_history()
         if self.visit_date:  # overwriting the visit_date if provided
