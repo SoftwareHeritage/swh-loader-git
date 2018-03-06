@@ -1,4 +1,4 @@
-# Copyright (C) 2016-2017 The Software Heritage developers
+# Copyright (C) 2016-2018 The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -235,9 +235,7 @@ class BulkUpdater(SWHStatelessLoader):
 
         return id_to_type, type_to_ids
 
-    def prepare(self, origin_url, base_url=None):
-        self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
-
+    def prepare_origin(self, origin_url, base_url=None):
         origin = converters.origin_url_to_origin(origin_url)
         base_origin = converters.origin_url_to_origin(base_url)
 
@@ -263,8 +261,10 @@ class BulkUpdater(SWHStatelessLoader):
         self.base_origin_id = base_origin_id
         self.origin = origin
 
-    def get_origin(self):
-        return self.origin
+        return super().prepare_origin(origin_url, base_url=None)
+
+    def prepare(self, origin_url, base_url=None):
+        self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
 
     def fetch_data(self):
         def do_progress(msg):

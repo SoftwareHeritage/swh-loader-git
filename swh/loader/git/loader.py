@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2017  The Software Heritage developers
+# Copyright (C) 2015-2018  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -25,15 +25,14 @@ class GitLoader(SWHStatelessLoader):
     def __init__(self, config=None):
         super().__init__(logging_class='swh.loader.git.Loader', config=config)
 
+    def prepare_origin(self, *args, **kwargs):
+        self.origin_url, *_ = args
+        self.origin = converters.origin_url_to_origin(self.origin_url)
+        return super().prepare_origin(*args, **kwargs)
+
     def prepare(self, origin_url, directory, visit_date):
-        self.origin_url = origin_url
-        self.origin = self.get_origin()
         self.repo = dulwich.repo.Repo(directory)
         self.visit_date = visit_date
-
-    def get_origin(self):
-        """Get the origin that is currently being loaded"""
-        return converters.origin_url_to_origin(self.origin_url)
 
     def iter_objects(self):
         object_store = self.repo.object_store
