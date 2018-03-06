@@ -287,17 +287,22 @@ class GitLoaderFromArchive(GitLoader):
 
 
 if __name__ == '__main__':
+    import click
     import logging
-    import sys
 
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s %(process)d %(message)s'
     )
-    loader = GitLoader()
 
-    origin_url = sys.argv[1]
-    directory = sys.argv[2]
-    visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
+    @click.command()
+    @click.option('--origin-url', help='origin url')
+    @click.option('--git-directory', help='Path to git repository to load')
+    @click.option('--visit-date', default=None, help='Visit date')
+    def main(origin_url, git_directory, visit_date):
+        if not visit_date:
+            visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
 
-    print(loader.load(origin_url, directory, visit_date))
+        return GitLoader().load(origin_url, git_directory, visit_date)
+
+    main()

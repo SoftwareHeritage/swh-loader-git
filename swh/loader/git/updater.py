@@ -3,15 +3,15 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-from io import BytesIO
 import datetime
+import dulwich.client
 import logging
 import os
 import pickle
 import sys
 
 from collections import defaultdict
-import dulwich.client
+from io import BytesIO
 from dulwich.object_store import ObjectStoreGraphWalker
 from dulwich.pack import PackData, PackInflater
 
@@ -457,15 +457,17 @@ class BulkUpdater(SWHStatelessLoader):
 
 
 if __name__ == '__main__':
+    import click
+
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s %(process)d %(message)s'
     )
-    bulkupdater = BulkUpdater()
 
-    origin_url = sys.argv[1]
-    base_url = origin_url
-    if len(sys.argv) > 2:
-        base_url = sys.argv[2]
+    @click.command()
+    @click.option('--origin-url', help='Origin url')
+    @click.option('--base-url', default=None, help='Optional Base url')
+    def main(origin_url, base_url):
+        return BulkUpdater().load(origin_url, base_url=base_url)
 
-    print(bulkupdater.load(origin_url, base_url))
+    main()
