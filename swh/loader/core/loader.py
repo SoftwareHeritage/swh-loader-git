@@ -835,6 +835,18 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         self.origin['id'] = self.origin_id
         return self.origin_id
 
+    def _prepare_visit(self):
+        """Prepare origin visit
+
+        """
+        if self.visit_date:  # overwriting the visit_date if provided
+            visit_date = self.visit_date
+        else:
+            visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
+
+        self.origin_visit = self.send_origin_visit(self.origin_id, visit_date)
+        self.visit = self.origin_visit['visit']
+
     def load(self, *args, **kwargs):
         """Loading logic for the loader to follow:
 
@@ -852,20 +864,13 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
 
         """
         self.prepare_origin(*args, **kwargs)
+        self.visit_date = None
+        self.origin_visit = None
 
         try:
-            self.prepare(*args, **kwargs)
-
             fetch_history_id = self.open_fetch_history()
-            if self.visit_date:  # overwriting the visit_date if provided
-                visit_date = self.visit_date
-            else:
-                visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
-
-            origin_visit = self.send_origin_visit(
-                self.origin_id,
-                visit_date)
-            self.visit = origin_visit['visit']
+            self.prepare(*args, **kwargs)
+            self._prepare_visit()
 
             while True:
                 more_data_to_fetch = self.fetch_data()
@@ -884,6 +889,8 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
                                    'swh_task_args': args,
                                    'swh_task_kwargs': kwargs,
                                })
+            if not self.origin_visit:  # prepare failed, visit is needed though
+                self._prepare_visit()
             self.close_fetch_history_failure(fetch_history_id)
             self.update_origin_visit(
                 self.origin_id, self.visit, status='partial')
