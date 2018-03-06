@@ -852,20 +852,21 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
 
         """
         self.prepare_origin(*args, **kwargs)
-        self.prepare(*args, **kwargs)
-
-        fetch_history_id = self.open_fetch_history()
-        if self.visit_date:  # overwriting the visit_date if provided
-            visit_date = self.visit_date
-        else:
-            visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
-
-        origin_visit = self.send_origin_visit(
-            self.origin_id,
-            visit_date)
-        self.visit = origin_visit['visit']
 
         try:
+            self.prepare(*args, **kwargs)
+
+            fetch_history_id = self.open_fetch_history()
+            if self.visit_date:  # overwriting the visit_date if provided
+                visit_date = self.visit_date
+            else:
+                visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
+
+            origin_visit = self.send_origin_visit(
+                self.origin_id,
+                visit_date)
+            self.visit = origin_visit['visit']
+
             while True:
                 more_data_to_fetch = self.fetch_data()
                 self.store_data()
