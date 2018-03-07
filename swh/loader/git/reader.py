@@ -1,4 +1,4 @@
-# Copyright (C) 2016-2017  The Software Heritage developers
+# Copyright (C) 2016-2018  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -86,13 +86,15 @@ class BaseGitRemoteReader(BulkUpdater):
     def graph_walker(self):
         return DummyGraphWalker()
 
+    def prepare_origin_visit(self, origin_url, base_url=None):
+        self.origin = converters.origin_url_to_origin(origin_url)
+        self.origin_id = 0
+
     def prepare(self, origin_url, base_url=None):
         """Only retrieve information about the origin, set everything else to
            empty.
 
         """
-        self.origin = converters.origin_url_to_origin(origin_url)
-        self.origin_id = 0
         self.base_occurrences = []
         self.base_origin_id = 0
 
