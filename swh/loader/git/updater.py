@@ -1,17 +1,17 @@
-# Copyright (C) 2016-2017 The Software Heritage developers
+# Copyright (C) 2016-2018 The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-from io import BytesIO
 import datetime
+import dulwich.client
 import logging
 import os
 import pickle
 import sys
 
 from collections import defaultdict
-import dulwich.client
+from io import BytesIO
 from dulwich.object_store import ObjectStoreGraphWalker
 from dulwich.pack import PackData, PackInflater
 
@@ -235,23 +235,16 @@ class BulkUpdater(SWHStatelessLoader):
 
         return id_to_type, type_to_ids
 
-    def prepare(self, origin_url, base_url=None):
+    def prepare_origin_visit(self, origin_url, base_url=None):
         self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
+        self.origin = converters.origin_url_to_origin(origin_url)
 
-        origin = converters.origin_url_to_origin(origin_url)
-        base_origin = converters.origin_url_to_origin(base_url)
-
-        prev_snapshot = {}
-        base_origin_id = origin_id = None
-
-        db_origin = self.storage.origin_get(origin)
-        if db_origin:
-            base_origin_id = origin_id = db_origin['id']
-
-        if origin_id:
-            prev_snapshot = self.storage.snapshot_get_latest(origin_id)
+    def prepare(self, origin_url, base_url=None):
+        base_origin_id = origin_id = self.origin_id
+        prev_snapshot = self.storage.snapshot_get_latest(origin_id)
 
         if base_url and not prev_snapshot:
+            base_origin = converters.origin_url_to_origin(base_url)
             base_origin = self.storage.origin_get(base_origin)
             if base_origin:
                 base_origin_id = base_origin['id']
@@ -261,10 +254,6 @@ class BulkUpdater(SWHStatelessLoader):
 
         self.base_snapshot = prev_snapshot
         self.base_origin_id = base_origin_id
-        self.origin = origin
-
-    def get_origin(self):
-        return self.origin
 
     def fetch_data(self):
         def do_progress(msg):
@@ -457,15 +446,17 @@ class BulkUpdater(SWHStatelessLoader):
 
 
 if __name__ == '__main__':
+    import click
+
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s %(process)d %(message)s'
     )
-    bulkupdater = BulkUpdater()
 
-    origin_url = sys.argv[1]
-    base_url = origin_url
-    if len(sys.argv) > 2:
-        base_url = sys.argv[2]
+    @click.command()
+    @click.option('--origin-url', help='Origin url')
+    @click.option('--base-url', default=None, help='Optional Base url')
+    def main(origin_url, base_url):
+        return BulkUpdater().load(origin_url, base_url=base_url)
 
-    print(bulkupdater.load(origin_url, base_url))
+    main()
