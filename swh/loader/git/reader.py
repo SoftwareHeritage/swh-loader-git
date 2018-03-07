@@ -86,7 +86,7 @@ class BaseGitRemoteReader(BulkUpdater):
     def graph_walker(self):
         return DummyGraphWalker()
 
-    def prepare_origin(self, origin_url, base_url=None):
+    def prepare_origin_visit(self, origin_url, base_url=None):
         self.origin = converters.origin_url_to_origin(origin_url)
         self.origin_id = 0
 

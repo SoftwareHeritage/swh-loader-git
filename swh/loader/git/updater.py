@@ -235,21 +235,16 @@ class BulkUpdater(SWHStatelessLoader):
 
         return id_to_type, type_to_ids
 
-    def prepare_origin(self, origin_url, base_url=None):
-        origin = converters.origin_url_to_origin(origin_url)
-        base_origin = converters.origin_url_to_origin(base_url)
+    def prepare_origin_visit(self, origin_url, base_url=None):
+        self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
+        self.origin = converters.origin_url_to_origin(origin_url)
 
-        prev_snapshot = {}
-        base_origin_id = origin_id = None
-
-        db_origin = self.storage.origin_get(origin)
-        if db_origin:
-            base_origin_id = origin_id = db_origin['id']
-
-        if origin_id:
-            prev_snapshot = self.storage.snapshot_get_latest(origin_id)
+    def prepare(self, origin_url, base_url=None):
+        base_origin_id = origin_id = self.origin_id
+        prev_snapshot = self.storage.snapshot_get_latest(origin_id)
 
         if base_url and not prev_snapshot:
+            base_origin = converters.origin_url_to_origin(base_url)
             base_origin = self.storage.origin_get(base_origin)
             if base_origin:
                 base_origin_id = base_origin['id']
@@ -259,12 +254,6 @@ class BulkUpdater(SWHStatelessLoader):
 
         self.base_snapshot = prev_snapshot
         self.base_origin_id = base_origin_id
-        self.origin = origin
-
-        return super().prepare_origin(origin_url, base_url=None)
-
-    def prepare(self, origin_url, base_url=None):
-        self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
 
     def fetch_data(self):
         def do_progress(msg):

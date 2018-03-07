@@ -25,14 +25,13 @@ class GitLoader(SWHStatelessLoader):
     def __init__(self, config=None):
         super().__init__(logging_class='swh.loader.git.Loader', config=config)
 
-    def prepare_origin(self, *args, **kwargs):
-        self.origin_url, *_ = args
+    def prepare_origin_visit(self, origin_url, directory, visit_date):
+        self.origin_url = origin_url
         self.origin = converters.origin_url_to_origin(self.origin_url)
-        return super().prepare_origin(*args, **kwargs)
+        self.visit_date = visit_date
 
     def prepare(self, origin_url, directory, visit_date):
         self.repo = dulwich.repo.Repo(directory)
-        self.visit_date = visit_date
 
     def iter_objects(self):
         object_store = self.repo.object_store
