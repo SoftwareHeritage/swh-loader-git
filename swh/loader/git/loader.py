@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2017  The Software Heritage developers
+# Copyright (C) 2015-2018  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -25,15 +25,13 @@ class GitLoader(SWHStatelessLoader):
     def __init__(self, config=None):
         super().__init__(logging_class='swh.loader.git.Loader', config=config)
 
-    def prepare(self, origin_url, directory, visit_date):
+    def prepare_origin_visit(self, origin_url, directory, visit_date):
         self.origin_url = origin_url
-        self.origin = self.get_origin()
-        self.repo = dulwich.repo.Repo(directory)
+        self.origin = converters.origin_url_to_origin(self.origin_url)
         self.visit_date = visit_date
 
-    def get_origin(self):
-        """Get the origin that is currently being loaded"""
-        return converters.origin_url_to_origin(self.origin_url)
+    def prepare(self, origin_url, directory, visit_date):
+        self.repo = dulwich.repo.Repo(directory)
 
     def iter_objects(self):
         object_store = self.repo.object_store
@@ -288,17 +286,22 @@ class GitLoaderFromArchive(GitLoader):
 
 
 if __name__ == '__main__':
+    import click
     import logging
-    import sys
 
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s %(process)d %(message)s'
     )
-    loader = GitLoader()
 
-    origin_url = sys.argv[1]
-    directory = sys.argv[2]
-    visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
+    @click.command()
+    @click.option('--origin-url', help='origin url')
+    @click.option('--git-directory', help='Path to git repository to load')
+    @click.option('--visit-date', default=None, help='Visit date')
+    def main(origin_url, git_directory, visit_date):
+        if not visit_date:
+            visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
 
-    print(loader.load(origin_url, directory, visit_date))
+        return GitLoader().load(origin_url, git_directory, visit_date)
+
+    main()
