@@ -740,8 +740,37 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         pass
 
     @abstractmethod
+    def prepare_origin_visit(self, *args, **kwargs):
+        """First step executed by the loader to prepare origin and visit
+           references. Set/update self.origin, self.origin_id and
+           optionally self.origin_url, self.visit_date.
+
+        """
+        pass
+
+    def _store_origin_visit(self):
+        """Store origin and visit references. Sets the self.origin_visit and
+           self.visit references.
+
+        """
+        origin_id = self.origin.get('id')
+        if origin_id:
+            self.origin_id = origin_id
+        else:
+            self.origin_id = self.send_origin(self.origin)
+        self.origin['id'] = self.origin_id
+
+        if self.visit_date:  # overwriting the visit_date if provided
+            visit_date = self.visit_date
+        else:
+            visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
+
+        self.origin_visit = self.send_origin_visit(self.origin_id, visit_date)
+        self.visit = self.origin_visit['visit']
+
+    @abstractmethod
     def prepare(self, *args, **kwargs):
-        """First step executed by the loader to prepare some state needed by
+        """Second step executed by the loader to prepare some state needed by
            the loader.
 
         """
@@ -821,56 +850,29 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         """
         return 'full'
 
-    def prepare_origin(self, *args, **kwargs):
-        """Prepare the origin and store it in storage.
-        Will set/update the self.origin and self.origin_id reference
-
-        """
-        origin_id = self.origin.get('id')
-        if origin_id:   # some loader may need the origin prior to the
-                        # `func`:load call, thus setting it up already
-            self.origin_id = origin_id
-        else:
-            self.origin_id = self.send_origin(self.origin)
-        self.origin['id'] = self.origin_id
-        return self.origin_id
-
-    def _prepare_visit(self):
-        """Prepare origin visit
-
-        """
-        if self.visit_date:  # overwriting the visit_date if provided
-            visit_date = self.visit_date
-        else:
-            visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
-
-        self.origin_visit = self.send_origin_visit(self.origin_id, visit_date)
-        self.visit = self.origin_visit['visit']
-
     def load(self, *args, **kwargs):
         """Loading logic for the loader to follow:
 
-        - 1. def prepare_origin(\*args, \**kwargs): Prepare the origin to
-            associate load data with
-        - 1. def prepare(\*args, \**kwargs): Prepare any eventual state
-        - 2. def get_origin(): Get the origin we work with and store
+        - 1. def prepare_origin_visit(\*args, \**kwargs): Prepare the
+            origin and visit we will associate loading data to
+        - 2. Store the actual origin_visit to storage
+        - 3. def prepare(\*args, \**kwargs): Prepare any eventual state
+        - 4. def get_origin(): Get the origin we work with and store
         - while True:
 
-          - 3. def fetch_data(): Fetch the data to store
-          - 4. def store_data(): Store the data
+          - 5. def fetch_data(): Fetch the data to store
+          - 6. def store_data(): Store the data
 
-        - 5. def cleanup(): Clean up any eventual state put in place in prepare
+        - 7. def cleanup(): Clean up any eventual state put in place in prepare
           method.
 
         """
-        self.prepare_origin(*args, **kwargs)
-        self.visit_date = None
-        self.origin_visit = None
+        self.prepare_origin_visit(*args, **kwargs)
+        self._store_origin_visit()
+        fetch_history_id = self.open_fetch_history()
 
         try:
-            fetch_history_id = self.open_fetch_history()
             self.prepare(*args, **kwargs)
-            self._prepare_visit()
 
             while True:
                 more_data_to_fetch = self.fetch_data()
@@ -889,8 +891,6 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
                                    'swh_task_args': args,
                                    'swh_task_kwargs': kwargs,
                                })
-            if not self.origin_visit:  # prepare failed, visit is needed though
-                self._prepare_visit()
             self.close_fetch_history_failure(fetch_history_id)
             self.update_origin_visit(
                 self.origin_id, self.visit, status='partial')
