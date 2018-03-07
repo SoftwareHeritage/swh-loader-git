@@ -760,12 +760,10 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
             self.origin_id = self.send_origin(self.origin)
         self.origin['id'] = self.origin_id
 
-        if self.visit_date:  # overwriting the visit_date if provided
-            visit_date = self.visit_date
-        else:
-            visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
-
-        self.origin_visit = self.send_origin_visit(self.origin_id, visit_date)
+        if not self.visit_date:  # now as default visit_date if not provided
+            self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
+        self.origin_visit = self.send_origin_visit(
+            self.origin_id, self.visit_date)
         self.visit = self.origin_visit['visit']
 
     @abstractmethod
