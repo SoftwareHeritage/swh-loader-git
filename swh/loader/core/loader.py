@@ -848,6 +848,13 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         """
         return 'full'
 
+    def pre_cleanup(self):
+        """As a first step, will try and check for dangling data to cleanup.
+        This should do its best to avoid raising issues.
+
+        """
+        pass
+
     def load(self, *args, **kwargs):
         """Loading logic for the loader to follow:
 
@@ -865,6 +872,12 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
           method.
 
         """
+        try:
+            self.pre_cleanup()
+        except Exception:
+            msg = 'Cleaning up dangling data failed! Continue loading.'
+            self.log.warn(msg)
+
         self.prepare_origin_visit(*args, **kwargs)
         self._store_origin_visit()
         fetch_history_id = self.open_fetch_history()
