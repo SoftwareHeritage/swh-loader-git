@@ -296,6 +296,7 @@ class BulkUpdater(SWHStatelessLoader):
         refs_name = "%s.refs" % self.visit_date.isoformat()
 
         with open(os.path.join(pack_dir, pack_name), 'xb') as f:
+            self.pack_buffer.seek(0)
             while True:
                 r = self.pack_buffer.read(write_size)
                 if not r:
