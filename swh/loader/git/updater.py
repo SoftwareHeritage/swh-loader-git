@@ -61,14 +61,9 @@ class SWHRepoRepresentation:
             return []
 
     def get_parents(self, commit):
-        """get the parent commits for `commit`"""
-        # Prime the parents cache
-        if not self._parents_cache and self.heads:
-            self._fill_parents_cache(self.heads)
-
-        if commit not in self._parents_cache:
-            self._fill_parents_cache([commit])
-        return self._parents_cache[commit]
+        """Bogus method to prevent expensive recursion, at the expense of less
+        efficient downloading"""
+        return []
 
     def get_heads(self):
         return self.heads
