@@ -1,8 +1,8 @@
 SWH-loader-core
 ===============
 
-The Software Heritage Directory Loader is a library module to try and
-permit to start a new loader.
+The Software Heritage Core Loader is a library module to centralize
+loader's behavior in class.
 
 Actual loader modules which depends on it are:
 
