@@ -450,7 +450,7 @@ if __name__ == '__main__':
     )
 
     @click.command()
-    @click.option('--origin-url', help='Origin url')
+    @click.option('--origin-url', help='Origin url', required=True)
     @click.option('--base-url', default=None, help='Optional Base url')
     def main(origin_url, base_url):
         return BulkUpdater().load(origin_url, base_url=base_url)
