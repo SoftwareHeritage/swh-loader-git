@@ -61,14 +61,9 @@ class SWHRepoRepresentation:
             return []
 
     def get_parents(self, commit):
-        """get the parent commits for `commit`"""
-        # Prime the parents cache
-        if not self._parents_cache and self.heads:
-            self._fill_parents_cache(self.heads)
-
-        if commit not in self._parents_cache:
-            self._fill_parents_cache([commit])
-        return self._parents_cache[commit]
+        """Bogus method to prevent expensive recursion, at the expense of less
+        efficient downloading"""
+        return []
 
     def get_heads(self):
         return self.heads
@@ -296,6 +291,7 @@ class BulkUpdater(SWHStatelessLoader):
         refs_name = "%s.refs" % self.visit_date.isoformat()
 
         with open(os.path.join(pack_dir, pack_name), 'xb') as f:
+            self.pack_buffer.seek(0)
             while True:
                 r = self.pack_buffer.read(write_size)
                 if not r:
