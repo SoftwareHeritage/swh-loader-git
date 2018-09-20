@@ -1,3 +1,12 @@
+swh-loader-git (0.0.39-1~swh1) unstable-swh; urgency=medium
+
+  * Release swh.loader.git v0.0.39
+  * Avoid walking the history of large git repos, which takes a long
+    time
+  * Really save packfiles
+
+ -- Nicolas Dandrimont <nicolas@dandrimont.eu>  Thu, 20 Sep 2018 17:22:17 +0200
+
 swh-loader-git (0.0.38-1~swh1) unstable-swh; urgency=medium
 
   * v0.0.38
