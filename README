@@ -47,36 +47,28 @@ Requirements
 Configuration
 =============
 
-You can run the loader or the updater directly by calling python3 -m swh.loader.git.{loader,updater}.
-
-Both tools expect a configuration file in .ini format to be present in ~/.config/swh/loader/git-{loader,updater}.ini
-
-The configuration file contains the following directives:
-
+You can run the loader or the updater directly by calling:
 ```
-[main]
-# the storage class used. one of remote_storage, local_storage
-storage_class = remote_storage
+python3 -m swh.loader.git.{loader,updater}
+```
 
-# arguments passed to the storage class
-# for remote_storage: URI of the storage server
-storage_args = http://localhost:5002/
+## Location
 
-# for local_storage: database connection string and root of the
-# storage, comma separated
-# storage_args = dbname=softwareheritage-dev, /tmp/swh/storage
+Both tools expect a configuration file.
 
-# Whether to send the given types of objects
-send_contents = True
-send_directories = True
-send_revisions = True
-send_releases = True
-send_snapshot = True
+Either one of the following location:
+- /etc/softwareheritage/
+- ~/.config/swh/
+- ~/.swh/
 
-# The size of the packets sent to storage for each kind of object
-content_packet_size = 100000
-content_packet_size_bytes = 1073741824
-directory_packet_size = 25000
-revision_packet_size = 100000
-release_packet_size = 100000
+Note: Will call that location $SWH_CONFIG_PATH
+
+## Configuration sample
+
+$SWH_CONFIG_PATH/loader/git-{loader,updater}.yml:
+```
+storage:
+  cls: remote
+  args:
+    url: http://localhost:5002/
 ```
