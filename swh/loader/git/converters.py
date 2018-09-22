@@ -5,10 +5,13 @@
 
 """Convert dulwich objects to dictionaries suitable for swh.storage"""
 
-from swh.model import hashutil, identifiers
+from swh.model import identifiers
+from swh.model.hashutil import (
+    DEFAULT_ALGORITHMS, hash_to_hex, hash_to_bytes, MultiHash
+)
 
 
-HASH_ALGORITHMS = hashutil.DEFAULT_ALGORITHMS - {'sha1_git'}
+HASH_ALGORITHMS = DEFAULT_ALGORITHMS - {'sha1_git'}
 
 
 def origin_url_to_origin(origin_url):
@@ -21,20 +24,15 @@ def origin_url_to_origin(origin_url):
 
 def dulwich_blob_to_content_id(blob):
     """Convert a dulwich blob to a Software Heritage content id"""
-
     if blob.type_name != b'blob':
         return
 
     size = blob.raw_length()
-    ret = {
-        'sha1_git': blob.sha().digest(),
-        'length': size,
-    }
-
     data = blob.as_raw_string()
-    ret.update(hashutil.hash_data(data, HASH_ALGORITHMS))
-
-    return ret
+    hashes = MultiHash.from_data(data, HASH_ALGORITHMS, length=size).digest()
+    hashes['sha1_git'] = blob.sha().digest()
+    hashes['length'] = size
+    return hashes
 
 
 def dulwich_blob_to_content(blob, log=None, max_content_size=None,
@@ -50,7 +48,7 @@ def dulwich_blob_to_content(blob, log=None, max_content_size=None,
 
     if max_content_size:
         if size > max_content_size:
-            id = hashutil.hash_to_hex(ret['sha1_git'])
+            id = hash_to_hex(ret['sha1_git'])
             if log:
                 log.info('Skipping content %s, too large (%s > %s)' %
                          (id, size, max_content_size), extra={
@@ -94,7 +92,7 @@ def dulwich_tree_to_directory(tree, log=None):
             'type': entry_mode_map.get(entry.mode, 'file'),
             'perms': entry.mode,
             'name': entry.path,
-            'target': hashutil.hash_to_bytes(entry.sha.decode('ascii')),
+            'target': hash_to_bytes(entry.sha.decode('ascii')),
         })
 
     return ret
