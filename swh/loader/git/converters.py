@@ -29,7 +29,7 @@ def dulwich_blob_to_content_id(blob):
 
     size = blob.raw_length()
     data = blob.as_raw_string()
-    hashes = MultiHash.from_data(data, HASH_ALGORITHMS, length=size).digest()
+    hashes = MultiHash.from_data(data, HASH_ALGORITHMS).digest()
     hashes['sha1_git'] = blob.sha().digest()
     hashes['length'] = size
     return hashes
