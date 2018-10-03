@@ -49,14 +49,25 @@ class SWHRepoRepresentation:
 
     def _cache_heads(self, origin_id, base_snapshot):
         """Return all the known head commits for `origin_id`"""
+        _git_types = ['content', 'directory', 'revision', 'release']
+
         if not base_snapshot:
             base_snapshot = self.storage.snapshot_get_latest(origin_id)
 
         if base_snapshot:
-            return self._decode_from_storage(
-                target['target']
-                for target in base_snapshot['branches'].values()
-            )
+            snapshot_targets = set()
+            for target in base_snapshot['branches'].values():
+                if target and target['target_type'] in _git_types:
+                    snapshot_targets.add(target['target'])
+
+            for id, objs in self.get_stored_objects(
+                self._decode_from_storage(snapshot_targets)
+            ).items():
+                if not objs:
+                    logging.warn('Missing head: %s' % hashutil.hash_to_hex(id))
+                    return []
+
+            return snapshot_targets
         else:
             return []
 
