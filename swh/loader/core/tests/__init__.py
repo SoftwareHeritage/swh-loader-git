@@ -24,8 +24,17 @@ class BaseLoaderTest(TestCase):
     - self.repo_url: can be used as an origin_url
     - self.destination_path: can be used as a path to a <techno> repository.
 
+    Args:
+
+        archive_name (str): Name of the archive holding the repository
+                            (dump, etc...)
+        filename (str/None): Name of the filename once uncompressed.
+        resources_path (str): Folder name to look for archive
+        prefix_tmp_folder_name (str): Prefix name to name the temporary folder
+        start_path (str): Path from where starting to look for resources
+
     """
-    def setUp(self, archive_name, filename, resources_path='resources',
+    def setUp(self, archive_name, filename=None, resources_path='resources',
               prefix_tmp_folder_name='', start_path=None):
         if not start_path:
             raise ValueError('Misuse: You must provide a start_path')
@@ -39,9 +48,17 @@ class BaseLoaderTest(TestCase):
             ['tar', 'xvf', repo_path, '-C', self.tmp_root_path],
         )
 
-        self.repo_url = 'file://' + self.tmp_root_path + '/' + filename
+        if filename:
+            self.repo_url = 'file://' + self.tmp_root_path + '/' + filename
+        else:
+            _filename = os.path.basename(archive_name)
+            self.repo_url = 'file://' + self.tmp_root_path + '/' + _filename
+
         # archive holds one folder with name <filename>
-        self.destination_path = os.path.join(self.tmp_root_path, filename)
+        if filename:
+            self.destination_path = os.path.join(self.tmp_root_path, filename)
+        else:
+            self.destination_path = self.tmp_root_path
 
     def tearDown(self):
         """Clean up temporary working directory
@@ -158,7 +175,7 @@ class LoaderNoStorage:
     cf. HgLoaderNoStorage, SvnLoaderNoStorage, etc...
 
     """
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         super().__init__()
         self.all_contents = []
         self.all_directories = []
@@ -167,7 +184,7 @@ class LoaderNoStorage:
         self.all_snapshots = []
 
         # typed data
-        self.objects = {
+        self.__objects = {
             'content': self.all_contents,
             'directory': self.all_directories,
             'revision': self.all_revisions,
@@ -183,7 +200,7 @@ class LoaderNoStorage:
             l ([object]): List of 'type' object
 
         """
-        col = self.objects[type]
+        col = self.__objects[type]
         for o in l:
             if o in col:
                 continue
