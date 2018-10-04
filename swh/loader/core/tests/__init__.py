@@ -16,23 +16,28 @@ from swh.model import hashutil
 class BaseLoaderTest(TestCase):
     """Mixin base loader test class.
 
-    This allows to uncompress archives (mercurial, svn,
-    ... repositories) into a temporary folder so that the loader can
-    work with this.
+    This allows to uncompress archives (mercurial, svn, git,
+    ... repositories) into a temporary folder so that the loader under
+    test can work with this.
 
-    When setUp() is done, the following variable are defined:
-    - self.repo_url: can be used as an origin_url
-    - self.destination_path: can be used as a path to a <techno> repository.
+    When setUp() is done, the following variables are defined:
+    - self.repo_url: can be used as an origin_url for example
+    - self.destination_path: can be used as a path to ingest the
+                             <techno> repository.
 
     Args:
-
         archive_name (str): Name of the archive holding the repository
-                            (dump, etc...)
-        filename (str/None): Name of the filename once uncompressed.
-        resources_path (str): Folder name to look for archive
-        prefix_tmp_folder_name (str): Prefix name to name the temporary folder
+                            (folder, repository, dump, etc...)
         start_path (str): (mandatory) Path from where starting to look
                                       for resources
+        filename (str/None): Name of the filename/folder once the
+            archive is uncompressed. When the filename is not
+            provided, the archive name is used as a derivative. This
+            is used both for the self.repo_url and
+            self.destination_path computation (this one only when
+            provided)
+        resources_path (str): Folder name to look for archive
+        prefix_tmp_folder_name (str): Prefix name to name the temporary folder
 
     """
     def setUp(self, archive_name, *, start_path, filename=None,
