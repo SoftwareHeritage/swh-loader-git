@@ -9,10 +9,12 @@ import subprocess
 import tempfile
 
 from unittest import TestCase
+from nose.plugins.attrib import attr
 
 from swh.model import hashutil
 
 
+@attr('fs')
 class BaseLoaderTest(TestCase):
     """Mixin base loader test class.
 
