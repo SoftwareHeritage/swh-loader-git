@@ -53,8 +53,8 @@ class BaseLoaderTest(TestCase):
             _filename = os.path.basename(archive_name)
             self.repo_url = 'file://' + self.tmp_root_path + '/' + _filename
 
-        # archive holds one folder with name <filename>
         if filename:
+            # archive holds one folder with name <filename>
             self.destination_path = os.path.join(self.tmp_root_path, filename)
         else:
             self.destination_path = self.tmp_root_path
