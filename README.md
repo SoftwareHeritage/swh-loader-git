@@ -10,6 +10,7 @@ Actual loader modules which depends on it are:
 - [swh-loader-dir](https://forge.softwareheritage.org/source/swh-loader-dir/)
 - [swh-loader-git](https://forge.softwareheritage.org/source/swh-loader-git/)
 - [swh-loader-mercurial](https://forge.softwareheritage.org/source/swh-loader-mercurial/)
+- [swh-loader-pypi](https://forge.softwareheritage.org/source/swh-loader-pypi/)
 - [swh-loader-svn](https://forge.softwareheritage.org/source/swh-loader-svn/)
 - [swh-loader-tar](https://forge.softwareheritage.org/source/swh-loader-tar/)
 
