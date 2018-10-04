@@ -102,6 +102,15 @@ class LoadTestContent(DummyBaseLoaderTest):
         self.loader.send_batch_contents(self.contents)
         self.assertContentsOk([self.content_id0, self.content_id1])
 
+    @istest
+    def failing(self):
+        """Comparing wrong snapshot should fail.
+
+        """
+        self.loader.send_batch_contents(self.contents)
+        with self.assertRaises(AssertionError):
+            self.assertContentsOk([])
+
 
 class LoadTestDirectory(DummyBaseLoaderTest):
     def setUp(self):
@@ -138,6 +147,15 @@ class LoadTestDirectory(DummyBaseLoaderTest):
         self.assertDirectoriesOk([
             self.directory_id0, self.directory_id1, self.directory_id2])
 
+    @istest
+    def failing(self):
+        """Comparing wrong snapshot should fail.
+
+        """
+        self.loader.send_batch_revisions(self.revisions)
+        with self.assertRaises(AssertionError):
+            self.assertRevisionsOk([])
+
 
 class LoadTestRelease(DummyBaseLoaderTest):
     def setUp(self):
@@ -173,6 +191,15 @@ class LoadTestRelease(DummyBaseLoaderTest):
         self.loader.send_batch_releases(self.releases)
         self.assertReleasesOk([
             self.release_id0, self.release_id1, self.release_id2])
+
+    @istest
+    def failing(self):
+        """Comparing wrong snapshot should fail.
+
+        """
+        self.loader.send_batch_releases(self.releases)
+        with self.assertRaises(AssertionError):
+            self.assertReleasesOk([])
 
 
 class LoadTestRevision(DummyBaseLoaderTest):
@@ -220,6 +247,15 @@ class LoadTestRevision(DummyBaseLoaderTest):
         """
         self.loader.send_batch_revisions(self.revisions)
         self.assertRevisionsOk(self.expected_revisions)
+
+    @istest
+    def failing(self):
+        """Comparing wrong snapshot should fail.
+
+        """
+        self.loader.send_batch_revisions(self.revisions)
+        with self.assertRaises(AssertionError):
+            self.assertRevisionsOk([])
 
 
 class LoadTestSnapshot(DummyBaseLoaderTest):
@@ -288,3 +324,13 @@ class LoadTestSnapshot(DummyBaseLoaderTest):
         self.assertSnapshotOk(
             self.expected_snapshot['id'],
             expected_branches=self.expected_snapshot['branches'])
+
+    @istest
+    def failing(self):
+        """Comparing wrong snapshot should fail.
+
+        """
+        self.loader.send_snapshot(self.snapshot)
+        with self.assertRaises(AssertionError):
+            self.assertSnapshotOk(
+                'wrong', expected_branches=self.expected_snapshot['branches'])
