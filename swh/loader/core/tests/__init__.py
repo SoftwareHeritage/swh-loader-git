@@ -30,7 +30,7 @@ class BaseLoaderTest(TestCase):
                             (folder, repository, dump, etc...)
         start_path (str): (mandatory) Path from where starting to look
                                       for resources
-        filename (str/None): Name of the filename/folder once the
+        filename (Optional[str]): Name of the filename/folder once the
             archive is uncompressed. When the filename is not
             provided, the archive name is used as a derivative. This
             is used both for the self.repo_url and
