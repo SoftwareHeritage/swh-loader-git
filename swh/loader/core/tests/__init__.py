@@ -199,7 +199,7 @@ class LoaderNoStorage:
         for o in l:
             if o in col:
                 continue
-            col.extend([o])
+            col.append(o)
 
     def maybe_load_contents(self, all_contents):
         self._add('content', all_contents)
