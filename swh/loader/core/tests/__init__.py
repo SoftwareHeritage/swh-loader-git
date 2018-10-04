@@ -44,7 +44,7 @@ class BaseLoaderTest(TestCase):
 
         # uncompress the sample folder
         subprocess.check_output(
-            ['tar', 'xvf', repo_path, '-C', self.tmp_root_path],
+            ['tar', 'xf', repo_path, '-C', self.tmp_root_path],
         )
 
         if filename:
