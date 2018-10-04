@@ -37,27 +37,21 @@ class BaseLoaderTest(TestCase):
     """
     def setUp(self, archive_name, *, start_path, filename=None,
               resources_path='resources', prefix_tmp_folder_name=''):
-
-        self.tmp_root_path = tempfile.mkdtemp(
+        tmp_root_path = tempfile.mkdtemp(
             prefix=prefix_tmp_folder_name, suffix='-tests')
         repo_path = os.path.join(start_path, resources_path, archive_name)
-
-        # uncompress the sample folder
-        subprocess.check_output(
-            ['tar', 'xf', repo_path, '-C', self.tmp_root_path],
-        )
-
-        if filename:
-            self.repo_url = 'file://' + self.tmp_root_path + '/' + filename
-        else:
-            _filename = os.path.basename(archive_name)
-            self.repo_url = 'file://' + self.tmp_root_path + '/' + _filename
-
+        # uncompress folder/repositories/dump for the loader to ingest
+        subprocess.check_output(['tar', 'xf', repo_path, '-C', tmp_root_path])
+        # build the origin url (or some derivative form)
+        _fname = filename if filename else os.path.basename(archive_name)
+        self.repo_url = 'file://' + tmp_root_path + '/' + _fname
+        # where is the data to ingest?
         if filename:
             # archive holds one folder with name <filename>
-            self.destination_path = os.path.join(self.tmp_root_path, filename)
+            self.destination_path = os.path.join(tmp_root_path, filename)
         else:
-            self.destination_path = self.tmp_root_path
+            self.destination_path = tmp_root_path
+        self.tmp_root_path = tmp_root_path
 
     def tearDown(self):
         """Clean up temporary working directory
