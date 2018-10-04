@@ -31,13 +31,12 @@ class BaseLoaderTest(TestCase):
         filename (str/None): Name of the filename once uncompressed.
         resources_path (str): Folder name to look for archive
         prefix_tmp_folder_name (str): Prefix name to name the temporary folder
-        start_path (str): Path from where starting to look for resources
+        start_path (str): (mandatory) Path from where starting to look
+                                      for resources
 
     """
-    def setUp(self, archive_name, filename=None, resources_path='resources',
-              prefix_tmp_folder_name='', start_path=None):
-        if not start_path:
-            raise ValueError('Misuse: You must provide a start_path')
+    def setUp(self, archive_name, *, start_path, filename=None,
+              resources_path='resources', prefix_tmp_folder_name=''):
 
         self.tmp_root_path = tempfile.mkdtemp(
             prefix=prefix_tmp_folder_name, suffix='-tests')
