@@ -107,7 +107,6 @@ class BaseLoaderTest(TestCase):
         """
         revisions = self.loader.all_revisions
         self.assertEqual(len(revisions), len(expected_revisions))
-        # The last revision being the one used later to start back from
         for rev in revisions:
             rev_id = hashutil.hash_to_hex(rev['id'])
             directory_id = hashutil.hash_to_hex(rev['directory'])
@@ -181,8 +180,6 @@ class LoaderNoStorage:
         self.all_revisions = []
         self.all_releases = []
         self.all_snapshots = []
-
-        # typed data
         self.__objects = {
             'content': self.all_contents,
             'directory': self.all_directories,
@@ -250,7 +247,6 @@ class LoaderNoStorage:
     def update_origin_visit(self, origin_id, visit, status):
         pass
 
-    # Override to do nothing at the end
     def close_failure(self):
         pass
 
