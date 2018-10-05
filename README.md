@@ -1,9 +1,12 @@
+swh-loader-git
+==============
+
 The Software Heritage Git Loader is a tool and a library to walk a local
 Git repository and inject into the SWH dataset all contained files that
 weren't known before.
 
 License
-=======
+-------
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -19,10 +22,9 @@ See top-level LICENSE file for the full text of the GNU General Public
 License along with this program.
 
 Dependencies
-============
+------------
 
-Runtime
--------
+### Runtime
 
 -   python3
 -   python3-dulwich
@@ -32,27 +34,26 @@ Runtime
 -   python3-swh.storage
 -   python3-swh.scheduler
 
-Test
-----
+### Test
 
 -   python3-nose
 
 Requirements
-============
+------------
 
 -   implementation language, Python3
 -   coding guidelines: conform to PEP8
 -   Git access: via dulwich
 
 Configuration
-=============
+-------------
 
 You can run the loader or the updater directly by calling:
 ```
 python3 -m swh.loader.git.{loader,updater}
 ```
 
-## Location
+### Location
 
 Both tools expect a configuration file.
 
@@ -63,7 +64,7 @@ Either one of the following location:
 
 Note: Will call that location $SWH_CONFIG_PATH
 
-## Configuration sample
+### Configuration sample
 
 $SWH_CONFIG_PATH/loader/git-{loader,updater}.yml:
 ```
