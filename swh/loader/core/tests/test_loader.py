@@ -13,25 +13,21 @@ from swh.model.hashutil import hash_to_bytes
 class DummyBaseLoaderTest(BaseLoaderTest):
     def setUp(self):
         # do not call voluntarily super().setUp()
-        self.contents = [1, 2, 3]
-        self.directories = [4, 5, 6]
-        self.revisions = [7, 8, 9]
-        self.releases = [10, 11, 12]
-        self.snapshot = 13
+        self.in_contents = [1, 2, 3]
+        self.in_directories = [4, 5, 6]
+        self.in_revisions = [7, 8, 9]
+        self.in_releases = [10, 11, 12]
+        self.in_snapshot = 13
 
     def tearDown(self):
         # do not call voluntarily super().tearDown()
         pass
 
 
-class CoreLoaderNoStorage(LoaderNoStorage):
-    pass
-
-
 class LoadTest1(DummyBaseLoaderTest):
     def setUp(self):
         super().setUp()
-        self.storage = CoreLoaderNoStorage()
+        self.loader = LoaderNoStorage()
 
     @istest
     def stateful_loader(self):
@@ -41,18 +37,18 @@ class LoadTest1(DummyBaseLoaderTest):
         another story.
 
         """
-        self.storage.maybe_load_directories(self.directories)
-        self.storage.maybe_load_revisions(self.revisions)
-        self.storage.maybe_load_releases(self.releases)
+        self.loader.maybe_load_directories(self.in_directories)
+        self.loader.maybe_load_revisions(self.in_revisions)
+        self.loader.maybe_load_releases(self.in_releases)
 
-        self.assertEquals(len(self.storage.all_contents), 0)
+        self.assertEquals(len(self.state('content')), 0)
         self.assertEquals(
-            len(self.storage.all_directories), len(self.directories))
+            len(self.state('directory')), len(self.in_directories))
         self.assertEquals(
-            len(self.storage.all_revisions), len(self.revisions))
+            len(self.state('revision')), len(self.in_revisions))
         self.assertEquals(
-            len(self.storage.all_releases), len(self.releases))
-        self.assertEquals(len(self.storage.all_snapshots), 0)
+            len(self.state('release')), len(self.in_releases))
+        self.assertEquals(len(self.state('snapshot')), 0)
 
     @istest
     def stateless_loader(self):
@@ -62,52 +58,55 @@ class LoadTest1(DummyBaseLoaderTest):
         another story.
 
         """
-        self.storage.send_batch_contents(self.contents)
-        self.storage.send_snapshot(self.snapshot)
+        self.loader.send_batch_contents(self.in_contents)
+        self.loader.send_snapshot(self.in_snapshot)
 
-        self.assertEquals(len(self.storage.all_contents), len(self.contents))
-        self.assertEquals(len(self.storage.all_directories), 0)
-        self.assertEquals(len(self.storage.all_revisions), 0)
-        self.assertEquals(len(self.storage.all_releases), 0)
-        self.assertEquals(len(self.storage.all_snapshots), 1)
+        self.assertEquals(len(self.state('content')), len(self.in_contents))
+        self.assertEquals(len(self.state('directory')), 0)
+        self.assertEquals(len(self.state('revision')), 0)
+        self.assertEquals(len(self.state('release')), 0)
+        self.assertEquals(len(self.state('snapshot')), 1)
 
 
 class LoadTestContent(DummyBaseLoaderTest):
     def setUp(self):
         super().setUp()
-        self.loader = CoreLoaderNoStorage()
+        self.loader = LoaderNoStorage()
 
         self.content_id0 = '34973274ccef6ab4dfaaf86599792fa9c3fe4689'
         self.content_id1 = '61c2b3a30496d329e21af70dd2d7e097046d07b7'
         # trimmed data to the bare necessities
-        self.contents = [{
+        self.in_contents = [{
             'sha1': hash_to_bytes(self.content_id0),
         }, {
             'sha1': hash_to_bytes(self.content_id1),
         }]
+        self.expected_contents = [self.content_id0, self.content_id1]
 
     @istest
     def maybe_load_contents(self):
         """Loading contents should be ok
 
         """
-        self.loader.maybe_load_contents(self.contents)
-        self.assertContentsOk([self.content_id0, self.content_id1])
+        self.loader.maybe_load_contents(self.in_contents)
+        self.assertCountContents(len(self.expected_contents))
+        self.assertContentsOk(self.expected_contents)
 
     @istest
     def send_batch_contents(self):
         """Sending contents should be ok 2
 
         """
-        self.loader.send_batch_contents(self.contents)
-        self.assertContentsOk([self.content_id0, self.content_id1])
+        self.loader.send_batch_contents(self.in_contents)
+        self.assertCountContents(len(self.expected_contents))
+        self.assertContentsOk(self.expected_contents)
 
     @istest
     def failing(self):
         """Comparing wrong snapshot should fail.
 
         """
-        self.loader.send_batch_contents(self.contents)
+        self.loader.send_batch_contents(self.in_contents)
         with self.assertRaises(AssertionError):
             self.assertContentsOk([])
 
@@ -115,44 +114,46 @@ class LoadTestContent(DummyBaseLoaderTest):
 class LoadTestDirectory(DummyBaseLoaderTest):
     def setUp(self):
         super().setUp()
-        self.loader = CoreLoaderNoStorage()
+        self.loader = LoaderNoStorage()
 
         self.directory_id0 = '44e45d56f88993aae6a0198013efa80716fd8921'
         self.directory_id1 = '54e45d56f88993aae6a0198013efa80716fd8920'
         self.directory_id2 = '43e45d56f88993aae6a0198013efa80716fd8920'
         # trimmed data to the bare necessities
-        self.directories = [{
+        self.in_directories = [{
             'id': hash_to_bytes(self.directory_id0),
         }, {
             'id': hash_to_bytes(self.directory_id1),
         }, {
             'id': hash_to_bytes(self.directory_id2),
         }]
+        self.expected_directories = [
+            self.directory_id0, self.directory_id1, self.directory_id2]
 
     @istest
     def maybe_load_directories(self):
         """Loading directories should be ok
 
         """
-        self.loader.maybe_load_directories(self.directories)
-        self.assertDirectoriesOk([
-            self.directory_id0, self.directory_id1, self.directory_id2])
+        self.loader.maybe_load_directories(self.in_directories)
+        self.assertCountDirectories(len(self.expected_directories))
+        self.assertDirectoriesOk(self.expected_directories)
 
     @istest
     def send_batch_directories(self):
         """Sending directories should be ok 2
 
         """
-        self.loader.send_batch_directories(self.directories)
-        self.assertDirectoriesOk([
-            self.directory_id0, self.directory_id1, self.directory_id2])
+        self.loader.send_batch_directories(self.in_directories)
+        self.assertCountDirectories(len(self.expected_directories))
+        self.assertDirectoriesOk(self.expected_directories)
 
     @istest
     def failing(self):
         """Comparing wrong snapshot should fail.
 
         """
-        self.loader.send_batch_revisions(self.revisions)
+        self.loader.send_batch_revisions(self.in_revisions)
         with self.assertRaises(AssertionError):
             self.assertRevisionsOk([])
 
@@ -160,44 +161,46 @@ class LoadTestDirectory(DummyBaseLoaderTest):
 class LoadTestRelease(DummyBaseLoaderTest):
     def setUp(self):
         super().setUp()
-        self.loader = CoreLoaderNoStorage()
+        self.loader = LoaderNoStorage()
 
         self.release_id0 = '44e45d56f88993aae6a0198013efa80716fd8921'
         self.release_id1 = '54e45d56f88993aae6a0198013efa80716fd8920'
         self.release_id2 = '43e45d56f88993aae6a0198013efa80716fd8920'
         # trimmed data to the bare necessities
-        self.releases = [{
+        self.in_releases = [{
             'id': hash_to_bytes(self.release_id0),
         }, {
             'id': hash_to_bytes(self.release_id1),
         }, {
             'id': hash_to_bytes(self.release_id2),
         }]
+        self.expected_releases = [
+            self.release_id0, self.release_id1, self.release_id2]
 
     @istest
     def maybe_load_releases(self):
         """Loading releases should be ok
 
         """
-        self.loader.maybe_load_releases(self.releases)
-        self.assertReleasesOk([
-            self.release_id0, self.release_id1, self.release_id2])
+        self.loader.maybe_load_releases(self.in_releases)
+        self.assertCountReleases(len(self.expected_releases))
+        self.assertReleasesOk(self.expected_releases)
 
     @istest
     def send_batch_releases(self):
         """Sending releases should be ok 2
 
         """
-        self.loader.send_batch_releases(self.releases)
-        self.assertReleasesOk([
-            self.release_id0, self.release_id1, self.release_id2])
+        self.loader.send_batch_releases(self.in_releases)
+        self.assertCountReleases(len(self.expected_releases))
+        self.assertReleasesOk(self.expected_releases)
 
     @istest
     def failing(self):
         """Comparing wrong snapshot should fail.
 
         """
-        self.loader.send_batch_releases(self.releases)
+        self.loader.send_batch_releases(self.in_releases)
         with self.assertRaises(AssertionError):
             self.assertReleasesOk([])
 
@@ -205,7 +208,7 @@ class LoadTestRelease(DummyBaseLoaderTest):
 class LoadTestRevision(DummyBaseLoaderTest):
     def setUp(self):
         super().setUp()
-        self.loader = CoreLoaderNoStorage()
+        self.loader = LoaderNoStorage()
 
         rev_id0 = '44e45d56f88993aae6a0198013efa80716fd8921'
         dir_id0 = '34973274ccef6ab4dfaaf86599792fa9c3fe4689'
@@ -215,7 +218,7 @@ class LoadTestRevision(DummyBaseLoaderTest):
         dir_id2 = '33e45d56f88993aae6a0198013efa80716fd8921'
 
         # data trimmed to bare necessities
-        self.revisions = [{
+        self.in_revisions = [{
             'id': hash_to_bytes(rev_id0),
             'directory': hash_to_bytes(dir_id0),
         }, {
@@ -237,7 +240,8 @@ class LoadTestRevision(DummyBaseLoaderTest):
         """Loading revisions should be ok
 
         """
-        self.loader.maybe_load_revisions(self.revisions)
+        self.loader.maybe_load_revisions(self.in_revisions)
+        self.assertCountRevisions(len(self.expected_revisions))
         self.assertRevisionsOk(self.expected_revisions)
 
     @istest
@@ -245,7 +249,8 @@ class LoadTestRevision(DummyBaseLoaderTest):
         """Sending revisions should be ok 2
 
         """
-        self.loader.send_batch_revisions(self.revisions)
+        self.loader.send_batch_revisions(self.in_revisions)
+        self.assertCountRevisions(len(self.expected_revisions))
         self.assertRevisionsOk(self.expected_revisions)
 
     @istest
@@ -253,7 +258,7 @@ class LoadTestRevision(DummyBaseLoaderTest):
         """Comparing wrong snapshot should fail.
 
         """
-        self.loader.send_batch_revisions(self.revisions)
+        self.loader.send_batch_revisions(self.in_revisions)
         with self.assertRaises(AssertionError):
             self.assertRevisionsOk([])
 
@@ -261,7 +266,7 @@ class LoadTestRevision(DummyBaseLoaderTest):
 class LoadTestSnapshot(DummyBaseLoaderTest):
     def setUp(self):
         super().setUp()
-        self.loader = CoreLoaderNoStorage()
+        self.loader = LoaderNoStorage()
 
         snapshot_id = '44e45d56f88993aae6a0198013efa80716fd8921'
         revision_id = '54e45d56f88993aae6a0198013efa80716fd8920'
@@ -285,7 +290,7 @@ class LoadTestSnapshot(DummyBaseLoaderTest):
             }
         }
 
-        self.snapshot = {
+        self.in_snapshot = {
             'id': hash_to_bytes(snapshot_id),
             'branches': {
                 b'default': {
@@ -308,7 +313,8 @@ class LoadTestSnapshot(DummyBaseLoaderTest):
         """Loading snapshot should be ok
 
         """
-        self.loader.maybe_load_snapshot(self.snapshot)
+        self.loader.maybe_load_snapshot(self.in_snapshot)
+        self.assertCountSnapshots(1)
         self.assertSnapshotOk(self.expected_snapshot)
         self.assertSnapshotOk(
             self.expected_snapshot['id'],
@@ -319,7 +325,8 @@ class LoadTestSnapshot(DummyBaseLoaderTest):
         """Sending snapshot should be ok 2
 
         """
-        self.loader.send_snapshot(self.snapshot)
+        self.loader.send_snapshot(self.in_snapshot)
+        self.assertCountSnapshots(1)
         self.assertSnapshotOk(self.expected_snapshot)
         self.assertSnapshotOk(
             self.expected_snapshot['id'],
@@ -330,7 +337,7 @@ class LoadTestSnapshot(DummyBaseLoaderTest):
         """Comparing wrong snapshot should fail.
 
         """
-        self.loader.send_snapshot(self.snapshot)
+        self.loader.send_snapshot(self.in_snapshot)
         with self.assertRaises(AssertionError):
             self.assertSnapshotOk(
                 'wrong', expected_branches=self.expected_snapshot['branches'])

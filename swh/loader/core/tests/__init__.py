@@ -66,19 +66,36 @@ class BaseLoaderTest(TestCase):
         """
         shutil.rmtree(self.tmp_root_path)
 
-    def assertContentsOk(self, expected_contents):
-        contents = self.loader.all_contents
-        self.assertEquals(len(contents), len(expected_contents))
+    def state(self, _type):
+        return self.loader.state(_type)
 
-        for content in contents:
+    def _assertCountOk(self, type, expected_length):
+        self.assertEquals(len(self.state(type)), expected_length)
+
+    def assertCountContents(self, len_expected_contents):
+        self._assertCountOk('content', len_expected_contents)
+
+    def assertCountDirectories(self, len_expected_directories):
+        self._assertCountOk('directory', len_expected_directories)
+
+    def assertCountReleases(self, len_expected_releases):
+        self._assertCountOk('release', len_expected_releases)
+
+    def assertCountRevisions(self, len_expected_revisions):
+        self._assertCountOk('revision', len_expected_revisions)
+
+    def assertCountSnapshots(self, len_expected_snapshot):
+        self._assertCountOk('snapshot', len_expected_snapshot)
+
+    def assertContentsOk(self, expected_contents):
+        self._assertCountOk('content', len(expected_contents))
+        for content in self.state('content'):
             content_id = hashutil.hash_to_hex(content['sha1'])
             self.assertIn(content_id, expected_contents)
 
     def assertDirectoriesOk(self, expected_directories):
-        directories = self.loader.all_directories
-        self.assertEquals(len(directories), len(expected_directories))
-
-        for _dir in directories:
+        self._assertCountOk('directory', len(expected_directories))
+        for _dir in self.state('directory'):
             _dir_id = hashutil.hash_to_hex(_dir['id'])
             self.assertIn(_dir_id, expected_directories)
 
@@ -89,13 +106,12 @@ class BaseLoaderTest(TestCase):
             releases ([dict]): List of dictionaries representing swh releases.
 
         """
-        releases = self.loader.all_releases
-        self.assertEqual(len(releases), len(expected_releases))
-        for i, rel in enumerate(self.loader.all_releases):
+        self._assertCountOk('release', len(expected_releases))
+        for i, rel in enumerate(self.state('release')):
             rel_id = hashutil.hash_to_hex(rel['id'])
             self.assertEquals(expected_releases[i], rel_id)
 
-    def assertRevisionsOk(self, expected_revisions):  # noqa: N802
+    def assertRevisionsOk(self, expected_revisions):
         """Check the loader's revisions match the expected revisions.
 
         Expects self.loader to be instantiated and ready to be
@@ -106,9 +122,8 @@ class BaseLoaderTest(TestCase):
             value the targeted directory id.
 
         """
-        revisions = self.loader.all_revisions
-        self.assertEqual(len(revisions), len(expected_revisions))
-        for rev in revisions:
+        self._assertCountOk('revision', len(expected_revisions))
+        for rev in self.state('revision'):
             rev_id = hashutil.hash_to_hex(rev['id'])
             directory_id = hashutil.hash_to_hex(rev['directory'])
 
@@ -135,7 +150,7 @@ class BaseLoaderTest(TestCase):
         else:
             expected_snapshot_id = expected_snapshot
 
-        snapshots = self.loader.all_snapshots
+        snapshots = self.state('snapshot')
         self.assertEqual(len(snapshots), 1)
 
         snap = snapshots[0]
@@ -176,18 +191,16 @@ class LoaderNoStorage:
     """
     def __init__(self, *args, **kwargs):
         super().__init__()
-        self.all_contents = []
-        self.all_directories = []
-        self.all_revisions = []
-        self.all_releases = []
-        self.all_snapshots = []
-        self.__objects = {
-            'content': self.all_contents,
-            'directory': self.all_directories,
-            'revision': self.all_revisions,
-            'release': self.all_releases,
-            'snapshot': self.all_snapshots,
+        self.__state = {
+            'content': [],
+            'directory': [],
+            'revision': [],
+            'release': [],
+            'snapshot': [],
         }
+
+    def state(self, type):
+        return self.__state[type]
 
     def _add(self, type, l):
         """Add without duplicates and keeping the insertion order.
@@ -197,7 +210,7 @@ class LoaderNoStorage:
             l ([object]): List of 'type' object
 
         """
-        col = self.__objects[type]
+        col = self.state(type)
         for o in l:
             if o in col:
                 continue
