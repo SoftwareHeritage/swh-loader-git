@@ -40,13 +40,23 @@ class BaseLoaderTest(TestCase):
             provided)
         resources_path (str): Folder name to look for archive
         prefix_tmp_folder_name (str): Prefix name to name the temporary folder
+        uncompress_archive (bool): Uncompress the archive passed as
+                                  parameters (default to True). It so
+                                  happens we could avoid doing
+                                  anything to the tarball.
 
     """
     def setUp(self, archive_name, *, start_path, filename=None,
-              resources_path='resources', prefix_tmp_folder_name=''):
+              resources_path='resources', prefix_tmp_folder_name='',
+              uncompress_archive=True):
+        repo_path = os.path.join(start_path, resources_path, archive_name)
+        if not uncompress_archive:
+            # In that case, simply sets the archive's path
+            self.destination_path = repo_path
+            self.tmp_root_path = None
+            return
         tmp_root_path = tempfile.mkdtemp(
             prefix=prefix_tmp_folder_name, suffix='-tests')
-        repo_path = os.path.join(start_path, resources_path, archive_name)
         # uncompress folder/repositories/dump for the loader to ingest
         subprocess.check_output(['tar', 'xf', repo_path, '-C', tmp_root_path])
         # build the origin url (or some derivative form)
@@ -64,7 +74,8 @@ class BaseLoaderTest(TestCase):
         """Clean up temporary working directory
 
         """
-        shutil.rmtree(self.tmp_root_path)
+        if self.tmp_root_path and os.path.exists(self.tmp_root_path):
+            shutil.rmtree(self.tmp_root_path)
 
     def state(self, _type):
         return self.loader.state(_type)
