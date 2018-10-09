@@ -69,23 +69,26 @@ class BaseLoaderTest(TestCase):
     def state(self, _type):
         return self.loader.state(_type)
 
-    def _assertCountOk(self, type, expected_length):
-        self.assertEquals(len(self.state(type)), expected_length)
+    def _assertCountOk(self, type, expected_length, msg=None):
+        """Check typed 'type' state to have the same expected length.
 
-    def assertCountContents(self, len_expected_contents):
-        self._assertCountOk('content', len_expected_contents)
+        """
+        self.assertEqual(len(self.state(type)), expected_length, msg=msg)
 
-    def assertCountDirectories(self, len_expected_directories):
-        self._assertCountOk('directory', len_expected_directories)
+    def assertCountContents(self, len_expected_contents, msg=None):
+        self._assertCountOk('content', len_expected_contents, msg=msg)
 
-    def assertCountReleases(self, len_expected_releases):
-        self._assertCountOk('release', len_expected_releases)
+    def assertCountDirectories(self, len_expected_directories, msg=None):
+        self._assertCountOk('directory', len_expected_directories, msg=msg)
 
-    def assertCountRevisions(self, len_expected_revisions):
-        self._assertCountOk('revision', len_expected_revisions)
+    def assertCountReleases(self, len_expected_releases, msg=None):
+        self._assertCountOk('release', len_expected_releases, msg=msg)
 
-    def assertCountSnapshots(self, len_expected_snapshot):
-        self._assertCountOk('snapshot', len_expected_snapshot)
+    def assertCountRevisions(self, len_expected_revisions, msg=None):
+        self._assertCountOk('revision', len_expected_revisions, msg=msg)
+
+    def assertCountSnapshots(self, len_expected_snapshot, msg=None):
+        self._assertCountOk('snapshot', len_expected_snapshot, msg=msg)
 
     def assertContentsOk(self, expected_contents):
         self._assertCountOk('content', len(expected_contents))
