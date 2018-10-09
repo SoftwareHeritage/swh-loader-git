@@ -1,3 +1,13 @@
+swh-loader-git (0.0.40-1~swh1) unstable-swh; urgency=medium
+
+  * Release swh.loader.git v0.0.40
+  * Improve python packaging
+  * Make the loader more robust against holes in the history caused by
+  * buggy imports
+  * Allow ignoring the history to make a full load
+
+ -- Nicolas Dandrimont <nicolas@dandrimont.eu>  Tue, 09 Oct 2018 16:28:14 +0200
+
 swh-loader-git (0.0.39-1~swh1) unstable-swh; urgency=medium
 
   * Release swh.loader.git v0.0.39
