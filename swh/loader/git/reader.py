@@ -10,7 +10,7 @@ import pprint
 import click
 
 from swh.core import utils
-from swh.model import hashutil
+from swh.model.hashutil import MultiHash, hash_to_hex
 
 from .updater import BulkUpdater, SWHRepoRepresentation
 from . import converters
@@ -158,7 +158,7 @@ class GitSha1RemoteReader(BaseGitRemoteReader):
         """We want to store only object identifiers"""
         # compute the sha1 (obj.id is the sha1_git)
         data = obj.as_raw_string()
-        hashes = hashutil.hash_data(data, {'sha1'})
+        hashes = MultiHash.from_data(data, {'sha1'}).digest()
         oid = hashes['sha1']
         return (oid, b'blob', oid)
 
@@ -236,7 +236,7 @@ def blobs(ctx, send):
 
     if ids:
         for oid in ids:
-            print(hashutil.hash_to_hex(oid))
+            print(hash_to_hex(oid))
 
 
 @main.command()

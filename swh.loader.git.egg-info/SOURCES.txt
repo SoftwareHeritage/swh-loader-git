@@ -4,8 +4,9 @@ AUTHORS
 LICENSE
 MANIFEST.in
 Makefile
-README
+README.md
 requirements-swh.txt
+requirements-test.txt
 requirements.txt
 setup.py
 version.txt
