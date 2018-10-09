@@ -1,18 +1,8 @@
 SWH-loader-core
 ===============
 
-The Software Heritage Core Loader is a library module to centralize
-loader's behavior in class.
-
-Actual loader modules which depends on it are:
-
-- [swh-loader-debian](https://forge.softwareheritage.org/source/swh-loader-debian/)
-- [swh-loader-dir](https://forge.softwareheritage.org/source/swh-loader-dir/)
-- [swh-loader-git](https://forge.softwareheritage.org/source/swh-loader-git/)
-- [swh-loader-mercurial](https://forge.softwareheritage.org/source/swh-loader-mercurial/)
-- [swh-loader-pypi](https://forge.softwareheritage.org/source/swh-loader-pypi/)
-- [swh-loader-svn](https://forge.softwareheritage.org/source/swh-loader-svn/)
-- [swh-loader-tar](https://forge.softwareheritage.org/source/swh-loader-tar/)
+The Software Heritage Core Loader is a low-level loading utilities and
+helpers used by other loaders.
 
 The main entry points are classes:
 - :class:`swh.loader.core.loader.SWHLoader` for stateful loaders
