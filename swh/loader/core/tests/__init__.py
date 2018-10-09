@@ -112,7 +112,7 @@ class BaseLoaderTest(TestCase):
         self._assertCountOk('release', len(expected_releases))
         for i, rel in enumerate(self.state('release')):
             rel_id = hashutil.hash_to_hex(rel['id'])
-            self.assertEquals(expected_releases[i], rel_id)
+            self.assertEqual(expected_releases[i], rel_id)
 
     def assertRevisionsOk(self, expected_revisions):
         """Check the loader's revisions match the expected revisions.
@@ -130,7 +130,7 @@ class BaseLoaderTest(TestCase):
             rev_id = hashutil.hash_to_hex(rev['id'])
             directory_id = hashutil.hash_to_hex(rev['directory'])
 
-            self.assertEquals(expected_revisions[rev_id], directory_id)
+            self.assertEqual(expected_revisions[rev_id], directory_id)
 
     def assertSnapshotOk(self, expected_snapshot, expected_branches=[]):
         """Check for snapshot match.
