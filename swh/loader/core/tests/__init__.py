@@ -200,7 +200,7 @@ class LoaderNoStorage:
     This overrides the core loader's behavior to store in a dict the
     swh objects.
 
-    cf. HgLoaderNoStorage, SvnLoaderNoStorage, etc...
+    cf. :class:`HgLoaderNoStorage`, :class:`SvnLoaderNoStorage`, etc...
 
     """
     def __init__(self, *args, **kwargs):
