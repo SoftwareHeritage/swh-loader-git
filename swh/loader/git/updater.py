@@ -22,13 +22,16 @@ from . import converters
 
 class SWHRepoRepresentation:
     """Repository representation for a Software Heritage origin."""
-    def __init__(self, storage, origin_id, base_snapshot=None):
+    def __init__(self, storage, origin_id, base_snapshot=None,
+                 ignore_history=False):
         self.storage = storage
 
         self._parents_cache = {}
         self._type_cache = {}
 
-        if origin_id:
+        self.ignore_history = ignore_history
+
+        if origin_id and not ignore_history:
             self.heads = set(self._cache_heads(origin_id, base_snapshot))
         else:
             self.heads = set()
@@ -52,24 +55,21 @@ class SWHRepoRepresentation:
         _git_types = ['content', 'directory', 'revision', 'release']
 
         if not base_snapshot:
-            base_snapshot = self.storage.snapshot_get_latest(origin_id)
-
-        if base_snapshot:
-            snapshot_targets = set()
-            for target in base_snapshot['branches'].values():
-                if target and target['target_type'] in _git_types:
-                    snapshot_targets.add(target['target'])
-
-            for id, objs in self.get_stored_objects(
-                self._decode_from_storage(snapshot_targets)
-            ).items():
-                if not objs:
-                    logging.warn('Missing head: %s' % hashutil.hash_to_hex(id))
-                    return []
-
-            return snapshot_targets
-        else:
             return []
+
+        snapshot_targets = set()
+        for target in base_snapshot['branches'].values():
+            if target and target['target_type'] in _git_types:
+                snapshot_targets.add(target['target'])
+
+        for id, objs in self.get_stored_objects(
+            self._decode_from_storage(snapshot_targets)
+        ).items():
+            if not objs:
+                logging.warn('Missing head: %s' % hashutil.hash_to_hex(id))
+                return []
+
+        return snapshot_targets
 
     def get_parents(self, commit):
         """Bogus method to prevent expensive recursion, at the expense of less
@@ -131,6 +131,9 @@ class SWHRepoRepresentation:
         return list(ret)
 
     def get_stored_objects(self, objects):
+        if self.ignore_history:
+            return {}
+
         return self.storage.object_find_by_sha1_git(
             self._encode_for_storage(objects))
 
@@ -184,8 +187,12 @@ class BulkUpdater(SWHStatelessLoader):
         """Fetch a pack from the origin"""
         pack_buffer = BytesIO()
 
-        base_repo = self.repo_representation(self.storage, base_origin_id,
-                                             base_snapshot)
+        base_repo = self.repo_representation(
+            storage=self.storage,
+            origin_id=base_origin_id,
+            base_snapshot=base_snapshot,
+            ignore_history=self.ignore_history,
+        )
 
         client, path = dulwich.client.get_transport_and_path(origin_url,
                                                              thin_packs=False)
@@ -241,13 +248,17 @@ class BulkUpdater(SWHStatelessLoader):
 
         return id_to_type, type_to_ids
 
-    def prepare_origin_visit(self, origin_url, base_url=None):
+    def prepare_origin_visit(self, origin_url, **kwargs):
         self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
         self.origin = converters.origin_url_to_origin(origin_url)
 
-    def prepare(self, origin_url, base_url=None):
+    def prepare(self, origin_url, base_url=None, ignore_history=False):
         base_origin_id = origin_id = self.origin_id
-        prev_snapshot = self.storage.snapshot_get_latest(origin_id)
+
+        prev_snapshot = None
+
+        if not ignore_history:
+            prev_snapshot = self.storage.snapshot_get_latest(origin_id)
 
         if base_url and not prev_snapshot:
             base_origin = converters.origin_url_to_origin(base_url)
@@ -260,6 +271,7 @@ class BulkUpdater(SWHStatelessLoader):
 
         self.base_snapshot = prev_snapshot
         self.base_origin_id = base_origin_id
+        self.ignore_history = ignore_history
 
     def fetch_data(self):
         def do_progress(msg):
@@ -463,7 +475,13 @@ if __name__ == '__main__':
     @click.command()
     @click.option('--origin-url', help='Origin url', required=True)
     @click.option('--base-url', default=None, help='Optional Base url')
-    def main(origin_url, base_url):
-        return BulkUpdater().load(origin_url, base_url=base_url)
+    @click.option('--ignore-history/--no-ignore-history',
+                  help='Ignore the repository history', default=False)
+    def main(origin_url, base_url, ignore_history):
+        return BulkUpdater().load(
+            origin_url,
+            base_url=base_url,
+            ignore_history=ignore_history,
+        )
 
     main()
