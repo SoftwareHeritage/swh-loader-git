@@ -205,7 +205,7 @@ class LoaderNoStorage:
     """
     def __init__(self, *args, **kwargs):
         super().__init__()
-        self.__state = {
+        self._state = {
             'content': [],
             'directory': [],
             'revision': [],
@@ -214,7 +214,7 @@ class LoaderNoStorage:
         }
 
     def state(self, type):
-        return self.__state[type]
+        return self._state[type]
 
     def _add(self, type, l):
         """Add without duplicates and keeping the insertion order.
