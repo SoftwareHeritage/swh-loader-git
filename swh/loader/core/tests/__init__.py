@@ -204,7 +204,7 @@ class LoaderNoStorage:
 
     """
     def __init__(self, *args, **kwargs):
-        super().__init__()
+        super().__init__(*args, **kwargs)
         self._state = {
             'content': [],
             'directory': [],
