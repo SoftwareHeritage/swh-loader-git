@@ -62,14 +62,14 @@ class SWHRepoRepresentation:
             if target and target['target_type'] in _git_types:
                 snapshot_targets.add(target['target'])
 
-        for id, objs in self.get_stored_objects(
-            self._decode_from_storage(snapshot_targets)
-        ).items():
+        decoded_targets = self._decode_from_storage(snapshot_targets)
+
+        for id, objs in self.get_stored_objects(decoded_targets).items():
             if not objs:
                 logging.warn('Missing head: %s' % hashutil.hash_to_hex(id))
                 return []
 
-        return snapshot_targets
+        return decoded_targets
 
     def get_parents(self, commit):
         """Bogus method to prevent expensive recursion, at the expense of less
