@@ -1,3 +1,10 @@
+swh-loader-git (0.0.42-1~swh1) unstable-swh; urgency=medium
+
+  * Release swh.loader.git v0.0.42
+  * Fix critical bug in incremental loading
+
+ -- Nicolas Dandrimont <nicolas@dandrimont.eu>  Thu, 11 Oct 2018 17:19:07 +0200
+
 swh-loader-git (0.0.41-1~swh1) unstable-swh; urgency=medium
 
   * Release swh.loader.git v0.0.41
