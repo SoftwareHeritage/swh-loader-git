@@ -22,7 +22,7 @@ class UpdateGitRepository(Task):
         loader = BulkUpdater()
         loader.log = self.log
 
-        return loader.load(repo_url, base_url)
+        return loader.load(repo_url, base_url=base_url)
 
 
 class LoadDiskGitRepository(Task):
