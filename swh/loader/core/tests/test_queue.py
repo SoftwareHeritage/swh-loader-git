@@ -5,16 +5,13 @@
 
 import unittest
 
-from nose.tools import istest
-
-from swh.loader.core.queue import QueuePerNbElements
-from swh.loader.core.queue import QueuePerNbUniqueElements
-from swh.loader.core.queue import QueuePerSizeAndNbUniqueElements
+from swh.loader.core.queue import (QueuePerNbElements,
+                                   QueuePerNbUniqueElements,
+                                   QueuePerSizeAndNbUniqueElements)
 
 
 class TestQueuePerNbElements(unittest.TestCase):
-    @istest
-    def simple_queue_behavior(self):
+    def test_simple_queue_behavior(self):
         max_nb_elements = 10
         queue = QueuePerNbElements(max_nb_elements=max_nb_elements)
 
@@ -48,8 +45,7 @@ def to_some_objects(elements, key):
 
 
 class TestQueuePerNbUniqueElements(unittest.TestCase):
-    @istest
-    def queue_with_unique_key_behavior(self):
+    def test_queue_with_unique_key_behavior(self):
         max_nb_elements = 5
         queue = QueuePerNbUniqueElements(max_nb_elements=max_nb_elements,
                                          key='id')
@@ -86,8 +82,7 @@ def to_some_complex_objects(elements, key):
 
 
 class TestQueuePerSizeAndNbUniqueElements(unittest.TestCase):
-    @istest
-    def queue_with_unique_key_and_size_behavior(self):
+    def test_queue_with_unique_key_and_size_behavior(self):
         max_nb_elements = 5
         max_size = 100
         queue = QueuePerSizeAndNbUniqueElements(

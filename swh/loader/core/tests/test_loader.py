@@ -3,11 +3,10 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-from nose.tools import istest
-
-from . import BaseLoaderTest, LoaderNoStorage
 
 from swh.model.hashutil import hash_to_bytes
+
+from . import BaseLoaderTest, LoaderNoStorage
 
 
 class DummyBaseLoaderTest(BaseLoaderTest):
@@ -29,8 +28,7 @@ class LoadTest1(DummyBaseLoaderTest):
         super().setUp()
         self.loader = LoaderNoStorage()
 
-    @istest
-    def stateful_loader(self):
+    def test_stateful_loader(self):
         """Stateful loader accumulates in place the sent data
 
         Note: Those behaviors should be somehow merged but that's
@@ -50,8 +48,7 @@ class LoadTest1(DummyBaseLoaderTest):
             len(self.state('release')), len(self.in_releases))
         self.assertEquals(len(self.state('snapshot')), 0)
 
-    @istest
-    def stateless_loader(self):
+    def test_stateless_loader(self):
         """Stateless loader accumulates in place the sent data as well
 
         Note: Those behaviors should be somehow merged but that's
@@ -83,8 +80,7 @@ class LoadTestContent(DummyBaseLoaderTest):
         }]
         self.expected_contents = [self.content_id0, self.content_id1]
 
-    @istest
-    def maybe_load_contents(self):
+    def test_maybe_load_contents(self):
         """Loading contents should be ok
 
         """
@@ -92,8 +88,7 @@ class LoadTestContent(DummyBaseLoaderTest):
         self.assertCountContents(len(self.expected_contents))
         self.assertContentsOk(self.expected_contents)
 
-    @istest
-    def send_batch_contents(self):
+    def test_send_batch_contents(self):
         """Sending contents should be ok 2
 
         """
@@ -101,8 +96,7 @@ class LoadTestContent(DummyBaseLoaderTest):
         self.assertCountContents(len(self.expected_contents))
         self.assertContentsOk(self.expected_contents)
 
-    @istest
-    def failing(self):
+    def test_failing(self):
         """Comparing wrong snapshot should fail.
 
         """
@@ -130,8 +124,7 @@ class LoadTestDirectory(DummyBaseLoaderTest):
         self.expected_directories = [
             self.directory_id0, self.directory_id1, self.directory_id2]
 
-    @istest
-    def maybe_load_directories(self):
+    def test_maybe_load_directories(self):
         """Loading directories should be ok
 
         """
@@ -139,8 +132,7 @@ class LoadTestDirectory(DummyBaseLoaderTest):
         self.assertCountDirectories(len(self.expected_directories))
         self.assertDirectoriesOk(self.expected_directories)
 
-    @istest
-    def send_batch_directories(self):
+    def test_send_batch_directories(self):
         """Sending directories should be ok 2
 
         """
@@ -148,8 +140,7 @@ class LoadTestDirectory(DummyBaseLoaderTest):
         self.assertCountDirectories(len(self.expected_directories))
         self.assertDirectoriesOk(self.expected_directories)
 
-    @istest
-    def failing(self):
+    def test_failing(self):
         """Comparing wrong snapshot should fail.
 
         """
@@ -177,8 +168,7 @@ class LoadTestRelease(DummyBaseLoaderTest):
         self.expected_releases = [
             self.release_id0, self.release_id1, self.release_id2]
 
-    @istest
-    def maybe_load_releases(self):
+    def test_maybe_load_releases(self):
         """Loading releases should be ok
 
         """
@@ -186,8 +176,7 @@ class LoadTestRelease(DummyBaseLoaderTest):
         self.assertCountReleases(len(self.expected_releases))
         self.assertReleasesOk(self.expected_releases)
 
-    @istest
-    def send_batch_releases(self):
+    def test_send_batch_releases(self):
         """Sending releases should be ok 2
 
         """
@@ -195,8 +184,7 @@ class LoadTestRelease(DummyBaseLoaderTest):
         self.assertCountReleases(len(self.expected_releases))
         self.assertReleasesOk(self.expected_releases)
 
-    @istest
-    def failing(self):
+    def test_failing(self):
         """Comparing wrong snapshot should fail.
 
         """
@@ -235,8 +223,7 @@ class LoadTestRevision(DummyBaseLoaderTest):
             rev_id2: dir_id2,
         }
 
-    @istest
-    def maybe_load_revisions(self):
+    def test_maybe_load_revisions(self):
         """Loading revisions should be ok
 
         """
@@ -244,8 +231,7 @@ class LoadTestRevision(DummyBaseLoaderTest):
         self.assertCountRevisions(len(self.expected_revisions))
         self.assertRevisionsOk(self.expected_revisions)
 
-    @istest
-    def send_batch_revisions(self):
+    def test_send_batch_revisions(self):
         """Sending revisions should be ok 2
 
         """
@@ -253,8 +239,7 @@ class LoadTestRevision(DummyBaseLoaderTest):
         self.assertCountRevisions(len(self.expected_revisions))
         self.assertRevisionsOk(self.expected_revisions)
 
-    @istest
-    def failing(self):
+    def test_failing(self):
         """Comparing wrong snapshot should fail.
 
         """
@@ -308,8 +293,7 @@ class LoadTestSnapshot(DummyBaseLoaderTest):
             }
         }
 
-    @istest
-    def maybe_load_snapshots(self):
+    def test_maybe_load_snapshots(self):
         """Loading snapshot should be ok
 
         """
@@ -320,8 +304,7 @@ class LoadTestSnapshot(DummyBaseLoaderTest):
             self.expected_snapshot['id'],
             expected_branches=self.expected_snapshot['branches'])
 
-    @istest
-    def send_batch_snapshots(self):
+    def test_send_batch_snapshots(self):
         """Sending snapshot should be ok 2
 
         """
@@ -332,8 +315,7 @@ class LoadTestSnapshot(DummyBaseLoaderTest):
             self.expected_snapshot['id'],
             expected_branches=self.expected_snapshot['branches'])
 
-    @istest
-    def failing(self):
+    def test_failing(self):
         """Comparing wrong snapshot should fail.
 
         """

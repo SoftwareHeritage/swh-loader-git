@@ -8,10 +8,8 @@ import tempfile
 import unittest
 from unittest.mock import Mock
 
-from nose.tools import istest
-
-from swh.model.from_disk import Content
 from swh.loader.core import converters
+from swh.model.from_disk import Content
 
 
 def tmpfile_with_content(fromdir, contentfile):
@@ -41,8 +39,7 @@ class TestContentForStorage(unittest.TestCase):
     def tearDown(self):
         self.tmpdir.cleanup()
 
-    @istest
-    def content_for_storage_path(self):
+    def test_content_for_storage_path(self):
         # given
         data = b'temp file for testing content storage conversion'
         tmpfile = tmpfile_with_content(self.tmpdir.name, data)
@@ -60,8 +57,7 @@ class TestContentForStorage(unittest.TestCase):
         # then
         self.assertEqual(content, expected_content)
 
-    @istest
-    def content_for_storage_data(self):
+    def test_content_for_storage_data(self):
         # given
         data = b'temp file for testing content storage conversion'
 
@@ -76,8 +72,7 @@ class TestContentForStorage(unittest.TestCase):
         # then
         self.assertEqual(content, expected_content)
 
-    @istest
-    def content_for_storage_too_long(self):
+    def test_content_for_storage_too_long(self):
         # given
         data = b'temp file for testing content storage conversion'
 
