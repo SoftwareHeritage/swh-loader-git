@@ -18,6 +18,9 @@ import swh.loader.git.converters as converters
 from swh.model.hashutil import bytehex_to_hash, hash_to_bytes
 
 
+TEST_DATA = os.path.join(os.path.dirname(__file__), 'data')
+
+
 class SWHTargetType:
     """Dulwich lookalike TargetType class
 
@@ -54,11 +57,8 @@ class TestConverters(unittest.TestCase):
         cls.repo_path = tempfile.mkdtemp()
         cls.repo = dulwich.repo.Repo.init_bare(cls.repo_path)
 
-        fast_export = os.path.join(os.path.dirname(__file__),
-                                   '../../../../..',
-                                   'swh-storage-testdata',
-                                   'git-repos',
-                                   'example-submodule.fast-export.xz')
+        fast_export = os.path.join(
+            TEST_DATA, 'git-repos', 'example-submodule.fast-export.xz')
 
         xz = subprocess.Popen(
             ['xzcat'],
