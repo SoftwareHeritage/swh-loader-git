@@ -1,3 +1,0 @@
-[submodule "swh-loader-git-testdata"]
-	path = swh-loader-git-testdata
-	url = git@git.softwareheritage.org:swh/swh-loader-git-testdata

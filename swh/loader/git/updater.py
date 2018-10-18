@@ -17,6 +17,7 @@ from dulwich.pack import PackData, PackInflater
 
 from swh.model import hashutil
 from swh.loader.core.loader import SWHStatelessLoader
+from swh.storage.algos.snapshot import snapshot_get_all_branches
 from . import converters
 
 
@@ -252,22 +253,27 @@ class BulkUpdater(SWHStatelessLoader):
         self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
         self.origin = converters.origin_url_to_origin(origin_url)
 
+    def get_full_snapshot(self, origin_id):
+        prev_snapshot = self.storage.snapshot_get_latest(origin_id)
+        if prev_snapshot and prev_snapshot.pop('next_branch', None):
+            return snapshot_get_all_branches(self.storage, prev_snapshot['id'])
+
+        return prev_snapshot
+
     def prepare(self, origin_url, base_url=None, ignore_history=False):
         base_origin_id = origin_id = self.origin_id
 
         prev_snapshot = None
 
         if not ignore_history:
-            prev_snapshot = self.storage.snapshot_get_latest(origin_id)
+            prev_snapshot = self.get_full_snapshot(origin_id)
 
         if base_url and not prev_snapshot:
             base_origin = converters.origin_url_to_origin(base_url)
             base_origin = self.storage.origin_get(base_origin)
             if base_origin:
                 base_origin_id = base_origin['id']
-                prev_snapshot = self.storage.snapshot_get_latest(
-                    base_origin_id
-                )
+                prev_snapshot = self.get_full_snapshot(base_origin_id)
 
         self.base_snapshot = prev_snapshot
         self.base_origin_id = base_origin_id

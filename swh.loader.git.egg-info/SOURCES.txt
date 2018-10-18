@@ -1,5 +1,4 @@
 .gitignore
-.gitmodules
 AUTHORS
 LICENSE
 MANIFEST.in
@@ -44,5 +43,7 @@ swh/loader/git/reader.py
 swh/loader/git/tasks.py
 swh/loader/git/updater.py
 swh/loader/git/utils.py
+swh/loader/git/tests/__init__.py
 swh/loader/git/tests/test_converters.py
 swh/loader/git/tests/test_utils.py
+swh/loader/git/tests/data/git-repos/example-submodule.fast-export.xz
