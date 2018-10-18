@@ -9,13 +9,13 @@ import subprocess
 import tempfile
 import unittest
 
-from nose.tools import istest
-from nose.plugins.attrib import attr
-
 import dulwich.repo
+from nose.plugins.attrib import attr
 
 import swh.loader.git.converters as converters
 from swh.model.hashutil import bytehex_to_hash, hash_to_bytes
+
+TEST_DATA = os.path.join(os.path.dirname(__file__), 'data')
 
 
 class SWHTargetType:
@@ -54,11 +54,8 @@ class TestConverters(unittest.TestCase):
         cls.repo_path = tempfile.mkdtemp()
         cls.repo = dulwich.repo.Repo.init_bare(cls.repo_path)
 
-        fast_export = os.path.join(os.path.dirname(__file__),
-                                   '../../../../..',
-                                   'swh-storage-testdata',
-                                   'git-repos',
-                                   'example-submodule.fast-export.xz')
+        fast_export = os.path.join(
+            TEST_DATA, 'git-repos', 'example-submodule.fast-export.xz')
 
         xz = subprocess.Popen(
             ['xzcat'],
@@ -114,20 +111,17 @@ class TestConverters(unittest.TestCase):
             'origin': None,
         }
 
-    @istest
-    def blob_to_content(self):
+    def test_blob_to_content(self):
         content = converters.dulwich_blob_to_content(self.repo[self.blob_id])
         self.assertEqual(self.blob, content)
 
-    @istest
-    def blob_to_content_absent(self):
+    def test_blob_to_content_absent(self):
         max_length = self.blob['length'] - 1
         content = converters.dulwich_blob_to_content(
             self.repo[self.blob_id], max_content_size=max_length)
         self.assertEqual(self.blob_hidden, content)
 
-    @istest
-    def commit_to_revision(self):
+    def test_commit_to_revision(self):
         sha1 = b'9768d0b576dbaaecd80abedad6dfd0d72f1476da'
 
         revision = converters.dulwich_commit_to_revision(self.repo[sha1])
@@ -166,8 +160,7 @@ class TestConverters(unittest.TestCase):
 
         self.assertEquals(revision, expected_revision)
 
-    @istest
-    def author_line_to_author(self):
+    def test_author_line_to_author(self):
         tests = {
             b'a <b@c.com>': {
                 'name': b'a',
@@ -206,8 +199,7 @@ class TestConverters(unittest.TestCase):
             self.assertEquals(parsed_author,
                               converters.parse_author(author))
 
-    @istest
-    def dulwich_tag_to_release_no_author_no_date(self):
+    def test_dulwich_tag_to_release_no_author_no_date(self):
         target = b'641fb6e08ddb2e4fd096dcf18e80b894bf'
         message = b'some release message'
         tag = SWHTag(name='blah',
@@ -236,8 +228,7 @@ class TestConverters(unittest.TestCase):
 
         self.assertEquals(actual_release, expected_release)
 
-    @istest
-    def dulwich_tag_to_release_author_and_date(self):
+    def test_dulwich_tag_to_release_author_and_date(self):
         tagger = b'hey dude <hello@mail.org>'
         target = b'641fb6e08ddb2e4fd096dcf18e80b894bf'
         message = b'some release message'
@@ -280,8 +271,7 @@ class TestConverters(unittest.TestCase):
 
         self.assertEquals(actual_release, expected_release)
 
-    @istest
-    def dulwich_tag_to_release_author_no_date(self):
+    def test_dulwich_tag_to_release_author_no_date(self):
         # to reproduce bug T815 (fixed)
         tagger = b'hey dude <hello@mail.org>'
         target = b'641fb6e08ddb2e4fd096dcf18e80b894bf'

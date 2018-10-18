@@ -5,14 +5,11 @@
 
 import unittest
 
-from nose.tools import istest
-
 from swh.loader.git import utils
 
 
 class TestUtils(unittest.TestCase):
-    @istest
-    def check_date_time(self):
+    def test_check_date_time(self):
         """A long as datetime is fine, date time check does not raise
 
         """
@@ -20,12 +17,10 @@ class TestUtils(unittest.TestCase):
             ts = 2**e
             utils.check_date_time(ts)
 
-    @istest
-    def check_date_time_empty_value(self):
+    def test_check_date_time_empty_value(self):
         self.assertIsNone(utils.check_date_time(None))
 
-    @istest
-    def check_date_time_raises(self):
+    def test_check_date_time_raises(self):
         """From a give threshold, check will no longer works.
 
         """
