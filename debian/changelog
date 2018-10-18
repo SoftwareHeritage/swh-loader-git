@@ -1,3 +1,10 @@
+swh-loader-git (0.0.43-1~swh1) unstable-swh; urgency=medium
+
+  * Release swh.loader.git v0.0.43
+  * Support the new paginated snapshot branch fetching functions
+
+ -- Nicolas Dandrimont <nicolas@dandrimont.eu>  Thu, 18 Oct 2018 18:49:26 +0200
+
 swh-loader-git (0.0.42-1~swh1) unstable-swh; urgency=medium
 
   * Release swh.loader.git v0.0.42
