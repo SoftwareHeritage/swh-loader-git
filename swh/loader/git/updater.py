@@ -132,11 +132,33 @@ class SWHRepoRepresentation:
         return list(ret)
 
     def get_stored_objects(self, objects):
+        """Find which of these objects were stored in the archive.
+
+        Do the request in packets to avoid a server timeout.
+        """
         if self.ignore_history:
             return {}
 
-        return self.storage.object_find_by_sha1_git(
-            self._encode_for_storage(objects))
+        packet_size = 1000
+
+        ret = {}
+        query = []
+        for object in objects:
+            query.append(object)
+            if len(query) >= packet_size:
+                ret.update(
+                    self.storage.object_find_by_sha1_git(
+                        self._encode_for_storage(query)
+                    )
+                )
+                query = []
+        if query:
+            ret.update(
+                self.storage.object_find_by_sha1_git(
+                    self._encode_for_storage(query)
+                )
+            )
+        return ret
 
     def find_remote_ref_types_in_swh(self, remote_refs):
         """Parse the remote refs information and list the objects that exist in
