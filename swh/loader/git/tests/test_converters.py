@@ -4,13 +4,13 @@
 # See top-level LICENSE file for more information
 
 import os
+import pytest
 import shutil
 import subprocess
 import tempfile
 import unittest
 
 import dulwich.repo
-from nose.plugins.attrib import attr
 
 import swh.loader.git.converters as converters
 from swh.model.hashutil import bytehex_to_hash, hash_to_bytes
@@ -46,7 +46,7 @@ class SWHTag:
         return sha1()
 
 
-@attr('fs')
+@pytest.mark.fs
 class TestConverters(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
