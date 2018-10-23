@@ -14,3 +14,4 @@ build/
 dist/
 .hypothesis
 .pytest_cache
+.tox/
