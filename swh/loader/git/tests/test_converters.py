@@ -158,7 +158,7 @@ class TestConverters(unittest.TestCase):
             'synthetic': False,
         }
 
-        self.assertEquals(revision, expected_revision)
+        self.assertEqual(revision, expected_revision)
 
     def test_author_line_to_author(self):
         tests = {
@@ -196,8 +196,8 @@ class TestConverters(unittest.TestCase):
 
         for author in sorted(tests):
             parsed_author = tests[author]
-            self.assertEquals(parsed_author,
-                              converters.parse_author(author))
+            self.assertEqual(parsed_author,
+                             converters.parse_author(author))
 
     def test_dulwich_tag_to_release_no_author_no_date(self):
         target = b'641fb6e08ddb2e4fd096dcf18e80b894bf'
@@ -226,7 +226,7 @@ class TestConverters(unittest.TestCase):
             'target_type': 'revision'
         }
 
-        self.assertEquals(actual_release, expected_release)
+        self.assertEqual(actual_release, expected_release)
 
     def test_dulwich_tag_to_release_author_and_date(self):
         tagger = b'hey dude <hello@mail.org>'
@@ -269,7 +269,7 @@ class TestConverters(unittest.TestCase):
             'target_type': 'revision'
         }
 
-        self.assertEquals(actual_release, expected_release)
+        self.assertEqual(actual_release, expected_release)
 
     def test_dulwich_tag_to_release_author_no_date(self):
         # to reproduce bug T815 (fixed)
@@ -304,4 +304,4 @@ class TestConverters(unittest.TestCase):
             'target_type': 'revision'
         }
 
-        self.assertEquals(actual_release, expected_release)
+        self.assertEqual(actual_release, expected_release)
