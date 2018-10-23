@@ -4,17 +4,17 @@
 # See top-level LICENSE file for more information
 
 import os
+import pytest
 import shutil
 import subprocess
 import tempfile
 
 from unittest import TestCase
-from nose.plugins.attrib import attr
 
 from swh.model import hashutil
 
 
-@attr('fs')
+@pytest.mark.fs
 class BaseLoaderTest(TestCase):
     """Mixin base loader test class.
 
