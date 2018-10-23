@@ -39,14 +39,14 @@ class LoadTest1(DummyBaseLoaderTest):
         self.loader.maybe_load_revisions(self.in_revisions)
         self.loader.maybe_load_releases(self.in_releases)
 
-        self.assertEquals(len(self.state('content')), 0)
-        self.assertEquals(
+        self.assertEqual(len(self.state('content')), 0)
+        self.assertEqual(
             len(self.state('directory')), len(self.in_directories))
-        self.assertEquals(
+        self.assertEqual(
             len(self.state('revision')), len(self.in_revisions))
-        self.assertEquals(
+        self.assertEqual(
             len(self.state('release')), len(self.in_releases))
-        self.assertEquals(len(self.state('snapshot')), 0)
+        self.assertEqual(len(self.state('snapshot')), 0)
 
     def test_stateless_loader(self):
         """Stateless loader accumulates in place the sent data as well
@@ -58,11 +58,11 @@ class LoadTest1(DummyBaseLoaderTest):
         self.loader.send_batch_contents(self.in_contents)
         self.loader.send_snapshot(self.in_snapshot)
 
-        self.assertEquals(len(self.state('content')), len(self.in_contents))
-        self.assertEquals(len(self.state('directory')), 0)
-        self.assertEquals(len(self.state('revision')), 0)
-        self.assertEquals(len(self.state('release')), 0)
-        self.assertEquals(len(self.state('snapshot')), 1)
+        self.assertEqual(len(self.state('content')), len(self.in_contents))
+        self.assertEqual(len(self.state('directory')), 0)
+        self.assertEqual(len(self.state('revision')), 0)
+        self.assertEqual(len(self.state('release')), 0)
+        self.assertEqual(len(self.state('snapshot')), 1)
 
 
 class LoadTestContent(DummyBaseLoaderTest):
