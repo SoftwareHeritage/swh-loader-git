@@ -25,10 +25,13 @@ class GitLoader(SWHStatelessLoader):
     def __init__(self, config=None):
         super().__init__(logging_class='swh.loader.git.Loader', config=config)
 
-    def prepare_origin_visit(self, origin_url, directory, visit_date):
+    def _prepare_origin_visit(self, origin_url, visit_date):
         self.origin_url = origin_url
         self.origin = converters.origin_url_to_origin(self.origin_url)
         self.visit_date = visit_date
+
+    def prepare_origin_visit(self, origin_url, directory, visit_date):
+        self._prepare_origin_visit(origin_url, visit_date)
 
     def prepare(self, origin_url, directory, visit_date):
         self.repo = dulwich.repo.Repo(directory)
@@ -255,11 +258,18 @@ class GitLoaderFromArchive(GitLoader):
     """Load a git repository from an archive.
 
     """
+    def __init__(self, *args, **kwargs):
+        super().__init__(self, *args, **kwargs)
+        self.temp_dir = self.repo_path = None
+
     def project_name_from_archive(self, archive_path):
         """Compute the project name from the archive's path.
 
         """
         return os.path.basename(os.path.dirname(archive_path))
+
+    def prepare_origin_visit(self, origin_url, archive_path, visit_date):
+        self._prepare_origin_visit(origin_url, visit_date)
 
     def prepare(self, origin_url, archive_path, visit_date):
         """1. Uncompress the archive in temporary location.
