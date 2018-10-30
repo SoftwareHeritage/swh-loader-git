@@ -856,7 +856,7 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         pass
 
     def load(self, *args, **kwargs):
-        """Loading logic for the loader to follow:
+        r"""Loading logic for the loader to follow:
 
         - 1. def prepare_origin_visit(\*args, \**kwargs): Prepare the
             origin and visit we will associate loading data to
