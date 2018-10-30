@@ -234,7 +234,9 @@ class TestConverters(unittest.TestCase):
         message = b'some release message'
 
         import datetime
-        date = datetime.datetime(2007, 12, 5).timestamp()
+        date = datetime.datetime(
+            2007, 12, 5, tzinfo=datetime.timezone.utc
+        ).timestamp()
 
         tag = SWHTag(name='blah',
                      type_name=b'tag',
@@ -258,7 +260,7 @@ class TestConverters(unittest.TestCase):
             'date': {
                 'negative_utc': False,
                 'offset': 0,
-                'timestamp': 1196809200.0
+                'timestamp': 1196812800.0
             },
             'id': b'\xda9\xa3\xee^kK\r2U\xbf\xef\x95`\x18\x90\xaf\xd8\x07\t',
             'message': message,
