@@ -54,6 +54,7 @@ class BaseLoaderTest(TestCase):
             # In that case, simply sets the archive's path
             self.destination_path = repo_path
             self.tmp_root_path = None
+            self.repo_url = 'file://' + repo_path
             return
         tmp_root_path = tempfile.mkdtemp(
             prefix=prefix_tmp_folder_name, suffix='-tests')
