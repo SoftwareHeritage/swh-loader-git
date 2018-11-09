@@ -24,8 +24,8 @@ from .queue import QueuePerNbUniqueElements
 
 
 def send_in_packets(objects, sender, packet_size, packet_size_bytes=None):
-    """Send `objects`, using the `sender`, in packets of `packet_size` objects (and
-    of max `packet_size_bytes`).
+    """Send `objects`, using the `sender`, in packets of `packet_size` objects
+    (and of max `packet_size_bytes`).
     """
     formatted_objects = []
     count = 0
@@ -710,7 +710,7 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
 
     def prepare_metadata(self):
         """First step for origin_metadata insertion, resolving the
-        provider_ id and the tool_id by fetching data from the storage
+        provider_id and the tool_id by fetching data from the storage
         or creating tool and provider on the fly if the data isn't available
 
         """
@@ -858,18 +858,19 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
     def load(self, *args, **kwargs):
         r"""Loading logic for the loader to follow:
 
-        - 1. def prepare_origin_visit(\*args, \**kwargs): Prepare the
-            origin and visit we will associate loading data to
-        - 2. Store the actual origin_visit to storage
-        - 3. def prepare(\*args, \**kwargs): Prepare any eventual state
-        - 4. def get_origin(): Get the origin we work with and store
+        - 1. Call :meth:`prepare_origin_visit` to prepare the
+             origin and visit we will associate loading data to
+        - 2. Store the actual ``origin_visit`` to storage
+        - 3. Call :meth:`prepare` to prepare any eventual state
+        - 4. Call :meth:`get_origin` to get the origin we work with and store
+
         - while True:
 
-          - 5. def fetch_data(): Fetch the data to store
-          - 6. def store_data(): Store the data
+          - 5. Call :meth:`fetch_data` to fetch the data to store
+          - 6. Call :meth:`store_data` to store the data
 
-        - 7. def cleanup(): Clean up any eventual state put in place in prepare
-          method.
+        - 7. Call :meth:`cleanup` to clean up any eventual state put in place
+             in :meth:`prepare` method.
 
         """
         try:
