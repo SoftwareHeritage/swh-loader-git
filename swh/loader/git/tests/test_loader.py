@@ -10,7 +10,7 @@ import subprocess
 
 from swh.loader.git.loader import GitLoader, GitLoaderFromArchive
 from swh.loader.core.tests import BaseLoaderTest, LoaderNoStorage
-from swh.model.hashutil import hash_to_bytes
+from swh.model.hashutil import hash_to_bytes, hash_to_bytehex
 
 
 class MockStorage0:
@@ -26,6 +26,9 @@ class MockStorage0:
 
     def revision_missing(self, revisions):
         return revisions
+
+    def object_find_by_sha1_git(self, ids):
+        return {}
 
 
 CONTENT1 = {
@@ -131,6 +134,42 @@ class MockStorage1:
         assert all(isinstance(r, bytes) for r in revisions)
         return list(set(revisions) - set(map(hash_to_bytes, REVISIONS1)))
 
+    def object_find_by_sha1_git(self, ids):
+        res = {}
+        for id_ in ids:
+            found = []
+            decoded_id = hash_to_bytehex(id_)
+            if decoded_id in REVISIONS1:
+                found.append({
+                    'sha1_git': id_,
+                    'type': 'revision',
+                    'id': id_,
+                    'object_id': 42,
+                    })
+            elif decoded_id in REVISIONS1.values():
+                found.append({
+                    'sha1_git': id_,
+                    'type': 'directory',
+                    'id': id_,
+                    'object_id': 42,
+                    })
+            elif decoded_id == SUBDIR_HASH:
+                found.append({
+                    'sha1_git': id_,
+                    'type': 'directory',
+                    'id': id_,
+                    'object_id': 42,
+                    })
+            elif decoded_id in CONTENT1:
+                found.append({
+                    'sha1_git': id_,
+                    'type': 'content',
+                    'id': id_,
+                    'object_id': 42,
+                    })
+            res[id_] = found
+        return res
+
 
 class LoaderNoStorageMixin(LoaderNoStorage):
     def __init__(self):
@@ -218,7 +257,10 @@ class BaseZipGitLoaderTest(BaseGitLoaderTest):
 
 
 class GitLoaderTests:
+    """Common tests for all git loaders."""
     def test_load(self):
+        """Loads a simple repository (made available by `setUp()`),
+        and checks everything was added in the storage."""
         res = self.load()
         self.assertEqual(res['status'], 'eventful', res)
 
@@ -236,6 +278,8 @@ class GitLoaderTests:
         self.assertEqual(self.loader.visit_status(), 'full')
 
     def test_load_unchanged(self):
+        """Checks loading a repository a second time does not add
+        any extra data."""
         res = self.load()
         self.assertEqual(res['status'], 'eventful')
 
@@ -246,7 +290,11 @@ class GitLoaderTests:
 
 
 class DirGitLoaderTest(BaseDirGitLoaderTest, GitLoaderTests):
+    """Tests for the GitLoader. Includes the common ones, and
+    add others that only work with a local dir."""
+
     def _git(self, *cmd):
+        """Small wrapper around subprocess to call Git."""
         try:
             return subprocess.check_output(
                     ['git', '-C', self.destination_path] + list(cmd))
@@ -256,6 +304,9 @@ class DirGitLoaderTest(BaseDirGitLoaderTest, GitLoaderTests):
             raise
 
     def test_load_changed(self):
+        """Loads a repository, makes some changes by adding files, commits,
+        and merges, load it again, and check the storage contains everything
+        it should."""
         # Initial load
         res = self.load()
         self.assertEqual(res['status'], 'eventful', res)
@@ -318,4 +369,6 @@ class DirGitLoaderTest(BaseDirGitLoaderTest, GitLoaderTests):
 
 
 class ZipGitLoaderTest(BaseZipGitLoaderTest, GitLoaderTests):
+    """Tests for GitLoaderFromArchive. Imports the common ones
+    from GitLoaderTests."""
     pass
