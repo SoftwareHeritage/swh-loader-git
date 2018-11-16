@@ -10,6 +10,7 @@ import subprocess
 
 from swh.loader.git.loader import GitLoader, GitLoaderFromArchive
 from swh.loader.core.tests import BaseLoaderTest, LoaderNoStorage
+from swh.model.hashutil import hash_to_bytes
 
 
 class MockStorage0:
@@ -66,7 +67,7 @@ SNAPSHOT1 = {
     },
 }
 
-SUBDIR_HASH = 'd53f143d5f3aadb278aad60c4e9a17945a2d68de'
+SUBDIR_HASH = hash_to_bytes('d53f143d5f3aadb278aad60c4e9a17945a2d68de')
 
 # directory hashes obtained with:
 # gco b6f40292c4e94a8f7e7b4aff50e6c7429ab98e2a
@@ -104,16 +105,31 @@ REVISIONS1 = {
 class MockStorage1:
     """The storage's state after the first snapshot is loaded."""
     def snapshot_get_latest(self, origin_id):
-        return SNAPSHOT1
+        # The following line reencodes SNAPSHOT1 from the format expected
+        # by assertSnapshotOk to the one that Storage.snapshot_get_latest
+        # returns.
+        return {
+            'id': hash_to_bytes(SNAPSHOT1['id']),
+            'branches': {
+                branch_name.encode(): {
+                    'target': hash_to_bytes(branch['target']),
+                    'target_type': branch['target_type']}
+                for (branch_name, branch)
+                in SNAPSHOT1['branches'].items()}}
 
     def content_missing(self, contents, key_hash='sha1'):
-        return list({c[key_hash] for c in contents} - CONTENT1)
+        return map(hash_to_bytes,
+                   {c[key_hash] for c in contents} - CONTENT1)
 
     def directory_missing(self, directories):
-        return list(set(directories) - set(REVISIONS1.keys()) - {SUBDIR_HASH})
+        assert all(isinstance(d, bytes) for d in directories)
+        return (set(directories) -
+                set(map(hash_to_bytes, REVISIONS1)) -
+                {hash_to_bytes(SUBDIR_HASH)})
 
     def revision_missing(self, revisions):
-        return list(set(revisions) - set(REVISIONS1))
+        assert all(isinstance(r, bytes) for r in revisions)
+        return list(set(revisions) - set(map(hash_to_bytes, REVISIONS1)))
 
 
 class LoaderNoStorageMixin(LoaderNoStorage):
@@ -204,7 +220,7 @@ class BaseZipGitLoaderTest(BaseGitLoaderTest):
 class GitLoaderTests:
     def test_load(self):
         res = self.load()
-        self.assertEqual(res['status'], 'eventful')
+        self.assertEqual(res['status'], 'eventful', res)
 
         self.assertCountContents(4)  # two README, file1, file2
         self.assertCountDirectories(7)
@@ -225,7 +241,7 @@ class GitLoaderTests:
 
         self.loader.storage = MockStorage1()
         res = self.load()
-        self.assertEqual(res['status'], 'eventful')
+        self.assertEqual(res['status'], 'uneventful')
         self.assertCountSnapshots(1)
 
 
@@ -242,7 +258,7 @@ class DirGitLoaderTest(BaseDirGitLoaderTest, GitLoaderTests):
     def test_load_changed(self):
         # Initial load
         res = self.load()
-        self.assertEqual(res['status'], 'eventful')
+        self.assertEqual(res['status'], 'eventful', res)
 
         self._git('config', '--local', 'user.email', 'you@example.com')
         self._git('config', '--local', 'user.name', 'Your Name')
