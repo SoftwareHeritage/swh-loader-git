@@ -259,7 +259,7 @@ class GitLoaderFromArchive(GitLoader):
 
     """
     def __init__(self, *args, **kwargs):
-        super().__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.temp_dir = self.repo_path = None
 
     def project_name_from_archive(self, archive_path):
