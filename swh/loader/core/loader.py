@@ -929,7 +929,7 @@ class SWHStatelessLoader(SWHLoader):
     ADDITIONAL_CONFIG = {}
 
     def __init__(self, logging_class=None, config=None):
-        super().__init__(logging_class=logging_class, config=None)
+        super().__init__(logging_class=logging_class, config=config)
         self.visit_date = None  # possibly overridden in self.prepare method
 
     def cleanup(self):
