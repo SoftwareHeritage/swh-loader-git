@@ -6,7 +6,6 @@
 import os.path
 import zipfile
 import tempfile
-import datetime
 import subprocess
 
 from swh.loader.git.loader import GitLoader, GitLoaderFromArchive
@@ -97,11 +96,14 @@ class BaseGitLoaderTest(BaseLoaderTest):
                       prefix_tmp_folder_name='swh.loader.git.',
                       start_path=os.path.dirname(__file__),
                       uncompress_archive=uncompress_archive)
-        self.origin_id = self.storage.origin_add_one({
-            'type': 'git',
-            'url': 'http://example.com/foo.git'})
-        self.visit = self.storage.origin_visit_add(
-            self.origin_id, datetime.datetime.utcnow())
+
+
+class TestGitLoader(GitLoader):
+    def parse_config_file(self, *args, **kwargs):
+        return {
+            **super().parse_config_file(*args, **kwargs),
+            'storage': {'cls': 'memory', 'args': {}}
+        }
 
 
 class BaseDirGitLoaderTest(BaseGitLoaderTest):
@@ -113,13 +115,22 @@ class BaseDirGitLoaderTest(BaseGitLoaderTest):
     """
     def setUp(self):
         super().setUp('testrepo.tgz', True)
-        self.loader = GitLoader(config={'storage': 'memory'})
+        self.loader = TestGitLoader()
+        self.storage = self.loader.storage
 
     def load(self):
         return self.loader.load(
             origin_url=self.repo_url,
             visit_date='2016-05-03 15:16:32+00',
             directory=self.destination_path)
+
+
+class TestGitLoaderFromArchive(GitLoaderFromArchive):
+    def parse_config_file(self, *args, **kwargs):
+        return {
+            **super().parse_config_file(*args, **kwargs),
+            'storage': {'cls': 'memory', 'args': {}}
+        }
 
 
 class BaseZipGitLoaderTest(BaseGitLoaderTest):
@@ -132,7 +143,7 @@ class BaseZipGitLoaderTest(BaseGitLoaderTest):
     def setUp(self):
         super().setUp('testrepo.tgz', True)
         self._setup_zip()
-        self.loader = GitLoaderFromArchive(config={'storage': 'memory'})
+        self.loader = TestGitLoaderFromArchive()
         self.storage = self.loader.storage
 
     def _setup_zip(self):
