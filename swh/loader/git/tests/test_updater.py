@@ -6,8 +6,8 @@ class BulkUpdaterTest(DirGitLoaderTest):
     """Same tests as for the GitLoader, but running on BulkUpdater."""
     def setUp(self):
         super().setUp()
-        self.loader = BulkUpdater()
-        self.loader.storage = self.storage
+        self.loader = BulkUpdater(config={'storage': 'memory'})
+        self.storage = self.loader.storage
 
     def load(self):
         return self.loader.load(

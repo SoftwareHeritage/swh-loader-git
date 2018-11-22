@@ -113,8 +113,7 @@ class BaseDirGitLoaderTest(BaseGitLoaderTest):
     """
     def setUp(self):
         super().setUp('testrepo.tgz', True)
-        self.loader = GitLoader()
-        self.loader.storage = self.storage
+        self.loader = GitLoader(config={'storage': 'memory'})
 
     def load(self):
         return self.loader.load(
@@ -133,8 +132,8 @@ class BaseZipGitLoaderTest(BaseGitLoaderTest):
     def setUp(self):
         super().setUp('testrepo.tgz', True)
         self._setup_zip()
-        self.loader = GitLoaderFromArchive()
-        self.loader.storage = self.storage
+        self.loader = GitLoaderFromArchive(config={'storage': 'memory'})
+        self.storage = self.loader.storage
 
     def _setup_zip(self):
         self._zip_file = tempfile.NamedTemporaryFile('ab', suffix='.zip')
