@@ -13,9 +13,10 @@ Low-level loading utilities and helpers used by other loaders.
    README.md
 
 
-Indices and tables
-==================
+Reference Documentation
+-----------------------
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+.. toctree::
+   :maxdepth: 2
+
+   /apidoc/swh.loader.core
