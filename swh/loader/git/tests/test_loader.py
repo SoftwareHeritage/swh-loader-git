@@ -11,6 +11,8 @@ import subprocess
 from swh.loader.git.loader import GitLoader, GitLoaderFromArchive
 from swh.loader.core.tests import BaseLoaderTest
 
+from . import TEST_LOADER_CONFIG
+
 
 class GitLoaderFromArchive(GitLoaderFromArchive):
     def project_name_from_archive(self, archive_path):
@@ -100,10 +102,7 @@ class BaseGitLoaderTest(BaseLoaderTest):
 
 class TestGitLoader(GitLoader):
     def parse_config_file(self, *args, **kwargs):
-        return {
-            **super().parse_config_file(*args, **kwargs),
-            'storage': {'cls': 'memory', 'args': {}}
-        }
+        return TEST_LOADER_CONFIG
 
 
 class BaseDirGitLoaderTest(BaseGitLoaderTest):
@@ -127,10 +126,7 @@ class BaseDirGitLoaderTest(BaseGitLoaderTest):
 
 class TestGitLoaderFromArchive(GitLoaderFromArchive):
     def parse_config_file(self, *args, **kwargs):
-        return {
-            **super().parse_config_file(*args, **kwargs),
-            'storage': {'cls': 'memory', 'args': {}}
-        }
+        return TEST_LOADER_CONFIG
 
 
 class BaseZipGitLoaderTest(BaseGitLoaderTest):
