@@ -15,70 +15,7 @@ from swh.model import hashutil
 from swh.model.hashutil import hash_to_bytes
 
 
-@pytest.mark.fs
-class BaseLoaderTest(TestCase):
-    """Mixin base loader test class.
-
-    This allows to uncompress archives (mercurial, svn, git,
-    ... repositories) into a temporary folder so that the loader under
-    test can work with this.
-
-    When setUp() is done, the following variables are defined:
-    - self.repo_url: can be used as an origin_url for example
-    - self.destination_path: can be used as a path to ingest the
-                             <techno> repository.
-
-    Args:
-        archive_name (str): Name of the archive holding the repository
-                            (folder, repository, dump, etc...)
-        start_path (str): (mandatory) Path from where starting to look
-                                      for resources
-        filename (Optional[str]): Name of the filename/folder once the
-            archive is uncompressed. When the filename is not
-            provided, the archive name is used as a derivative. This
-            is used both for the self.repo_url and
-            self.destination_path computation (this one only when
-            provided)
-        resources_path (str): Folder name to look for archive
-        prefix_tmp_folder_name (str): Prefix name to name the temporary folder
-        uncompress_archive (bool): Uncompress the archive passed as
-                                  parameters (default to True). It so
-                                  happens we could avoid doing
-                                  anything to the tarball.
-
-    """
-    def setUp(self, archive_name, *, start_path, filename=None,
-              resources_path='resources', prefix_tmp_folder_name='',
-              uncompress_archive=True):
-        repo_path = os.path.join(start_path, resources_path, archive_name)
-        if not uncompress_archive:
-            # In that case, simply sets the archive's path
-            self.destination_path = repo_path
-            self.tmp_root_path = None
-            self.repo_url = 'file://' + repo_path
-            return
-        tmp_root_path = tempfile.mkdtemp(
-            prefix=prefix_tmp_folder_name, suffix='-tests')
-        # uncompress folder/repositories/dump for the loader to ingest
-        subprocess.check_output(['tar', 'xf', repo_path, '-C', tmp_root_path])
-        # build the origin url (or some derivative form)
-        _fname = filename if filename else os.path.basename(archive_name)
-        self.repo_url = 'file://' + tmp_root_path + '/' + _fname
-        # where is the data to ingest?
-        if filename:
-            # archive holds one folder with name <filename>
-            self.destination_path = os.path.join(tmp_root_path, filename)
-        else:
-            self.destination_path = tmp_root_path
-        self.tmp_root_path = tmp_root_path
-
-    def tearDown(self):
-        """Clean up temporary working directory
-
-        """
-        if self.tmp_root_path and os.path.exists(self.tmp_root_path):
-            shutil.rmtree(self.tmp_root_path)
-
+class BaseLoaderStorageTest:
     def _assertCountOk(self, type, expected_length, msg=None):
         """Check typed 'type' state to have the same expected length.
 
@@ -194,3 +131,69 @@ class BaseLoaderTest(TestCase):
             for branch, target in snap['branches'].items()
         }
         self.assertEqual(expected_branches, branches)
+
+
+@pytest.mark.fs
+class BaseLoaderTest(TestCase, BaseLoaderStorageTest):
+    """Mixin base loader test class.
+
+    This allows to uncompress archives (mercurial, svn, git,
+    ... repositories) into a temporary folder so that the loader under
+    test can work with this.
+
+    When setUp() is done, the following variables are defined:
+    - self.repo_url: can be used as an origin_url for example
+    - self.destination_path: can be used as a path to ingest the
+                             <techno> repository.
+
+    Args:
+        archive_name (str): Name of the archive holding the repository
+                            (folder, repository, dump, etc...)
+        start_path (str): (mandatory) Path from where starting to look
+                                      for resources
+        filename (Optional[str]): Name of the filename/folder once the
+            archive is uncompressed. When the filename is not
+            provided, the archive name is used as a derivative. This
+            is used both for the self.repo_url and
+            self.destination_path computation (this one only when
+            provided)
+        resources_path (str): Folder name to look for archive
+        prefix_tmp_folder_name (str): Prefix name to name the temporary folder
+        uncompress_archive (bool): Uncompress the archive passed as
+                                  parameters (default to True). It so
+                                  happens we could avoid doing
+                                  anything to the tarball.
+
+    """
+    def setUp(self, archive_name, *, start_path, filename=None,
+              resources_path='resources', prefix_tmp_folder_name='',
+              uncompress_archive=True):
+        super().setUp()
+        repo_path = os.path.join(start_path, resources_path, archive_name)
+        if not uncompress_archive:
+            # In that case, simply sets the archive's path
+            self.destination_path = repo_path
+            self.tmp_root_path = None
+            self.repo_url = 'file://' + repo_path
+            return
+        tmp_root_path = tempfile.mkdtemp(
+            prefix=prefix_tmp_folder_name, suffix='-tests')
+        # uncompress folder/repositories/dump for the loader to ingest
+        subprocess.check_output(['tar', 'xf', repo_path, '-C', tmp_root_path])
+        # build the origin url (or some derivative form)
+        _fname = filename if filename else os.path.basename(archive_name)
+        self.repo_url = 'file://' + tmp_root_path + '/' + _fname
+        # where is the data to ingest?
+        if filename:
+            # archive holds one folder with name <filename>
+            self.destination_path = os.path.join(tmp_root_path, filename)
+        else:
+            self.destination_path = tmp_root_path
+        self.tmp_root_path = tmp_root_path
+
+    def tearDown(self):
+        """Clean up temporary working directory
+
+        """
+        if self.tmp_root_path and os.path.exists(self.tmp_root_path):
+            shutil.rmtree(self.tmp_root_path)
