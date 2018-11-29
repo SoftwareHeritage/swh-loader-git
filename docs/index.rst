@@ -10,7 +10,7 @@ Low-level loading utilities and helpers used by other loaders.
    :maxdepth: 2
    :caption: Contents:
 
-   README.md
+   README
 
 
 Reference Documentation
