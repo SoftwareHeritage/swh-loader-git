@@ -280,7 +280,7 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
                 'swh_id': log_id
             })
 
-        tools = self.storage.tool_add([tool])
+        tools = list(self.storage.tool_add([tool]))
         tool_id = tools[0]['id']
 
         self.log.debug(
