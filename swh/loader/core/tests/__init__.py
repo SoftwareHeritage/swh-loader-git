@@ -16,7 +16,7 @@ from swh.model.hashutil import hash_to_bytes
 
 
 class BaseLoaderStorageTest:
-    def _assertCountOk(self, type, expected_length, msg=None):
+    def _assertCountEqual(self, type, expected_length, msg=None):
         """Check typed 'type' state to have the same expected length.
 
         """
@@ -25,47 +25,56 @@ class BaseLoaderStorageTest:
                          expected_length, msg=msg)
 
     def assertCountContents(self, len_expected_contents, msg=None):
-        self._assertCountOk('content', len_expected_contents, msg=msg)
+        self._assertCountEqual('content', len_expected_contents, msg=msg)
 
     def assertCountDirectories(self, len_expected_directories, msg=None):
-        self._assertCountOk('directory', len_expected_directories, msg=msg)
+        self._assertCountEqual('directory', len_expected_directories,
+                               msg=msg)
 
     def assertCountReleases(self, len_expected_releases, msg=None):
-        self._assertCountOk('release', len_expected_releases, msg=msg)
+        self._assertCountEqual('release', len_expected_releases, msg=msg)
 
     def assertCountRevisions(self, len_expected_revisions, msg=None):
-        self._assertCountOk('revision', len_expected_revisions, msg=msg)
+        self._assertCountEqual('revision', len_expected_revisions, msg=msg)
 
     def assertCountSnapshots(self, len_expected_snapshot, msg=None):
-        self._assertCountOk('snapshot', len_expected_snapshot, msg=msg)
+        self._assertCountEqual('snapshot', len_expected_snapshot, msg=msg)
 
-    def assertContentsOk(self, expected_contents):
-        self._assertCountOk('content', len(expected_contents))
+    def assertContentsContain(self, expected_contents):
+        """Check the provided content are a subset of the stored ones.
+
+        Args:
+            expected_contents ([sha1]): List of content ids"""
+        self._assertCountEqual('content', len(expected_contents))
         missing = list(self.storage.content_missing(
             {'sha1': hash_to_bytes(content_hash)}
             for content_hash in expected_contents))
         self.assertEqual(missing, [])
 
-    def assertDirectoriesOk(self, expected_directories):
-        self._assertCountOk('directory', len(expected_directories))
+    def assertDirectoriesContain(self, expected_directories):
+        """Check the provided directories are a subset of the stored ones.
+
+        Args:
+            expected_directories ([sha1]): List of directory ids."""
+        self._assertCountEqual('directory', len(expected_directories))
         missing = list(self.storage.directory_missing(
             hash_to_bytes(dir_) for dir_ in expected_directories))
         self.assertEqual(missing, [])
 
-    def assertReleasesOk(self, expected_releases):
-        """Check the loader's releases match the expected releases.
+    def assertReleasesContain(self, expected_releases):
+        """Check the provided releases are a subset of the stored ones.
 
         Args:
             releases (list): list of swh releases' identifiers.
 
         """
-        self._assertCountOk('release', len(expected_releases))
+        self._assertCountEqual('release', len(expected_releases))
         missing = list(self.storage.release_missing(
             hash_to_bytes(rel) for rel in expected_releases))
         self.assertEqual(missing, [])
 
-    def assertRevisionsOk(self, expected_revisions):
-        """Check the loader's revisions match the expected revisions.
+    def assertRevisionsContain(self, expected_revisions):
+        """Check the provided revisions are a subset of the stored ones.
 
         Expects self.loader to be instantiated and ready to be
         inspected (meaning the loading took place).
@@ -75,7 +84,7 @@ class BaseLoaderStorageTest:
             value the targeted directory id.
 
         """
-        self._assertCountOk('revision', len(expected_revisions))
+        self._assertCountEqual('revision', len(expected_revisions))
 
         revs = list(self.storage.revision_get(
             hashutil.hash_to_bytes(rev_id) for rev_id in expected_revisions))
@@ -85,7 +94,7 @@ class BaseLoaderStorageTest:
             {hash_to_bytes(rev_id): hash_to_bytes(rev_dir)
              for (rev_id, rev_dir) in expected_revisions.items()})
 
-    def assertSnapshotOk(self, expected_snapshot, expected_branches=[]):
+    def assertSnapshotEqual(self, expected_snapshot, expected_branches=[]):
         """Check for snapshot match.
 
         Provide the hashes as hexadecimal, the conversion is done
@@ -106,7 +115,7 @@ class BaseLoaderStorageTest:
         else:
             expected_snapshot_id = expected_snapshot
 
-        self._assertCountOk('snapshot', 1)
+        self._assertCountEqual('snapshot', 1)
 
         snap = self.storage.snapshot_get(hash_to_bytes(expected_snapshot_id))
         self.assertIsNotNone(snap)
@@ -134,7 +143,7 @@ class BaseLoaderStorageTest:
 
     def assertOriginMetadataContains(self, origin_type, origin_url,
                                      expected_origin_metadata):
-        """Checks the storage contains this metadata for the given origin.
+        """Check the storage contains this metadata for the given origin.
 
         Args:
 
