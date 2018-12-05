@@ -49,19 +49,19 @@ class BaseLoaderStorageTest:
     def assertDirectoriesOk(self, expected_directories):
         self._assertCountOk('directory', len(expected_directories))
         missing = list(self.storage.directory_missing(
-            dir_['id'] for dir_ in expected_directories))
+            hash_to_bytes(dir_) for dir_ in expected_directories))
         self.assertEqual(missing, [])
 
     def assertReleasesOk(self, expected_releases):
         """Check the loader's releases match the expected releases.
 
         Args:
-            releases ([dict]): List of dictionaries representing swh releases.
+            releases (list): list of swh releases' identifiers.
 
         """
         self._assertCountOk('release', len(expected_releases))
-        missing = list(self.storage.releases_missing(
-            rel['id'] for rel in expected_releases))
+        missing = list(self.storage.release_missing(
+            hash_to_bytes(rel) for rel in expected_releases))
         self.assertEqual(missing, [])
 
     def assertRevisionsOk(self, expected_revisions):
