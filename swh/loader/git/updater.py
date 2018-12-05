@@ -16,7 +16,7 @@ from dulwich.object_store import ObjectStoreGraphWalker
 from dulwich.pack import PackData, PackInflater
 
 from swh.model import hashutil
-from swh.loader.core.loader import SWHStatelessLoader
+from swh.loader.core.loader import UnbufferedLoader
 from swh.storage.algos.snapshot import snapshot_get_all_branches
 from . import converters
 
@@ -184,7 +184,7 @@ class SWHRepoRepresentation:
         return ret
 
 
-class BulkUpdater(SWHStatelessLoader):
+class BulkUpdater(UnbufferedLoader):
     """A bulk loader for a git repository"""
     CONFIG_BASE_FILENAME = 'loader/git-updater'
 

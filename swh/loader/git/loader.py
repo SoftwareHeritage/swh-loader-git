@@ -12,11 +12,11 @@ from dulwich.errors import ObjectFormatException, EmptyFileException
 from collections import defaultdict
 
 from swh.model import hashutil
-from swh.loader.core.loader import SWHStatelessLoader
+from swh.loader.core.loader import UnbufferedLoader
 from . import converters, utils
 
 
-class GitLoader(SWHStatelessLoader):
+class GitLoader(UnbufferedLoader):
     """Load a git repository from a directory.
     """
 
