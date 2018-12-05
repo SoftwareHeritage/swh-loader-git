@@ -877,7 +877,7 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
             self.pre_cleanup()
         except Exception:
             msg = 'Cleaning up dangling data failed! Continue loading.'
-            self.log.warn(msg)
+            self.log.warning(msg)
 
         self.prepare_origin_visit(*args, **kwargs)
         self._store_origin_visit()
