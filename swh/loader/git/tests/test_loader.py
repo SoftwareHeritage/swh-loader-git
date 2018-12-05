@@ -178,15 +178,15 @@ class GitLoaderTests:
         res = self.load()
         self.assertEqual(res['status'], 'eventful', res)
 
-        self.assertContentsOk(CONTENT1)
+        self.assertContentsContain(CONTENT1)
         self.assertCountDirectories(7)
         self.assertCountReleases(0)  # FIXME: why not 2?
         self.assertCountRevisions(7)
         self.assertCountSnapshots(1)
 
-        self.assertRevisionsOk(REVISIONS1)
+        self.assertRevisionsContain(REVISIONS1)
 
-        self.assertSnapshotOk(SNAPSHOT1)
+        self.assertSnapshotEqual(SNAPSHOT1)
 
         self.assertEqual(self.loader.load_status(), {'status': 'eventful'})
         self.assertEqual(self.loader.visit_status(), 'full')
@@ -248,10 +248,10 @@ class DirGitLoaderTest(BaseDirGitLoaderTest, GitLoaderTests):
         self.assertCountRevisions(7 + 1)
         self.assertCountSnapshots(1 + 1)
 
-        self.assertRevisionsOk(revisions)
+        self.assertRevisionsContain(revisions)
 
         # TODO: how to check the snapshot id?
-        # self.assertSnapshotOk(SNAPSHOT1)
+        # self.assertSnapshotEqual(SNAPSHOT1)
 
         self.assertEqual(self.loader.load_status(), {'status': 'eventful'})
         self.assertEqual(self.loader.visit_status(), 'full')
@@ -272,10 +272,10 @@ class DirGitLoaderTest(BaseDirGitLoaderTest, GitLoaderTests):
         self.assertCountRevisions(7 + 2)
         self.assertCountSnapshots(1 + 1 + 1)
 
-        self.assertRevisionsOk(revisions)
+        self.assertRevisionsContain(revisions)
 
         # TODO: how to check the snapshot id?
-        # self.assertSnapshotOk(SNAPSHOT1)
+        # self.assertSnapshotEqual(SNAPSHOT1)
 
         self.assertEqual(self.loader.load_status(), {'status': 'eventful'})
         self.assertEqual(self.loader.visit_status(), 'full')
