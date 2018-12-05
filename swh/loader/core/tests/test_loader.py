@@ -7,12 +7,12 @@ import datetime
 
 from swh.model.hashutil import hash_to_bytes
 
-from swh.loader.core.loader import SWHLoader
+from swh.loader.core.loader import BufferedLoader, UnbufferedLoader
 
 from . import BaseLoaderTest
 
 
-class DummyLoader(SWHLoader):
+class DummyLoader:
     def cleanup(self):
         pass
 
@@ -58,9 +58,17 @@ class DummyLoader(SWHLoader):
         }
 
 
+class DummyUnbufferedLoader(DummyLoader, UnbufferedLoader):
+    pass
+
+
+class DummyBufferedLoader(DummyLoader, BufferedLoader):
+    pass
+
+
 class DummyBaseLoaderTest(BaseLoaderTest):
     def setUp(self):
-        self.loader = DummyLoader(logging_class='dummyloader')
+        self.loader = self.loader_class(logging_class='dummyloader')
         # do not call voluntarily super().setUp()
         self.storage = self.loader.storage
         contents = [
@@ -140,43 +148,10 @@ class DummyBaseLoaderTest(BaseLoaderTest):
         pass
 
 
-class CoreLoaderTest(DummyBaseLoaderTest):
-    def test_stateful_loader(self):
-        """Stateful loader accumulates in place the sent data
+class CoreUnbufferedLoaderTest(DummyBaseLoaderTest):
+    loader_class = DummyUnbufferedLoader
 
-        Note: Those behaviors should be somehow merged but that's
-        another story.
-
-        """
-        self.loader.load()  # initialize the loader
-
-        self.loader.maybe_load_contents(self.in_contents[0:1])
-        self.loader.maybe_load_directories(self.in_directories[0:1])
-        self.loader.maybe_load_revisions(self.in_revisions[0:1])
-        self.loader.maybe_load_releases(self.in_releases[0:1])
-
-        self.assertCountContents(0)
-        self.assertCountDirectories(0)
-        self.assertCountRevisions(0)
-        self.assertCountReleases(0)
-
-        self.loader.maybe_load_contents(self.in_contents[1:])
-        self.loader.maybe_load_directories(self.in_directories[1:])
-        self.loader.maybe_load_revisions(self.in_revisions[1:])
-        self.loader.maybe_load_releases(self.in_releases[1:])
-
-        self.assertCountContents(len(self.in_contents))
-        self.assertCountDirectories(len(self.in_directories))
-        self.assertCountRevisions(len(self.in_revisions))
-        self.assertCountReleases(len(self.in_releases))
-
-    def test_stateless_loader(self):
-        """Stateless loader accumulates in place the sent data as well
-
-        Note: Those behaviors should be somehow merged but that's
-        another story.
-
-        """
+    def test_unbuffered_loader(self):
         self.loader.load()  # initialize the loader
 
         self.loader.send_contents(self.in_contents[0:1])
@@ -193,6 +168,33 @@ class CoreLoaderTest(DummyBaseLoaderTest):
         self.loader.send_directories(self.in_directories[1:])
         self.loader.send_revisions(self.in_revisions[1:])
         self.loader.send_releases(self.in_releases[1:])
+
+        self.assertCountContents(len(self.in_contents))
+        self.assertCountDirectories(len(self.in_directories))
+        self.assertCountRevisions(len(self.in_revisions))
+        self.assertCountReleases(len(self.in_releases))
+
+
+class CoreBufferedLoaderTest(DummyBaseLoaderTest):
+    loader_class = DummyBufferedLoader
+
+    def test_buffered_loader(self):
+        self.loader.load()  # initialize the loader
+
+        self.loader.maybe_load_contents(self.in_contents[0:1])
+        self.loader.maybe_load_directories(self.in_directories[0:1])
+        self.loader.maybe_load_revisions(self.in_revisions[0:1])
+        self.loader.maybe_load_releases(self.in_releases[0:1])
+
+        self.assertCountContents(0)
+        self.assertCountDirectories(0)
+        self.assertCountRevisions(0)
+        self.assertCountReleases(0)
+
+        self.loader.maybe_load_contents(self.in_contents[1:])
+        self.loader.maybe_load_directories(self.in_directories[1:])
+        self.loader.maybe_load_revisions(self.in_revisions[1:])
+        self.loader.maybe_load_releases(self.in_releases[1:])
 
         self.assertCountContents(len(self.in_contents))
         self.assertCountDirectories(len(self.in_directories))

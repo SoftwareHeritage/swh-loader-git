@@ -74,7 +74,7 @@ def retry_loading(error):
     return True
 
 
-class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
+class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
     """Mixin base class for loader.
 
     To use this class, you must:
@@ -915,15 +915,15 @@ class SWHLoader(config.SWHConfig, metaclass=ABCMeta):
         return self.load_status()
 
 
-class SWHStatelessLoader(SWHLoader):
-    """This base class is a pattern for stateless loaders.
+class UnbufferedLoader(BufferedLoader):
+    """This base class is a pattern for unbuffered loaders.
 
-    Stateless loaders are able to load all the data in one go. For
+    UnbufferedLoader loaders are able to load all the data in one go. For
     example, the loader defined in swh-loader-git
     :class:`BulkUpdater`.
 
     For other loaders (stateful one, (e.g :class:`SWHSvnLoader`),
-    inherit directly from :class:`SWHLoader`.
+    inherit directly from :class:`BufferedLoader`.
 
     """
     ADDITIONAL_CONFIG = {}
@@ -985,7 +985,7 @@ class SWHStatelessLoader(SWHLoader):
         raise NotImplementedError
 
     def flush(self):
-        """Stateless loader does not flush since it has no state to flush.
+        """Unbuffered loader does not flush since it has no state to flush.
 
         """
         pass
