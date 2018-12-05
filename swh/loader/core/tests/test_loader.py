@@ -125,22 +125,31 @@ class DummyBaseLoaderTest(BaseLoaderTest):
                 'date': None,
             },
         ]
-        self.in_origins = [
-            {
-                'type': 'git',
-                'url': 'http://example.com/',
-            },
-        ]
+        self.in_origin = {
+            'type': 'git',
+            'url': 'http://example.com/',
+        }
         self.in_snapshot = {
             'id': b'snap1',
             'branches': {},
         }
+        self.in_provider = {
+            'provider_name': 'Test Provider',
+            'provider_type': 'test_provider',
+            'provider_url': 'http://example.org/metadata_provider',
+            'metadata': {'working': True},
+        }
+        self.in_tool = {
+            'name': 'Test Tool',
+            'version': 'v1.2.3',
+            'configuration': {'in_the_Matrix': 'maybe'},
+        }
 
-        self.storage.origin_add(self.in_origins)
+        self.storage.origin_add([self.in_origin])
 
         # used by prepare_origin_visit() when it gets called
         self.loader._test_prepare_origin_visit_data = {
-            'origin': self.in_origins[0],
+            'origin': self.in_origin,
         }
 
     def tearDown(self):
@@ -256,3 +265,27 @@ class CoreBufferedLoaderTest(DummyBaseLoaderTest):
         self.assertCountRevisions(1)
         self.assertCountReleases(1)
         self.assertCountSnapshots(1)
+
+    def test_origin_metadata(self):
+        self.loader.load()
+
+        provider_id = self.loader.send_provider(self.in_provider)
+        tool_id = self.loader.send_tool(self.in_tool)
+
+        self.loader.send_origin_metadata(
+            self.loader.origin_id, self.loader.visit_date, provider_id,
+            tool_id, {'test_metadata': 'foobar'})
+
+        self.assertOriginMetadataContains(
+            self.in_origin['type'], self.in_origin['url'],
+            {'test_metadata': 'foobar'})
+
+        with self.assertRaises(AssertionError):
+            self.assertOriginMetadataContains(
+                self.in_origin['type'], self.in_origin['url'],
+                {'test_metadata': 'foobarbaz'})
+
+        with self.assertRaises(Exception):
+            self.assertOriginMetadataContains(
+                self.in_origin['type'], self.in_origin['url'] + 'blah',
+                {'test_metadata': 'foobar'})

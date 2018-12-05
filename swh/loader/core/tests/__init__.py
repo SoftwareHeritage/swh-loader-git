@@ -155,7 +155,7 @@ class BaseLoaderStorageTest:
         """
         origin = self.storage.origin_get(
                 dict(type=origin_type, url=origin_url))
-        results = self.storage.origin_metadata_get_by(origin)
+        results = self.storage.origin_metadata_get_by(origin['id'])
         self.assertEqual(len(results), 1, results)
         result = results[0]
         self.assertEqual(result['metadata'], expected_origin_metadata)
