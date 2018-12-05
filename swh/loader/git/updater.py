@@ -240,7 +240,7 @@ class BulkUpdater(UnbufferedLoader):
                                         base_repo.determine_wants,
                                         base_repo.graph_walker(),
                                         do_pack,
-                                        progress=do_activity)
+                                        progress=do_activity).refs
 
         if remote_refs:
             local_refs = base_repo.find_remote_ref_types_in_swh(remote_refs)

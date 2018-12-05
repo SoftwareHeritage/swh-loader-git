@@ -100,7 +100,7 @@ class BaseGitLoaderTest(BaseLoaderTest):
                       uncompress_archive=uncompress_archive)
 
 
-class TestGitLoader(GitLoader):
+class GitLoaderTest(GitLoader):
     def parse_config_file(self, *args, **kwargs):
         return TEST_LOADER_CONFIG
 
@@ -114,7 +114,7 @@ class BaseDirGitLoaderTest(BaseGitLoaderTest):
     """
     def setUp(self):
         super().setUp('testrepo.tgz', True)
-        self.loader = TestGitLoader()
+        self.loader = GitLoaderTest()
         self.storage = self.loader.storage
 
     def load(self):
@@ -124,7 +124,7 @@ class BaseDirGitLoaderTest(BaseGitLoaderTest):
             directory=self.destination_path)
 
 
-class TestGitLoaderFromArchive(GitLoaderFromArchive):
+class GitLoaderFromArchiveTest(GitLoaderFromArchive):
     def parse_config_file(self, *args, **kwargs):
         return TEST_LOADER_CONFIG
 
@@ -139,7 +139,7 @@ class BaseZipGitLoaderTest(BaseGitLoaderTest):
     def setUp(self):
         super().setUp('testrepo.tgz', True)
         self._setup_zip()
-        self.loader = TestGitLoaderFromArchive()
+        self.loader = GitLoaderFromArchiveTest()
         self.storage = self.loader.storage
 
     def _setup_zip(self):
