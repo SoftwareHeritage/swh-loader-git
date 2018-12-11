@@ -257,6 +257,44 @@ class GitLoader(UnbufferedLoader):
 class GitLoaderFromArchive(GitLoader):
     """Load a git repository from an archive.
 
+    This loader ingests a git repository compressed into an archive.
+    The supported archive formats are ``.zip`` and ``.tar.gz``.
+
+    From an input tarball named ``my-git-repo.zip``, the following layout is
+    expected in it::
+
+        my-git-repo/
+        ├── .git
+        │   ├── branches
+        │   ├── COMMIT_EDITMSG
+        │   ├── config
+        │   ├── description
+        │   ├── HEAD
+        ...
+
+    Nevertheless, the loader is able to ingest tarballs with the following
+    layouts too::
+
+        .
+        ├── .git
+        │   ├── branches
+        │   ├── COMMIT_EDITMSG
+        │   ├── config
+        │   ├── description
+        │   ├── HEAD
+        ...
+
+    or::
+
+        other-repo-name/
+        ├── .git
+        │   ├── branches
+        │   ├── COMMIT_EDITMSG
+        │   ├── config
+        │   ├── description
+        │   ├── HEAD
+        ...
+
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -266,7 +304,12 @@ class GitLoaderFromArchive(GitLoader):
         """Compute the project name from the archive's path.
 
         """
-        return os.path.basename(os.path.dirname(archive_path))
+        archive_name = os.path.basename(archive_path)
+        for ext in ('.zip', '.tar.gz', '.tgz'):
+            if archive_name.lower().endswith(ext):
+                archive_name = archive_name[:-len(ext)]
+                break
+        return archive_name
 
     def prepare_origin_visit(self, origin_url, archive_path, visit_date):
         self._prepare_origin_visit(origin_url, visit_date)

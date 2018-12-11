@@ -4,8 +4,6 @@
 # See top-level LICENSE file for more information
 
 import os.path
-import zipfile
-import tempfile
 import subprocess
 
 from swh.loader.git.loader import GitLoader, GitLoaderFromArchive
@@ -19,13 +17,16 @@ class GitLoaderFromArchive(GitLoaderFromArchive):
         # We don't want the project name to be 'resources'.
         return 'testrepo'
 
+    def parse_config_file(self, *args, **kwargs):
+        return TEST_LOADER_CONFIG
+
 
 CONTENT1 = {
     '33ab5639bfd8e7b95eb1d8d0b87781d4ffea4d5d',  # README v1
     '349c4ff7d21f1ec0eda26f3d9284c293e3425417',  # README v2
     '799c11e348d39f1704022b8354502e2f81f3c037',  # file1.txt
     '4bdb40dfd6ec75cb730e678b5d7786e30170c5fb',  # file2.txt
-    }
+}
 
 SNAPSHOT_ID = 'bdf3b06d6017e0d9ad6447a73da6ff1ae9efb8f0'
 
@@ -89,7 +90,7 @@ REVISIONS1 = {
         '9ca0c7d6ffa3f9f0de59fd7912e08f11308a1338',
     'bd746cd1913721b269b395a56a97baf6755151c2':
         'e1d0d894835f91a0f887a4bc8b16f81feefdfbd5',
-    }
+}
 
 
 class BaseGitLoaderTest(BaseLoaderTest):
@@ -113,7 +114,7 @@ class BaseDirGitLoaderTest(BaseGitLoaderTest):
 
     """
     def setUp(self):
-        super().setUp('testrepo.tgz', True)
+        super().setUp('testrepo.tgz', uncompress_archive=True)
         self.loader = GitLoaderTest()
         self.storage = self.loader.storage
 
@@ -124,12 +125,7 @@ class BaseDirGitLoaderTest(BaseGitLoaderTest):
             directory=self.destination_path)
 
 
-class GitLoaderFromArchiveTest(GitLoaderFromArchive):
-    def parse_config_file(self, *args, **kwargs):
-        return TEST_LOADER_CONFIG
-
-
-class BaseZipGitLoaderTest(BaseGitLoaderTest):
+class BaseGitLoaderFromArchiveTest(BaseGitLoaderTest):
     """Mixin base loader test to prepare the git
        repository to uncompress, load and test the results.
 
@@ -137,31 +133,9 @@ class BaseZipGitLoaderTest(BaseGitLoaderTest):
 
     """
     def setUp(self):
-        super().setUp('testrepo.tgz', True)
-        self._setup_zip()
-        self.loader = GitLoaderFromArchiveTest()
+        super().setUp('testrepo.tgz', uncompress_archive=False)
+        self.loader = GitLoaderFromArchive()
         self.storage = self.loader.storage
-
-    def _setup_zip(self):
-        self._zip_file = tempfile.NamedTemporaryFile('ab', suffix='.zip')
-        dest_dir = os.path.normpath(self.destination_path) + '/'
-        with zipfile.ZipFile(self._zip_file, 'a') as zip_writer:
-            for root, dirs, files in os.walk(dest_dir):
-                assert root.startswith(dest_dir)
-                relative_root = os.path.join(
-                        'testrepo',
-                        root[len(dest_dir):])
-                for file_ in files:
-                    zip_writer.write(
-                            filename=os.path.join(root, file_),
-                            arcname=os.path.join(relative_root, file_))
-        self.destination_path = self._zip_file.name
-        self.tmp_root_path = None
-        self.repo_url = 'file://' + self.destination_path
-
-    def tearDown(self):
-        self._zip_file.close()
-        super().tearDown()
 
     def load(self):
         return self.loader.load(
@@ -281,7 +255,7 @@ class DirGitLoaderTest(BaseDirGitLoaderTest, GitLoaderTests):
         self.assertEqual(self.loader.visit_status(), 'full')
 
 
-class ZipGitLoaderTest(BaseZipGitLoaderTest, GitLoaderTests):
+class GitLoaderFromArchiveTest(BaseGitLoaderFromArchiveTest, GitLoaderTests):
     """Tests for GitLoaderFromArchive. Imports the common ones
     from GitLoaderTests."""
     pass
