@@ -6,7 +6,8 @@
 import os.path
 import subprocess
 
-from swh.loader.git.loader import GitLoader, GitLoaderFromArchive
+
+from swh.loader.git.from_disk import GitLoader, GitLoaderFromArchive
 from swh.loader.core.tests import BaseLoaderTest
 
 from . import TEST_LOADER_CONFIG

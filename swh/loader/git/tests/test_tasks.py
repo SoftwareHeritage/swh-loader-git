@@ -36,7 +36,7 @@ class TestTasks2(unittest.TestCase):
         task = LoadDiskGitRepository()
         self.assertEqual(task.task_queue, 'swh_loader_git_express')
 
-    @patch('swh.loader.git.loader.GitLoader.load')
+    @patch('swh.loader.git.from_disk.GitLoader.load')
     def test_task(self, mock_loader):
         mock_loader.return_value = {'status': 'uneventful'}
         task = LoadDiskGitRepository()
@@ -56,7 +56,7 @@ class TestTasks3(unittest.TestCase):
         task = UncompressAndLoadDiskGitRepository()
         self.assertEqual(task.task_queue, 'swh_loader_git_archive')
 
-    @patch('swh.loader.git.loader.GitLoaderFromArchive.load')
+    @patch('swh.loader.git.from_disk.GitLoaderFromArchive.load')
     def test_task(self, mock_loader):
         mock_loader.return_value = {'status': 'failed'}
         task = UncompressAndLoadDiskGitRepository()
