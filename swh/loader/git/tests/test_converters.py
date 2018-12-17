@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2017  The Software Heritage developers
+# Copyright (C) 2015-2018  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -121,6 +121,21 @@ class TestConverters(unittest.TestCase):
             self.repo[self.blob_id], max_content_size=max_length)
         self.assertEqual(self.blob_hidden, content)
 
+    def test_convertion_wrong_input(self):
+        class Something:
+            type_name = b'something-not-the-right-type'
+
+        m = {
+            'blob': converters.dulwich_blob_to_content,
+            'blob2': converters.dulwich_blob_to_content_id,
+            'tree': converters.dulwich_tree_to_directory,
+            'commit': converters.dulwich_tree_to_directory,
+            'tag': converters.dulwich_tag_to_release,
+        }
+
+        for _callable in m.values():
+            self.assertIsNone(_callable(Something()))
+
     def test_commit_to_revision(self):
         sha1 = b'9768d0b576dbaaecd80abedad6dfd0d72f1476da'
 
@@ -161,6 +176,9 @@ class TestConverters(unittest.TestCase):
         self.assertEqual(revision, expected_revision)
 
     def test_author_line_to_author(self):
+        # edge case out of the way
+        self.assertIsNone(converters.parse_author(None))
+
         tests = {
             b'a <b@c.com>': {
                 'name': b'a',
@@ -192,6 +210,11 @@ class TestConverters(unittest.TestCase):
                 'email': b'',
                 'fullname': b' <>',
             },
+            b'something': {
+                'name': None,
+                'email': None,
+                'fullname': b'something'
+            }
         }
 
         for author in sorted(tests):
