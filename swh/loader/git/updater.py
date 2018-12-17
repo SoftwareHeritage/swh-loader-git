@@ -21,7 +21,7 @@ from swh.storage.algos.snapshot import snapshot_get_all_branches
 from . import converters
 
 
-class SWHRepoRepresentation:
+class RepoRepresentation:
     """Repository representation for a Software Heritage origin."""
     def __init__(self, storage, origin_id, base_snapshot=None,
                  ignore_history=False):
@@ -192,7 +192,7 @@ class BulkUpdater(UnbufferedLoader):
         'pack_size_bytes': ('int', 4 * 1024 * 1024 * 1024),
     }
 
-    def __init__(self, repo_representation=SWHRepoRepresentation, config=None):
+    def __init__(self, repo_representation=RepoRepresentation, config=None):
         """Initialize the bulk updater.
 
         Args:
