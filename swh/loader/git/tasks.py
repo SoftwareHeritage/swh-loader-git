@@ -8,7 +8,7 @@ import dateutil.parser
 from swh.scheduler.task import Task
 
 from .from_disk import GitLoaderFromDisk, GitLoaderFromArchive
-from .loader import BulkUpdater
+from .loader import GitLoader
 
 
 # TODO: rename to LoadRemoteGitRepository
@@ -18,7 +18,7 @@ class UpdateGitRepository(Task):
 
     def run_task(self, repo_url, base_url=None):
         """Import a git repository"""
-        loader = BulkUpdater()
+        loader = GitLoader()
         loader.log = self.log
 
         return loader.load(repo_url, base_url=base_url)

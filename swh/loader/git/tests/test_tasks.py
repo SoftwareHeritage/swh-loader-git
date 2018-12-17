@@ -18,7 +18,7 @@ class TestTasks(unittest.TestCase):
         task = UpdateGitRepository()
         self.assertEqual(task.task_queue, 'swh_loader_git')
 
-    @patch('swh.loader.git.loader.BulkUpdater.load')
+    @patch('swh.loader.git.loader.GitLoader.load')
     def test_task(self, mock_loader):
         mock_loader.return_value = {'status': 'eventful'}
         task = UpdateGitRepository()

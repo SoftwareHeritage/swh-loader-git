@@ -4,11 +4,11 @@
 # See top-level LICENSE file for more information
 
 
-from swh.loader.git.loader import BulkUpdater
+from swh.loader.git.loader import GitLoader
 from swh.loader.git.tests.test_from_disk import DirGitLoaderTest
 
 
-class BulkUpdaterTest(BulkUpdater):
+class GitLoaderTest(GitLoader):
     def parse_config_file(self, *args, **kwargs):
         return {
             **super().parse_config_file(*args, **kwargs),
@@ -16,11 +16,11 @@ class BulkUpdaterTest(BulkUpdater):
         }
 
 
-class TestBulkUpdater(DirGitLoaderTest):
-    """Same tests as for the GitLoaderFromDisk, but running on BulkUpdater."""
+class TestGitLoader(DirGitLoaderTest):
+    """Same tests as for the GitLoaderFromDisk, but running on GitLoader."""
     def setUp(self):
         super().setUp()
-        self.loader = BulkUpdaterTest()
+        self.loader = GitLoaderTest()
         self.storage = self.loader.storage
 
     def load(self):

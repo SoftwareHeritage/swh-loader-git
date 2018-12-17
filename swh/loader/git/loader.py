@@ -184,7 +184,7 @@ class RepoRepresentation:
         return ret
 
 
-class BulkUpdater(UnbufferedLoader):
+class GitLoader(UnbufferedLoader):
     """A bulk loader for a git repository"""
     CONFIG_BASE_FILENAME = 'loader/git-updater'
 
@@ -506,7 +506,7 @@ if __name__ == '__main__':
     @click.option('--ignore-history/--no-ignore-history',
                   help='Ignore the repository history', default=False)
     def main(origin_url, base_url, ignore_history):
-        return BulkUpdater().load(
+        return GitLoader().load(
             origin_url,
             base_url=base_url,
             ignore_history=ignore_history,
