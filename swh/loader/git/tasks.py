@@ -7,7 +7,7 @@ import dateutil.parser
 
 from swh.scheduler.task import Task
 
-from .from_disk import GitLoader, GitLoaderFromArchive
+from .from_disk import GitLoaderFromDisk, GitLoaderFromArchive
 from .loader import BulkUpdater
 
 
@@ -32,7 +32,7 @@ class LoadDiskGitRepository(Task):
         """Import a git repository, cloned in `directory` from `origin_url` at
         `date`."""
 
-        loader = GitLoader()
+        loader = GitLoaderFromDisk()
         loader.log = self.log
 
         return loader.load(origin_url, directory, dateutil.parser.parse(date))

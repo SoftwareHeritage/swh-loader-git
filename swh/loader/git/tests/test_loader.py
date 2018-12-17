@@ -11,7 +11,7 @@ class BulkUpdaterTest(BulkUpdater):
 
 
 class TestBulkUpdater(DirGitLoaderTest):
-    """Same tests as for the GitLoader, but running on BulkUpdater."""
+    """Same tests as for the GitLoaderFromDisk, but running on BulkUpdater."""
     def setUp(self):
         super().setUp()
         self.loader = BulkUpdaterTest()

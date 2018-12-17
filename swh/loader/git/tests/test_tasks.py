@@ -36,7 +36,7 @@ class TestTasks2(unittest.TestCase):
         task = LoadDiskGitRepository()
         self.assertEqual(task.task_queue, 'swh_loader_git_express')
 
-    @patch('swh.loader.git.from_disk.GitLoader.load')
+    @patch('swh.loader.git.from_disk.GitLoaderFromDisk.load')
     def test_task(self, mock_loader):
         mock_loader.return_value = {'status': 'uneventful'}
         task = LoadDiskGitRepository()

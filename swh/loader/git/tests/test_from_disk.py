@@ -7,7 +7,7 @@ import os.path
 import subprocess
 
 
-from swh.loader.git.from_disk import GitLoader, GitLoaderFromArchive
+from swh.loader.git.from_disk import GitLoaderFromDisk, GitLoaderFromArchive
 from swh.loader.core.tests import BaseLoaderTest
 
 from . import TEST_LOADER_CONFIG
@@ -94,7 +94,7 @@ REVISIONS1 = {
 }
 
 
-class BaseGitLoaderTest(BaseLoaderTest):
+class BaseGitLoaderFromDiskTest(BaseLoaderTest):
     def setUp(self, archive_name, uncompress_archive, filename='testrepo'):
         super().setUp(archive_name=archive_name, filename=filename,
                       prefix_tmp_folder_name='swh.loader.git.',
@@ -102,12 +102,12 @@ class BaseGitLoaderTest(BaseLoaderTest):
                       uncompress_archive=uncompress_archive)
 
 
-class GitLoaderTest(GitLoader):
+class GitLoaderFromDiskTest(GitLoaderFromDisk):
     def parse_config_file(self, *args, **kwargs):
         return TEST_LOADER_CONFIG
 
 
-class BaseDirGitLoaderTest(BaseGitLoaderTest):
+class BaseDirGitLoaderFromDiskTest(BaseGitLoaderFromDiskTest):
     """Mixin base loader test to prepare the git
        repository to uncompress, load and test the results.
 
@@ -116,7 +116,7 @@ class BaseDirGitLoaderTest(BaseGitLoaderTest):
     """
     def setUp(self):
         super().setUp('testrepo.tgz', uncompress_archive=True)
-        self.loader = GitLoaderTest()
+        self.loader = GitLoaderFromDiskTest()
         self.storage = self.loader.storage
 
     def load(self):
@@ -126,7 +126,7 @@ class BaseDirGitLoaderTest(BaseGitLoaderTest):
             directory=self.destination_path)
 
 
-class BaseGitLoaderFromArchiveTest(BaseGitLoaderTest):
+class BaseGitLoaderFromArchiveTest(BaseGitLoaderFromDiskTest):
     """Mixin base loader test to prepare the git
        repository to uncompress, load and test the results.
 
@@ -145,7 +145,7 @@ class BaseGitLoaderFromArchiveTest(BaseGitLoaderTest):
             archive_path=self.destination_path)
 
 
-class GitLoaderTests:
+class GitLoaderFromDiskTests:
     """Common tests for all git loaders."""
     def test_load(self):
         """Loads a simple repository (made available by `setUp()`),
@@ -177,8 +177,8 @@ class GitLoaderTests:
         self.assertCountSnapshots(1)
 
 
-class DirGitLoaderTest(BaseDirGitLoaderTest, GitLoaderTests):
-    """Tests for the GitLoader. Includes the common ones, and
+class DirGitLoaderTest(BaseDirGitLoaderFromDiskTest, GitLoaderFromDiskTests):
+    """Tests for the GitLoaderFromDisk. Includes the common ones, and
     add others that only work with a local dir."""
 
     def _git(self, *cmd):
@@ -256,7 +256,8 @@ class DirGitLoaderTest(BaseDirGitLoaderTest, GitLoaderTests):
         self.assertEqual(self.loader.visit_status(), 'full')
 
 
-class GitLoaderFromArchiveTest(BaseGitLoaderFromArchiveTest, GitLoaderTests):
+class GitLoaderFromArchiveTest(BaseGitLoaderFromArchiveTest,
+                               GitLoaderFromDiskTests):
     """Tests for GitLoaderFromArchive. Imports the common ones
     from GitLoaderTests."""
     pass

@@ -16,8 +16,9 @@ from swh.loader.core.loader import UnbufferedLoader
 from . import converters, utils
 
 
-class GitLoader(UnbufferedLoader):
+class GitLoaderFromDisk(UnbufferedLoader):
     """Load a git repository from a directory.
+
     """
 
     CONFIG_BASE_FILENAME = 'loader/git-loader'
@@ -254,7 +255,7 @@ class GitLoader(UnbufferedLoader):
         return {'status': ('eventful' if eventful else 'uneventful')}
 
 
-class GitLoaderFromArchive(GitLoader):
+class GitLoaderFromArchive(GitLoaderFromDisk):
     """Load a git repository from an archive.
 
     This loader ingests a git repository compressed into an archive.
@@ -316,8 +317,8 @@ class GitLoaderFromArchive(GitLoader):
 
     def prepare(self, origin_url, archive_path, visit_date):
         """1. Uncompress the archive in temporary location.
-           2. Prepare as the GitLoader does
-           3. Load as GitLoader does
+           2. Prepare as the GitLoaderFromDisk does
+           3. Load as GitLoaderFromDisk does
 
         """
         project_name = self.project_name_from_archive(archive_path)
@@ -355,6 +356,6 @@ if __name__ == '__main__':
         if not visit_date:
             visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
 
-        return GitLoader().load(origin_url, git_directory, visit_date)
+        return GitLoaderFromDisk().load(origin_url, git_directory, visit_date)
 
     main()
