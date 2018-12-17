@@ -21,7 +21,7 @@ class GitLoaderFromDisk(UnbufferedLoader):
 
     """
 
-    CONFIG_BASE_FILENAME = 'loader/git-loader'
+    CONFIG_BASE_FILENAME = 'loader/git-disk'
 
     def __init__(self, config=None):
         super().__init__(logging_class='swh.loader.git.Loader', config=config)
