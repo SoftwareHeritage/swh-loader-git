@@ -8,7 +8,7 @@ import dateutil.parser
 from swh.scheduler.task import Task
 
 from .from_disk import GitLoader, GitLoaderFromArchive
-from .updater import BulkUpdater
+from .loader import BulkUpdater
 
 
 # TODO: rename to LoadRemoteGitRepository

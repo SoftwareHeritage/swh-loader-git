@@ -1,5 +1,5 @@
-from swh.loader.git.updater import BulkUpdater
-from swh.loader.git.tests.test_loader import DirGitLoaderTest
+from swh.loader.git.loader import BulkUpdater
+from swh.loader.git.tests.test_from_disk import DirGitLoaderTest
 
 
 class BulkUpdaterTest(BulkUpdater):
