@@ -105,24 +105,35 @@ class DummyBaseLoaderTest(BaseLoaderTest):
                 '43e45d56f88993aae6a0198013efa80716fd8920',
             ]
         ]
+        person = {
+            'name': b'John Doe',
+            'email': b'john.doe@institute.org',
+            'fullname': b'John Doe <john.doe@institute.org>'
+        }
         self.in_revisions = [
             {
                 'id': b'rev1',
                 'date': None,
+                'author': person,
+                'committer': person
             },
             {
                 'id': b'rev2',
                 'date': None,
+                'author': person,
+                'committer': person
             },
         ]
         self.in_releases = [
             {
                 'id': b'rel1',
                 'date': None,
+                'author': person
             },
             {
                 'id': b'rel2',
                 'date': None,
+                'author': person
             },
         ]
         self.in_origin = {
