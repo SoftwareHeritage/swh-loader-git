@@ -141,7 +141,7 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
 
     ADDITIONAL_CONFIG = {}
 
-    def __init__(self, logging_class, config=None):
+    def __init__(self, logging_class=None, config=None):
         if config:
             self.config = config
         else:
@@ -150,6 +150,9 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
 
         self.storage = get_storage(**self.config['storage'])
 
+        if logging_class is None:
+            logging_class = '%s.%s' % (self.__class__.__module__,
+                                       self.__class__.__name__)
         self.log = logging.getLogger(logging_class)
 
         self.contents = QueuePerSizeAndNbUniqueElements(

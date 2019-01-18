@@ -4,6 +4,7 @@
 # See top-level LICENSE file for more information
 
 import datetime
+import logging
 
 from swh.model.hashutil import hash_to_bytes
 
@@ -300,3 +301,22 @@ class CoreBufferedLoaderTest(DummyBaseLoaderTest):
             self.assertOriginMetadataContains(
                 self.in_origin['type'], self.in_origin['url'] + 'blah',
                 {'test_metadata': 'foobar'})
+
+
+def test_loader_logger_default_name():
+    loader = DummyBufferedLoader()
+    assert isinstance(loader.log, logging.Logger)
+    assert loader.log.name == \
+        'swh.loader.core.tests.test_loader.DummyBufferedLoader'
+
+    loader = DummyUnbufferedLoader()
+    assert isinstance(loader.log, logging.Logger)
+    assert loader.log.name == \
+        'swh.loader.core.tests.test_loader.DummyUnbufferedLoader'
+
+
+def test_loader_logger_with_name():
+    loader = DummyBufferedLoader('some.logger.name')
+    assert isinstance(loader.log, logging.Logger)
+    assert loader.log.name == \
+        'some.logger.name'
