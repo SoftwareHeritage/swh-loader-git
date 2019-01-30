@@ -1,14 +1,14 @@
 Metadata-Version: 2.1
 Name: swh.loader.git
-Version: 0.0.43
+Version: 0.0.48
 Summary: Software Heritage git loader
 Home-page: https://forge.softwareheritage.org/diffusion/DLDG/
 Author: Software Heritage developers
 Author-email: swh-devel@inria.fr
 License: UNKNOWN
+Project-URL: Source, https://forge.softwareheritage.org/source/swh-loader-git
 Project-URL: Bug Reports, https://forge.softwareheritage.org/maniphest
 Project-URL: Funding, https://www.softwareheritage.org/donate
-Project-URL: Source, https://forge.softwareheritage.org/source/swh-loader-git
 Description: swh-loader-git
         ==============
         
@@ -59,9 +59,12 @@ Description: swh-loader-git
         Configuration
         -------------
         
-        You can run the loader or the updater directly by calling:
+        You can run the loader from a remote origin (*loader*) or from an
+        origin on disk (*from_disk*) directly by calling:
+        
+        
         ```
-        python3 -m swh.loader.git.{loader,updater}
+        python3 -m swh.loader.git.{loader,from_disk}
         ```
         
         ### Location
@@ -77,7 +80,8 @@ Description: swh-loader-git
         
         ### Configuration sample
         
-        $SWH_CONFIG_PATH/loader/git-{loader,updater}.yml:
+        Respectively the loader from a remote (`git.yml`) and the loader from
+        a disk (`git-disk.yml`), $SWH_CONFIG_PATH/loader/git{-disk}.yml:
         ```
         storage:
           cls: remote

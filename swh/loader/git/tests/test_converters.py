@@ -1,16 +1,16 @@
-# Copyright (C) 2015-2017  The Software Heritage developers
+# Copyright (C) 2015-2018  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
 import os
+import pytest
 import shutil
 import subprocess
 import tempfile
 import unittest
 
 import dulwich.repo
-from nose.plugins.attrib import attr
 
 import swh.loader.git.converters as converters
 from swh.model.hashutil import bytehex_to_hash, hash_to_bytes
@@ -46,7 +46,7 @@ class SWHTag:
         return sha1()
 
 
-@attr('fs')
+@pytest.mark.fs
 class TestConverters(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -121,6 +121,21 @@ class TestConverters(unittest.TestCase):
             self.repo[self.blob_id], max_content_size=max_length)
         self.assertEqual(self.blob_hidden, content)
 
+    def test_convertion_wrong_input(self):
+        class Something:
+            type_name = b'something-not-the-right-type'
+
+        m = {
+            'blob': converters.dulwich_blob_to_content,
+            'blob2': converters.dulwich_blob_to_content_id,
+            'tree': converters.dulwich_tree_to_directory,
+            'commit': converters.dulwich_tree_to_directory,
+            'tag': converters.dulwich_tag_to_release,
+        }
+
+        for _callable in m.values():
+            self.assertIsNone(_callable(Something()))
+
     def test_commit_to_revision(self):
         sha1 = b'9768d0b576dbaaecd80abedad6dfd0d72f1476da'
 
@@ -158,9 +173,12 @@ class TestConverters(unittest.TestCase):
             'synthetic': False,
         }
 
-        self.assertEquals(revision, expected_revision)
+        self.assertEqual(revision, expected_revision)
 
     def test_author_line_to_author(self):
+        # edge case out of the way
+        self.assertIsNone(converters.parse_author(None))
+
         tests = {
             b'a <b@c.com>': {
                 'name': b'a',
@@ -192,12 +210,17 @@ class TestConverters(unittest.TestCase):
                 'email': b'',
                 'fullname': b' <>',
             },
+            b'something': {
+                'name': None,
+                'email': None,
+                'fullname': b'something'
+            }
         }
 
         for author in sorted(tests):
             parsed_author = tests[author]
-            self.assertEquals(parsed_author,
-                              converters.parse_author(author))
+            self.assertEqual(parsed_author,
+                             converters.parse_author(author))
 
     def test_dulwich_tag_to_release_no_author_no_date(self):
         target = b'641fb6e08ddb2e4fd096dcf18e80b894bf'
@@ -226,7 +249,7 @@ class TestConverters(unittest.TestCase):
             'target_type': 'revision'
         }
 
-        self.assertEquals(actual_release, expected_release)
+        self.assertEqual(actual_release, expected_release)
 
     def test_dulwich_tag_to_release_author_and_date(self):
         tagger = b'hey dude <hello@mail.org>'
@@ -234,7 +257,9 @@ class TestConverters(unittest.TestCase):
         message = b'some release message'
 
         import datetime
-        date = datetime.datetime(2007, 12, 5).timestamp()
+        date = datetime.datetime(
+            2007, 12, 5, tzinfo=datetime.timezone.utc
+        ).timestamp()
 
         tag = SWHTag(name='blah',
                      type_name=b'tag',
@@ -258,7 +283,7 @@ class TestConverters(unittest.TestCase):
             'date': {
                 'negative_utc': False,
                 'offset': 0,
-                'timestamp': 1196809200.0
+                'timestamp': 1196812800.0
             },
             'id': b'\xda9\xa3\xee^kK\r2U\xbf\xef\x95`\x18\x90\xaf\xd8\x07\t',
             'message': message,
@@ -269,7 +294,7 @@ class TestConverters(unittest.TestCase):
             'target_type': 'revision'
         }
 
-        self.assertEquals(actual_release, expected_release)
+        self.assertEqual(actual_release, expected_release)
 
     def test_dulwich_tag_to_release_author_no_date(self):
         # to reproduce bug T815 (fixed)
@@ -304,4 +329,4 @@ class TestConverters(unittest.TestCase):
             'target_type': 'revision'
         }
 
-        self.assertEquals(actual_release, expected_release)
+        self.assertEqual(actual_release, expected_release)
