@@ -10,7 +10,7 @@ import os
 import shutil
 import tempfile
 
-from subprocess import call
+from swh.core import tarball
 
 
 def init_git_repo_from_archive(project_name, archive_path,
@@ -41,11 +41,18 @@ def init_git_repo_from_archive(project_name, archive_path,
 
     try:
         # create the repository that will be loaded with the dump
-        r = call(['unzip', '-q', '-o', archive_path, '-d', temp_dir])
-        if r != 0:
-            raise ValueError('Failed to uncompress archive %s' % archive_path)
-
+        tarball.uncompress(archive_path, temp_dir)
         repo_path = os.path.join(temp_dir, project_name)
+        # tarball content may not be as expected (e.g. no top level directory
+        # or a top level directory with a name different from project_name),
+        # so try to make it loadable anyway
+        if not os.path.exists(repo_path):
+            os.mkdir(repo_path)
+            for root, dirs, files in os.walk(temp_dir):
+                if '.git' in dirs:
+                    shutil.copytree(os.path.join(root, '.git'),
+                                    os.path.join(repo_path, '.git'))
+                    break
         return temp_dir, repo_path
     except Exception as e:
         shutil.rmtree(temp_dir)

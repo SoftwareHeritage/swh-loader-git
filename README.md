@@ -48,9 +48,12 @@ Requirements
 Configuration
 -------------
 
-You can run the loader or the updater directly by calling:
+You can run the loader from a remote origin (*loader*) or from an
+origin on disk (*from_disk*) directly by calling:
+
+
 ```
-python3 -m swh.loader.git.{loader,updater}
+python3 -m swh.loader.git.{loader,from_disk}
 ```
 
 ### Location
@@ -66,7 +69,8 @@ Note: Will call that location $SWH_CONFIG_PATH
 
 ### Configuration sample
 
-$SWH_CONFIG_PATH/loader/git-{loader,updater}.yml:
+Respectively the loader from a remote (`git.yml`) and the loader from
+a disk (`git-disk.yml`), $SWH_CONFIG_PATH/loader/git{-disk}.yml:
 ```
 storage:
   cls: remote
