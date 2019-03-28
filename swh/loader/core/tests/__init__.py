@@ -45,7 +45,6 @@ class BaseLoaderStorageTest:
 
         Args:
             expected_contents ([sha1]): List of content ids"""
-        self._assertCountEqual('content', len(expected_contents))
         missing = list(self.storage.content_missing(
             {'sha1': hash_to_bytes(content_hash)}
             for content_hash in expected_contents))
@@ -56,7 +55,6 @@ class BaseLoaderStorageTest:
 
         Args:
             expected_directories ([sha1]): List of directory ids."""
-        self._assertCountEqual('directory', len(expected_directories))
         missing = list(self.storage.directory_missing(
             hash_to_bytes(dir_) for dir_ in expected_directories))
         self.assertEqual(missing, [])
@@ -68,7 +66,6 @@ class BaseLoaderStorageTest:
             releases (list): list of swh releases' identifiers.
 
         """
-        self._assertCountEqual('release', len(expected_releases))
         missing = list(self.storage.release_missing(
             hash_to_bytes(rel) for rel in expected_releases))
         self.assertEqual(missing, [])
@@ -84,8 +81,6 @@ class BaseLoaderStorageTest:
             value the targeted directory id.
 
         """
-        self._assertCountEqual('revision', len(expected_revisions))
-
         revs = list(self.storage.revision_get(
             hashutil.hash_to_bytes(rev_id) for rev_id in expected_revisions))
         self.assertNotIn(None, revs)
@@ -114,8 +109,6 @@ class BaseLoaderStorageTest:
             expected_branches = expected_snapshot['branches']
         else:
             expected_snapshot_id = expected_snapshot
-
-        self._assertCountEqual('snapshot', 1)
 
         snap = self.storage.snapshot_get(hash_to_bytes(expected_snapshot_id))
         self.assertIsNotNone(snap)
