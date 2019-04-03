@@ -283,7 +283,7 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                 'swh_id': log_id
             })
 
-        tools = list(self.storage.tool_add([tool]))
+        tools = self.storage.tool_add([tool])
         tool_id = tools[0]['id']
 
         self.log.debug(
