@@ -484,7 +484,9 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
     def send_snapshot(self, snapshot):
-        self.storage.snapshot_add(self.origin_id, self.visit, snapshot)
+        self.storage.snapshot_add([snapshot])
+        self.storage.origin_visit_update(
+            self.origin_id, self.visit, snapshot=snapshot['id'])
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
     def filter_missing_contents(self, contents):
