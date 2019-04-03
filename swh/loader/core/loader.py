@@ -397,8 +397,8 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                                'swh_num': num_contents,
                                'swh_id': log_id,
                            })
-            self.storage.content_add(content_list)
-            self.counters['contents'] += num_contents
+            result = self.storage.content_add(content_list)
+            self.counters['contents'] += result['content:add']
             self.log.debug("Done sending %d contents" % num_contents,
                            extra={
                                'swh_type': 'storage_send_end',
@@ -422,8 +422,8 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                                'swh_num': num_directories,
                                'swh_id': log_id,
                            })
-            self.storage.directory_add(directory_list)
-            self.counters['directories'] += num_directories
+            result = self.storage.directory_add(directory_list)
+            self.counters['directories'] += result['directory:add']
             self.log.debug("Done sending %d directories" % num_directories,
                            extra={
                                'swh_type': 'storage_send_end',
@@ -447,8 +447,8 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                                'swh_num': num_revisions,
                                'swh_id': log_id,
                            })
-            self.storage.revision_add(revision_list)
-            self.counters['revisions'] += num_revisions
+            result = self.storage.revision_add(revision_list)
+            self.counters['revisions'] += result['revision:add']
             self.log.debug("Done sending %d revisions" % num_revisions,
                            extra={
                                'swh_type': 'storage_send_end',
@@ -472,8 +472,8 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                                'swh_num': num_releases,
                                'swh_id': log_id,
                            })
-            self.storage.release_add(release_list)
-            self.counters['releases'] += num_releases
+            result = self.storage.release_add(release_list)
+            self.counters['releases'] += result['release:add']
             self.log.debug("Done sending %d releases" % num_releases,
                            extra={
                                'swh_type': 'storage_send_end',
