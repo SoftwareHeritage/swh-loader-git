@@ -43,14 +43,11 @@ def test_clean_dangling_folders_0(tmpdir):
     assert r is None
 
 
-@patch('swh.loader.core.utils.psutil.pid_exists')
+@patch('swh.loader.core.utils.psutil.pid_exists', return_value=False)
 def test_clean_dangling_folders_1(mock_pid_exists, tmpdir):
-    """Folder which matches pattern with pid dead are cleaned up
+    """Folder which matches pattern with dead pid are cleaned up
 
     """
-    # pid is dead
-    mock_pid_exists.return_value = False
-
     rootpath, dangling = prepare_arborescence_from(tmpdir, [
         'something',
         'swh.loader.svn-4321.noisynoise',
@@ -63,14 +60,11 @@ def test_clean_dangling_folders_1(mock_pid_exists, tmpdir):
     assert_dirs(actual_dirs, ['something'])
 
 
-@patch('swh.loader.core.utils.psutil.pid_exists')
+@patch('swh.loader.core.utils.psutil.pid_exists', return_value=True)
 def test_clean_dangling_folders_2(mock_pid_exists, tmpdir):
-    """Folder which matches pattern with pid alive are skipped
+    """Folder which matches pattern with live pid are skipped
 
     """
-    # pid is live
-    mock_pid_exists.return_value = True
-
     rootpath, dangling = prepare_arborescence_from(tmpdir, [
         'something',
         'swh.loader.hg-1234.noisynoise',
@@ -85,17 +79,14 @@ def test_clean_dangling_folders_2(mock_pid_exists, tmpdir):
     ])
 
 
-@patch('swh.loader.core.utils.psutil.pid_exists')
-@patch('swh.loader.core.utils.shutil.rmtree')
+@patch('swh.loader.core.utils.psutil.pid_exists',
+       return_value=False)
+@patch('swh.loader.core.utils.shutil.rmtree',
+       side_effect=ValueError('Could not remove for reasons'))
 def test_clean_dangling_folders_3(mock_rmtree, mock_pid_exists, tmpdir):
     """Error in trying to clean dangling folders are skipped
 
     """
-    # pid is dead, we can clean up
-    mock_pid_exists.return_value = False
-    # for some reason, this fails to remove the dangling folder
-    mock_rmtree.side_effect = ValueError('Could not remove for reasons')
-
     path1 = 'thingy'
     path2 = 'swh.loader.git-1468.noisy'
     rootpath, dangling = prepare_arborescence_from(tmpdir, [
