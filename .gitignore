@@ -3,6 +3,7 @@
 /dataset/
 *.pyc
 /.coverage
+/.coverage.*
 /scratch/swhgitloader.cProfile
 /scratch/swhgitloader.profile
 /scratch/save.p
