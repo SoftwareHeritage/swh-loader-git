@@ -4,3 +4,4 @@
 vcversioner
 retrying
 psutil
+requests
