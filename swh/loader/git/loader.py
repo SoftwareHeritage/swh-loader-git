@@ -23,7 +23,7 @@ from . import converters
 
 class RepoRepresentation:
     """Repository representation for a Software Heritage origin."""
-    def __init__(self, storage, origin_id, base_snapshot=None,
+    def __init__(self, storage, base_snapshot=None,
                  ignore_history=False):
         self.storage = storage
 
@@ -32,8 +32,8 @@ class RepoRepresentation:
 
         self.ignore_history = ignore_history
 
-        if origin_id and not ignore_history:
-            self.heads = set(self._cache_heads(origin_id, base_snapshot))
+        if base_snapshot and not ignore_history:
+            self.heads = set(self._cache_heads(base_snapshot))
         else:
             self.heads = set()
 
@@ -51,8 +51,8 @@ class RepoRepresentation:
             if rev not in self._parents_cache:
                 self._parents_cache[rev] = []
 
-    def _cache_heads(self, origin_id, base_snapshot):
-        """Return all the known head commits for `origin_id`"""
+    def _cache_heads(self, base_snapshot):
+        """Return all the known head commits for the given snapshot"""
         _git_types = ['content', 'directory', 'revision', 'release']
 
         if not base_snapshot:
@@ -205,14 +205,13 @@ class GitLoader(UnbufferedLoader):
                          config=config)
         self.repo_representation = repo_representation
 
-    def fetch_pack_from_origin(self, origin_url, base_origin_id,
+    def fetch_pack_from_origin(self, origin_url,
                                base_snapshot, do_activity):
         """Fetch a pack from the origin"""
         pack_buffer = BytesIO()
 
         base_repo = self.repo_representation(
             storage=self.storage,
-            origin_id=base_origin_id,
             base_snapshot=base_snapshot,
             ignore_history=self.ignore_history,
         )
@@ -222,17 +221,14 @@ class GitLoader(UnbufferedLoader):
 
         size_limit = self.config['pack_size_bytes']
 
-        def do_pack(data,
-                    pack_buffer=pack_buffer,
-                    limit=size_limit,
-                    origin_url=origin_url):
+        def do_pack(data):
             cur_size = pack_buffer.tell()
             would_write = len(data)
-            if cur_size + would_write > limit:
+            if cur_size + would_write > size_limit:
                 raise IOError('Pack file too big for repository %s, '
                               'limit is %d bytes, current size is %d, '
                               'would write %d' %
-                              (origin_url, limit, cur_size, would_write))
+                              (origin_url, size_limit, cur_size, would_write))
 
             pack_buffer.write(data)
 
@@ -275,30 +271,30 @@ class GitLoader(UnbufferedLoader):
         self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
         self.origin = converters.origin_url_to_origin(origin_url)
 
-    def get_full_snapshot(self, origin_id):
-        prev_snapshot = self.storage.snapshot_get_latest(origin_id)
+    def get_full_snapshot(self, origin_url):
+        prev_snapshot = self.storage.snapshot_get_latest(origin_url)
         if prev_snapshot and prev_snapshot.pop('next_branch', None):
             return snapshot_get_all_branches(self.storage, prev_snapshot['id'])
 
         return prev_snapshot
 
     def prepare(self, origin_url, base_url=None, ignore_history=False):
-        base_origin_id = origin_id = self.origin_id
+        base_origin_url = origin_url = self.origin['url']
 
         prev_snapshot = None
 
         if not ignore_history:
-            prev_snapshot = self.get_full_snapshot(origin_id)
+            prev_snapshot = self.get_full_snapshot(origin_url)
 
         if base_url and not prev_snapshot:
             base_origin = converters.origin_url_to_origin(base_url)
             base_origin = self.storage.origin_get(base_origin)
             if base_origin:
-                base_origin_id = base_origin['id']
-                prev_snapshot = self.get_full_snapshot(base_origin_id)
+                base_origin_url = base_origin['url']
+                prev_snapshot = self.get_full_snapshot(base_origin_url)
 
         self.base_snapshot = prev_snapshot
-        self.base_origin_id = base_origin_id
+        self.base_origin_url = base_origin_url
         self.ignore_history = ignore_history
 
     def fetch_data(self):
@@ -307,7 +303,7 @@ class GitLoader(UnbufferedLoader):
             sys.stderr.flush()
 
         fetch_info = self.fetch_pack_from_origin(
-            self.origin['url'], self.base_origin_id, self.base_snapshot,
+            self.origin['url'], self.base_snapshot,
             do_progress)
 
         self.pack_buffer = fetch_info['pack_buffer']
@@ -387,7 +383,7 @@ class GitLoader(UnbufferedLoader):
 
             yield converters.dulwich_blob_to_content(
                 raw_obj, log=self.log, max_content_size=max_content_size,
-                origin_id=self.origin_id)
+                origin_url=self.origin['url'])
 
     def has_directories(self):
         return bool(self.type_to_ids[b'tree'])

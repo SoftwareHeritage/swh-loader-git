@@ -36,7 +36,7 @@ def dulwich_blob_to_content_id(blob):
 
 
 def dulwich_blob_to_content(blob, log=None, max_content_size=None,
-                            origin_id=None):
+                            origin_url=None):
     """Convert a dulwich blob to a Software Heritage content"""
 
     if blob.type_name != b'blob':
@@ -58,7 +58,7 @@ def dulwich_blob_to_content(blob, log=None, max_content_size=None,
                          })
             ret['status'] = 'absent'
             ret['reason'] = 'Content too large'
-            ret['origin'] = origin_id
+            ret['origin'] = origin_url
             return ret
 
     data = blob.as_raw_string()
