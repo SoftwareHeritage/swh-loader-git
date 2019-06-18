@@ -83,13 +83,13 @@ class TestContentForStorage(unittest.TestCase):
         expected_content = obj.copy()
         expected_content.pop('data')
         expected_content['status'] = 'absent'
-        expected_content['origin'] = 42
+        expected_content['origin'] = 'http://example.org/'
         expected_content['reason'] = 'Content too large'
 
         # when
         content = converters.content_for_storage(
             obj, log, max_content_size=len(data) - 1,
-            origin_id=expected_content['origin'],
+            origin_url=expected_content['origin'],
         )
 
         # then

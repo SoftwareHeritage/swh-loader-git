@@ -30,7 +30,6 @@ class DummyLoader:
         origin = self.storage.origin_get(
             self._test_prepare_origin_visit_data['origin'])
         self.origin = origin
-        self.origin_id = origin['id']
         self.origin_url = origin['url']
         self.visit_date = datetime.datetime.utcnow()
         self.storage.origin_visit_add(origin['id'], self.visit_date)
@@ -285,7 +284,7 @@ class CoreBufferedLoaderTest(DummyBaseLoaderTest):
         tool_id = self.loader.send_tool(self.in_tool)
 
         self.loader.send_origin_metadata(
-            self.loader.origin_id, self.loader.visit_date, provider_id,
+            self.loader.visit_date, provider_id,
             tool_id, {'test_metadata': 'foobar'})
 
         self.assertOriginMetadataContains(

@@ -9,7 +9,7 @@ from swh.model.hashutil import hash_to_hex
 
 
 def content_for_storage(content, log=None, max_content_size=None,
-                        origin_id=None):
+                        origin_url=None):
     """Prepare content to be ready for storage
 
     Note:
@@ -30,7 +30,7 @@ def content_for_storage(content, log=None, max_content_size=None,
         ret.pop('data', None)
         ret.update({'status': 'absent',
                     'reason': 'Content too large',
-                    'origin': origin_id})
+                    'origin': origin_url})
         return ret
 
     if 'data' not in ret:
