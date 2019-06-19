@@ -97,7 +97,7 @@ class GitLoaderFromDisk(UnbufferedLoader):
                           extra={
                               'swh_type': 'swh_loader_git_missing_object',
                               'swh_object_id': _id,
-                              'origin_id': self.origin_id,
+                              'origin_url': self.origin['url'],
                           })
             return None
         except ObjectFormatException:
@@ -106,7 +106,7 @@ class GitLoaderFromDisk(UnbufferedLoader):
                           extra={
                               'swh_type': 'swh_loader_git_missing_object',
                               'swh_object_id': _id,
-                              'origin_id': self.origin_id,
+                              'origin_url': self.origin['url'],
                           })
             return None
         except EmptyFileException:
@@ -115,7 +115,7 @@ class GitLoaderFromDisk(UnbufferedLoader):
                           extra={
                               'swh_type': 'swh_loader_git_missing_object',
                               'swh_object_id': _id,
-                              'origin_id': self.origin_id,
+                              'origin_url': self.origin['url'],
                           })
         else:
             return obj
@@ -123,7 +123,7 @@ class GitLoaderFromDisk(UnbufferedLoader):
     def fetch_data(self):
         """Fetch the data from the data source"""
         self.previous_snapshot = self.storage.snapshot_get_latest(
-            self.origin_id
+            self.origin['url']
         )
 
         type_to_ids = defaultdict(list)
@@ -156,7 +156,7 @@ class GitLoaderFromDisk(UnbufferedLoader):
             yield converters.dulwich_blob_to_content(
                 self.repo[hashutil.hash_to_bytehex(oid)], log=self.log,
                 max_content_size=max_content_size,
-                origin_id=self.origin_id)
+                origin_url=self.origin['url'])
 
     def has_directories(self):
         """Checks whether we need to load directories"""
