@@ -19,8 +19,8 @@ def update_git_repository(repo_url, base_url=None):
 
 
 @app.task(name=__name__ + '.LoadDiskGitRepository')
-def load_disk_git_repository(origin_url, directory, date):
-    """Import a git repository from disk
+def load_git_from_dir(origin_url, directory, date):
+    """Import a git repository from a local repository
 
        Import a git repository, cloned in `directory` from `origin_url` at
         `date`.
@@ -31,7 +31,7 @@ def load_disk_git_repository(origin_url, directory, date):
 
 
 @app.task(name=__name__ + '.UncompressAndLoadDiskGitRepository')
-def run_task(origin_url, archive_path, date):
+def load_git_from_zip(origin_url, archive_path, date):
     """Import a git repository from a zip archive
 
     1. Uncompress an archive repository in a local and temporary folder
