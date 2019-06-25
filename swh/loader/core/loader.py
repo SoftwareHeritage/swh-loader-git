@@ -666,30 +666,6 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
         packet_size = self.config['release_packet_size']
         send_in_packets(releases, self.send_releases, packet_size)
 
-    def open_fetch_history(self):
-        return self.storage.fetch_history_start(self.origin['url'])
-
-    def close_fetch_history_success(self, fetch_history_id):
-        data = {
-            'status': True,
-            'result': self.counters,
-        }
-        return self.storage.fetch_history_end(fetch_history_id, data)
-
-    def close_fetch_history_failure(self, fetch_history_id):
-        import traceback
-        data = {
-            'status': False,
-            'stderr': traceback.format_exc(),
-        }
-        if self.counters['contents'] > 0 or \
-           self.counters['directories'] > 0 or \
-           self.counters['revisions'] > 0 or \
-           self.counters['releases'] > 0:
-            data['result'] = self.counters
-
-        return self.storage.fetch_history_end(fetch_history_id, data)
-
     def flush(self):
         """Flush any potential dangling data not sent to swh-storage.
 
@@ -887,7 +863,6 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
 
         self.prepare_origin_visit(*args, **kwargs)
         self._store_origin_visit()
-        fetch_history_id = self.open_fetch_history()
 
         try:
             self.prepare(*args, **kwargs)
@@ -899,7 +874,6 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                     break
 
             self.store_metadata()
-            self.close_fetch_history_success(fetch_history_id)
             self.update_origin_visit(status=self.visit_status())
             self.post_load()
         except Exception:
@@ -908,7 +882,6 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                                    'swh_task_args': args,
                                    'swh_task_kwargs': kwargs,
                                })
-            self.close_fetch_history_failure(fetch_history_id)
             self.update_origin_visit(status='partial')
             self.post_load(success=False)
             return {'status': 'failed'}
@@ -974,10 +947,6 @@ class UnbufferedLoader(BufferedLoader):
 
     def get_snapshot(self):
         """Get the snapshot that needs to be loaded"""
-        raise NotImplementedError
-
-    def get_fetch_history_result(self):
-        """Return the data to store in fetch_history for the current loader"""
         raise NotImplementedError
 
     def eventful(self):
