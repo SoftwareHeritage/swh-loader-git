@@ -38,6 +38,8 @@ class GNULoader(BufferedLoader):
     }
     REVISION_MESSAGE = b'swh-loader-package: synthetic revision message'
 
+    visit_type = 'gnu'
+
     def __init__(self):
         self.TEMPORARY_DIR_PREFIX_PATTERN = 'swh.loader.gnu.'
         super().__init__(logging_class='swh.loader.package.GNULoader')
@@ -91,7 +93,7 @@ class GNULoader(BufferedLoader):
 
         self.origin = {
             'url': origin_url,
-            'type': 'gnu',
+            'type': self.visit_type,
         }
 
         self.visit_date = None  # loader core will populate it

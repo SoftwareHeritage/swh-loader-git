@@ -246,7 +246,7 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                        })
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
-    def send_origin_visit(self, visit_date):
+    def send_origin_visit(self, visit_date, visit_type):
         log_id = str(uuid.uuid4())
         self.log.debug(
             'Creating origin_visit for origin %s at time %s' % (
@@ -258,10 +258,10 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                 'swh_id': log_id
             })
         origin_visit = self.storage.origin_visit_add(
-            self.origin['url'], visit_date)
+            self.origin['url'], visit_date, visit_type)
         self.log.debug(
-            'Done Creating origin_visit for origin %s at time %s' % (
-                self.origin['url'], visit_date),
+            'Done Creating %s origin_visit for origin %s at time %s' % (
+                visit_type, self.origin['url'], visit_date),
             extra={
                 'swh_type': 'storage_send_end',
                 'swh_content_type': 'origin_visit',
@@ -745,7 +745,8 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
 
         if not self.visit_date:  # now as default visit_date if not provided
             self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
-        self.origin_visit = self.send_origin_visit(self.visit_date)
+        self.origin_visit = self.send_origin_visit(
+            self.visit_date, self.visit_type)
         self.visit = self.origin_visit['visit']
 
     @abstractmethod

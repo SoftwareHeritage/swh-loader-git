@@ -69,6 +69,7 @@ class DummyBufferedLoader(DummyLoader, BufferedLoader):
 class DummyBaseLoaderTest(BaseLoaderTest):
     def setUp(self):
         self.loader = self.loader_class(logging_class='dummyloader')
+        self.loader.visit_type = 'git'
         # do not call voluntarily super().setUp()
         self.storage = self.loader.storage
         contents = [
@@ -137,7 +138,7 @@ class DummyBaseLoaderTest(BaseLoaderTest):
             },
         ]
         self.in_origin = {
-            'type': 'git',
+            'type': self.loader.visit_type,
             'url': 'http://example.com/',
         }
         self.in_snapshot = {
