@@ -50,6 +50,8 @@ class TestContentForStorage(unittest.TestCase):
         expected_content = obj.copy()
         expected_content['data'] = data
         expected_content['status'] = 'visible'
+        del expected_content['path']
+        del expected_content['perms']
 
         # when
         content = converters.content_for_storage(obj)
@@ -65,6 +67,7 @@ class TestContentForStorage(unittest.TestCase):
 
         expected_content = obj.copy()
         expected_content['status'] = 'visible'
+        del expected_content['perms']
 
         # when
         content = converters.content_for_storage(obj)

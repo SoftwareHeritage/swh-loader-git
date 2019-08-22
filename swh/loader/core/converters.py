@@ -36,6 +36,11 @@ def content_for_storage(content, log=None, max_content_size=None,
     if 'data' not in ret:
         ret['data'] = open(ret['path'], 'rb').read()
 
+    # Extra keys added by swh.model.from_disk, that are not accepted
+    # by swh-storage
+    ret.pop('perms', None)
+    ret.pop('path', None)
+
     ret['status'] = 'visible'
 
     return ret
