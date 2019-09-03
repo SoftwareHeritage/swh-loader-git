@@ -1,3 +1,11 @@
+swh-loader-git (0.0.50-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 0.0.50     - (tagged by Antoine Lambert
+    <antoine.lambert@inria.fr> on 2019-09-03 13:07:54 +0200)
+  * Upstream changes:     - version 0.0.50
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Tue, 03 Sep 2019 11:13:19 +0000
+
 swh-loader-git (0.0.49-1~swh1) unstable-swh; urgency=medium
 
   * New upstream release 0.0.49     - (tagged by Valentin Lorentz
