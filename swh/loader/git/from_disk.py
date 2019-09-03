@@ -23,6 +23,8 @@ class GitLoaderFromDisk(UnbufferedLoader):
 
     CONFIG_BASE_FILENAME = 'loader/git-disk'
 
+    visit_type = 'git'
+
     def __init__(self, config=None):
         super().__init__(logging_class='swh.loader.git.Loader', config=config)
 
