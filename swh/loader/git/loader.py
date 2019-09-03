@@ -192,6 +192,8 @@ class GitLoader(UnbufferedLoader):
         'pack_size_bytes': ('int', 4 * 1024 * 1024 * 1024),
     }
 
+    visit_type = 'git'
+
     def __init__(self, repo_representation=RepoRepresentation, config=None):
         """Initialize the bulk updater.
 
