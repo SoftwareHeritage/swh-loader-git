@@ -69,7 +69,7 @@ class GNULoader(BufferedLoader):
 
         """
         if self.debug:
-            self.log.warn('%s Will not pre-clean up temp dir %s' % (
+            self.log.warning('%s Will not pre-clean up temp dir %s' % (
                 DEBUG_MODE, self.temp_directory
             ))
             return
@@ -162,8 +162,8 @@ class GNULoader(BufferedLoader):
             tarball_request = self._request(tarball_url,
                                             throw_error=False)
             if tarball_request.status_code == 404:
-                self.log.warn('Tarball url %s returns a 404 error.',
-                              tarball_url)
+                self.log.warning('Tarball url %s returns a 404 error.',
+                                 tarball_url)
                 self._visit_status = 'partial'
                 # FIX ME: Do we need to mark it `partial` here
                 continue
@@ -468,7 +468,7 @@ class GNULoader(BufferedLoader):
 
         """
         if self.debug:
-            self.log.warn('%s Will not clean up temp dir %s' % (
+            self.log.warning('%s Will not clean up temp dir %s' % (
                 DEBUG_MODE, self.temp_directory
             ))
             return
