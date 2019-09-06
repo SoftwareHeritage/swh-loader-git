@@ -114,7 +114,7 @@ class GNULoader(BufferedLoader):
         self.all_version_data = []
         self.latest_timestamp = 0
         # Conceled the data into one dictionary to eleminate the need of
-        # passing all the paramaters when required in some method
+        # passing all the parameters when required in some method
         self.package_details = {
             'name': name,
             'origin_url': origin_url,
