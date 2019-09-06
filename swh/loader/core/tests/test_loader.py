@@ -1,10 +1,12 @@
-# Copyright (C) 2018  The Software Heritage developers
+# Copyright (C) 2018-2019  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
 import datetime
+import hashlib
 import logging
+import pytest
 
 from swh.model.hashutil import hash_to_bytes
 
@@ -63,7 +65,9 @@ class DummyUnbufferedLoader(DummyLoader, UnbufferedLoader):
 
 
 class DummyBufferedLoader(DummyLoader, BufferedLoader):
-    pass
+    def __init__(self, *args, save_data_path=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.__save_data_path = save_data_path
 
 
 class DummyBaseLoaderTest(BaseLoaderTest):
@@ -344,3 +348,24 @@ def test_loader_logger_with_name():
     assert isinstance(loader.log, logging.Logger)
     assert loader.log.name == \
         'some.logger.name'
+
+
+@pytest.mark.fs
+def test_loader_save_data_path(tmp_path):
+    loader = DummyBufferedLoader('some.logger.name.1')
+    url = 'http://bitbucket.org/something'
+    loader.origin = {
+        'url': url,
+    }
+    loader.visit_date = datetime.datetime(year=2019, month=10, day=1)
+    loader.config = {
+        'save_data_path': tmp_path,
+    }
+
+    hash_url = hashlib.sha1(url.encode('utf-8')).hexdigest()
+    expected_save_path = '%s/sha1:%s/%s/2019' % (
+        str(tmp_path), hash_url[0:2], hash_url
+    )
+
+    save_path = loader.get_save_data_path()
+    assert save_path == expected_save_path

@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2018  The Software Heritage developers
+# Copyright (C) 2015-2019  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -210,11 +210,12 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
         if not hasattr(self, '__save_data_path'):
             year = str(self.visit_date.year)
 
-            origin_url_hash = hashlib.sha1(self.origin['url']).hexdigest()
+            url = self.origin['url'].encode('utf-8')
+            origin_url_hash = hashlib.sha1(url).hexdigest()
 
-            path = os.path.join(
+            path = '%s/sha1:%s/%s/%s' % (
                 self.config['save_data_path'],
-                'sha1:' + origin_url_hash[0:2],
+                origin_url_hash[0:2],
                 origin_url_hash,
                 year,
             )
