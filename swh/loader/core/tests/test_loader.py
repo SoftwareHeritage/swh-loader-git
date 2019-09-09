@@ -65,9 +65,7 @@ class DummyUnbufferedLoader(DummyLoader, UnbufferedLoader):
 
 
 class DummyBufferedLoader(DummyLoader, BufferedLoader):
-    def __init__(self, *args, save_data_path=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.__save_data_path = save_data_path
+    pass
 
 
 class DummyBaseLoaderTest(BaseLoaderTest):
