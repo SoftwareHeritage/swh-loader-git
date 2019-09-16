@@ -6,7 +6,7 @@
 import unittest
 import os
 import requests_mock
-from swh.loader.package.loader import GNULoader
+from swh.loader.package.gnu import GNULoader
 from swh.loader.core.tests import BaseLoaderStorageTest
 from swh.loader.package.tests.common import (
     package, package_url,
