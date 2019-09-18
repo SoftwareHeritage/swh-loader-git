@@ -40,7 +40,8 @@ class PackageLoader:
         return []
 
     def retrieve_artifacts(self, version):
-        """Fetch the files for one package version
+        """Given a release version of a package, retrieve the associated
+           artifact for such version.
 
         Args:
             version (str): Package version
@@ -51,40 +52,65 @@ class PackageLoader:
         """
         pass
 
-    def uncompress_artifact(self, artifact):
-        """Uncompress artifact to a temporary folder
+    def uncompress_artifact_archive(self, artifact_archive_path):
+        """Uncompress artifact archive to a temporary folder and returns its
+           path.
 
         Args:
-            artifact (str): Path to artifact archive to uncompress
+            artifact_archive_path (str): Path to artifact archive to uncompress
 
         Returns:
-            artifact_path (str) for the uncompressed and local representation
+            the uncompressed artifact path (str)
 
         """
         pass
 
-    def get_metadata(self, artifact):
-        """FIXME
+    def get_project_metadata(self, artifact):
+        """Given an artifact dict, extract the relevant project metadata.
+           Those will be set within the revision's metadata built
+
+        Args:
+            artifact (dict): A dict of metadata about a release artifact.
+
+        Returns:
+            dict of relevant project metadata (e.g, in pypi loader:
+            {'project_info': {...}})
 
         """
-        pass
+        return {}
 
-    def get_artifact_metadata(self, artifact):
-        """FIXME
+    def get_revision_metadata(self, artifact):
+        """Given an artifact dict, extract the relevant revision metadata.
+           Those will be set within the 'name' (bytes) and 'message' (bytes)
+           built revision fields.
+
+        Args:
+            artifact (dict): A dict of metadata about a release artifact.
+
+        Returns:
+            dict of relevant revision metadata (name, message keys with values
+            as bytes)
 
         """
-        pass
-
-    def build_and_load_snapshot(self):
         pass
 
     def get_revision_parents(self, version, artifact):
+        """Build the revision parents history if any
+
+        Args:
+            version (str): A version string as string (e.g. "0.0.1")
+            artifact (dict): A dict of metadata about a release artifact.
+
+        Returns:
+            List of revision ids representing the new revision's parents.
+
+        """
         pass
 
     def load(self):
-        """Load generically ...
+        """Load for a specific origin the associated contents.
 
-        for each package version
+        for each package version of the origin
 
         1. Fetch the files for one package version By default, this can be
            implemented as a simple HTTP request. Loaders with more specific
@@ -116,7 +142,7 @@ class PackageLoader:
 
         end for each
 
-        6. Generate and load the snapshot
+        6. Generate and load the snapshot for the visit
 
         Using the revisions/releases collected at step 5., and the branch
         information from step 0., generate a snapshot and load it into the
@@ -127,11 +153,12 @@ class PackageLoader:
 
         # FIXME: create origin and origin_visit
 
+        # Retrieve the default release (the "latest" one)
         default_release = self.get_default_release()
         for version in self.get_versions():  # for each
             stuff[version] = []
             for artifact in self.retrieve_artifacts(version):  # 1.
-                artifact_path = self.uncompress_artifact(artifact['name'])  # 2.
+                artifact_path = self.uncompress_artifact_archive(artifact['name'])  # 2.
 
                 # 3. Collect directory information
                 directory = Directory.from_disk(path=artifact_path, data=True)
@@ -144,12 +171,13 @@ class PackageLoader:
                 self.storage.directory_add(directories)
 
                 # 4. Parse metadata (project, artifact metadata)
-                metadata = self.get_artifact_metadata(artifact)
+                metadata = self.get_revision_metadata(artifact)
 
                 # 5. Build revision
-                name = metadata['name'].encode('utf-8')
-                message = metadata['message'].encode('utf-8')
+                name = metadata['name']
+                message = metadata['message']
                 if message:
+                    # FIXME: IMSMW, that does not work on python3.5
                     message = b'%s: %s' % (name, message)
                 else:
                     message = name
