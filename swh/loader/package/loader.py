@@ -17,37 +17,30 @@ class PackageLoader:
     """origin visit attribute (dict) set at the beginning of the load method
 
     """
+    visit_type = None
+    """Origin visit type (str) set by the loader
 
-    def __init__(self, url, visit_type, visit_date=None):
+    """
+
+    def __init__(self, url):
         """Loader's constructor. This raises exception if the minimal required
            configuration is missing (cf. fn:`check` method).
 
         Args:
             url (str): Origin url to load data from
-            visit_type (str): Loader's visit type (git, svn, tar, pypi, npm,
-                              etc...)
-            visit_date (Optional[str]): visit date to set, default to now
 
         """
         self.config = SWHConfig.parse_config_file()
+        self._check_configuration()
         self.storage = get_storage(**self.config['storage'])
         # FIXME: No more configuration documentation
         # Implicitely, this uses the SWH_CONFIG_FILENAME environment variable
         # loading mechanism
         # FIXME: Prepare temp folder to uncompress archives
 
-        # Once and for all, the following are mandatory
-        self.origin = {'url': url, 'type': visit_type}
-        self.visit_type = visit_type
-        if not visit_date:  # now as default visit_date if not provided
-            visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
-        if isinstance(visit_date, str):
-            visit_date = None  # FIXME: parse the visit_date
-        self.visit_date = visit_date
+        self.origin = {'url': url}
 
-        self.check()
-
-    def check(self):
+    def _check_configuration(self):
         """Checks the minimal configuration required is set for the loader.
 
         If some required configuration is missing, exception detailing the
@@ -57,10 +50,6 @@ class PackageLoader:
         if not 'storage' in self.config:
             raise ValueError(
                 'Misconfiguration, at least the storage key should be set')
-        if not hasattr(self, 'visit_type'):
-            raise ValueError('Loader must have a visit_type set')
-        if not hasattr(self, 'origin'):
-            raise ValueError('Loader must have an origin dict set')
 
     def get_versions(self):
         """Return the list of all published package versions.
@@ -185,7 +174,7 @@ class PackageLoader:
         # Prepare origin and origin_visit (method?)
         origin = self.storage.origin_add([self.origin])[0]
         visit = self.storage.origin_visit_add(
-            origin=origin, date=self.visit_date, type=self.visit_type)['visit']
+            origin=origin, type=self.visit_type)['visit']
 
         # Retrieve the default release (the "latest" one)
         default_release = self.get_default_release()
