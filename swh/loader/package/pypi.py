@@ -3,9 +3,24 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-from swh.loader.package.loader import PackageLoader
 from urllib.parse import urljoin, urlparse
+from pkginfo import UnpackedSDist
 
+from swh.loader.package.loader import PackageLoader
+
+try:
+    from swh.loader.core._version import __version__
+except ImportError:
+    __version__ = 'devel'
+
+
+DEFAULT_PARAMS = {
+    'headers': {
+        'User-Agent': 'Software Heritage Loader (%s)' % (
+            __version__
+        )
+    }
+}
 
 class PyPIClient:
     """PyPI client in charge of discussing with the pypi server.
@@ -23,13 +38,7 @@ class PyPIClient:
         project_name = _url.path.split('/')[-1]
         self.url = '%s://%s/pypi/%s' % (_url.scheme, _url.netloc, project_name)
         self.session = requests.session()
-        self.params = {
-            'headers': {
-                'User-Agent': 'Software Heritage PyPI Loader (%s)' % (
-                    __version__
-                )
-            }
-        }
+        self.params = DEFAULT_PARAMS
 
     def _get(self, url):
         """Get query to the url.
@@ -74,24 +83,110 @@ class PyPIClient:
         return self._get(urljoin(self.url, release, 'json'))
 
 
-class SDist():
-    """In charge of fetching release artifacts, uncompressing it in temporary
-       location, and parsing PKGINFO files.
+class ArchiveFetcher:
+    """Http/Local client in charge of downloading archives from a
+       remote/local server.
+
+    Args:
+        temp_directory (str): Path to the temporary disk location used
+                              for downloading the release artifacts
 
     """
+    def __init__(self, temp_directory=None):
+        self.temp_directory = temp_directory
+        self.session = requests.session()
+        self.params = DEFAULT_PARAMS
 
-    def __init__(self, url):
-        """
+    def download(self, url):
+        """Download the remote tarball url locally.
 
         Args:
-            url (str): artifact "release" URI (either local or remote)
+            url (str): Url (file or http*)
+
+        Raises:
+            ValueError in case of failing to query
+
+        Returns:
+            Tuple of local (filepath, hashes of filepath)
 
         """
-        pass
+        url_parsed = urlparse(url)
+        if url_parsed.scheme == 'file':
+            path = url_parsed.path
+            response = LocalResponse(path)
+            length = os.path.getsize(path)
+        else:
+            response = self.session.get(url, **self.params, stream=True)
+            if response.status_code != 200:
+                raise ValueError("Fail to query '%s'. Reason: %s" % (
+                    url, response.status_code))
+            length = int(response.headers['content-length'])
+
+        filepath = os.path.join(self.temp_directory, os.path.basename(url))
+
+        h = MultiHash(length=length)
+        with open(filepath, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=HASH_BLOCK_SIZE):
+                h.update(chunk)
+                f.write(chunk)
+
+        actual_length = os.path.getsize(filepath)
+        if length != actual_length:
+            raise ValueError('Error when checking size: %s != %s' % (
+                length, actual_length))
+
+        return {
+            'path': filepath,
+            'length': length,
+            **h.hexdigest()
+        }
+
+
+def sdist_parse(path):
+    """Given an uncompressed path holding the pkginfo file, returns a
+       pkginfo parsed structure as a dict.
+
+       The release artifact contains at their root one folder. For example:
+       $ tar tvf zprint-0.0.6.tar.gz
+       drwxr-xr-x root/root         0 2018-08-22 11:01 zprint-0.0.6/
+       ...
+
+    Args:
+
+        dir_path (str): Path to the uncompressed directory
+                        representing a release artifact from pypi.
+
+    Returns:
+        the pkginfo parsed structure as a dict if any or None if
+        none was present.
+
+    """
+    def _to_dict(pkginfo):
+        """Given a pkginfo parsed structure, convert it to a dict.
+
+        Args:
+            pkginfo (UnpackedSDist): The sdist parsed structure
+
+        Returns:
+            parsed structure as a dict
+
+        """
+        m = {}
+        for k in pkginfo:
+            m[k] = getattr(pkginfo, k)
+        return m
+
+    # Retrieve the root folder of the archive
+    project_dirname = os.listdir(dir_path)[0]
+    pkginfo_path = os.path.join(dir_path, project_dirname, 'PKG-INFO')
+    if not os.path.exists(pkginfo_path):
+        return None
+    pkginfo = UnpackedSDist(pkginfo_path)
+    return _to_dict(pkginfo)
 
 
 class PyPILoader(PackageLoader):
-      """Load pypi origin's artifact releases into swh archive.
+    """Load pypi origin's artifact releases into swh archive.
 
     """
     visit_type = 'pypi'
@@ -99,26 +194,35 @@ class PyPILoader(PackageLoader):
     def __init__(self, url):
         super().__init__(url=url, visit_type='pypi')
         self.client = PyPIClient(url)
-        self.sdist = SDist()
+        self.archive_fetcher = ArchiveFetcher(
+            temp_directory=os.mkdtemp())
+        self.info = self.client.info_project() # dict
+        self.artifact_metadata = {}
 
     def get_versions(self):
         """Return the list of all published package versions.
 
         """
-        return []
+        return self.info['releases'].keys()
 
     def retrieve_artifacts(self, version):
         """Given a release version of a package, retrieve the associated
-           artifact for such version.
+           artifacts for such version.
 
         Args:
             version (str): Package version
 
         Returns:
-            xxx
+            a list of metadata dict about the artifacts for that version.
+            For each dict, the 'name' field is the uri to retrieve the
+            artifacts
 
         """
-        pass
+        artifact_metadata = self.info['releases'][version]
+        for meta in artifact_metadata:
+            url = meta.pop('url')
+            meta['uri'] = url
+        return artifact_metadata
 
     def fetch_and_uncompress_artifact_archive(self, artifact_archive_path):
         """Uncompress artifact archive to a temporary folder and returns its
@@ -131,7 +235,7 @@ class PyPILoader(PackageLoader):
             the uncompressed artifact path (str)
 
         """
-        pass
+        return self.sdist_parse(artifact_archive_path)
 
     def get_project_metadata(self, artifact):
         """Given an artifact dict, extract the relevant project metadata.
@@ -145,7 +249,10 @@ class PyPILoader(PackageLoader):
             {'project_info': {...}})
 
         """
-        return {}
+        version = artifact['version']
+        if version not in self.artifact_metadata:
+            self.artifact_metadata[version] = self.client.info_release(version)
+        return self.artifact_metadata[version]['info']
 
     def get_revision_metadata(self, artifact):
         """Given an artifact dict, extract the relevant revision metadata.
@@ -160,4 +267,20 @@ class PyPILoader(PackageLoader):
             as bytes)
 
         """
-        pass
+        version = artifact['version']
+        # fetch information
+        if version not in self.artifact_metadata:
+            self.artifact_metadata[version] = self.client.info_release(version)
+
+        releases = self.artifact_metadata[version]['releases']
+        for _artifact in releases[version]:
+            if _artifact['url'] == artifact['uri']:
+                break
+
+        if not _artifact:  # should we?
+            raise ValueError('Revision metadata not found for artifact %s' % artifact['uri'])
+
+        return {
+            'name': version,
+            'message': _artifact.get('comment_text', '').encode('utf-8')
+        }

@@ -183,8 +183,12 @@ class PackageLoader:
         for version in self.get_versions():  # for each
             tmp_revisions[version] = []
             for artifact in self.retrieve_artifacts(version):  # 1.
-                artifact_path = self.uncompress_artifact_archive(
-                    artifact['name'])  # 2.
+                artifact_version = artifact.get('version')
+                if artifact_version is None:
+                    artifact['version'] = version
+
+                artifact_path = self.fetch_and_uncompress_artifact_archive(
+                    artifact['uri'])  # 2.
 
                 # 3. Collect directory information
                 directory = Directory.from_disk(path=artifact_path, data=True)
