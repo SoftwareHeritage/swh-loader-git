@@ -70,7 +70,7 @@ class PackageLoader:
         """
         pass
 
-    def uncompress_artifact_archive(self, artifact_archive_path):
+    def fetch_and_uncompress_artifact_archive(self, artifact_archive_path):
         """Uncompress artifact archive to a temporary folder and returns its
            path.
 
