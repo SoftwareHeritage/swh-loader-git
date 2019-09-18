@@ -189,6 +189,8 @@ class PackageLoader:
 
         # Retrieve the default release (the "latest" one)
         default_release = self.get_default_release()
+
+        # FIXME: Add load exceptions handling
         for version in self.get_versions():  # for each
             tmp_revisions[version] = []
             for artifact in self.retrieve_artifacts(version):  # 1.
