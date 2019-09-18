@@ -204,11 +204,7 @@ class PackageLoader:
                 # 5. Build revision
                 name = metadata['name']
                 message = metadata['message']
-                if message:
-                    # FIXME: IMSMW, that does not work on python3.5
-                    message = b'%s: %s' % (name, message)
-                else:
-                    message = name
+                message = b'%s: %s' % (name, message) if message else name
 
                 revision = {
                     'synthetic': True,
