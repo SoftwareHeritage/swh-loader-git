@@ -180,7 +180,7 @@ class PackageLoader:
         """
         status_load = 'uneventful'  # either: eventful, uneventful, failed
         status_visit = 'partial'    # either: partial, full
-        stuff = {}
+        tmp_revisions = {}
 
         # Prepare origin and origin_visit (method?)
         origin = self.storage.origin_add([self.origin])[0]
@@ -190,7 +190,7 @@ class PackageLoader:
         # Retrieve the default release (the "latest" one)
         default_release = self.get_default_release()
         for version in self.get_versions():  # for each
-            stuff[version] = []
+            tmp_revisions[version] = []
             for artifact in self.retrieve_artifacts(version):  # 1.
                 artifact_path = self.uncompress_artifact_archive(
                     artifact['name'])  # 2.
@@ -239,16 +239,14 @@ class PackageLoader:
                     revision_identifier(revision))
                 self.storage.revision_add(revision)
 
-                stuff[version].append[{
+                tmp_revisions[version].append[{
                     'filename': artifact['name'],
                     'target': revision['id'],
                 }]
 
-        # 6. Build and load the snapshot (which, quite possibly
-        # implementation-wise, will trigger the storage loading of contents,
-        # directories, revisions, releases, ... as well)
+        # 6. Build and load the snapshot
         branches = {}
-        for version, v_branches in stuff.items():
+        for version, v_branches in tmp_revisions.items():
             if len(v_branches) == 1:
                 branch_name = 'releases/%s' % version
                 if version == default_release['version']:
