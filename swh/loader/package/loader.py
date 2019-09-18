@@ -12,7 +12,7 @@ from swh.model.identifiers import (
 from swh.storage import get_storage
 
 
-class BaseLoader:
+class PackageLoader:
     def __init__(self):
         self.config = SWHConfig.parse_config_file()
         self.storage = get_storage(**self.config['storage'])
