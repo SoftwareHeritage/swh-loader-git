@@ -124,6 +124,9 @@ class PackageLoader:
 
         """
         stuff = {}
+
+        # FIXME: create origin and origin_visit
+
         default_release = self.get_default_release()
         for version in self.get_versions():  # for each
             stuff[version] = []
@@ -207,3 +210,5 @@ class PackageLoader:
         snapshot['id'] = identifier_to_bytes(
             snapshot_identifier(snapshot))
         self.storage.snapshot_add(snapshot)
+
+        # FIXME: Update origin_visit with load status, visit status and snapshot
