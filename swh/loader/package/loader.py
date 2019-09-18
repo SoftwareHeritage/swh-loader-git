@@ -134,7 +134,7 @@ class PackageLoader:
             List of revision ids representing the new revision's parents.
 
         """
-        pass
+        return []
 
     def load(self):
         """Load for a specific origin the associated contents.
