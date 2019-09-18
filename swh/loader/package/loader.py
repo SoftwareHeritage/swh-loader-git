@@ -210,7 +210,7 @@ class PackageLoader:
                     'synthetic': True,
                     'metadata': {
                         'original_artifact': artifact,
-                        **self.get_metadata(artifact),
+                        **self.get_project_metadata(artifact),
                     },
                     'author': metadata['author'],
                     'date': metadata['date'],
