@@ -16,10 +16,22 @@ class PackageLoader:
     def __init__(self):
         self.config = SWHConfig.parse_config_file()
         self.storage = get_storage(**self.config['storage'])
-        # FIXME: No more configuration documentation (and no check)
+        # FIXME: No more configuration documentation
         # Implicitely, this uses the SWH_CONFIG_FILENAME environment variable
         # loading mechanism
         # FIXME: Prepare temp folder to uncompress archives
+        self.check()
+
+    def check(self):
+        """Checks the minimal configuration required is set for the loader.
+
+        If some required configuration is missing, exception detailing the
+        issue is raised.
+
+        """
+        if not 'storage' in self.config:
+            raise ValueError(
+                'Misconfiguration, at least the storage key should be set')
 
     def get_versions(self):
         """Return the list of all published package versions.
