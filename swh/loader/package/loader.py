@@ -13,13 +13,38 @@ from swh.storage import get_storage
 
 
 class PackageLoader:
-    def __init__(self):
+    visit = None
+    """origin visit attribute (dict) set at the beginning of the load method
+
+    """
+
+    def __init__(self, url, visit_type, visit_date=None):
+        """Loader's constructor. This raises exception if the minimal required
+           configuration is missing (cf. fn:`check` method).
+
+        Args:
+            url (str): Origin url to load data from
+            visit_type (str): Loader's visit type (git, svn, tar, pypi, npm,
+                              etc...)
+            visit_date (Optional[str]): visit date to set, default to now
+
+        """
         self.config = SWHConfig.parse_config_file()
         self.storage = get_storage(**self.config['storage'])
         # FIXME: No more configuration documentation
         # Implicitely, this uses the SWH_CONFIG_FILENAME environment variable
         # loading mechanism
         # FIXME: Prepare temp folder to uncompress archives
+
+        # Once and for all, the following are mandatory
+        self.origin = {'url': url, 'type': visit_type}
+        self.visit_type = visit_type
+        if not visit_date:  # now as default visit_date if not provided
+            visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
+        if isinstance(visit_date, str):
+            visit_date = None  # FIXME: parse the visit_date
+        self.visit_date = visit_date
+
         self.check()
 
     def check(self):
@@ -32,6 +57,10 @@ class PackageLoader:
         if not 'storage' in self.config:
             raise ValueError(
                 'Misconfiguration, at least the storage key should be set')
+        if not hasattr(self, 'visit_type'):
+            raise ValueError('Loader must have a visit_type set')
+        if not hasattr(self, 'origin'):
+            raise ValueError('Loader must have an origin dict set')
 
     def get_versions(self):
         """Return the list of all published package versions.
@@ -149,16 +178,22 @@ class PackageLoader:
         Software Heritage archive
 
         """
+        status_load = 'uneventful'  # either: eventful, uneventful, failed
+        status_visit = 'partial'    # either: partial, full
         stuff = {}
 
-        # FIXME: create origin and origin_visit
+        # Prepare origin and origin_visit (method?)
+        origin = self.storage.origin_add([self.origin])[0]
+        visit = self.storage.origin_visit_add(
+            origin=origin, date=self.visit_date, type=self.visit_type)['visit']
 
         # Retrieve the default release (the "latest" one)
         default_release = self.get_default_release()
         for version in self.get_versions():  # for each
             stuff[version] = []
             for artifact in self.retrieve_artifacts(version):  # 1.
-                artifact_path = self.uncompress_artifact_archive(artifact['name'])  # 2.
+                artifact_path = self.uncompress_artifact_archive(
+                    artifact['name'])  # 2.
 
                 # 3. Collect directory information
                 directory = Directory.from_disk(path=artifact_path, data=True)
@@ -167,6 +202,8 @@ class PackageLoader:
 
                 contents = objects['content'].values()
                 self.storage.content_add(contents)
+
+                status_load = 'eventful'
                 directories = objects['directory'].values()
                 self.storage.directory_add(directories)
 
@@ -237,6 +274,16 @@ class PackageLoader:
         }
         snapshot['id'] = identifier_to_bytes(
             snapshot_identifier(snapshot))
-        self.storage.snapshot_add(snapshot)
+        self.storage.snapshot_add([snapshot])
 
-        # FIXME: Update origin_visit with load status, visit status and snapshot
+        # come so far, we actually reached a full visit
+        status_visit = 'full'
+
+        # Update the visit's state
+        self.origin_visit_update(
+            origin=self.origin,
+            visit_id=self.visit['visit'],
+            status=status_visit,
+            snapshot=snapshot)
+
+        return {'status': status_load}
