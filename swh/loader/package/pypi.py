@@ -208,7 +208,7 @@ class PyPILoader(PackageLoader):
     visit_type = 'pypi'
 
     def __init__(self, url):
-        super().__init__(url=url, visit_type='pypi')
+        super().__init__(url=url)
         self.client = PyPIClient(url)
         self._info = None
 
