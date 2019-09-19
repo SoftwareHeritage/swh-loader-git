@@ -139,7 +139,7 @@ def download(url: str, dest: str) -> Tuple[str, Dict]:
     }
 
 
-def sdist_parse(dir_path):
+def sdist_parse(dir_path: str) -> Dict:
     """Given an uncompressed path holding the pkginfo file, returns a
        pkginfo parsed structure as a dict.
 
