@@ -36,7 +36,7 @@ class PyPIClient:
        projects.
 
     Args:
-        url (str): PyPI instance's url (e.g: https://pypi.org/project/request)
+        url (str): PyPI instance's url (e.g: https://pypi.org/project/requests)
         api:
         - https://pypi.org/pypi/requests/json
         - https://pypi.org/pypi/requests/1.0.0/json (release description)
@@ -68,7 +68,7 @@ class PyPIClient:
             Response as dict if ok
 
         """
-        response = self.session.get(url, **DEFAULT_PARAMS)
+        response = requests.get(url, **DEFAULT_PARAMS)
         if response.status_code != 200:
             raise ValueError("Fail to query '%s'. Reason: %s" % (
                 url, response.status_code))
@@ -82,7 +82,7 @@ class PyPIClient:
             Main project information as dict.
 
         """
-        return self._get(urljoin(self.url, 'json'))
+        return self._get('%s/json' % self.url)
 
     def info_release(self, release: str) -> Dict:
         """Given a release version, retrieve the raw information for such
@@ -95,7 +95,7 @@ class PyPIClient:
             Release information as dict
 
         """
-        return self._get(urljoin(self.url, release, 'json'))
+        return self._get('%s/%s/json' % (self.url, release))
 
 
 def download(url: str, dest: str) -> Tuple[str, Dict]:

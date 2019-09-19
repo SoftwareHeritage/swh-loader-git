@@ -4,9 +4,11 @@
 # See top-level LICENSE file for more information
 
 import os
+
+import requests
 import pytest
 
-from swh.loader.package.pypi import PyPILoader, author
+from swh.loader.package.pypi import PyPILoader, PyPIClient, author
 
 
 def test_author_basic():
@@ -118,6 +120,63 @@ def test_badly_configured_loader_raise():
         PyPILoader(url='some-url')
 
     assert 'Misconfiguration' in e.value.args[0]
+
+
+def test_pypiclient_init():
+    """Initialization should set the api's base project url"""
+    project_url = 'https://pypi.org/project/requests'
+    expected_base_url = 'https://pypi.org/pypi/requests'
+    pypi_client = PyPIClient(url=project_url)
+
+    assert pypi_client.url == expected_base_url
+
+
+def test_pypiclient_failure(requests_mock):
+    """Failure to fetch info/release information should raise"""
+    project_url = 'https://pypi.org/project/requests'
+    pypi_client = PyPIClient(url=project_url)
+
+    expected_status_code = 400
+    info_url = '%s/json' % pypi_client.url
+    requests_mock.get(info_url, status_code=expected_status_code)
+
+    with pytest.raises(ValueError) as e0:
+        pypi_client.info_project()
+
+    assert e0.value.args[0] == "Fail to query '%s'. Reason: %s" % (
+        info_url, expected_status_code
+    )
+
+    expected_status_code = 404
+    release_url = '%s/3.0.0/json' % pypi_client.url
+    requests_mock.get(release_url, status_code=expected_status_code)
+
+    with pytest.raises(ValueError) as e1:
+        pypi_client.info_release("3.0.0")
+
+    assert e1.value.args[0] == "Fail to query '%s'. Reason: %s" % (
+        release_url, expected_status_code
+    )
+
+
+def test_pypiclient(requests_mock):
+    """Fetching info/release info should be ok"""
+    pypi_client = PyPIClient('https://pypi.org/project/requests')
+
+    info_url = '%s/json' % pypi_client.url
+    requests_mock.get(info_url, text='{"version": "0.0.1"}')
+    actual_info = pypi_client.info_project()
+    assert actual_info == {
+        'version': '0.0.1',
+    }
+
+    release_url = '%s/2.0.0/json' % pypi_client.url
+    requests_mock.get(release_url, text='{"version": "2.0.0"}')
+    actual_release_info = pypi_client.info_release("2.0.0")
+    assert actual_release_info == {
+        'version': '2.0.0',
+    }
+
 
 # "edge" cases (for the same origin) #
 
