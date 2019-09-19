@@ -3,11 +3,23 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import os
+import pytest
+
+from swh.loader.package.pypi import PyPILoader
+
 # scenario
 
 # configuration error #
 
-# badly configured loader fails
+def test_badly_configured_loader_raise():
+    """Badly configured loader should raise"""
+    assert 'SWH_CONFIG_FILENAME' in os.environ  # cf. tox.ini
+    del os.environ['SWH_CONFIG_FILENAME']
+    with pytest.raises(ValueError) as e:
+        PyPILoader(url='some-url')
+
+    assert 'Misconfiguration' in e.value.args[0]
 
 # "edge" cases (for the same origin) #
 
