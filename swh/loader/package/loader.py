@@ -34,9 +34,8 @@ class PackageLoader:
         self._check_configuration()
         self.storage = get_storage(**self.config['storage'])
         # FIXME: No more configuration documentation
-        # Implicitely, this uses the SWH_CONFIG_FILENAME environment variable
+        # Implicitily, this uses the SWH_CONFIG_FILENAME environment variable
         # loading mechanism
-        # FIXME: Prepare temp folder to uncompress archives
 
         self.origin = {'url': url}
 
