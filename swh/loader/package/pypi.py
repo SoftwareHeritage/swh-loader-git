@@ -3,9 +3,17 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import os
+
+from typing import Generator, Dict, Tuple, Sequence
 from urllib.parse import urljoin, urlparse
 from pkginfo import UnpackedSDist
 
+import iso8601
+import requests
+
+from swh.model.identifiers import normalize_timestamp
+from swh.model.hashutil import MultiHash, HASH_BLOCK_SIZE
 from swh.loader.package.loader import PackageLoader
 
 try:
@@ -21,6 +29,7 @@ DEFAULT_PARAMS = {
         )
     }
 }
+
 
 class PyPIClient:
     """PyPI client in charge of discussing with the pypi server.
@@ -83,66 +92,54 @@ class PyPIClient:
         return self._get(urljoin(self.url, release, 'json'))
 
 
-class ArchiveFetcher:
-    """Http/Local client in charge of downloading archives from a
-       remote/local server.
+def download(url: str, dest: str) -> Tuple[str, Dict]:
+    """Download a remote tarball from url, uncompresses and computes swh hashes
+       on it.
 
     Args:
-        temp_directory (str): Path to the temporary disk location used
-                              for downloading the release artifacts
+        url: Artifact uri to fetch, uncompress and hash
+        dest: Directory to write the archive to
+
+    Raises:
+        ValueError in case of any error when fetching/computing
+
+    Returns:
+        Tuple of local (filepath, hashes of filepath)
 
     """
-    def __init__(self, temp_directory=None):
-        self.temp_directory = temp_directory
-        self.session = requests.session()
-        self.params = DEFAULT_PARAMS
+    response = requests.get(url, **DEFAULT_PARAMS, stream=True)
+    if response.status_code != 200:
+        raise ValueError("Fail to query '%s'. Reason: %s" % (
+            url, response.status_code))
+    length = int(response.headers['content-length'])
 
-    def download(self, url):
-        """Download the remote tarball url locally.
+    filepath = os.path.join(dest, os.path.basename(url))
 
-        Args:
-            url (str): Url (file or http*)
+    h = MultiHash(length=length)
+    with open(filepath, 'wb') as f:
+        for chunk in response.iter_content(chunk_size=HASH_BLOCK_SIZE):
+            h.update(chunk)
+            f.write(chunk)
 
-        Raises:
-            ValueError in case of failing to query
+    actual_length = os.path.getsize(filepath)
+    if length != actual_length:
+        raise ValueError('Error when checking size: %s != %s' % (
+            length, actual_length))
 
-        Returns:
-            Tuple of local (filepath, hashes of filepath)
+    # hashes = h.hexdigest()
+    # actual_digest = hashes['sha256']
+    # if actual_digest != artifact['sha256']:
+    #     raise ValueError(
+    #         '%s %s: Checksum mismatched: %s != %s' % (
+    #             project, version, artifact['sha256'], actual_digest))
 
-        """
-        url_parsed = urlparse(url)
-        if url_parsed.scheme == 'file':
-            path = url_parsed.path
-            response = LocalResponse(path)
-            length = os.path.getsize(path)
-        else:
-            response = self.session.get(url, **self.params, stream=True)
-            if response.status_code != 200:
-                raise ValueError("Fail to query '%s'. Reason: %s" % (
-                    url, response.status_code))
-            length = int(response.headers['content-length'])
-
-        filepath = os.path.join(self.temp_directory, os.path.basename(url))
-
-        h = MultiHash(length=length)
-        with open(filepath, 'wb') as f:
-            for chunk in response.iter_content(chunk_size=HASH_BLOCK_SIZE):
-                h.update(chunk)
-                f.write(chunk)
-
-        actual_length = os.path.getsize(filepath)
-        if length != actual_length:
-            raise ValueError('Error when checking size: %s != %s' % (
-                length, actual_length))
-
-        return {
-            'path': filepath,
-            'length': length,
-            **h.hexdigest()
-        }
+    return filepath, {
+        'length': length,
+        **h.hexdigest()
+    }
 
 
-def sdist_parse(path):
+def sdist_parse(dir_path):
     """Given an uncompressed path holding the pkginfo file, returns a
        pkginfo parsed structure as a dict.
 
@@ -161,28 +158,47 @@ def sdist_parse(path):
         none was present.
 
     """
-    def _to_dict(pkginfo):
-        """Given a pkginfo parsed structure, convert it to a dict.
-
-        Args:
-            pkginfo (UnpackedSDist): The sdist parsed structure
-
-        Returns:
-            parsed structure as a dict
-
-        """
-        m = {}
-        for k in pkginfo:
-            m[k] = getattr(pkginfo, k)
-        return m
-
     # Retrieve the root folder of the archive
     project_dirname = os.listdir(dir_path)[0]
     pkginfo_path = os.path.join(dir_path, project_dirname, 'PKG-INFO')
     if not os.path.exists(pkginfo_path):
         return None
     pkginfo = UnpackedSDist(pkginfo_path)
-    return _to_dict(pkginfo)
+    return pkginfo.__dict__
+
+
+def author(data: Dict) -> Dict:
+    """Given a dict of project/release artifact information (coming from
+       PyPI), returns an author subset.
+
+    Args:
+        data (dict): Representing either artifact information or
+                     release information.
+
+    Returns:
+        swh-model dict representing a person.
+
+    """
+    name = data.get('author')
+    email = data.get('author_email')
+
+    if email:
+        fullname = '%s <%s>' % (name, email)
+    else:
+        fullname = name
+
+    if not fullname:
+        return {'fullname': b'', 'name': None, 'email': None}
+
+    fullname = fullname.encode('utf-8')
+
+    if name is not None:
+        name = name.encode('utf-8')
+
+    if email is not None:
+        email = email.encode('utf-8')
+
+    return {'fullname': fullname, 'name': name, 'email': email}
 
 
 class PyPILoader(PackageLoader):
@@ -194,93 +210,50 @@ class PyPILoader(PackageLoader):
     def __init__(self, url):
         super().__init__(url=url, visit_type='pypi')
         self.client = PyPIClient(url)
-        self.archive_fetcher = ArchiveFetcher(
-            temp_directory=os.mkdtemp())
-        self.info = self.client.info_project() # dict
-        self.artifact_metadata = {}
+        self._info = None
 
-    def get_versions(self):
-        """Return the list of all published package versions.
+    @property
+    def info(self) -> Dict:
+        """Return the project metadata information (fetched from pypi registry)
 
         """
+        if not self._info:
+            self._info = self.client.info_project()  # dict
+        return self._info
+
+    def get_versions(self) -> Sequence[str]:
         return self.info['releases'].keys()
 
-    def retrieve_artifacts(self, version):
-        """Given a release version of a package, retrieve the associated
-           artifacts for such version.
+    def get_artifacts(self, version: str) -> Generator[
+            Tuple[str, str, Dict], None, None]:
+        for meta in self.info['releases'][version]:
+            yield meta['filename'], meta['url'], meta
 
-        Args:
-            version (str): Package version
+    def fetch_artifact_archive(
+            self, artifact_uri: str, dest: str) -> Tuple[str, Dict]:
+        return download(artifact_uri, dest=dest)
 
-        Returns:
-            a list of metadata dict about the artifacts for that version.
-            For each dict, the 'name' field is the uri to retrieve the
-            artifacts
+    def build_revision(self, artifact_uncompressed_path: str) -> Dict:
+        # Parse metadata (project, artifact metadata)
+        metadata = sdist_parse(artifact_uncompressed_path)
 
-        """
-        artifact_metadata = self.info['releases'][version]
-        for meta in artifact_metadata:
-            url = meta.pop('url')
-            meta['uri'] = url
-        return artifact_metadata
+        # Build revision
+        name = metadata['version'].encode('utf-8')
+        message = metadata['message'].encode('utf-8')
+        message = b'%s: %s' % (name, message) if message else name
 
-    def fetch_and_uncompress_artifact_archive(self, artifact_archive_path):
-        """Uncompress artifact archive to a temporary folder and returns its
-           path.
-
-        Args:
-            artifact_archive_path (str): Path to artifact archive to uncompress
-
-        Returns:
-            the uncompressed artifact path (str)
-
-        """
-        return self.sdist_parse(artifact_archive_path)
-
-    def get_project_metadata(self, artifact):
-        """Given an artifact dict, extract the relevant project metadata.
-           Those will be set within the revision's metadata built
-
-        Args:
-            artifact (dict): A dict of metadata about a release artifact.
-
-        Returns:
-            dict of relevant project metadata (e.g, in pypi loader:
-            {'project_info': {...}})
-
-        """
-        version = artifact['version']
-        if version not in self.artifact_metadata:
-            self.artifact_metadata[version] = self.client.info_release(version)
-        return self.artifact_metadata[version]['info']
-
-    def get_revision_metadata(self, artifact):
-        """Given an artifact dict, extract the relevant revision metadata.
-           Those will be set within the 'name' (bytes) and 'message' (bytes)
-           built revision fields.
-
-        Args:
-            artifact (dict): A dict of metadata about a release artifact.
-
-        Returns:
-            dict of relevant revision metadata (name, message keys with values
-            as bytes)
-
-        """
-        version = artifact['version']
-        # fetch information
-        if version not in self.artifact_metadata:
-            self.artifact_metadata[version] = self.client.info_release(version)
-
-        releases = self.artifact_metadata[version]['releases']
-        for _artifact in releases[version]:
-            if _artifact['url'] == artifact['uri']:
-                break
-
-        if not _artifact:  # should we?
-            raise ValueError('Revision metadata not found for artifact %s' % artifact['uri'])
-
+        _author = author(metadata)
+        _date = normalize_timestamp(
+            int(iso8601.parse_date(metadata['date']).timestamp()))
         return {
-            'name': version,
-            'message': _artifact.get('comment_text', '').encode('utf-8')
+            'name': name,
+            'message': message,
+            'author': _author,
+            'date': _date,
+            'committer': _author,
+            'committer_date': _date,
+            'parents': [],
+            'metadata': {
+                'intrinsic_metadata': metadata,
+            }
         }

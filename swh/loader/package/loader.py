@@ -3,24 +3,24 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import tempfile
+import os
+
+from typing import Generator, Dict, Tuple, Sequence
+
+from swh.core.tarball import uncompress
 from swh.core.config import SWHConfig
 from swh.model.from_disk import Directory
 from swh.model.identifiers import (
     revision_identifier, snapshot_identifier,
-    identifier_to_bytes, normalize_timestamp
+    identifier_to_bytes
 )
 from swh.storage import get_storage
 
 
 class PackageLoader:
-    visit = None
-    """origin visit attribute (dict) set at the beginning of the load method
-
-    """
+    # Origin visit type (str) set by the loader
     visit_type = None
-    """Origin visit type (str) set by the loader
-
-    """
 
     def __init__(self, url):
         """Loader's constructor. This raises exception if the minimal required
@@ -47,83 +47,56 @@ class PackageLoader:
         issue is raised.
 
         """
-        if not 'storage' in self.config:
+        if 'storage' not in self.config:
             raise ValueError(
                 'Misconfiguration, at least the storage key should be set')
 
-    def get_versions(self):
+    def get_versions(self) -> Sequence[str]:
         """Return the list of all published package versions.
+
+        Returns:
+            Sequence of published versions
 
         """
         return []
 
-    def retrieve_artifacts(self, version):
+    def get_artifacts(self, version: str) -> Generator[
+            Tuple[str, str, Dict], None, None]:
         """Given a release version of a package, retrieve the associated
-           artifact for such version.
+           artifact information for such version.
 
         Args:
-            version (str): Package version
+            version: Package version
 
         Returns:
-            xxx
+            (artifact filename, artifact uri, raw artifact metadata)
 
         """
-        pass
+        return []
 
-    def fetch_and_uncompress_artifact_archive(self, artifact_archive_path):
-        """Uncompress artifact archive to a temporary folder and returns its
+    def fetch_artifact_archive(
+            self, artifact_archive_path: str, dest: str) -> str:
+        """Fetch artifact archive to a temporary folder and returns its
            path.
 
         Args:
-            artifact_archive_path (str): Path to artifact archive to uncompress
+            artifact_archive_path: Path to artifact archive to uncompress
+            dest: Directory to write the downloaded archive to
 
         Returns:
-            the uncompressed artifact path (str)
+            the locally retrieved artifact path
 
         """
         pass
 
-    def get_project_metadata(self, artifact):
-        """Given an artifact dict, extract the relevant project metadata.
-           Those will be set within the revision's metadata built
-
-        Args:
-            artifact (dict): A dict of metadata about a release artifact.
+    def build_revision(self) -> Dict:
+        """Build the revision dict
 
         Returns:
-            dict of relevant project metadata (e.g, in pypi loader:
-            {'project_info': {...}})
+            SWH data dict
 
         """
         return {}
-
-    def get_revision_metadata(self, artifact):
-        """Given an artifact dict, extract the relevant revision metadata.
-           Those will be set within the 'name' (bytes) and 'message' (bytes)
-           built revision fields.
-
-        Args:
-            artifact (dict): A dict of metadata about a release artifact.
-
-        Returns:
-            dict of relevant revision metadata (name, message keys with values
-            as bytes)
-
-        """
-        pass
-
-    def get_revision_parents(self, version, artifact):
-        """Build the revision parents history if any
-
-        Args:
-            version (str): A version string as string (e.g. "0.0.1")
-            artifact (dict): A dict of metadata about a release artifact.
-
-        Returns:
-            List of revision ids representing the new revision's parents.
-
-        """
-        return []
 
     def load(self):
         """Load for a specific origin the associated contents.
@@ -182,60 +155,49 @@ class PackageLoader:
         # FIXME: Add load exceptions handling
         for version in self.get_versions():  # for each
             tmp_revisions[version] = []
-            for artifact in self.retrieve_artifacts(version):  # 1.
-                artifact_version = artifact.get('version')
-                if artifact_version is None:
-                    artifact['version'] = version
+            # `a_` stands for `artifact_`
+            for a_filename, a_uri, a_metadata in self.get_artifacts(version):
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    a_path, a_computed_metadata = self.fetch_artifact_archive(
+                        a_uri, dest=tmpdir)
 
-                artifact_path = self.fetch_and_uncompress_artifact_archive(
-                    artifact['uri'])  # 2.
+                    uncompressed_path = os.path.join(tmpdir, 'src')
+                    uncompress(a_path, dest=uncompressed_path)
 
-                # 3. Collect directory information
-                directory = Directory.from_disk(path=artifact_path, data=True)
-                # FIXME: Try not to load the full raw content in memory
-                objects = directory.collect()
+                    directory = Directory.from_disk(
+                        path=uncompressed_path, data=True)
+                    # FIXME: Try not to load the full raw content in memory
+                    objects = directory.collect()
 
-                contents = objects['content'].values()
-                self.storage.content_add(contents)
+                    contents = objects['content'].values()
+                    self.storage.content_add(contents)
 
-                status_load = 'eventful'
-                directories = objects['directory'].values()
-                self.storage.directory_add(directories)
+                    status_load = 'eventful'
+                    directories = objects['directory'].values()
+                    self.storage.directory_add(directories)
 
-                # 4. Parse metadata (project, artifact metadata)
-                metadata = self.get_revision_metadata(artifact)
+                    # FIXME: This should be release. cf. D409 discussion
+                    revision = self.build_revision(uncompressed_path)
+                    revision.update({
+                        'type': 'tar',
+                        'synthetic': True,
+                        'directory': directory.hash,
+                    })
+                    revision['metadata'].update({
+                        'original_artifact': a_metadata,
+                        'hashes_artifact': a_computed_metadata
+                    })
 
-                # 5. Build revision
-                name = metadata['name']
-                message = metadata['message']
-                message = b'%s: %s' % (name, message) if message else name
+                    revision['id'] = identifier_to_bytes(
+                        revision_identifier(revision))
+                    self.storage.revision_add(revision)
 
-                revision = {
-                    'synthetic': True,
-                    'metadata': {
-                        'original_artifact': artifact,
-                        **self.get_project_metadata(artifact),
-                    },
-                    'author': metadata['author'],
-                    'date': metadata['date'],
-                    'committer': metadata['author'],
-                    'committer_date': metadata['date'],
-                    'message': message,
-                    'directory': directory.hash,
-                    'parents': self.get_revision_parents(version, artifact),
-                    'type': 'tar',
-                }
+                    tmp_revisions[version].append[{
+                        'filename': a_filename,
+                        'target': revision['id'],
+                    }]
 
-                revision['id'] = identifier_to_bytes(
-                    revision_identifier(revision))
-                self.storage.revision_add(revision)
-
-                tmp_revisions[version].append[{
-                    'filename': artifact['name'],
-                    'target': revision['id'],
-                }]
-
-        # 6. Build and load the snapshot
+        # Build and load the snapshot
         branches = {}
         for version, v_branches in tmp_revisions.items():
             if len(v_branches) == 1:
@@ -271,7 +233,7 @@ class PackageLoader:
         # Update the visit's state
         self.origin_visit_update(
             origin=self.origin,
-            visit_id=self.visit['visit'],
+            visit_id=visit['visit'],
             status=status_visit,
             snapshot=snapshot)
 
