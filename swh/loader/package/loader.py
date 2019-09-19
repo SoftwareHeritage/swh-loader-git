@@ -12,8 +12,7 @@ from swh.core.tarball import uncompress
 from swh.core.config import SWHConfig
 from swh.model.from_disk import Directory
 from swh.model.identifiers import (
-    revision_identifier, snapshot_identifier,
-    identifier_to_bytes
+    revision_identifier, snapshot_identifier, identifier_to_bytes
 )
 from swh.storage import get_storage
 
