@@ -6,9 +6,107 @@
 import os
 import pytest
 
-from swh.loader.package.pypi import PyPILoader
+from swh.loader.package.pypi import PyPILoader, author
 
-# scenario
+
+def test_author_basic():
+    data = {
+        'author': "i-am-groot",
+        'author_email': 'iam@groot.org',
+    }
+    actual_author = author(data)
+
+    expected_author = {
+        'fullname': b'i-am-groot <iam@groot.org>',
+        'name': b'i-am-groot',
+        'email': b'iam@groot.org',
+    }
+
+    assert actual_author == expected_author
+
+
+def test_author_empty_email():
+    data = {
+        'author': 'i-am-groot',
+        'author_email': '',
+    }
+    actual_author = author(data)
+
+    expected_author = {
+        'fullname': b'i-am-groot',
+        'name': b'i-am-groot',
+        'email': b'',
+    }
+
+    assert actual_author == expected_author
+
+
+def test_author_empty_name():
+    data = {
+        'author': "",
+        'author_email': 'iam@groot.org',
+    }
+    actual_author = author(data)
+
+    expected_author = {
+        'fullname': b' <iam@groot.org>',
+        'name': b'',
+        'email': b'iam@groot.org',
+    }
+
+    assert actual_author == expected_author
+
+
+def test_author_malformed():
+    data = {
+        'author': "['pierre', 'paul', 'jacques']",
+        'author_email': None,
+    }
+
+    actual_author = author(data)
+
+    expected_author = {
+        'fullname': b"['pierre', 'paul', 'jacques']",
+        'name': b"['pierre', 'paul', 'jacques']",
+        'email': None,
+    }
+
+    assert actual_author == expected_author
+
+
+def test_author_malformed_2():
+    data = {
+        'author': '[marie, jeanne]',
+        'author_email': '[marie@some, jeanne@thing]',
+    }
+
+    actual_author = author(data)
+
+    expected_author = {
+        'fullname': b'[marie, jeanne] <[marie@some, jeanne@thing]>',
+        'name': b'[marie, jeanne]',
+        'email': b'[marie@some, jeanne@thing]',
+    }
+
+    assert actual_author == expected_author
+
+
+def test_author_malformed_3():
+    data = {
+        'author': '[marie, jeanne, pierre]',
+        'author_email': '[marie@somewhere.org, jeanne@somewhere.org]',
+    }
+
+    actual_author = author(data)
+
+    expected_author = {
+        'fullname': b'[marie, jeanne, pierre] <[marie@somewhere.org, jeanne@somewhere.org]>',  # noqa
+        'name': b'[marie, jeanne, pierre]',
+        'email': b'[marie@somewhere.org, jeanne@somewhere.org]',
+    }
+
+    actual_author == expected_author
+
 
 # configuration error #
 
