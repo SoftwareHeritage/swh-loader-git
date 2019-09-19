@@ -5,11 +5,11 @@
 
 # scenario
 
-#### configuration error
+# configuration error #
 
 # badly configured loader fails
 
-#### "edge" cases (for the same origin)
+# "edge" cases (for the same origin) #
 
 # no release artifact:
 # {visit full, status: uneventful, no contents, etc...}
@@ -25,7 +25,7 @@
 # revisions are written in storage already)
 # {visit: partial, status: eventful, snapshot}
 
-#### "normal" cases (for the same origin)
+# "normal" cases (for the same origin) #
 
 # release artifact, no prior visit
 # {visit full, status eventful, snapshot}
@@ -37,4 +37,5 @@
 # {visit full, status full, new snapshot with shared history as prior snapshot}
 
 # release artifact, old artifact with different checksums
-# {visit full, status full, new snapshot with shared history and some new different history}
+# {visit full, status full, new snapshot with shared history and some new
+# different history}
