@@ -32,7 +32,8 @@ DEFAULT_PARAMS = {
 
 
 class PyPIClient:
-    """PyPI client in charge of discussing with the pypi server.
+    """PyPI api client. This deals with fetching json metadata about pypi
+       projects.
 
     Args:
         url (str): PyPI instance's url (e.g: https://pypi.org/project/request)
@@ -46,10 +47,15 @@ class PyPIClient:
         _url = urlparse(url)
         project_name = _url.path.split('/')[-1]
         self.url = '%s://%s/pypi/%s' % (_url.scheme, _url.netloc, project_name)
-        self.session = requests.session()
-        self.params = DEFAULT_PARAMS
+        self._session = None
 
-    def _get(self, url):
+    @property
+    def session(self):
+        if not self._session:
+            self._session = requests.session()
+        return self._session
+
+    def _get(self, url: str) -> Dict:
         """Get query to the url.
 
         Args:
@@ -62,14 +68,14 @@ class PyPIClient:
             Response as dict if ok
 
         """
-        response = self.session.get(url, **self.params)
+        response = self.session.get(url, **DEFAULT_PARAMS)
         if response.status_code != 200:
             raise ValueError("Fail to query '%s'. Reason: %s" % (
                 url, response.status_code))
 
         return response.json()
 
-    def info_project(self):
+    def info_project(self) -> Dict:
         """Given a url, retrieve the raw json response
 
         Returns:
@@ -78,12 +84,12 @@ class PyPIClient:
         """
         return self._get(urljoin(self.url, 'json'))
 
-    def info_release(self, release):
-        """Given a project and a release name, retrieve the raw information
-           for said project's release.
+    def info_release(self, release: str) -> Dict:
+        """Given a release version, retrieve the raw information for such
+           release
 
         Args:
-            release (dict): Release information
+            release: Release version
 
         Returns:
             Release information as dict
