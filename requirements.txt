@@ -6,3 +6,4 @@ retrying
 psutil
 requests
 iso8601
+pkginfo
