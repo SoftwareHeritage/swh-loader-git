@@ -7,7 +7,10 @@ import os
 
 import pytest
 
-from swh.loader.package.pypi import PyPILoader, PyPIClient, author
+from os import path
+
+from swh.core.tarball import uncompress
+from swh.loader.package.pypi import PyPILoader, PyPIClient, author, sdist_parse
 
 
 def test_author_basic():
@@ -176,6 +179,31 @@ def test_pypiclient(requests_mock):
         'version': '2.0.0',
     }
 
+
+resources = path.abspath(path.dirname(__file__))
+resource_json = path.join(resources, 'resources/json')
+resource_archives = path.join(resources, 'resources/tarballs')
+
+
+@pytest.mark.fs
+def test_sdist_parse(tmp_path):
+    uncompressed_archive_path = str(tmp_path)
+    archive_path = path.join(resource_archives, '0805nexter-1.1.0.zip')
+    uncompress(archive_path, dest=uncompressed_archive_path)
+
+    actual_sdist = sdist_parse(uncompressed_archive_path)
+    expected_sdist = {
+        'metadata_version': '1.0',
+        'name': '0805nexter',
+        'version': '1.1.0',
+        'summary': 'a simple printer of nested lest',
+        'home_page': 'http://www.hp.com',
+        'author': 'hgtkpython',
+        'author_email': '2868989685@qq.com',
+        'platforms': ['UNKNOWN'],
+    }
+
+    assert actual_sdist == expected_sdist
 
 # "edge" cases (for the same origin) #
 

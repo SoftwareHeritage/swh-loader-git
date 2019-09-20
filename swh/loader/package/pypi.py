@@ -170,7 +170,9 @@ def sdist_parse(dir_path: str) -> Dict:
     if not os.path.exists(pkginfo_path):
         return None
     pkginfo = UnpackedSDist(pkginfo_path)
-    return pkginfo.__dict__
+    raw = pkginfo.__dict__
+    raw.pop('filename')  # this gets added with the ondisk location
+    return raw
 
 
 def author(data: Dict) -> Dict:
