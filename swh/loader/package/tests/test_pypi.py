@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 import pytest
 
 from swh.core.tarball import uncompress
+from swh.model.hashutil import hash_to_bytes, hash_to_hex
 from swh.loader.package.pypi import (
     PyPILoader, PyPIClient, author, sdist_parse, download
 )
@@ -329,6 +330,56 @@ def test_release_artifact_no_prior_visit(requests_mock):
         'snapshot': 1
     } == stats
 
+    expected_contents = map(hash_to_bytes, [
+        'a61e24cdfdab3bb7817f6be85d37a3e666b34566',
+        '938c33483285fd8ad57f15497f538320df82aeb8',
+        'a27576d60e08c94a05006d2e6d540c0fdb5f38c8',
+        '405859113963cb7a797642b45f171d6360425d16',
+        'e5686aa568fdb1d19d7f1329267082fe40482d31',
+        '83ecf6ec1114fd260ca7a833a2d165e71258c338',
+    ])
+
+    assert list(loader.storage.content_missing_per_sha1(expected_contents)) == []
+
+    expected_dirs = map(hash_to_bytes, [
+        '05219ba38bc542d4345d5638af1ed56c7d43ca7d',
+        'cf019eb456cf6f78d8c4674596f1c9a97ece8f44',
+        'b178b66bd22383d5f16f4f5c923d39ca798861b4',
+        'c3a58f8b57433a4b56caaa5033ae2e0931405338',
+    ])
+
+    assert list(loader.storage.directory_missing(expected_dirs)) == []
+
+    # {revision hash: directory hash}
+    expected_revs = {
+        hash_to_bytes('4c99891f93b81450385777235a37b5e966dd1571'): hash_to_bytes('05219ba38bc542d4345d5638af1ed56c7d43ca7d'),  # noqa
+        hash_to_bytes('e445da4da22b31bfebb6ffc4383dbf839a074d21'): hash_to_bytes('b178b66bd22383d5f16f4f5c923d39ca798861b4'),  # noqa
+    }
+    assert list(loader.storage.revision_missing(expected_revs)) == []
+
+    expected_branches = {
+        'releases/1.1.0': {
+            'target': '4c99891f93b81450385777235a37b5e966dd1571',
+            'target_type': 'revision',
+        },
+        'releases/1.2.0': {
+            'target': 'e445da4da22b31bfebb6ffc4383dbf839a074d21',
+            'target_type': 'revision',
+        },
+        'HEAD': {
+            'target': 'releases/1.2.0',
+            'target_type': 'alias',
+        },
+    }
+
+    check_snapshot(
+        'ba6e158ada75d0b3cfb209ffdf6daa4ed34a227a',
+        expected_branches,
+        storage=loader.storage)
+
+    # self.assertEqual(self.loader.load_status(), {'status': 'eventful'})
+    # self.assertEqual(self.loader.visit_status(), 'full')
+
 # release artifact, no new artifact
 # {visit full, status uneventful, same snapshot as before}
 
@@ -338,3 +389,49 @@ def test_release_artifact_no_prior_visit(requests_mock):
 # release artifact, old artifact with different checksums
 # {visit full, status full, new snapshot with shared history and some new
 # different history}
+
+
+def decode_target(target):
+    if not target:
+        return target
+    target_type = target['target_type']
+
+    if target_type == 'alias':
+        decoded_target = target['target'].decode('utf-8')
+    else:
+        decoded_target = hash_to_hex(target['target'])
+
+    return {
+        'target': decoded_target,
+        'target_type': target_type
+    }
+
+
+def check_snapshot(expected_snapshot, expected_branches, storage):
+    """Check for snapshot match.
+
+    Provide the hashes as hexadecimal, the conversion is done
+    within the method.
+
+    Args:
+        expected_snapshot (Union[str, dict]): Either the snapshot
+                                      identifier or the full
+                                      snapshot
+        expected_branches ([dict]): expected branches or nothing is
+                                  the full snapshot is provided
+
+    """
+    if isinstance(expected_snapshot, dict) and not expected_branches:
+        expected_snapshot_id = expected_snapshot['id']
+        expected_branches = expected_snapshot['branches']
+    else:
+        expected_snapshot_id = expected_snapshot
+
+    snap = storage.snapshot_get(hash_to_bytes(expected_snapshot_id))
+    assert snap is not None
+
+    branches = {
+        branch.decode('utf-8'): decode_target(target)
+        for branch, target in snap['branches'].items()
+    }
+    assert expected_branches == branches
