@@ -5,7 +5,6 @@
 
 import os
 
-import requests
 import pytest
 
 from swh.loader.package.pypi import PyPILoader, PyPIClient, author

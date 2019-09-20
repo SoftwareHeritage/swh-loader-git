@@ -6,7 +6,7 @@
 import os
 
 from typing import Generator, Dict, Tuple, Sequence
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlparse
 from pkginfo import UnpackedSDist
 
 import iso8601
