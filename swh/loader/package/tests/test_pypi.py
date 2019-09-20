@@ -4,15 +4,19 @@
 # See top-level LICENSE file for more information
 
 import os
-
-import pytest
+import re
 
 from os import path
+from urllib.parse import urlparse
+
+import pytest
 
 from swh.core.tarball import uncompress
 from swh.loader.package.pypi import (
     PyPILoader, PyPIClient, author, sdist_parse, download
 )
+
+DATADIR = path.join(path.abspath(path.dirname(__file__)), 'resources')
 
 
 def test_author_basic():
@@ -116,10 +120,9 @@ def test_author_malformed_3():
 
 # configuration error #
 
-def test_badly_configured_loader_raise():
+def test_badly_configured_loader_raise(monkeypatch):
     """Badly configured loader should raise"""
-    assert 'SWH_CONFIG_FILENAME' in os.environ  # cf. tox.ini
-    del os.environ['SWH_CONFIG_FILENAME']
+    monkeypatch.delenv('SWH_CONFIG_FILENAME')
     with pytest.raises(ValueError) as e:
         PyPILoader(url='some-url')
 
@@ -182,16 +185,12 @@ def test_pypiclient(requests_mock):
     }
 
 
-resources = path.abspath(path.dirname(__file__))
-resource_json = path.join(resources, 'resources/json')
-resource_archives = path.join(resources, 'resources/tarballs')
-
-
 @pytest.mark.fs
 def test_sdist_parse(tmp_path):
     """Parsing existing archive's PKG-INFO should yield results"""
     uncompressed_archive_path = str(tmp_path)
-    archive_path = path.join(resource_archives, '0805nexter-1.1.0.zip')
+    archive_path = path.join(
+        DATADIR, 'files.pythonhosted.org', '0805nexter-1.1.0.zip')
     uncompress(archive_path, dest=uncompressed_archive_path)
 
     actual_sdist = sdist_parse(uncompressed_archive_path)
@@ -286,7 +285,24 @@ def test_download_fail_hashes_mismatch(tmp_path, requests_mock):
 
 # LOADER SCENARIO #
 
+
+def get_response_cb(request, context):
+    """"""
+    url = urlparse(request.url)
+    dirname = url.hostname  # pypi.org | files.pythonhosted.org
+    # url.path: pypi/<project>/json -> local file: pypi_<project>_json
+    filename = url.path[1:].replace('/', '_')
+    filepath = path.join(DATADIR, dirname, filename)
+    fd = open(filepath, 'rb')
+    context.headers['content-length'] = str(os.path.getsize(filepath))
+    return fd
+
 # "edge" cases (for the same origin) #
+
+
+def test_no_release_artifact(requests_mock):
+    pass
+
 
 # no release artifact:
 # {visit full, status: uneventful, no contents, etc...}
@@ -304,8 +320,32 @@ def test_download_fail_hashes_mismatch(tmp_path, requests_mock):
 
 # "normal" cases (for the same origin) #
 
-# release artifact, no prior visit
-# {visit full, status eventful, snapshot}
+def test_release_artifact_no_prior_visit(requests_mock):
+    """With no prior visit, load a pypi project ends up with 1 snapshot
+
+    """
+    assert 'SWH_CONFIG_FILENAME' in os.environ  # cf. tox.ini
+
+    loader = PyPILoader('https://pypi.org/project/0805nexter')
+    requests_mock.get(re.compile('https://'),
+                      body=get_response_cb)
+
+    actual_load_status = loader.load()
+
+    assert actual_load_status == {'status': 'eventful'}
+
+    stats = loader.storage.stat_counters()
+    assert {
+        'content': 6,
+        'directory': 4,
+        'origin': 1,
+        'origin_visit': 1,
+        'person': 1,
+        'release': 0,
+        'revision': 2,
+        'skipped_content': 0,
+        'snapshot': 1
+    } == stats
 
 # release artifact, no new artifact
 # {visit full, status uneventful, same snapshot as before}

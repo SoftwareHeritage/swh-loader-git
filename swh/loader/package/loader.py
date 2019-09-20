@@ -3,6 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import datetime
 import tempfile
 import os
 
@@ -15,6 +16,7 @@ from swh.model.identifiers import (
     revision_identifier, snapshot_identifier, identifier_to_bytes
 )
 from swh.storage import get_storage
+from swh.loader.core.converters import content_for_storage
 
 
 class PackageLoader:
@@ -35,8 +37,7 @@ class PackageLoader:
         # FIXME: No more configuration documentation
         # Implicitily, this uses the SWH_CONFIG_FILENAME environment variable
         # loading mechanism
-
-        self.origin = {'url': url}
+        self.url = url
 
     def _check_configuration(self):
         """Checks the minimal configuration required is set for the loader.
@@ -85,9 +86,10 @@ class PackageLoader:
             the locally retrieved artifact path
 
         """
-        pass
+        return ''
 
-    def build_revision(self) -> Dict:
+    def build_revision(
+            self, a_metadata: Dict, a_uncompressed_path: str) -> Dict:
         """Build the revision dict
 
         Returns:
@@ -95,6 +97,15 @@ class PackageLoader:
 
         """
         return {}
+
+    def get_default_release(self) -> str:
+        """Retrieve the latest release version
+
+        Returns:
+            Latest version
+
+        """
+        return ''
 
     def load(self):
         """Load for a specific origin the associated contents.
@@ -142,10 +153,14 @@ class PackageLoader:
         status_visit = 'partial'    # either: partial, full
         tmp_revisions = {}
 
-        # Prepare origin and origin_visit (method?)
-        origin = self.storage.origin_add([self.origin])[0]
-        visit = self.storage.origin_visit_add(
-            origin=origin, type=self.visit_type)['visit']
+        # Prepare origin and origin_visit
+        origin = {'url': self.url}
+        self.storage.origin_add([origin])
+        visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
+        visit_id = self.storage.origin_visit_add(
+            origin=self.url,
+            date=visit_date,
+            type=self.visit_type)['visit']
 
         # Retrieve the default release (the "latest" one)
         default_release = self.get_default_release()
@@ -163,19 +178,22 @@ class PackageLoader:
                     uncompress(a_path, dest=uncompressed_path)
 
                     directory = Directory.from_disk(
-                        path=uncompressed_path, data=True)
+                        path=uncompressed_path.encode('utf-8'), data=True)
                     # FIXME: Try not to load the full raw content in memory
                     objects = directory.collect()
 
                     contents = objects['content'].values()
-                    self.storage.content_add(contents)
+                    self.storage.content_add(
+                        map(content_for_storage, contents))
 
                     status_load = 'eventful'
                     directories = objects['directory'].values()
+
                     self.storage.directory_add(directories)
 
                     # FIXME: This should be release. cf. D409 discussion
-                    revision = self.build_revision(uncompressed_path)
+                    revision = self.build_revision(
+                        a_metadata, uncompressed_path)
                     revision.update({
                         'type': 'tar',
                         'synthetic': True,
@@ -188,22 +206,22 @@ class PackageLoader:
 
                     revision['id'] = identifier_to_bytes(
                         revision_identifier(revision))
-                    self.storage.revision_add(revision)
+                    self.storage.revision_add([revision])
 
-                    tmp_revisions[version].append[{
+                    tmp_revisions[version].append({
                         'filename': a_filename,
                         'target': revision['id'],
-                    }]
+                    })
 
         # Build and load the snapshot
         branches = {}
         for version, v_branches in tmp_revisions.items():
             if len(v_branches) == 1:
-                branch_name = 'releases/%s' % version
-                if version == default_release['version']:
+                branch_name = ('releases/%s' % version).encode('utf-8')
+                if version == default_release:
                     branches[b'HEAD'] = {
                         'target_type': 'alias',
-                        'target': branch_name.encode('utf-8'),
+                        'target': branch_name,
                     }
 
                 branches[branch_name] = {
@@ -212,8 +230,8 @@ class PackageLoader:
                 }
             else:
                 for x in v_branches:
-                    branch_name = 'releases/%s/%s' % (
-                        version, v_branches['filename'])
+                    branch_name = ('releases/%s/%s' % (
+                        version, v_branches['filename'])).encode('utf-8')
                     branches[branch_name] = {
                         'target_type': 'revision',
                         'target': x['target'],
@@ -229,10 +247,8 @@ class PackageLoader:
         status_visit = 'full'
 
         # Update the visit's state
-        self.origin_visit_update(
-            origin=self.origin,
-            visit_id=visit['visit'],
-            status=status_visit,
+        self.storage.origin_visit_update(
+            origin=self.url, visit_id=visit_id, status=status_visit,
             snapshot=snapshot)
 
         return {'status': status_load}

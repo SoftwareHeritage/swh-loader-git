@@ -237,6 +237,9 @@ class PyPILoader(PackageLoader):
     def get_versions(self) -> Sequence[str]:
         return self.info['releases'].keys()
 
+    def get_default_release(self) -> str:
+        return self.info['info']['version']
+
     def get_artifacts(self, version: str) -> Generator[
             Tuple[str, str, Dict], None, None]:
         for meta in self.info['releases'][version]:
@@ -246,25 +249,27 @@ class PyPILoader(PackageLoader):
             self, artifact_uri: str, dest: str) -> Tuple[str, Dict]:
         return download(artifact_uri, dest=dest)
 
-    def build_revision(self, artifact_uncompressed_path: str) -> Dict:
+    def build_revision(
+            self, a_metadata: Dict, a_uncompressed_path: str) -> Dict:
         # Parse metadata (project, artifact metadata)
-        metadata = sdist_parse(artifact_uncompressed_path)
+        metadata = sdist_parse(a_uncompressed_path)
 
-        # Build revision
-        name = metadata['version'].encode('utf-8')
-        message = metadata['message'].encode('utf-8')
-        message = b'%s: %s' % (name, message) if message else name
-
+        # from intrinsic metadata
+        name = metadata['version']
         _author = author(metadata)
-        _date = normalize_timestamp(
-            int(iso8601.parse_date(metadata['date']).timestamp()))
+
+        # from extrinsic metadata
+        message = a_metadata.get('comment_text', '')
+        message = '%s: %s' % (name, message) if message else name
+        date = normalize_timestamp(
+            int(iso8601.parse_date(a_metadata['upload_time']).timestamp()))
+
         return {
-            'name': name,
-            'message': message,
+            'message': message.encode('utf-8'),
             'author': _author,
-            'date': _date,
+            'date': date,
             'committer': _author,
-            'committer_date': _date,
+            'committer_date': date,
             'parents': [],
             'metadata': {
                 'intrinsic_metadata': metadata,
