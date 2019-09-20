@@ -154,17 +154,6 @@ def test_pypiclient_failure(requests_mock):
         info_url, expected_status_code
     )
 
-    expected_status_code = 404
-    release_url = '%s/3.0.0/json' % pypi_client.url
-    requests_mock.get(release_url, status_code=expected_status_code)
-
-    with pytest.raises(ValueError) as e1:
-        pypi_client.info_release("3.0.0")
-
-    assert e1.value.args[0] == "Fail to query '%s'. Reason: %s" % (
-        release_url, expected_status_code
-    )
-
 
 def test_pypiclient(requests_mock):
     """Fetching info/release info should be ok"""
@@ -175,13 +164,6 @@ def test_pypiclient(requests_mock):
     actual_info = pypi_client.info_project()
     assert actual_info == {
         'version': '0.0.1',
-    }
-
-    release_url = '%s/2.0.0/json' % pypi_client.url
-    requests_mock.get(release_url, text='{"version": "2.0.0"}')
-    actual_release_info = pypi_client.info_release("2.0.0")
-    assert actual_release_info == {
-        'version': '2.0.0',
     }
 
 

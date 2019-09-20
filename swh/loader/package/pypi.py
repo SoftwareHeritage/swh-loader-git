@@ -84,19 +84,6 @@ class PyPIClient:
         """
         return self._get('%s/json' % self.url)
 
-    def info_release(self, release: str) -> Dict:
-        """Given a release version, retrieve the raw information for such
-           release
-
-        Args:
-            release: Release version
-
-        Returns:
-            Release information as dict
-
-        """
-        return self._get('%s/%s/json' % (self.url, release))
-
 
 def download(url: str, dest: str) -> Tuple[str, Dict]:
     """Download a remote tarball from url, uncompresses and computes swh hashes
