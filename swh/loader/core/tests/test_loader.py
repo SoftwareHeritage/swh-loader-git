@@ -19,7 +19,7 @@ class DummyLoader:
     def cleanup(self):
         pass
 
-    def prepare(self):
+    def prepare(self, *args, **kwargs):
         pass
 
     def fetch_data(self):
@@ -28,7 +28,7 @@ class DummyLoader:
     def store_data(self):
         pass
 
-    def prepare_origin_visit(self):
+    def prepare_origin_visit(self, *args, **kwargs):
         origin = self.storage.origin_get(
             self._test_prepare_origin_visit_data['origin'])
         self.origin = origin

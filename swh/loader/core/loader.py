@@ -14,6 +14,7 @@ import uuid
 
 from abc import ABCMeta, abstractmethod
 from retrying import retry
+from typing import Any, Dict, Optional, Tuple
 
 from . import converters
 
@@ -112,7 +113,7 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
     - :class:`DebianLoader`
 
     """
-    CONFIG_BASE_FILENAME = None
+    CONFIG_BASE_FILENAME = None  # type: Optional[str]
 
     DEFAULT_CONFIG = {
         'storage': ('dict', {
@@ -139,9 +140,9 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
         'revision_packet_size': ('int', 100000),
         'release_packet_size': ('int', 100000),
         'occurrence_packet_size': ('int', 100000),
-    }
+    }  # type: Dict[str, Tuple[str, Any]]
 
-    ADDITIONAL_CONFIG = {}
+    ADDITIONAL_CONFIG = {}  # type: Dict[str, Tuple[str, Any]]
 
     def __init__(self, logging_class=None, config=None):
         if config:
@@ -906,7 +907,7 @@ class UnbufferedLoader(BufferedLoader):
     inherit directly from :class:`BufferedLoader`.
 
     """
-    ADDITIONAL_CONFIG = {}
+    ADDITIONAL_CONFIG = {}  # type: Dict[str, Tuple[str, Any]]
 
     def __init__(self, logging_class=None, config=None):
         super().__init__(logging_class=logging_class, config=config)

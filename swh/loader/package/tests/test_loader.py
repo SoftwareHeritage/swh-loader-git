@@ -6,6 +6,9 @@
 import unittest
 import os
 import requests_mock
+
+from typing import List
+
 from swh.loader.package.loader import GNULoader
 from swh.loader.core.tests import BaseLoaderStorageTest
 from swh.loader.package.tests.common import (
@@ -98,8 +101,8 @@ class TestGNULoader(unittest.TestCase, BaseLoaderStorageTest):
     }
     _expected_new_snapshot_first_visit = '2ae491bbaeef7351641997d1b9193aa2a67d26bc' # noqa
 
-    _expected_new_contents_invalid_origin = []
-    _expected_new_directories_invalid_origin = []
+    _expected_new_contents_invalid_origin = []  # type: List[str]
+    _expected_new_directories_invalid_origin = []  # type: List[str]
 
     @classmethod
     def setUpClass(cls):

@@ -4,3 +4,4 @@ include requirements-swh.txt
 include version.txt
 include README.md
 recursive-include swh/loader/package/tests/ *.tar.gz
+recursive-include swh py.typed
