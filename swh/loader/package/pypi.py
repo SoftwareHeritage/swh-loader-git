@@ -31,58 +31,46 @@ DEFAULT_PARAMS = {
 }
 
 
-class PyPIClient:
-    """PyPI api client. This deals with fetching json metadata about pypi
-       projects.
+def pypi_api_url(url: str) -> str:
+    """Compute api url from a project url
 
     Args:
         url (str): PyPI instance's url (e.g: https://pypi.org/project/requests)
-        api:
-        - https://pypi.org/pypi/requests/json
-        - https://pypi.org/pypi/requests/1.0.0/json (release description)
+        This deals with correctly transforming the project's api url (e.g
+        https://pypi.org/pypi/requests/json)
+
+    Returns:
+        api url
 
     """
-    def __init__(self, url):
-        self.version = __version__
-        _url = urlparse(url)
-        project_name = _url.path.split('/')[-1]
-        self.url = '%s://%s/pypi/%s' % (_url.scheme, _url.netloc, project_name)
-        self._session = None
+    p_url = urlparse(url)
+    project_name = p_url.path.split('/')[-1]
+    url = '%s://%s/pypi/%s/json' % (p_url.scheme, p_url.netloc, project_name)
+    return url
 
-    @property
-    def session(self):
-        if not self._session:
-            self._session = requests.session()
-        return self._session
 
-    def _get(self, url: str) -> Dict:
-        """Get query to the url.
+def pypi_info(url: str) -> Dict:
+    """PyPI api client to retrieve information on project. This deals with
+       fetching json metadata about pypi projects.
 
-        Args:
-            url (str): Url
+    Args:
+        url (str): PyPI instance's url (e.g: https://pypi.org/project/requests)
+        This deals with correctly transforming the project's api url (e.g
+        https://pypi.org/pypi/requests/json)
 
-        Raises:
-            ValueError in case of failing to query
+    Raises:
+        ValueError in case of query failures (for some reasons: 404, ...)
 
-        Returns:
-            Response as dict if ok
+    Returns:
+        PyPI's information dict
 
-        """
-        response = requests.get(url, **DEFAULT_PARAMS)
-        if response.status_code != 200:
-            raise ValueError("Fail to query '%s'. Reason: %s" % (
-                url, response.status_code))
-
-        return response.json()
-
-    def info_project(self) -> Dict:
-        """Given a url, retrieve the raw json response
-
-        Returns:
-            Main project information as dict.
-
-        """
-        return self._get('%s/json' % self.url)
+    """
+    api_url = pypi_api_url(url)
+    response = requests.get(api_url, **DEFAULT_PARAMS)
+    if response.status_code != 200:
+        raise ValueError("Fail to query '%s'. Reason: %s" % (
+            api_url, response.status_code))
+    return response.json()
 
 
 def download(url: str, dest: str) -> Tuple[str, Dict]:
@@ -209,7 +197,6 @@ class PyPILoader(PackageLoader):
 
     def __init__(self, url):
         super().__init__(url=url)
-        self.client = PyPIClient(url)
         self._info = None
 
     @property
@@ -218,7 +205,7 @@ class PyPILoader(PackageLoader):
 
         """
         if not self._info:
-            self._info = self.client.info_project()  # dict
+            self._info = pypi_info(self.url)
         return self._info
 
     def get_versions(self) -> Sequence[str]:

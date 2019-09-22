@@ -14,7 +14,7 @@ import pytest
 from swh.core.tarball import uncompress
 from swh.model.hashutil import hash_to_bytes, hash_to_hex
 from swh.loader.package.pypi import (
-    PyPILoader, PyPIClient, author, sdist_parse, download
+    PyPILoader, pypi_api_url, pypi_info, author, sdist_parse, download
 )
 
 DATADIR = path.join(path.abspath(path.dirname(__file__)), 'resources')
@@ -130,39 +130,34 @@ def test_badly_configured_loader_raise(monkeypatch):
     assert 'Misconfiguration' in e.value.args[0]
 
 
-def test_pypiclient_init():
-    """Initialization should set the api's base project url"""
-    project_url = 'https://pypi.org/project/requests'
-    expected_base_url = 'https://pypi.org/pypi/requests'
-    pypi_client = PyPIClient(url=project_url)
-
-    assert pypi_client.url == expected_base_url
+def test_pypi_api_url():
+    """Compute pypi api url from the pypi project url should be ok"""
+    url = pypi_api_url('https://pypi.org/project/requests')
+    assert url == 'https://pypi.org/pypi/requests/json'
 
 
-def test_pypiclient_failure(requests_mock):
+def test_pypi_info_failure(requests_mock):
     """Failure to fetch info/release information should raise"""
     project_url = 'https://pypi.org/project/requests'
-    pypi_client = PyPIClient(url=project_url)
-
-    expected_status_code = 400
-    info_url = '%s/json' % pypi_client.url
-    requests_mock.get(info_url, status_code=expected_status_code)
+    info_url = 'https://pypi.org/pypi/requests/json'
+    status_code = 400
+    requests_mock.get(info_url, status_code=status_code)
 
     with pytest.raises(ValueError) as e0:
-        pypi_client.info_project()
+        pypi_info(project_url)
 
     assert e0.value.args[0] == "Fail to query '%s'. Reason: %s" % (
-        info_url, expected_status_code
+        info_url, status_code
     )
 
 
-def test_pypiclient(requests_mock):
-    """Fetching info/release info should be ok"""
-    pypi_client = PyPIClient('https://pypi.org/project/requests')
-
-    info_url = '%s/json' % pypi_client.url
-    requests_mock.get(info_url, text='{"version": "0.0.1"}')
-    actual_info = pypi_client.info_project()
+def test_pypi_info(requests_mock):
+    """Fetching json info from pypi project should be ok"""
+    url = 'https://pypi.org/project/requests'
+    info_url = 'https://pypi.org/pypi/requests/json'
+    requests_mock.get(info_url,
+                      text='{"version": "0.0.1"}')
+    actual_info = pypi_info(url)
     assert actual_info == {
         'version': '0.0.1',
     }
