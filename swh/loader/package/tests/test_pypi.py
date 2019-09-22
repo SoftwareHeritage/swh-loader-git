@@ -339,7 +339,8 @@ def test_release_artifact_no_prior_visit(requests_mock):
         '83ecf6ec1114fd260ca7a833a2d165e71258c338',
     ])
 
-    assert list(loader.storage.content_missing_per_sha1(expected_contents)) == []
+    assert list(loader.storage.content_missing_per_sha1(expected_contents))\
+        == []
 
     expected_dirs = map(hash_to_bytes, [
         '05219ba38bc542d4345d5638af1ed56c7d43ca7d',
