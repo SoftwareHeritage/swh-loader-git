@@ -121,7 +121,7 @@ class PackageLoader:
         """
         return ''
 
-    def load(self):
+    def load(self) -> Dict:
         """Load for a specific origin the associated contents.
 
         for each package version of the origin
