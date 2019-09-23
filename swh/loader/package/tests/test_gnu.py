@@ -131,31 +131,34 @@ _expected_branches_first_visit = {
 # gnu used to use `release/` (singular) instead of plural
 _expected_new_snapshot_first_visit_id = 'c419397fd912039825ebdbea378bc6283f006bf5'  # noqa
 
-# def test_release_artifact_not_found(requests_mock):
-#     package = '8sync'
-#     package_url = 'https://ftp.gnu.org/gnu/8sync/'
-#     tarballs = [{
-#         'date': '944729610',
-#         'archive': 'https://ftp.gnu.org/gnu/8sync/8sync-0.1.0.tar.gz',
-#     }]
 
-#     loader = GNULoader(package, package_url, tarballs)
-#     requests_mock.get(re.compile('https://'), status_code=404)
+def test_release_artifact_not_found(requests_mock):
+    package = '8sync'
+    package_url = 'https://ftp.gnu.org/gnu/8sync/'
+    tarballs = [{
+        'date': '944729610',
+        'archive': 'https://ftp.gnu.org/gnu/8sync/8sync-0.1.0.tar.gz',
+    }]
 
-#     assert actual_load_status == {'status': 'uneventful'}
-#     stats = loader.storage.stat_counters()
+    loader = GNULoader(package, package_url, tarballs)
+    requests_mock.get(re.compile('https://'), status_code=404)
 
-#     assert {
-#         'content': 0,
-#         'directory': 0,
-#         'origin': 1,
-#         'origin_visit': 1,
-#         'person': 0,
-#         'release': 0,
-#         'revision': 0,
-#         'skipped_content': 0,
-#         'snapshot': 0,
-#     } == stats
+    actual_load_status = loader.load()
+
+    assert actual_load_status == {'status': 'uneventful'}
+    stats = loader.storage.stat_counters()
+
+    assert {
+        'content': 0,
+        'directory': 0,
+        'origin': 1,
+        'origin_visit': 1,
+        'person': 0,
+        'release': 0,
+        'revision': 0,
+        'skipped_content': 0,
+        'snapshot': 0,
+    } == stats
 
 
 def test_release_artifact_no_prior_visit(requests_mock):

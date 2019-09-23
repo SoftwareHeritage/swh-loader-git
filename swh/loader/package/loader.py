@@ -4,6 +4,7 @@
 # See top-level LICENSE file for more information
 
 import datetime
+import logging
 import tempfile
 import os
 
@@ -17,6 +18,9 @@ from swh.model.identifiers import (
 )
 from swh.storage import get_storage
 from swh.loader.core.converters import content_for_storage
+
+
+logger = logging.getLogger(__name__)
 
 
 # Not implemented yet:
@@ -167,102 +171,107 @@ class PackageLoader:
         status_visit = 'partial'    # either: partial, full
         tmp_revisions = {}
 
-        # Prepare origin and origin_visit
-        origin = {'url': self.url}
-        self.storage.origin_add([origin])
-        visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
-        visit_id = self.storage.origin_visit_add(
-            origin=self.url,
-            date=visit_date,
-            type=self.visit_type)['visit']
+        try:
+            # Prepare origin and origin_visit
+            origin = {'url': self.url}
+            self.storage.origin_add([origin])
+            visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
+            visit_id = self.storage.origin_visit_add(
+                origin=self.url,
+                date=visit_date,
+                type=self.visit_type)['visit']
 
-        # Retrieve the default release (the "latest" one)
-        default_release = self.get_default_release()
+            # Retrieve the default release (the "latest" one)
+            default_release = self.get_default_release()
 
-        # FIXME: Add load exceptions handling
-        for version in self.get_versions():  # for each
-            tmp_revisions[version] = []
-            # `a_` stands for `artifact_`
-            for a_filename, a_uri, a_metadata in self.get_artifacts(version):
-                with tempfile.TemporaryDirectory() as tmpdir:
-                    a_path, a_computed_metadata = self.fetch_artifact_archive(
-                        a_uri, dest=tmpdir)
+            # FIXME: Add load exceptions handling
+            for version in self.get_versions():  # for each
+                tmp_revisions[version] = []
+                # `a_` stands for `artifact_`
+                for a_filename, a_uri, a_metadata in self.get_artifacts(
+                        version):
+                    with tempfile.TemporaryDirectory() as tmpdir:
+                        # a_c_: archive_computed_
+                        a_path, a_c_metadata = self.fetch_artifact_archive(
+                            a_uri, dest=tmpdir)
 
-                    uncompressed_path = os.path.join(tmpdir, 'src')
-                    uncompress(a_path, dest=uncompressed_path)
+                        uncompressed_path = os.path.join(tmpdir, 'src')
+                        uncompress(a_path, dest=uncompressed_path)
 
-                    directory = Directory.from_disk(
-                        path=uncompressed_path.encode('utf-8'), data=True)
-                    # FIXME: Try not to load the full raw content in memory
-                    objects = directory.collect()
+                        directory = Directory.from_disk(
+                            path=uncompressed_path.encode('utf-8'), data=True)
+                        # FIXME: Try not to load the full raw content in memory
+                        objects = directory.collect()
 
-                    contents = objects['content'].values()
-                    self.storage.content_add(
-                        map(content_for_storage, contents))
+                        contents = objects['content'].values()
+                        self.storage.content_add(
+                            map(content_for_storage, contents))
 
-                    status_load = 'eventful'
-                    directories = objects['directory'].values()
+                        status_load = 'eventful'
+                        directories = objects['directory'].values()
 
-                    self.storage.directory_add(directories)
+                        self.storage.directory_add(directories)
 
-                    # FIXME: This should be release. cf. D409 discussion
-                    revision = self.build_revision(
-                        a_metadata, uncompressed_path)
-                    revision.update({
-                        'type': 'tar',
-                        'synthetic': True,
-                        'directory': directory.hash,
-                    })
-                    revision['metadata'].update({
-                        'original_artifact': a_metadata,
-                        'hashes_artifact': a_computed_metadata
-                    })
+                        # FIXME: This should be release. cf. D409 discussion
+                        revision = self.build_revision(
+                            a_metadata, uncompressed_path)
+                        revision.update({
+                            'type': 'tar',
+                            'synthetic': True,
+                            'directory': directory.hash,
+                        })
+                        revision['metadata'].update({
+                            'original_artifact': a_metadata,
+                            'hashes_artifact': a_c_metadata
+                        })
 
-                    revision['id'] = identifier_to_bytes(
-                        revision_identifier(revision))
-                    self.storage.revision_add([revision])
+                        revision['id'] = identifier_to_bytes(
+                            revision_identifier(revision))
+                        self.storage.revision_add([revision])
 
-                    tmp_revisions[version].append({
-                        'filename': a_filename,
-                        'target': revision['id'],
-                    })
+                        tmp_revisions[version].append({
+                            'filename': a_filename,
+                            'target': revision['id'],
+                        })
 
-        # Build and load the snapshot
-        branches = {}
-        for version, v_branches in tmp_revisions.items():
-            if len(v_branches) == 1:
-                branch_name = ('releases/%s' % version).encode('utf-8')
-                if version == default_release:
-                    branches[b'HEAD'] = {
-                        'target_type': 'alias',
-                        'target': branch_name,
-                    }
+            # Build and load the snapshot
+            branches = {}
+            for version, v_branches in tmp_revisions.items():
+                if len(v_branches) == 1:
+                    branch_name = ('releases/%s' % version).encode('utf-8')
+                    if version == default_release:
+                        branches[b'HEAD'] = {
+                            'target_type': 'alias',
+                            'target': branch_name,
+                        }
 
-                branches[branch_name] = {
-                    'target_type': 'revision',
-                    'target': v_branches[0]['target'],
-                }
-            else:
-                for x in v_branches:
-                    branch_name = ('releases/%s/%s' % (
-                        version, v_branches['filename'])).encode('utf-8')
                     branches[branch_name] = {
                         'target_type': 'revision',
-                        'target': x['target'],
+                        'target': v_branches[0]['target'],
                     }
-        snapshot = {
-            'branches': branches
-        }
-        snapshot['id'] = identifier_to_bytes(
-            snapshot_identifier(snapshot))
-        self.storage.snapshot_add([snapshot])
+                else:
+                    for x in v_branches:
+                        branch_name = ('releases/%s/%s' % (
+                            version, v_branches['filename'])).encode('utf-8')
+                        branches[branch_name] = {
+                            'target_type': 'revision',
+                            'target': x['target'],
+                        }
+            snapshot = {
+                'branches': branches
+            }
+            snapshot['id'] = identifier_to_bytes(
+                snapshot_identifier(snapshot))
+            self.storage.snapshot_add([snapshot])
 
-        # come so far, we actually reached a full visit
-        status_visit = 'full'
+            # come so far, we actually reached a full visit
+            status_visit = 'full'
 
-        # Update the visit's state
-        self.storage.origin_visit_update(
-            origin=self.url, visit_id=visit_id, status=status_visit,
-            snapshot=snapshot)
-
-        return {'status': status_load}
+            # Update the visit's state
+            self.storage.origin_visit_update(
+                origin=self.url, visit_id=visit_id, status=status_visit,
+                snapshot=snapshot)
+        except ValueError as e:
+            logger.warning('Fail to load %s. Reason: %s' % (self.url, e))
+        finally:
+            return {'status': status_load}
