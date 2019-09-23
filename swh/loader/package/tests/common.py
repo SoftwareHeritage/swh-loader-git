@@ -3,30 +3,78 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import os
-import os.path
+from os import path
+from urllib.parse import urlparse
 
-RESOURCES_PATH = os.path.join(os.path.dirname(__file__), 'resources')
-
-package = '8sync'
-
-package_url = 'https://ftp.gnu.org/gnu/8sync/'
-
-tarball = [{'date': '944729610',
-            'archive': 'https://ftp.gnu.org/gnu/8sync/8sync-0.1.0.tar.gz'}]
+from swh.model.hashutil import hash_to_bytes, hash_to_hex
 
 
-def init_test_data(mock_tarball_request):
-    """Initialize the loader with the mock of the tarballs
+DATADIR = path.join(path.abspath(path.dirname(__file__)), 'resources')
+
+
+def get_response_cb(request, context):
+    """Mount point callback to fetch on disk the content of a request
+
+    Args:
+        request (requests.Request): Object requests
+        context (requests.Context): Object holding requests metadata
+                                    information (headers, etc...)
+
+    Returns:
+        File descriptor on the on disk file to read from the test context
 
     """
-    for version in tarball:
-        tarball_url = version['archive']
-        tarball_filename = tarball_url.split('/')[-1]
-        tarball_filepath = os.path.join(RESOURCES_PATH, 'tarballs',
-                                        tarball_filename)
-        with open(tarball_filepath, mode='rb') as tarball_file:
-            tarball_content = tarball_file.read()
-            mock_tarball_request.get(
-                tarball_url, content=tarball_content,
-                headers={'content-length': str(len(tarball_content))})
+    url = urlparse(request.url)
+    dirname = url.hostname  # pypi.org | files.pythonhosted.org
+    # url.path: pypi/<project>/json -> local file: pypi_<project>_json
+    filename = url.path[1:].replace('/', '_')
+    filepath = path.join(DATADIR, dirname, filename)
+    fd = open(filepath, 'rb')
+    context.headers['content-length'] = str(path.getsize(filepath))
+    return fd
+
+
+def decode_target(target):
+    if not target:
+        return target
+    target_type = target['target_type']
+
+    if target_type == 'alias':
+        decoded_target = target['target'].decode('utf-8')
+    else:
+        decoded_target = hash_to_hex(target['target'])
+
+    return {
+        'target': decoded_target,
+        'target_type': target_type
+    }
+
+
+def check_snapshot(expected_snapshot, expected_branches, storage):
+    """Check for snapshot match.
+
+    Provide the hashes as hexadecimal, the conversion is done
+    within the method.
+
+    Args:
+        expected_snapshot (Union[str, dict]): Either the snapshot
+                                      identifier or the full
+                                      snapshot
+        expected_branches ([dict]): expected branches or nothing is
+                                  the full snapshot is provided
+
+    """
+    if isinstance(expected_snapshot, dict) and not expected_branches:
+        expected_snapshot_id = expected_snapshot['id']
+        expected_branches = expected_snapshot['branches']
+    else:
+        expected_snapshot_id = expected_snapshot
+
+    snap = storage.snapshot_get(hash_to_bytes(expected_snapshot_id))
+    assert snap is not None
+
+    branches = {
+        branch.decode('utf-8'): decode_target(target)
+        for branch, target in snap['branches'].items()
+    }
+    assert expected_branches == branches

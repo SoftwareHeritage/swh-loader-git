@@ -7,17 +7,18 @@ import os
 import re
 
 from os import path
-from urllib.parse import urlparse
 
 import pytest
 
 from swh.core.tarball import uncompress
-from swh.model.hashutil import hash_to_bytes, hash_to_hex
+from swh.model.hashutil import hash_to_bytes
 from swh.loader.package.pypi import (
     PyPILoader, pypi_api_url, pypi_info, author, sdist_parse
 )
 
-DATADIR = path.join(path.abspath(path.dirname(__file__)), 'resources')
+from swh.loader.package.tests.common import (
+    get_response_cb, DATADIR, check_snapshot
+)
 
 
 def test_author_basic():
@@ -201,18 +202,6 @@ def test_sdist_parse_failures(tmp_path):
 
 # LOADER SCENARIO #
 
-
-def get_response_cb(request, context):
-    """"""
-    url = urlparse(request.url)
-    dirname = url.hostname  # pypi.org | files.pythonhosted.org
-    # url.path: pypi/<project>/json -> local file: pypi_<project>_json
-    filename = url.path[1:].replace('/', '_')
-    filepath = path.join(DATADIR, dirname, filename)
-    fd = open(filepath, 'rb')
-    context.headers['content-length'] = str(os.path.getsize(filepath))
-    return fd
-
 # "edge" cases (for the same origin) #
 
 
@@ -243,8 +232,7 @@ def test_release_artifact_no_prior_visit(requests_mock):
     assert 'SWH_CONFIG_FILENAME' in os.environ  # cf. tox.ini
 
     loader = PyPILoader('https://pypi.org/project/0805nexter')
-    requests_mock.get(re.compile('https://'),
-                      body=get_response_cb)
+    requests_mock.get(re.compile('https://'), body=get_response_cb)
 
     actual_load_status = loader.load()
 
@@ -323,49 +311,3 @@ def test_release_artifact_no_prior_visit(requests_mock):
 # release artifact, old artifact with different checksums
 # {visit full, status full, new snapshot with shared history and some new
 # different history}
-
-
-def decode_target(target):
-    if not target:
-        return target
-    target_type = target['target_type']
-
-    if target_type == 'alias':
-        decoded_target = target['target'].decode('utf-8')
-    else:
-        decoded_target = hash_to_hex(target['target'])
-
-    return {
-        'target': decoded_target,
-        'target_type': target_type
-    }
-
-
-def check_snapshot(expected_snapshot, expected_branches, storage):
-    """Check for snapshot match.
-
-    Provide the hashes as hexadecimal, the conversion is done
-    within the method.
-
-    Args:
-        expected_snapshot (Union[str, dict]): Either the snapshot
-                                      identifier or the full
-                                      snapshot
-        expected_branches ([dict]): expected branches or nothing is
-                                  the full snapshot is provided
-
-    """
-    if isinstance(expected_snapshot, dict) and not expected_branches:
-        expected_snapshot_id = expected_snapshot['id']
-        expected_branches = expected_snapshot['branches']
-    else:
-        expected_snapshot_id = expected_snapshot
-
-    snap = storage.snapshot_get(hash_to_bytes(expected_snapshot_id))
-    assert snap is not None
-
-    branches = {
-        branch.decode('utf-8'): decode_target(target)
-        for branch, target in snap['branches'].items()
-    }
-    assert expected_branches == branches
