@@ -30,7 +30,7 @@ from swh.loader.core.converters import content_for_storage
 #    with this
 #
 # - model: swh.model.merkle.from_disk should output swh.model.model.* objects
-#          to avoid this layer's convertion routine call
+#          to avoid this layer's conversion routine call
 # -> Take this up within swh.model's current implementation
 #
 # - Does not trap exceptions yet within the PackageLoader.load method
