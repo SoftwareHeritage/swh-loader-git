@@ -13,16 +13,14 @@ from swh.loader.package.tests.common import get_response_cb, check_snapshot
 
 
 def test_get_version():
-    """From url to branch name should yield something relevant?
+    """From url to branch name should yield something relevant
 
     """
     for url, expected_branchname in [
-            ('https://gnu.org/sthg/info-2.1.0.tar.gz', 'info-2.1.0'),
-            ('https://gnu.org/sthg/info-2.1.2.zip', 'info-2.1.2'),
+            ('https://gnu.org/sthg/info-2.1.0.tar.gz', '2.1.0'),
+            ('https://gnu.org/sthg/info-2.1.2.zip', '2.1.2'),
             ('https://sthg.org/gnu/sthg.tar.gz', 'sthg'),
-            ('https://sthg.org/gnu/DLDF-1.1.4.tar.gz', 'DLDF-1.1.4'),
-            ('https://sthg.org/gnu/DLDF-1.1.4-1.1.5.tar.gz',
-             'DLDF-1.1.4-1.1.5'),
+            ('https://sthg.org/gnu/DLDF-1.1.4.tar.gz', '1.1.4'),
     ]:
         actual_branchname = get_version(url)
 
@@ -78,9 +76,9 @@ _expected_new_revisions_first_visit = {
 _expected_branches_first_visit = {
     'HEAD': {
         'target_type': 'alias',
-        'target': 'releases/8sync-0.1.0',
+        'target': 'releases/0.1.0',
     },
-    'releases/8sync-0.1.0': {
+    'releases/0.1.0': {
         'target_type': 'revision',
         'target': '44183488c0774ce3c957fa19ba695cf18a4a42b3',
     },
@@ -88,8 +86,7 @@ _expected_branches_first_visit = {
 
 # hash is different then before as we changed the snapshot
 # gnu used to use `release/` (singular) instead of plural
-_expected_new_snapshot_first_visit_id = '69f368defd75ddd3972d2a687f4cc565c7aa58d9'  # noqa
-
+_expected_new_snapshot_first_visit_id = 'c419397fd912039825ebdbea378bc6283f006bf5'  # noqa
 
 # def test_release_artifact_not_found(requests_mock):
 #     package = '8sync'

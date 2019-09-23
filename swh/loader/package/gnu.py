@@ -3,6 +3,8 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import re
+
 from os import path
 
 from typing import Generator, Dict, Tuple, Sequence
@@ -13,7 +15,50 @@ from swh.loader.package.utils import download
 from swh.model.identifiers import normalize_timestamp
 
 
-def get_version(url):
+# to recognize existing naming pattern
+extensions = [
+    'zip',
+    'tar',
+    'gz', 'tgz',
+    'bz2', 'bzip2',
+    'lzma', 'lz',
+    'xz',
+    'Z',
+]
+
+
+# Match a filename into components.
+#
+# We use Debian's release number heuristic: A release number starts
+# with a digit, and is followed by alphanumeric characters or any of
+# ., +, :, ~ and -
+#
+# We hardcode a list of possible extensions, as this release number
+# scheme would match them too... We match on any combination of those.
+#
+# Greedy matching is done right to left (we only match the extension
+# greedily with +, software_name and release_number are matched lazily
+# with +? and *?).
+
+pattern = re.compile(r'''
+^
+(?:
+    # We have a software name and a release number, separated with a
+    # -, _ or dot.
+    (?P<software_name1>.+?[-_.])
+    (?P<release_number>[0-9][0-9a-zA-Z.+:~-]*?)
+|
+    # We couldn't match a release number, put everything in the
+    # software name.
+    (?P<software_name2>.+?)
+)
+(?P<extension>(?:\.(?:%s))+)
+$
+''' % '|'.join(extensions),
+     flags=re.VERBOSE)
+
+
+def get_version(url: str) -> str:
     """Extract branch name from tarball url
 
     Args:
@@ -25,21 +70,18 @@ def get_version(url):
     Example:
         For url = https://ftp.gnu.org/gnu/8sync/8sync-0.2.0.tar.gz
 
-        >>> find_branch_name(url)
-        b'release/8sync-0.2.0'
+        >>> get_version(url)
+        '0.2.0'
 
     """
-    branch_name = ''
-    filename = path.basename(url)
-    filename_parts = filename.split(".")
-    if len(filename_parts) > 1 and filename_parts[-2] == 'tar':
-        for part in filename_parts[:-2]:
-            branch_name += '.' + part
-    elif len(filename_parts) > 1 and filename_parts[-1] == 'zip':
-        for part in filename_parts[:-1]:
-            branch_name += '.' + part
-
-    return '%s' % branch_name[1:]
+    filename = path.split(url)[-1]
+    m = pattern.match(filename)
+    if m:
+        d = m.groupdict()
+        if d['software_name1'] and d['release_number']:
+            return d['release_number']
+        if d['software_name2']:
+            return d['software_name2']
 
 
 class GNULoader(PackageLoader):
@@ -71,7 +113,9 @@ class GNULoader(PackageLoader):
 
     def get_versions(self) -> Sequence[str]:
         for archive in self.tarballs:
-            yield get_version(archive['archive'])
+            v = get_version(archive['archive'])
+            if v:
+                yield v
 
     def get_default_release(self) -> str:
         # It's the most recent, so for this loader, it's the last one
