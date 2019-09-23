@@ -13,22 +13,9 @@ import iso8601
 import requests
 
 from swh.model.identifiers import normalize_timestamp
-from swh.model.hashutil import MultiHash, HASH_BLOCK_SIZE
+from swh.loader.package import DEFAULT_PARAMS
 from swh.loader.package.loader import PackageLoader
-
-try:
-    from swh.loader.core._version import __version__
-except ImportError:
-    __version__ = 'devel'
-
-
-DEFAULT_PARAMS = {
-    'headers': {
-        'User-Agent': 'Software Heritage Loader (%s)' % (
-            __version__
-        )
-    }
-}
+from swh.loader.package.utils import download
 
 
 def pypi_api_url(url: str) -> str:
@@ -71,53 +58,6 @@ def pypi_info(url: str) -> Dict:
         raise ValueError("Fail to query '%s'. Reason: %s" % (
             api_url, response.status_code))
     return response.json()
-
-
-def download(url: str, dest: str) -> Tuple[str, Dict]:
-    """Download a remote tarball from url, uncompresses and computes swh hashes
-       on it.
-
-    Args:
-        url: Artifact uri to fetch, uncompress and hash
-        dest: Directory to write the archive to
-
-    Raises:
-        ValueError in case of any error when fetching/computing
-
-    Returns:
-        Tuple of local (filepath, hashes of filepath)
-
-    """
-    response = requests.get(url, **DEFAULT_PARAMS, stream=True)
-    if response.status_code != 200:
-        raise ValueError("Fail to query '%s'. Reason: %s" % (
-            url, response.status_code))
-    length = int(response.headers['content-length'])
-
-    filepath = os.path.join(dest, os.path.basename(url))
-
-    h = MultiHash(length=length)
-    with open(filepath, 'wb') as f:
-        for chunk in response.iter_content(chunk_size=HASH_BLOCK_SIZE):
-            h.update(chunk)
-            f.write(chunk)
-
-    actual_length = os.path.getsize(filepath)
-    if length != actual_length:
-        raise ValueError('Error when checking size: %s != %s' % (
-            length, actual_length))
-
-    # hashes = h.hexdigest()
-    # actual_digest = hashes['sha256']
-    # if actual_digest != artifact['sha256']:
-    #     raise ValueError(
-    #         '%s %s: Checksum mismatched: %s != %s' % (
-    #             project, version, artifact['sha256'], actual_digest))
-
-    return filepath, {
-        'length': length,
-        **h.hexdigest()
-    }
 
 
 def sdist_parse(dir_path: str) -> Dict:
