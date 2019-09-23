@@ -19,6 +19,22 @@ from swh.storage import get_storage
 from swh.loader.core.converters import content_for_storage
 
 
+# Not implemented yet:
+# - clean up disk routines from previous killed workers (when OOMkilled)
+# -> separation of concern would like this to be abstracted from the code
+# -> experience tells us it's complicated to do as such (T903, T964, T982,
+#    etc...)
+#
+# - splitting into groups too many objects sent to storage > could be a >
+# -> specialized collaborator or storage implementation or proxy which deals
+#    with this
+#
+# - model: swh.model.merkle.from_disk should output swh.model.model.* objects
+#          to avoid this layer's convertion routine call
+# -> Take this up within swh.model's current implementation
+#
+# - Does not trap exceptions yet within the PackageLoader.load method
+
 class PackageLoader:
     # Origin visit type (str) set by the loader
     visit_type = None
