@@ -26,6 +26,22 @@ extensions = [
     'Z',
 ]
 
+version_keywords = [
+    'cygwin_me',
+    'w32', 'win32', 'nt', 'cygwin', 'mingw',
+    'latest', 'alpha', 'beta',
+    'release', 'stable',
+    'hppa',
+    'solaris', 'sunos', 'sun4u', 'sparc', 'sun',
+    'aix', 'ibm', 'rs6000',
+    'i386', 'i686',
+    'linux', 'redhat', 'linuxlibc',
+    'mips',
+    'powerpc', 'macos', 'apple', 'darwin', 'macosx', 'powermacintosh',
+    'unknown',
+    'netbsd', 'freebsd',
+    'sgi', 'irix',
+]
 
 # Match a filename into components.
 #
@@ -40,22 +56,24 @@ extensions = [
 # greedily with +, software_name and release_number are matched lazily
 # with +? and *?).
 
-pattern = re.compile(r'''
+pattern = r'''
 ^
 (?:
     # We have a software name and a release number, separated with a
     # -, _ or dot.
     (?P<software_name1>.+?[-_.])
-    (?P<release_number>[0-9][0-9a-zA-Z.+:~-]*?)
+    (?P<release_number>(%(vkeywords)s|[0-9][0-9a-zA-Z_.+:~-]*?)+)
 |
     # We couldn't match a release number, put everything in the
     # software name.
     (?P<software_name2>.+?)
 )
-(?P<extension>(?:\.(?:%s))+)
+(?P<extension>(?:\.(?:%(extensions)s))+)
 $
-''' % '|'.join(extensions),
-     flags=re.VERBOSE)
+''' % {
+    'extensions': '|'.join(extensions),
+    'vkeywords': '|'.join('%s[-]?' % k for k in version_keywords),
+}
 
 
 def get_version(url: str) -> str:
@@ -75,7 +93,8 @@ def get_version(url: str) -> str:
 
     """
     filename = path.split(url)[-1]
-    m = pattern.match(filename)
+    m = re.match(pattern, filename,
+                 flags=re.VERBOSE | re.IGNORECASE)
     if m:
         d = m.groupdict()
         if d['software_name1'] and d['release_number']:
