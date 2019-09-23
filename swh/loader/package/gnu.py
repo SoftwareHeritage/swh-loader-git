@@ -102,6 +102,8 @@ def get_version(url: str) -> str:
         if d['software_name2']:
             return d['software_name2']
 
+    return ''
+
 
 class GNULoader(PackageLoader):
     visit_type = 'gnu'
@@ -131,10 +133,12 @@ class GNULoader(PackageLoader):
         self.tarballs = tarballs
 
     def get_versions(self) -> Sequence[str]:
+        versions = []
         for archive in self.tarballs:
             v = get_version(archive['archive'])
             if v:
-                yield v
+                versions.append(v)
+        return versions
 
     def get_default_release(self) -> str:
         # It's the most recent, so for this loader, it's the last one

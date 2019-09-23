@@ -191,13 +191,13 @@ def test_sdist_parse(tmp_path):
 def test_sdist_parse_failures(tmp_path):
     """Parsing inexistant path/archive/PKG-INFO yield None"""
     # inexistant first level path
-    assert sdist_parse('/something-inexistant') is None
+    assert sdist_parse('/something-inexistant') == {}
     # inexistant second level path (as expected by pypi archives)
-    assert sdist_parse(tmp_path) is None
+    assert sdist_parse(tmp_path) == {}
     # inexistant PKG-INFO within second level path
     existing_path_no_pkginfo = str(tmp_path / 'something')
     os.mkdir(existing_path_no_pkginfo)
-    assert sdist_parse(tmp_path) is None
+    assert sdist_parse(tmp_path) == {}
 
 
 # LOADER SCENARIO #

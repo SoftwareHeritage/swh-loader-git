@@ -4,10 +4,9 @@
 # See top-level LICENSE file for more information
 
 from celery import current_app as app
-from swh.loader.package.loader import GNULoader
+from swh.loader.package.gnu import GNULoader
 
 
 @app.task(name=__name__ + '.LoadGNU')
 def load_gnu(name, origin_url=None, tarballs=None):
-    return GNULoader().load(name, origin_url,
-                            tarballs=tarballs)
+    return GNULoader(origin_url, tarballs).load()

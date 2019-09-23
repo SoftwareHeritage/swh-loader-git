@@ -81,14 +81,14 @@ def sdist_parse(dir_path: str) -> Dict:
     """
     # Retrieve the root folder of the archive
     if not os.path.exists(dir_path):
-        return None
+        return {}
     lst = os.listdir(dir_path)
     if len(lst) == 0:
-        return None
+        return {}
     project_dirname = lst[0]
     pkginfo_path = os.path.join(dir_path, project_dirname, 'PKG-INFO')
     if not os.path.exists(pkginfo_path):
-        return None
+        return {}
     pkginfo = UnpackedSDist(pkginfo_path)
     raw = pkginfo.__dict__
     raw.pop('filename')  # this gets added with the ondisk location

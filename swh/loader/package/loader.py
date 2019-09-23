@@ -8,7 +8,7 @@ import logging
 import tempfile
 import os
 
-from typing import Generator, Dict, Tuple, Sequence
+from typing import Generator, Dict, Tuple, Sequence, List
 
 from swh.core.tarball import uncompress
 from swh.core.config import SWHConfig
@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 class PackageLoader:
     # Origin visit type (str) set by the loader
-    visit_type = None
+    visit_type = ''
 
     def __init__(self, url):
         """Loader's constructor. This raises exception if the minimal required
@@ -89,10 +89,10 @@ class PackageLoader:
             (artifact filename, artifact uri, raw artifact metadata)
 
         """
-        return []
+        yield from {}
 
     def fetch_artifact_archive(
-            self, artifact_archive_path: str, dest: str) -> str:
+            self, artifact_archive_path: str, dest: str) -> Tuple[str, Dict]:
         """Fetch artifact archive to a temporary folder and returns its
            path.
 
@@ -104,7 +104,7 @@ class PackageLoader:
             the locally retrieved artifact path
 
         """
-        return ''
+        return '', {}
 
     def build_revision(
             self, a_metadata: Dict, a_uncompressed_path: str) -> Dict:
@@ -169,7 +169,7 @@ class PackageLoader:
         """
         status_load = 'uneventful'  # either: eventful, uneventful, failed
         status_visit = 'partial'    # either: partial, full
-        tmp_revisions = {}
+        tmp_revisions: Dict[str, List] = {}
 
         try:
             # Prepare origin and origin_visit
