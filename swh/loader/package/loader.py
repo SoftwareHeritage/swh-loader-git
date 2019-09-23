@@ -47,12 +47,10 @@ class PackageLoader:
             url (str): Origin url to load data from
 
         """
+        # This expects to use the environment variable SWH_CONFIG_FILENAME
         self.config = SWHConfig.parse_config_file()
         self._check_configuration()
         self.storage = get_storage(**self.config['storage'])
-        # FIXME: No more configuration documentation
-        # Implicitily, this uses the SWH_CONFIG_FILENAME environment variable
-        # loading mechanism
         self.url = url
 
     def _check_configuration(self):
