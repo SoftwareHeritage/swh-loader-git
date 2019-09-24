@@ -27,7 +27,10 @@ def get_response_cb(request, context):
     url = urlparse(request.url)
     dirname = url.hostname  # pypi.org | files.pythonhosted.org
     # url.path: pypi/<project>/json -> local file: pypi_<project>_json
-    filename = url.path[1:].replace('/', '_')
+    filename = url.path[1:]
+    if filename.endswith('/'):
+        filename = filename[:-1]
+    filename = filename.replace('/', '_')
     filepath = path.join(DATADIR, dirname, filename)
     fd = open(filepath, 'rb')
     context.headers['content-length'] = str(path.getsize(filepath))
