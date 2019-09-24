@@ -289,7 +289,7 @@ class PackageLoader:
             self.storage.origin_visit_update(
                 origin=self.url, visit_id=visit_id, status=status_visit,
                 snapshot=snapshot)
-        except ValueError as e:
+        except Exception as e:
             logger.warning('Fail to load %s. Reason: %s' % (self.url, e))
         finally:
             return {'status': status_load}
