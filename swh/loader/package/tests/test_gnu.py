@@ -195,7 +195,7 @@ def test_release_artifact_no_prior_visit(requests_mock):
     } == stats
 
     expected_contents = map(hash_to_bytes, _expected_new_contents_first_visit)
-    assert list(loader.storage.content_missing_per_sha1(expected_contents))\
+    assert list(loader.storage.content_missing_per_sha1(expected_contents)) \
         == []
 
     expected_dirs = map(hash_to_bytes, _expected_new_directories_first_visit)
