@@ -132,7 +132,7 @@ _expected_branches_first_visit = {
 _expected_new_snapshot_first_visit_id = 'c419397fd912039825ebdbea378bc6283f006bf5'  # noqa
 
 
-def test_release_artifact_not_found(requests_mock):
+def test_release_artifact_not_found(swh_config, requests_mock):
     package = '8sync'
     package_url = 'https://ftp.gnu.org/gnu/8sync/'
     tarballs = [{
@@ -161,7 +161,7 @@ def test_release_artifact_not_found(requests_mock):
     } == stats
 
 
-def test_release_artifact_no_prior_visit(requests_mock):
+def test_release_artifact_no_prior_visit(swh_config, requests_mock):
     """With no prior visit, load a pypi project ends up with 1 snapshot
 
     """

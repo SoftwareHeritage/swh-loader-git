@@ -432,7 +432,7 @@ def package_metadata_url(package):
     return 'https://replicate.npmjs.com/%s/' % package
 
 
-def test_npm_loader_2_first_visit(requests_mock):
+def test_npm_loader_2_first_visit(swh_config, requests_mock):
 
     package = 'org'
     requests_mock.get(re.compile('https://'),

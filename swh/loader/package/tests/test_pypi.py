@@ -124,7 +124,7 @@ def test_author_malformed_3():
 
 def test_badly_configured_loader_raise(monkeypatch):
     """Badly configured loader should raise"""
-    monkeypatch.delenv('SWH_CONFIG_FILENAME')
+    monkeypatch.delenv('SWH_CONFIG_FILENAME', raising=False)
     with pytest.raises(ValueError) as e:
         PyPILoader(url='some-url')
 
@@ -225,12 +225,10 @@ def test_no_release_artifact(requests_mock):
 
 # "normal" cases (for the same origin) #
 
-def test_release_artifact_no_prior_visit(requests_mock):
+def test_release_artifact_no_prior_visit(swh_config, requests_mock):
     """With no prior visit, load a pypi project ends up with 1 snapshot
 
     """
-    assert 'SWH_CONFIG_FILENAME' in os.environ  # cf. tox.ini
-
     loader = PyPILoader('https://pypi.org/project/0805nexter')
     requests_mock.get(re.compile('https://'), body=get_response_cb)
 
