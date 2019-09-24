@@ -183,9 +183,11 @@ class PackageLoader:
 
             # Retrieve the default release (the "latest" one)
             default_release = self.get_default_release()
+            logger.debug('default release: %s', default_release)
 
             # FIXME: Add load exceptions handling
             for version in self.get_versions():  # for each
+                logger.debug('version: %s', version)
                 tmp_revisions[version] = []
                 # `a_` stands for `artifact_`
                 for a_filename, a_uri, a_metadata in self.get_artifacts(
@@ -195,8 +197,15 @@ class PackageLoader:
                         a_path, a_c_metadata = self.fetch_artifact_archive(
                             a_uri, dest=tmpdir)
 
+                        logger.debug('archive_path: %s', a_path)
+                        logger.debug('archive_computed_metadata: %s',
+                                     a_c_metadata)
+
                         uncompressed_path = os.path.join(tmpdir, 'src')
                         uncompress(a_path, dest=uncompressed_path)
+
+                        logger.debug('uncompressed_path: %s',
+                                     uncompressed_path)
 
                         directory = Directory.from_disk(
                             path=uncompressed_path.encode('utf-8'), data=True)
@@ -204,11 +213,17 @@ class PackageLoader:
                         objects = directory.collect()
 
                         contents = objects['content'].values()
+                        logger.debug('Number of contents: %s',
+                                     len(contents))
+
                         self.storage.content_add(
                             map(content_for_storage, contents))
 
                         status_load = 'eventful'
                         directories = objects['directory'].values()
+
+                        logger.debug('Number of directories: %s',
+                                     len(directories))
 
                         self.storage.directory_add(directories)
 
@@ -227,6 +242,9 @@ class PackageLoader:
 
                         revision['id'] = identifier_to_bytes(
                             revision_identifier(revision))
+
+                        logger.debug('Revision: %s', revision)
+
                         self.storage.revision_add([revision])
 
                         tmp_revisions[version].append({
