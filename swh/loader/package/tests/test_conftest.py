@@ -6,7 +6,10 @@
 import requests
 
 
-def test_get_response_cb(local_get_visits):
+from swh.loader.package.tests.conftest import local_get_factory
+
+
+def test_get_response_cb_with_visits(local_get_visits):
     response = requests.get('https://example.com/file.json')
     assert response.ok
     assert response.json() == {'hello': 'you'}
@@ -14,6 +17,44 @@ def test_get_response_cb(local_get_visits):
     response = requests.get('https://example.com/file.json')
     assert response.ok
     assert response.json() == {'hello': 'world'}
+
+    response = requests.get('https://example.com/file.json')
+    assert not response.ok
+    assert response.status_code == 404
+
+
+def test_get_response_cb_no_visit(local_get):
+    response = requests.get('https://example.com/file.json')
+    assert response.ok
+    assert response.json() == {'hello': 'you'}
+
+    response = requests.get('https://example.com/file.json')
+    assert response.ok
+    assert response.json() == {'hello': 'you'}
+
+
+local_get_ignore = local_get_factory(
+    ignore_urls=['https://example.com/file.json'],
+    has_multi_visit=False,
+)
+
+
+def test_get_response_cb_ignore_url(local_get_ignore):
+    response = requests.get('https://example.com/file.json')
+    assert not response.ok
+    assert response.status_code == 404
+
+
+local_get_ignore_and_visit = local_get_factory(
+    ignore_urls=['https://example.com/file.json'],
+    has_multi_visit=True,
+)
+
+
+def test_get_response_cb_ignore_url_with_visit(local_get_ignore_and_visit):
+    response = requests.get('https://example.com/file.json')
+    assert not response.ok
+    assert response.status_code == 404
 
     response = requests.get('https://example.com/file.json')
     assert not response.ok
