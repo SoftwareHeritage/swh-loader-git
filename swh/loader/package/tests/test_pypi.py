@@ -16,8 +16,9 @@ from swh.model.hashutil import hash_to_bytes
 from swh.loader.package.pypi import (
     PyPILoader, pypi_api_url, pypi_info, author, sdist_parse
 )
-
-from swh.loader.package.tests.common import DATADIR, check_snapshot
+from swh.loader.package.tests.common import (
+    check_snapshot, DATADIR
+)
 
 from swh.loader.package.tests.conftest import local_get_factory
 
@@ -435,11 +436,121 @@ def test_release_artifact_no_prior_visit(swh_config, local_get):
     assert origin_visit['status'] == 'full'
 
 
-# release artifact, no new artifact
-# {visit full, status uneventful, same snapshot as before}
-
 # release artifact, new artifact
 # {visit full, status full, new snapshot with shared history as prior snapshot}
+def test_release_artifact_with_2_visits(swh_config, local_get_visits):
+    """With prior visit, 2nd load will result with a different snapshot
+
+    with some shared history
+
+    """
+    url = 'https://pypi.org/project/0805nexter'
+    loader = PyPILoader(url)
+
+    visit1_actual_load_status = loader.load()
+    visit1_stats = loader.storage.stat_counters()
+    assert visit1_actual_load_status == {'status': 'eventful'}
+    origin_visit1 = next(loader.storage.origin_visit_get(url))
+    assert origin_visit1['status'] == 'full'
+
+    assert {
+        'content': 6,
+        'directory': 4,
+        'origin': 1,
+        'origin_visit': 1,
+        'person': 1,
+        'release': 0,
+        'revision': 2,
+        'skipped_content': 0,
+        'snapshot': 1
+    } == visit1_stats
+
+    # Reset internal state
+    loader._info = None
+
+    visit2_actual_load_status = loader.load()
+    visit2_stats = loader.storage.stat_counters()
+
+    assert visit2_actual_load_status == {'status': 'eventful'}
+    visits = list(loader.storage.origin_visit_get(url))
+    assert len(visits) == 2
+    assert visits[1]['status'] == 'full'
+
+    assert {
+        'content': 6 + 1,     # 1 more content
+        'directory': 4 + 2,   # 2 more directories
+        'origin': 1,
+        'origin_visit': 1 + 1,
+        'person': 1,
+        'release': 0,
+        'revision': 2 + 1,    # 1 more revision
+        'skipped_content': 0,
+        'snapshot': 1 + 1,    # 1 more snapshot
+    } == visit2_stats
+
+    expected_contents = map(hash_to_bytes, [
+        'a61e24cdfdab3bb7817f6be85d37a3e666b34566',
+        '938c33483285fd8ad57f15497f538320df82aeb8',
+        'a27576d60e08c94a05006d2e6d540c0fdb5f38c8',
+        '405859113963cb7a797642b45f171d6360425d16',
+        'e5686aa568fdb1d19d7f1329267082fe40482d31',
+        '83ecf6ec1114fd260ca7a833a2d165e71258c338',
+        '92689fa2b7fb4d4fc6fb195bf73a50c87c030639'
+    ])
+
+    assert list(loader.storage.content_missing_per_sha1(expected_contents))\
+        == []
+
+    expected_dirs = map(hash_to_bytes, [
+        '05219ba38bc542d4345d5638af1ed56c7d43ca7d',
+        'cf019eb456cf6f78d8c4674596f1c9a97ece8f44',
+        'b178b66bd22383d5f16f4f5c923d39ca798861b4',
+        'c3a58f8b57433a4b56caaa5033ae2e0931405338',
+        'e226e7e4ad03b4fc1403d69a18ebdd6f2edd2b3a',
+        '52604d46843b898f5a43208045d09fcf8731631b',
+
+    ])
+
+    assert list(loader.storage.directory_missing(expected_dirs)) == []
+
+    # {revision hash: directory hash}
+    expected_revs = {
+        hash_to_bytes('4c99891f93b81450385777235a37b5e966dd1571'): hash_to_bytes('05219ba38bc542d4345d5638af1ed56c7d43ca7d'),  # noqa
+        hash_to_bytes('e445da4da22b31bfebb6ffc4383dbf839a074d21'): hash_to_bytes('b178b66bd22383d5f16f4f5c923d39ca798861b4'),  # noqa
+        hash_to_bytes('51247143b01445c9348afa9edfae31bf7c5d86b1'): hash_to_bytes('e226e7e4ad03b4fc1403d69a18ebdd6f2edd2b3a'),  # noqa
+    }
+
+    assert list(loader.storage.revision_missing(expected_revs)) == []
+
+    expected_branches = {
+        'releases/1.1.0': {
+            'target': '4c99891f93b81450385777235a37b5e966dd1571',
+            'target_type': 'revision',
+        },
+        'releases/1.2.0': {
+            'target': 'e445da4da22b31bfebb6ffc4383dbf839a074d21',
+            'target_type': 'revision',
+        },
+        'releases/1.3.0': {
+            'target': '51247143b01445c9348afa9edfae31bf7c5d86b1',
+            'target_type': 'revision',
+        },
+        'HEAD': {
+            'target': 'releases/1.3.0',
+            'target_type': 'alias',
+        },
+    }
+
+    check_snapshot(
+        '2e5149a7b0725d18231a37b342e9b7c4e121f283',
+        expected_branches,
+        storage=loader.storage)
+
+    origin_visit = next(loader.storage.origin_visit_get(url))
+    assert origin_visit['status'] == 'full'
+
+# release artifact, no new artifact
+# {visit full, status uneventful, same snapshot as before}
 
 # release artifact, old artifact with different checksums
 # {visit full, status full, new snapshot with shared history and some new
