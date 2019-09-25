@@ -30,7 +30,7 @@ def swh_config(monkeypatch):
     return conffile
 
 
-def get_response_cb(request, context, ignore_urls=[], visit=None):
+def get_response_cb(request, context, ignore_urls=[], visits=None):
     """Mount point callback to fetch on disk the content of a request
 
     This is meant to be used as 'body' argument of the requests_mock.get()
@@ -61,10 +61,11 @@ def get_response_cb(request, context, ignore_urls=[], visit=None):
     Args:
         request (requests.Request): Object requests
         context (requests.Context): Object holding response metadata
-                                    information (status_code, headers, etc...)
+            information (status_code, headers, etc...)
         ignore_urls (List): urls whose status response should be 404 even if
-                            the local file exists
-        visit (Optional[int]): Visit number for the given url (can be None)
+            the local file exists
+        visits (Optional[Dict]): Map of url, number of visits. If None, disable
+            multi visit support (default)
 
     Returns:
         Optional[FileDescriptor] on the on disk file to read from the test
@@ -85,9 +86,14 @@ def get_response_cb(request, context, ignore_urls=[], visit=None):
         filename = filename[:-1]
     filename = filename.replace('/', '_')
     filepath = path.join(DATADIR, dirname, filename)
-    if visit:
-        filepath = filepath + '_visit%s' % visit
+    if visits is not None:
+        visit = visits.get(url, 0)
+        visits[url] = visit + 1
+        if visit:
+            filepath = filepath + '_visit%s' % visit
+
     if not path.isfile(filepath):
+        logger.debug('not found filepath: %s', filepath)
         context.status_code = 404
         return None
     fd = open(filepath, 'rb')
@@ -104,13 +110,9 @@ def local_get_factory(ignore_urls=[],
                          ignore_urls=ignore_urls)
             requests_mock.get(re.compile('https://'), body=cb)
         else:
-            requests_mock.get(re.compile('https'), [
-                {
-                    'body': partial(
-                        get_response_cb,
-                        ignore_urls=ignore_urls,
-                        visit=i)
-                } for i in range(MAX_VISIT_FILES)]
+            visits = {}
+            requests_mock.get(re.compile('https'), body=partial(
+                get_response_cb, ignore_urls=ignore_urls, visits=visits)
             )
 
         return requests_mock

@@ -9,7 +9,7 @@ import requests
 from swh.loader.package.tests.conftest import local_get_factory
 
 
-def test_get_response_cb_with_visits(local_get_visits):
+def test_get_response_cb_with_visits_nominal(local_get_visits):
     response = requests.get('https://example.com/file.json')
     assert response.ok
     assert response.json() == {'hello': 'you'}
@@ -17,6 +17,28 @@ def test_get_response_cb_with_visits(local_get_visits):
     response = requests.get('https://example.com/file.json')
     assert response.ok
     assert response.json() == {'hello': 'world'}
+
+    response = requests.get('https://example.com/file.json')
+    assert not response.ok
+    assert response.status_code == 404
+
+
+def test_get_response_cb_with_visits(local_get_visits):
+    response = requests.get('https://example.com/file.json')
+    assert response.ok
+    assert response.json() == {'hello': 'you'}
+
+    response = requests.get('https://example.com/other.json')
+    assert response.ok
+    assert response.json() == "foobar"
+
+    response = requests.get('https://example.com/file.json')
+    assert response.ok
+    assert response.json() == {'hello': 'world'}
+
+    response = requests.get('https://example.com/other.json')
+    assert not response.ok
+    assert response.status_code == 404
 
     response = requests.get('https://example.com/file.json')
     assert not response.ok
