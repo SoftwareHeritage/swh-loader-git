@@ -9,7 +9,7 @@ import re
 from swh.model.hashutil import hash_to_bytes
 
 from swh.loader.package.gnu import GNULoader, get_version
-from swh.loader.package.tests.common import get_response_cb, check_snapshot
+from swh.loader.package.tests.common import check_snapshot
 
 
 def test_get_version():
@@ -161,7 +161,7 @@ def test_release_artifact_not_found(swh_config, requests_mock):
     } == stats
 
 
-def test_release_artifact_no_prior_visit(swh_config, requests_mock):
+def test_release_artifact_no_prior_visit(swh_config, local_get):
     """With no prior visit, load a pypi project ends up with 1 snapshot
 
     """
@@ -174,7 +174,6 @@ def test_release_artifact_no_prior_visit(swh_config, requests_mock):
     }]
 
     loader = GNULoader(package, package_url, tarballs)
-    requests_mock.get(re.compile('https://'), body=get_response_cb)
 
     actual_load_status = loader.load()
 

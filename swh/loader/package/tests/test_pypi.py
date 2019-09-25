@@ -4,7 +4,6 @@
 # See top-level LICENSE file for more information
 
 import os
-import re
 
 from os import path
 
@@ -16,9 +15,7 @@ from swh.loader.package.pypi import (
     PyPILoader, pypi_api_url, pypi_info, author, sdist_parse
 )
 
-from swh.loader.package.tests.common import (
-    get_response_cb, DATADIR, check_snapshot
-)
+from swh.loader.package.tests.common import DATADIR, check_snapshot
 
 
 def test_author_basic():
@@ -225,12 +222,11 @@ def test_no_release_artifact(requests_mock):
 
 # "normal" cases (for the same origin) #
 
-def test_release_artifact_no_prior_visit(swh_config, requests_mock):
+def test_release_artifact_no_prior_visit(swh_config, local_get):
     """With no prior visit, load a pypi project ends up with 1 snapshot
 
     """
     loader = PyPILoader('https://pypi.org/project/0805nexter')
-    requests_mock.get(re.compile('https://'), body=get_response_cb)
 
     actual_load_status = loader.load()
 

@@ -6,16 +6,14 @@
 
 import json
 import os
-import re
 
 from swh.model.hashutil import hash_to_bytes
 
 from swh.loader.package.npm import (
     parse_npm_package_author, extract_npm_package_author
 )
-from swh.loader.package.tests.common import (
-    DATADIR, get_response_cb, check_snapshot
-)
+from swh.loader.package.tests.common import DATADIR, check_snapshot
+
 from swh.loader.package.npm import NpmLoader
 
 
@@ -403,11 +401,9 @@ def package_metadata_url(package):
     return 'https://replicate.npmjs.com/%s/' % package
 
 
-def test_npm_loader_2_first_visit(swh_config, requests_mock):
+def test_npm_loader_2_first_visit(swh_config, local_get):
 
     package = 'org'
-    requests_mock.get(re.compile('https://'),
-                      body=get_response_cb)
     loader = NpmLoader(package,
                        package_url(package),
                        package_metadata_url(package))
