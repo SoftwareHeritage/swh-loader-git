@@ -8,6 +8,7 @@ import os
 import re
 import pytest
 
+from functools import partial
 from os import path
 from urllib.parse import urlparse
 
@@ -24,7 +25,7 @@ def swh_config(monkeypatch):
     return conffile
 
 
-def get_response_cb(request, context):
+def get_response_cb(request, context, ignore_urls=[]):
     """Mount point callback to fetch on disk the content of a request
 
     This is meant to be used as 'body' argument of the requests_mock.get()
@@ -56,13 +57,19 @@ def get_response_cb(request, context):
         request (requests.Request): Object requests
         context (requests.Context): Object holding response metadata
                                     information (status_code, headers, etc...)
+        ignore_urls (List): urls whose status response should be 404 even if
+                            the local file exists
 
     Returns:
-        File descriptor on the on disk file to read from the test context
+        Optional[FileDescriptor] on the on disk file to read from the test
+        context
 
     """
     logger.debug('get_response_cb(%s, %s)', request, context)
     url = urlparse(request.url)
+    if url in ignore_urls:
+        context.status_code = 404
+        return None
     dirname = url.hostname  # pypi.org | files.pythonhosted.org
     # url.path: pypi/<project>/json -> local file: pypi_<project>_json
     filename = url.path[1:]
@@ -78,7 +85,15 @@ def get_response_cb(request, context):
     return fd
 
 
-@pytest.fixture
-def local_get(requests_mock):
-    requests_mock.get(re.compile('https://'), body=get_response_cb)
-    return requests_mock
+def local_get_factory(ignore_urls=[]):
+    @pytest.fixture
+    def local_get(requests_mock):
+        cb = partial(get_response_cb, ignore_urls=ignore_urls)
+        requests_mock.get(re.compile('https://'), body=cb)
+
+        return requests_mock
+
+    return local_get
+
+
+local_get = local_get_factory([])
