@@ -293,9 +293,6 @@ def test_release_artifact_no_prior_visit(swh_config, local_get):
         expected_branches,
         storage=loader.storage)
 
-    # self.assertEqual(self.loader.load_status(), {'status': 'eventful'})
-    # self.assertEqual(self.loader.visit_status(), 'full')
-
 # release artifact, no new artifact
 # {visit full, status uneventful, same snapshot as before}
 
