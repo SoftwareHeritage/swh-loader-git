@@ -66,10 +66,12 @@ def get_response_cb(request, context, ignore_urls=[]):
 
     """
     logger.debug('get_response_cb(%s, %s)', request, context)
-    url = urlparse(request.url)
-    if url in ignore_urls:
+    logger.debug('url: %s', request.url)
+    logger.debug('ignore_urls: %s', ignore_urls)
+    if request.url in ignore_urls:
         context.status_code = 404
         return None
+    url = urlparse(request.url)
     dirname = url.hostname  # pypi.org | files.pythonhosted.org
     # url.path: pypi/<project>/json -> local file: pypi_<project>_json
     filename = url.path[1:]

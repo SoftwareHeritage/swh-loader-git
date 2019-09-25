@@ -17,6 +17,8 @@ from swh.loader.package.pypi import (
 
 from swh.loader.package.tests.common import DATADIR, check_snapshot
 
+from swh.loader.package.tests.conftest import local_get_factory
+
 
 def test_author_basic():
     data = {
@@ -202,15 +204,17 @@ def test_sdist_parse_failures(tmp_path):
 # "edge" cases (for the same origin) #
 
 
+# no release artifact:
+# {visit full, status: uneventful, no contents, etc...}
 def test_no_release_artifact(requests_mock):
     pass
 
 
-# no release artifact:
-# {visit full, status: uneventful, no contents, etc...}
-
 # problem during loading:
 # {visit: partial, status: uneventful, no snapshot}
+
+
+
 
 # problem during loading: failure early enough in between swh contents...
 # some contents (contents, directories, etc...) have been written in storage
@@ -221,6 +225,76 @@ def test_no_release_artifact(requests_mock):
 # {visit: partial, status: eventful, snapshot}
 
 # "normal" cases (for the same origin) #
+
+
+local_get_missing = local_get_factory(ignore_urls=[
+    'https://files.pythonhosted.org/packages/ec/65/c0116953c9a3f47de89e71964d6c7b0c783b01f29fa3390584dbf3046b4d/0805nexter-1.1.0.zip',  # noqa
+])
+
+# some missing release artifacts:
+# {visit partial, status: eventful, 1 snapshot}
+
+def test_release_with_missing_artifact(swh_config, local_get_missing):
+    """Load a pypi project with some missing artifacts ends up with 1 snapshot
+
+    """
+    loader = PyPILoader('https://pypi.org/project/0805nexter')
+
+    actual_load_status = loader.load()
+
+    assert actual_load_status == {'status': 'eventful'}
+
+    stats = loader.storage.stat_counters()
+    assert {
+        'content': 3,
+        'directory': 2,
+        'origin': 1,
+        'origin_visit': 1,
+        'person': 1,
+        'release': 0,
+        'revision': 1,
+        'skipped_content': 0,
+        'snapshot': 1
+    } == stats
+
+    expected_contents = map(hash_to_bytes, [
+        '405859113963cb7a797642b45f171d6360425d16',
+        'e5686aa568fdb1d19d7f1329267082fe40482d31',
+        '83ecf6ec1114fd260ca7a833a2d165e71258c338',
+    ])
+
+    assert list(loader.storage.content_missing_per_sha1(expected_contents))\
+        == []
+
+    expected_dirs = map(hash_to_bytes, [
+        'b178b66bd22383d5f16f4f5c923d39ca798861b4',
+        'c3a58f8b57433a4b56caaa5033ae2e0931405338',
+    ])
+
+    assert list(loader.storage.directory_missing(expected_dirs)) == []
+
+    # {revision hash: directory hash}
+    expected_revs = {
+        hash_to_bytes('e445da4da22b31bfebb6ffc4383dbf839a074d21'): hash_to_bytes('b178b66bd22383d5f16f4f5c923d39ca798861b4'),  # noqa
+    }
+    assert list(loader.storage.revision_missing(expected_revs)) == []
+
+    expected_branches = {
+        'releases/1.2.0': {
+            'target': 'e445da4da22b31bfebb6ffc4383dbf839a074d21',
+            'target_type': 'revision',
+        },
+        'HEAD': {
+            'target': 'releases/1.2.0',
+            'target_type': 'alias',
+        },
+    }
+
+    check_snapshot(
+        'dd0e4201a232b1c104433741dbf45895b8ac9355',
+        expected_branches,
+        storage=loader.storage)
+
 
 def test_release_artifact_no_prior_visit(swh_config, local_get):
     """With no prior visit, load a pypi project ends up with 1 snapshot

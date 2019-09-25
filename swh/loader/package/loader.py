@@ -168,8 +168,9 @@ class PackageLoader:
 
         """
         status_load = 'uneventful'  # either: eventful, uneventful, failed
-        status_visit = 'partial'    # either: partial, full
+        status_visit = 'full'       # either: partial, full
         tmp_revisions: Dict[str, List] = {}
+        snapshot = None
 
         try:
             # Prepare origin and origin_visit
@@ -193,9 +194,15 @@ class PackageLoader:
                 for a_filename, a_uri, a_metadata in self.get_artifacts(
                         version):
                     with tempfile.TemporaryDirectory() as tmpdir:
-                        # a_c_: archive_computed_
-                        a_path, a_c_metadata = self.fetch_artifact_archive(
-                            a_uri, dest=tmpdir)
+                        try:
+                            # a_c_: archive_computed_
+                            a_path, a_c_metadata = self.fetch_artifact_archive(
+                                a_uri, dest=tmpdir)
+                        except Exception as e:
+                            logger.warning('Unable to retrieve %s. Reason: %s',
+                                           a_uri, e)
+                            status_visit = 'partial'
+                            continue
 
                         logger.debug('archive_path: %s', a_path)
                         logger.debug('archive_computed_metadata: %s',
@@ -275,15 +282,15 @@ class PackageLoader:
                             'target_type': 'revision',
                             'target': x['target'],
                         }
-            snapshot = {
-                'branches': branches
-            }
-            snapshot['id'] = identifier_to_bytes(
-                snapshot_identifier(snapshot))
-            self.storage.snapshot_add([snapshot])
+            if branches:
+                snapshot = {
+                    'branches': branches
+                }
+                snapshot['id'] = identifier_to_bytes(
+                    snapshot_identifier(snapshot))
 
-            # come so far, we actually reached a full visit
-            status_visit = 'full'
+                logger.debug('snapshot: %s', snapshot)
+                self.storage.snapshot_add([snapshot])
 
             # Update the visit's state
             self.storage.origin_visit_update(
@@ -291,5 +298,6 @@ class PackageLoader:
                 snapshot=snapshot)
         except Exception as e:
             logger.warning('Fail to load %s. Reason: %s' % (self.url, e))
+            status_visit = 'partial'
         finally:
             return {'status': status_load}
