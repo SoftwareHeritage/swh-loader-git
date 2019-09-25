@@ -32,6 +32,9 @@ def get_response_cb(request, context):
         filename = filename[:-1]
     filename = filename.replace('/', '_')
     filepath = path.join(DATADIR, dirname, filename)
+    if not path.isfile(filepath):
+        context.status_code = 404
+        return None
     fd = open(filepath, 'rb')
     context.headers['content-length'] = str(path.getsize(filepath))
     return fd
