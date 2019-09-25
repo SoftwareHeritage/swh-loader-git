@@ -14,8 +14,21 @@ from urllib.parse import urlparse
 
 from .common import DATADIR
 
+import swh.storage
+from swh.storage import get_storage as initial_get_storage
+
 
 logger = logging.getLogger(__name__)
+
+
+def get_storage(cls, args):
+    if cls == 'proxy':
+        from swh.loader.package.storage import ProxyStorage
+        return ProxyStorage(**args)
+    return initial_get_storage(cls, args)
+
+
+swh.storage.get_storage = get_storage
 
 
 # Check get_local_factory function
