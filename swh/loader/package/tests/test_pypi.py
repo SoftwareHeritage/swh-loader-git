@@ -206,15 +206,38 @@ def test_sdist_parse_failures(tmp_path):
 
 # no release artifact:
 # {visit full, status: uneventful, no contents, etc...}
-def test_no_release_artifact(requests_mock):
-    pass
+local_get_missing_all = local_get_factory(ignore_urls=[
+    'https://files.pythonhosted.org/packages/ec/65/c0116953c9a3f47de89e71964d6c7b0c783b01f29fa3390584dbf3046b4d/0805nexter-1.1.0.zip',  # noqa
+    'https://files.pythonhosted.org/packages/c4/a0/4562cda161dc4ecbbe9e2a11eb365400c0461845c5be70d73869786809c4/0805nexter-1.2.0.zip',  # noqa
+])
+
+
+def test_no_release_artifact(swh_config, local_get_missing_all):
+    """Load a pypi project with all artifacts missing ends up with no snapshot
+
+    """
+    loader = PyPILoader('https://pypi.org/project/0805nexter')
+
+    actual_load_status = loader.load()
+
+    assert actual_load_status == {'status': 'uneventful'}
+
+    stats = loader.storage.stat_counters()
+    assert {
+        'content': 0,
+        'directory': 0,
+        'origin': 1,
+        'origin_visit': 1,
+        'person': 0,
+        'release': 0,
+        'revision': 0,
+        'skipped_content': 0,
+        'snapshot': 0,
+    } == stats
 
 
 # problem during loading:
 # {visit: partial, status: uneventful, no snapshot}
-
-
-
 
 # problem during loading: failure early enough in between swh contents...
 # some contents (contents, directories, etc...) have been written in storage
@@ -227,14 +250,15 @@ def test_no_release_artifact(requests_mock):
 # "normal" cases (for the same origin) #
 
 
-local_get_missing = local_get_factory(ignore_urls=[
+local_get_missing_one = local_get_factory(ignore_urls=[
     'https://files.pythonhosted.org/packages/ec/65/c0116953c9a3f47de89e71964d6c7b0c783b01f29fa3390584dbf3046b4d/0805nexter-1.1.0.zip',  # noqa
 ])
 
 # some missing release artifacts:
 # {visit partial, status: eventful, 1 snapshot}
 
-def test_release_with_missing_artifact(swh_config, local_get_missing):
+
+def test_release_with_missing_artifact(swh_config, local_get_missing_one):
     """Load a pypi project with some missing artifacts ends up with 1 snapshot
 
     """
