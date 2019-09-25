@@ -160,6 +160,9 @@ def test_release_artifact_not_found(swh_config, requests_mock):
         'snapshot': 0,
     } == stats
 
+    origin_visit = next(loader.storage.origin_visit_get(package_url))
+    assert origin_visit['status'] == 'partial'
+
 
 def test_release_artifact_no_prior_visit(swh_config, local_get):
     """With no prior visit, load a pypi project ends up with 1 snapshot

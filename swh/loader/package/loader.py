@@ -291,13 +291,11 @@ class PackageLoader:
 
                 logger.debug('snapshot: %s', snapshot)
                 self.storage.snapshot_add([snapshot])
-
-            # Update the visit's state
-            self.storage.origin_visit_update(
-                origin=self.url, visit_id=visit_id, status=status_visit,
-                snapshot=snapshot)
         except Exception as e:
             logger.warning('Fail to load %s. Reason: %s' % (self.url, e))
             status_visit = 'partial'
         finally:
+            self.storage.origin_visit_update(
+                origin=self.url, visit_id=visit_id, status=status_visit,
+                snapshot=snapshot)
             return {'status': status_load}

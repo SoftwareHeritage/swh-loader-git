@@ -9,6 +9,8 @@ from os import path
 
 import pytest
 
+from unittest.mock import patch
+
 from swh.core.tarball import uncompress
 from swh.model.hashutil import hash_to_bytes
 from swh.loader.package.pypi import (
@@ -216,7 +218,8 @@ def test_no_release_artifact(swh_config, local_get_missing_all):
     """Load a pypi project with all artifacts missing ends up with no snapshot
 
     """
-    loader = PyPILoader('https://pypi.org/project/0805nexter')
+    url = 'https://pypi.org/project/0805nexter'
+    loader = PyPILoader(url)
 
     actual_load_status = loader.load()
 
@@ -235,9 +238,41 @@ def test_no_release_artifact(swh_config, local_get_missing_all):
         'snapshot': 0,
     } == stats
 
+    origin_visit = next(loader.storage.origin_visit_get(url))
+    assert origin_visit['status'] == 'partial'
+
 
 # problem during loading:
 # {visit: partial, status: uneventful, no snapshot}
+
+
+def test_release_with_traceback(swh_config):
+    url = 'https://pypi.org/project/0805nexter'
+    with patch('swh.loader.package.pypi.PyPILoader.get_default_release',
+               side_effect=ValueError('Problem')):
+        loader = PyPILoader(url)
+
+        actual_load_status = loader.load()
+
+        assert actual_load_status == {'status': 'uneventful'}
+
+        stats = loader.storage.stat_counters()
+
+        assert {
+            'content': 0,
+            'directory': 0,
+            'origin': 1,
+            'origin_visit': 1,
+            'person': 0,
+            'release': 0,
+            'revision': 0,
+            'skipped_content': 0,
+            'snapshot': 0,
+        } == stats
+
+    origin_visit = next(loader.storage.origin_visit_get(url))
+    assert origin_visit['status'] == 'partial'
+
 
 # problem during loading: failure early enough in between swh contents...
 # some contents (contents, directories, etc...) have been written in storage
@@ -262,7 +297,8 @@ def test_release_with_missing_artifact(swh_config, local_get_missing_one):
     """Load a pypi project with some missing artifacts ends up with 1 snapshot
 
     """
-    loader = PyPILoader('https://pypi.org/project/0805nexter')
+    url = 'https://pypi.org/project/0805nexter'
+    loader = PyPILoader(url)
 
     actual_load_status = loader.load()
 
@@ -319,12 +355,16 @@ def test_release_with_missing_artifact(swh_config, local_get_missing_one):
         expected_branches,
         storage=loader.storage)
 
+    origin_visit = next(loader.storage.origin_visit_get(url))
+    assert origin_visit['status'] == 'partial'
+
 
 def test_release_artifact_no_prior_visit(swh_config, local_get):
     """With no prior visit, load a pypi project ends up with 1 snapshot
 
     """
-    loader = PyPILoader('https://pypi.org/project/0805nexter')
+    url = 'https://pypi.org/project/0805nexter'
+    loader = PyPILoader(url)
 
     actual_load_status = loader.load()
 
@@ -390,6 +430,10 @@ def test_release_artifact_no_prior_visit(swh_config, local_get):
         'ba6e158ada75d0b3cfb209ffdf6daa4ed34a227a',
         expected_branches,
         storage=loader.storage)
+
+    origin_visit = next(loader.storage.origin_visit_get(url))
+    assert origin_visit['status'] == 'full'
+
 
 # release artifact, no new artifact
 # {visit full, status uneventful, same snapshot as before}
