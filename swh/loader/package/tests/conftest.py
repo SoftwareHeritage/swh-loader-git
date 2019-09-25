@@ -18,6 +18,11 @@ from .common import DATADIR
 logger = logging.getLogger(__name__)
 
 
+# Check get_local_factory function
+# Maximum number of iteration checks to generate requests responses
+MAX_VISIT_FILES = 10
+
+
 @pytest.fixture
 def swh_config(monkeypatch):
     conffile = os.path.join(DATADIR, 'loader.yml')
@@ -25,7 +30,7 @@ def swh_config(monkeypatch):
     return conffile
 
 
-def get_response_cb(request, context, ignore_urls=[]):
+def get_response_cb(request, context, ignore_urls=[], visit=None):
     """Mount point callback to fetch on disk the content of a request
 
     This is meant to be used as 'body' argument of the requests_mock.get()
@@ -59,6 +64,7 @@ def get_response_cb(request, context, ignore_urls=[]):
                                     information (status_code, headers, etc...)
         ignore_urls (List): urls whose status response should be 404 even if
                             the local file exists
+        visit (Optional[int]): Visit number for the given url (can be None)
 
     Returns:
         Optional[FileDescriptor] on the on disk file to read from the test
@@ -79,6 +85,8 @@ def get_response_cb(request, context, ignore_urls=[]):
         filename = filename[:-1]
     filename = filename.replace('/', '_')
     filepath = path.join(DATADIR, dirname, filename)
+    if visit:
+        filepath = filepath + '_visit%s' % visit
     if not path.isfile(filepath):
         context.status_code = 404
         return None
@@ -87,11 +95,23 @@ def get_response_cb(request, context, ignore_urls=[]):
     return fd
 
 
-def local_get_factory(ignore_urls=[]):
+def local_get_factory(ignore_urls=[],
+                      has_multi_visit=False):
     @pytest.fixture
     def local_get(requests_mock):
-        cb = partial(get_response_cb, ignore_urls=ignore_urls)
-        requests_mock.get(re.compile('https://'), body=cb)
+        if not has_multi_visit:
+            cb = partial(get_response_cb,
+                         ignore_urls=ignore_urls)
+            requests_mock.get(re.compile('https://'), body=cb)
+        else:
+            requests_mock.get(re.compile('https'), [
+                {
+                    'body': partial(
+                        get_response_cb,
+                        ignore_urls=ignore_urls,
+                        visit=i)
+                } for i in range(MAX_VISIT_FILES)]
+            )
 
         return requests_mock
 
@@ -99,3 +119,4 @@ def local_get_factory(ignore_urls=[]):
 
 
 local_get = local_get_factory([])
+local_get_visits = local_get_factory(has_multi_visit=True)
