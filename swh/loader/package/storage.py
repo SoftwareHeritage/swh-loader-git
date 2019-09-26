@@ -11,8 +11,11 @@ from typing import Sequence, Dict, Set
 class ProxyStorage:
     def __init__(self, **storage):
         self.storage = get_storage(**storage)
-        self.contents_seen = set()
-        self.objects_seen = {'revision': set(), 'directory': set()}
+        self.objects_seen = {
+            'content': set(),    # set of content hashes (sha256) seen
+            'revision': set(),
+            'directory': set(),
+        }
 
     def _filter_missing_contents(
             self, content_hashes: Sequence[Dict]) -> Set[bytes]:
@@ -23,11 +26,12 @@ class ProxyStorage:
                 storage
 
         """
+        objects_seen = self.objects_seen['content']
         missing_hashes = []
         for hashes in content_hashes:
-            if hashes['sha256'] in self.contents_seen:
+            if hashes['sha256'] in objects_seen:
                 continue
-            self.contents_seen.add(hashes['sha256'])
+            objects_seen.add(hashes['sha256'])
             missing_hashes.append(hashes)
 
         return set(self.storage.content_missing(
