@@ -128,9 +128,7 @@ class GNULoader(PackageLoader):
 
         """
         super().__init__(url=package_url)
-        # Sort tarballs by upload date
-        sorted(tarballs, key=lambda v: int(v['date']))
-        self.tarballs = tarballs
+        self.tarballs = list(sorted(tarballs, key=lambda v: int(v['date'])))
 
     def get_versions(self) -> Sequence[str]:
         versions = []
