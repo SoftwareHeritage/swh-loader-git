@@ -243,6 +243,9 @@ class PackageLoader:
                             'synthetic': True,
                             'directory': directory.hash,
                         })
+
+                        # FIXME: Standardize those metadata keys and use the
+                        # correct ones
                         revision['metadata'].update({
                             'original_artifact': a_metadata,
                             'hashes_artifact': a_c_metadata
