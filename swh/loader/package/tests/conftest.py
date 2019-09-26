@@ -124,7 +124,7 @@ def local_get_factory(ignore_urls=[],
             requests_mock.get(re.compile('https://'), body=cb)
         else:
             visits = {}
-            requests_mock.get(re.compile('https'), body=partial(
+            requests_mock.get(re.compile('https://'), body=partial(
                 get_response_cb, ignore_urls=ignore_urls, visits=visits)
             )
 
