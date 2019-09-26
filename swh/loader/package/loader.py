@@ -283,15 +283,15 @@ class PackageLoader:
                             'target_type': 'revision',
                             'target': x['target'],
                         }
-            if branches:
-                snapshot = {
-                    'branches': branches
-                }
-                snapshot['id'] = identifier_to_bytes(
-                    snapshot_identifier(snapshot))
 
-                logger.debug('snapshot: %s', snapshot)
-                self.storage.snapshot_add([snapshot])
+            snapshot = {
+                'branches': branches
+            }
+            snapshot['id'] = identifier_to_bytes(
+                snapshot_identifier(snapshot))
+
+            logger.debug('snapshot: %s', snapshot)
+            self.storage.snapshot_add([snapshot])
         except Exception as e:
             logger.warning('Fail to load %s. Reason: %s' % (self.url, e))
             status_visit = 'partial'

@@ -236,7 +236,7 @@ def test_no_release_artifact(swh_config, local_get_missing_all):
         'release': 0,
         'revision': 0,
         'skipped_content': 0,
-        'snapshot': 0,
+        'snapshot': 1,
     } == stats
 
     origin_visit = next(loader.storage.origin_visit_get(url))

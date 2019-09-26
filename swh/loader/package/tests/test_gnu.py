@@ -157,7 +157,7 @@ def test_release_artifact_not_found(swh_config, requests_mock):
         'release': 0,
         'revision': 0,
         'skipped_content': 0,
-        'snapshot': 0,
+        'snapshot': 1,
     } == stats
 
     origin_visit = next(loader.storage.origin_visit_get(package_url))
