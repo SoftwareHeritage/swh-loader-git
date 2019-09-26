@@ -83,7 +83,7 @@ def sdist_parse(dir_path: str) -> Dict:
     if not os.path.exists(dir_path):
         return {}
     lst = os.listdir(dir_path)
-    if len(lst) == 0:
+    if len(lst) != 1:
         return {}
     project_dirname = lst[0]
     pkginfo_path = os.path.join(dir_path, project_dirname, 'PKG-INFO')
