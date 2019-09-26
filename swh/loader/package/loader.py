@@ -29,15 +29,17 @@ logger = logging.getLogger(__name__)
 # -> experience tells us it's complicated to do as such (T903, T964, T982,
 #    etc...)
 #
-# - splitting into groups too many objects sent to storage > could be a >
-# -> specialized collaborator or storage implementation or proxy which deals
-#    with this
+# - (in-progress) splitting into groups too many objects sent to storage,
+#    filtering known contents, directories, etc... This could be a specialized
+#    collaborator or storage implementation or proxy which deals with this (cf.
+#    swh.loader.package.storage.ProxyStorage)
 #
 # - model: swh.model.merkle.from_disk should output swh.model.model.* objects
 #          to avoid this layer's conversion routine call
 # -> Take this up within swh.model's current implementation
 #
 # - Does not trap exceptions yet within the PackageLoader.load method
+# - Incremental loading through latest snapshot introspection
 
 class PackageLoader:
     # Origin visit type (str) set by the loader
