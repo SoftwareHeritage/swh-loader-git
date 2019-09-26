@@ -51,53 +51,50 @@ class ProxyStorage:
             x for x in contents if x['sha256'] in missing_hashes
         )
 
-    def _filter_missing_directories(
-            self, directory_ids: Sequence[bytes]) -> Sequence[bytes]:
-        """Return only the content keys missing from swh
+    def _filter_missing_ids(
+            self,
+            object_type: str,
+            ids: Sequence[bytes]) -> Sequence[bytes]:
+        """Filter missing ids from the storage for a given object type.
 
         Args:
-            directory_ids: List of directory ids
+            object_type: object type to use {revision, directory}
+            ids: List of object_type ids
+
+        Returns:
+            Missing ids from the storage for object_type
 
         """
         missing_ids = []
-        for id in directory_ids:
+        for id in ids:
             if id in self.directories_seen:
                 continue
             self.directories_seen.add(id)
             missing_ids.append(id)
 
-        return list(self.storage.directory_missing(missing_ids))
+        fn_by_object_type = {
+            'revision': self.storage.revision_missing,
+            'directory': self.storage.directory_missing,
+        }
+        fn = fn_by_object_type[object_type]
+
+        return list(fn(missing_ids))
 
     def directory_add(self, directories: Sequence[Dict]) -> Dict:
         directories = list(directories)
-        missing_ids = self._filter_missing_directories(
-            d['id'] for d in directories
+        missing_ids = self._filter_missing_ids(
+            'directory',
+            (d['id'] for d in directories)
         )
         return self.storage.directory_add(
             d for d in directories if d['id'] in missing_ids
         )
 
-    def _filter_missing_revisions(
-            self, revision_ids: Sequence[bytes]) -> Sequence[bytes]:
-        """Return only the content keys missing from swh
-
-        Args:
-            revision_ids: List of revisions ids
-
-        """
-        missing_ids = []
-        for id in revision_ids:
-            if id in self.revisions_seen:
-                continue
-            self.revisions_seen.add(id)
-            missing_ids.append(id)
-
-        return list(self.storage.revision_missing(missing_ids))
-
     def revision_add(self, revisions):
         revisions = list(revisions)
-        missing_ids = self._filter_missing_revisions(
-            d['id'] for d in revisions
+        missing_ids = self._filter_missing_ids(
+            'revision',
+            (d['id'] for d in revisions)
         )
         return self.storage.revision_add(
             r for r in revisions if r['id'] in missing_ids
