@@ -267,7 +267,7 @@ def extract_intrinsic_metadata(dir_path: str) -> Dict:
     Args:
 
         dir_path (str): Path to the uncompressed directory
-                        representing a release artifact from pypi.
+                        representing a release artifact from npm.
 
     Returns:
         the pkginfo parsed structure as a dict if any or None if
@@ -308,7 +308,7 @@ class NpmLoader(PackageLoader):
 
     @property
     def info(self) -> Dict:
-        """Return the project metadata information (fetched from pypi registry)
+        """Return the project metadata information (fetched from npm registry)
 
         """
         if not self._info:
@@ -317,7 +317,6 @@ class NpmLoader(PackageLoader):
                 self.package_metadata_url)
         return self._info
 
-    # def get_versions(self) -> Sequence[Tuple(str, str)]:
     def get_versions(self) -> Sequence[str]:
         return sorted(self.info['versions'].keys())
 

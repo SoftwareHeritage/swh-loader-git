@@ -165,7 +165,7 @@ def test_release_artifact_not_found(swh_config, requests_mock):
 
 
 def test_release_artifact_no_prior_visit(swh_config, local_get):
-    """With no prior visit, load a pypi project ends up with 1 snapshot
+    """With no prior visit, load a gnu project ends up with 1 snapshot
 
     """
     assert 'SWH_CONFIG_FILENAME' in os.environ  # cf. tox.ini
