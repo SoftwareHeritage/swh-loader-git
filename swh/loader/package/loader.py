@@ -188,7 +188,6 @@ class PackageLoader:
             default_release = self.get_default_release()
             logger.debug('default release: %s', default_release)
 
-            # FIXME: Add load exceptions handling
             for version in self.get_versions():  # for each
                 logger.debug('version: %s', version)
                 tmp_revisions[version] = []
