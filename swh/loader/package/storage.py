@@ -5,19 +5,17 @@
 
 from swh.storage import get_storage
 
-from typing import Sequence, Dict
+from typing import Sequence, Dict, Set
 
 
 class ProxyStorage:
     def __init__(self, **storage):
         self.storage = get_storage(**storage)
         self.contents_seen = set()
-        self.directories_seen = set()
-        self.revisions_seen = set()
-
+        self.objects_seen = {'revision': set(), 'directory': set()}
 
     def _filter_missing_contents(
-            self, content_hashes: Sequence[bytes]) -> Sequence[bytes]:
+            self, content_hashes: Sequence[Dict]) -> Set[bytes]:
         """Return only the content keys missing from swh
 
         Args:
@@ -26,30 +24,28 @@ class ProxyStorage:
 
         """
         missing_hashes = []
-        for hash in content_hashes:
-            if hash in self.contents_seen:
+        for hashes in content_hashes:
+            if hashes['sha256'] in self.contents_seen:
                 continue
-            self.contents_seen.add(hash)
-            missing_hashes.append({'sha256': hash})
+            self.contents_seen.add(hashes['sha256'])
+            missing_hashes.append(hashes)
 
-        return list(self.storage.content_missing(
+        return set(self.storage.content_missing(
             missing_hashes,
             key_hash='sha256',
         ))
 
     def content_add(self, content: Sequence[Dict]) -> Dict:
         contents = list(content)
-        missing_hashes = self._filter_missing_contents(
-            c['sha256'] for c in contents
-        )
+        contents_to_add = self._filter_missing_contents(contents)
         return self.storage.content_add(
-            x for x in contents if x['sha256'] in missing_hashes
+            x for x in contents if x['sha256'] in contents_to_add
         )
 
     def _filter_missing_ids(
             self,
             object_type: str,
-            ids: Sequence[bytes]) -> Sequence[bytes]:
+            ids: Sequence[bytes]) -> Set[bytes]:
         """Filter missing ids from the storage for a given object type.
 
         Args:
@@ -60,20 +56,21 @@ class ProxyStorage:
             Missing ids from the storage for object_type
 
         """
+        objects_seen = self.objects_seen[object_type]
         missing_ids = []
         for id in ids:
-            if id in self.directories_seen:
+            if id in objects_seen:
                 continue
-            self.directories_seen.add(id)
+            objects_seen.add(id)
             missing_ids.append(id)
 
         fn_by_object_type = {
             'revision': self.storage.revision_missing,
             'directory': self.storage.directory_missing,
         }
-        fn = fn_by_object_type[object_type]
 
-        return list(fn(missing_ids))
+        fn = fn_by_object_type[object_type]
+        return set(fn(missing_ids))
 
     def directory_add(self, directories: Sequence[Dict]) -> Dict:
         directories = list(directories)
