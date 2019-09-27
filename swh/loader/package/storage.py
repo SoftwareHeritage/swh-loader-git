@@ -55,7 +55,7 @@ class BufferingProxyStorage:
         if not s:
             q = self._objects['content']
             total_size = sum(c['length'] for c in q)
-            if total_size > self.thresholds['content_bytes']:
+            if total_size >= self.thresholds['content_bytes']:
                 return self.flush(['content'])
 
         return s
@@ -71,6 +71,7 @@ class BufferingProxyStorage:
                 s = add_fn(objs)
                 summary = {k: v + summary.get(k, 0)
                            for k, v in s.items()}
+            q.clear()
 
         return summary
 
@@ -82,7 +83,7 @@ class BufferingProxyStorage:
         q = self._objects[object_type]
         threshold = self.thresholds[object_type]
         q.extend(objects)
-        if len(q) > threshold:
+        if len(q) >= threshold:
             return self.flush()
 
         return {}
