@@ -16,39 +16,20 @@ class BufferingProxyStorage:
        discussing with the "main" storage.
 
     """
-    def __init__(self, **storage):
+    def __init__(self, storage, thresholds=None):
         self.storage = get_storage(**storage)
 
-        self._max_size = {
-            'content': self.config.get('content_packet_size', 10000),
-            'directory': self.config.get('directory_packet_size', 25000),
-            'revision': self.config.get('directory_packet_size', 100000),
+        if thresholds is None:
+            thresholds = {}
+
+        self.thresholds = {
+            'content': thresholds.get('content', 10000),
+            'content_bytes': thresholds.get('content_bytes', 100*1024*1024),
+            'directory': thresholds.get('directory', 25000),
+            'revision': thresholds.get('revision', 100000),
         }
         self.object_types = ['content', 'directory', 'revision']
         self._objects = {k: deque() for k in self.object_types}
-
-    def flush(self, object_types: Optional[Sequence[str]] = None) -> Dict:
-        if object_types is None:
-            object_types = self.object_types
-        summary = {}
-        for object_type in object_types:
-            q = self._objects[object_type]
-            for objs in grouper(q, n=self._max_size[object_type]):
-                add_fn = getattr(self.storage, '%s_add' % object_type)
-                s = add_fn(objs)
-                summary = {k: v + summary.get(k, 0)
-                           for k, v in s.items()}
-
-        return summary
-
-    def object_add(self, objects: Sequence[Dict], *, object_type: str) -> Dict:
-        q = self._objects[object_type]
-        max_size = self._max_size[object_type]
-        q.extend(objects)
-        if len(q) > max_size:
-            return self.flush()
-
-        return {}
 
     def __getattr__(self, key):
         if key.endswith('_add'):
@@ -59,13 +40,60 @@ class BufferingProxyStorage:
                 )
         return getattr(self.storage, key)
 
+    def content_add(self, content: Sequence[Dict]) -> Dict:
+        """Enqueue contents to write to the storage.
+
+        Following policies apply:
+        - First, check if the queue's threshold is hit. If it is flush content
+          to the storage.
+
+        - If not, check if the total size of enqueued contents's threshold is
+          hit. If it is flush content to the storage.
+
+        """
+        s = self.object_add(content, object_type='content')
+        if not s:
+            q = self._objects['content']
+            total_size = sum(c['length'] for c in q)
+            if total_size > self.thresholds['content_bytes']:
+                return self.flush(['content'])
+
+        return s
+
+    def flush(self, object_types: Optional[Sequence[str]] = None) -> Dict:
+        if object_types is None:
+            object_types = self.object_types
+        summary = {}
+        for object_type in object_types:
+            q = self._objects[object_type]
+            for objs in grouper(q, n=self.thresholds[object_type]):
+                add_fn = getattr(self.storage, '%s_add' % object_type)
+                s = add_fn(objs)
+                summary = {k: v + summary.get(k, 0)
+                           for k, v in s.items()}
+
+        return summary
+
+    def object_add(self, objects: Sequence[Dict], *, object_type: str) -> Dict:
+        """Enqueue objects to write to the storage. This checks if the queue's
+           threshold is hit. If it is actually write those to the storage.
+
+        """
+        q = self._objects[object_type]
+        threshold = self.thresholds[object_type]
+        q.extend(objects)
+        if len(q) > threshold:
+            return self.flush()
+
+        return {}
+
 
 class FilteringProxyStorage:
     """Storage implementation in charge of filtering existing objects prior to
        calling the storage api for ingestion.
 
     """
-    def __init__(self, **storage):
+    def __init__(self, storage):
         self.storage = get_storage(**storage)
         self.objects_seen = {
             'content': set(),    # set of content hashes (sha256) seen

@@ -1,7 +1,14 @@
 storage:
   cls: filter
   args:
-    cls: buffer
-    args:
-      cls: memory
-      args: {}
+    storage:
+      cls: buffer
+      args:
+        storage:
+          cls: memory
+          args: {}
+        thresholds:
+          content: 5
+          content_bytes: 100
+          directory: 5
+          revision: 5
