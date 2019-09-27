@@ -435,7 +435,8 @@ def test_npm_loader_2_first_visit(swh_config, local_get):
     assert list(loader.storage.revision_missing(
         _expected_new_revisions_first_visit)) == []
 
-    check_snapshot(
-        _expected_new_snapshot_first_visit_id,
-        _expected_branches_first_visit,
-        storage=loader.storage)
+    expected_snapshot = {
+        'id': _expected_new_snapshot_first_visit_id,
+        'branches': _expected_branches_first_visit,
+    }
+    check_snapshot(expected_snapshot, loader.storage)

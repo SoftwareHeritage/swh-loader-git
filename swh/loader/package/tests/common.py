@@ -16,6 +16,9 @@ DATADIR = path.join(path.abspath(path.dirname(__file__)), 'resources')
 
 
 def decode_target(target):
+    """Test helper to ease readability in test
+
+    """
     if not target:
         return target
     target_type = target['target_type']
@@ -31,26 +34,19 @@ def decode_target(target):
     }
 
 
-def check_snapshot(expected_snapshot, expected_branches, storage):
+def check_snapshot(expected_snapshot, storage):
     """Check for snapshot match.
 
     Provide the hashes as hexadecimal, the conversion is done
     within the method.
 
     Args:
-        expected_snapshot (Union[str, dict]): Either the snapshot
-                                      identifier or the full
-                                      snapshot
-        expected_branches ([dict]): expected branches or nothing is
-                                  the full snapshot is provided
+        expected_snapshot (dict): full snapshot with hex ids
+        storage (Storage): expected storage
 
     """
-    if isinstance(expected_snapshot, dict) and not expected_branches:
-        expected_snapshot_id = expected_snapshot['id']
-        expected_branches = expected_snapshot['branches']
-    else:
-        expected_snapshot_id = expected_snapshot
-
+    expected_snapshot_id = expected_snapshot['id']
+    expected_branches = expected_snapshot['branches']
     snap = storage.snapshot_get(hash_to_bytes(expected_snapshot_id))
     assert snap is not None
 

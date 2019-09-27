@@ -324,10 +324,11 @@ def test_release_with_missing_artifact(swh_config, local_get_missing_one):
         },
     }
 
-    check_snapshot(
-        'dd0e4201a232b1c104433741dbf45895b8ac9355',
-        expected_branches,
-        storage=loader.storage)
+    expected_snapshot = {
+        'id': 'dd0e4201a232b1c104433741dbf45895b8ac9355',
+        'branches': expected_branches,
+    }
+    check_snapshot(expected_snapshot, storage=loader.storage)
 
     origin_visit = next(loader.storage.origin_visit_get(url))
     assert origin_visit['status'] == 'partial'
@@ -400,10 +401,11 @@ def test_release_artifact_no_prior_visit(swh_config, local_get):
         },
     }
 
-    check_snapshot(
-        'ba6e158ada75d0b3cfb209ffdf6daa4ed34a227a',
-        expected_branches,
-        storage=loader.storage)
+    expected_snapshot = {
+        'id': 'ba6e158ada75d0b3cfb209ffdf6daa4ed34a227a',
+        'branches': expected_branches,
+    }
+    check_snapshot(expected_snapshot, loader.storage)
 
     origin_visit = next(loader.storage.origin_visit_get(url))
     assert origin_visit['status'] == 'full'
@@ -513,11 +515,12 @@ def test_release_artifact_with_2_visits(swh_config, local_get_visits):
             'target_type': 'alias',
         },
     }
+    expected_snapshot = {
+        'id': '2e5149a7b0725d18231a37b342e9b7c4e121f283',
+        'branches': expected_branches,
+    }
 
-    check_snapshot(
-        '2e5149a7b0725d18231a37b342e9b7c4e121f283',
-        expected_branches,
-        storage=loader.storage)
+    check_snapshot(expected_snapshot, loader.storage)
 
     origin_visit = next(loader.storage.origin_visit_get(url))
     assert origin_visit['status'] == 'full'

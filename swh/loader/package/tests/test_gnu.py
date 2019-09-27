@@ -206,7 +206,9 @@ def test_release_artifact_no_prior_visit(swh_config, local_get):
     expected_revs = map(hash_to_bytes, _expected_new_revisions_first_visit)
     assert list(loader.storage.revision_missing(expected_revs)) == []
 
-    check_snapshot(
-        _expected_new_snapshot_first_visit_id,
-        _expected_branches_first_visit,
-        storage=loader.storage)
+    expected_snapshot = {
+        'id': _expected_new_snapshot_first_visit_id,
+        'branches': _expected_branches_first_visit,
+    }
+
+    check_snapshot(expected_snapshot, loader.storage)
