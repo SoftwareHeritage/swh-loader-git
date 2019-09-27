@@ -101,6 +101,9 @@ class FilteringProxyStorage:
             'revision': set(),
         }
 
+    def __getattr__(self, key):
+        return getattr(self.storage, key)
+
     def content_add(self, content: Sequence[Dict]) -> Dict:
         contents = list(content)
         contents_to_add = self._filter_missing_contents(contents)
@@ -179,6 +182,3 @@ class FilteringProxyStorage:
 
         fn = fn_by_object_type[object_type]
         return set(fn(missing_ids))
-
-    def __getattr__(self, key):
-        return getattr(self.storage, key)
