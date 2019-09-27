@@ -10,7 +10,6 @@ from os import path
 from typing import Generator, Dict, Tuple, Sequence
 
 from swh.loader.package.loader import PackageLoader
-from swh.loader.package.utils import download
 
 from swh.model.identifiers import normalize_timestamp
 
@@ -148,10 +147,6 @@ class GNULoader(PackageLoader):
             url = a_metadata['archive']
             filename = path.split(url)[-1]
             yield filename, url, a_metadata
-
-    def fetch_artifact_archive(
-            self, artifact_uri: str, dest: str) -> Tuple[str, Dict]:
-        return download(artifact_uri, dest=dest)
 
     def build_revision(
             self, a_metadata: Dict, a_uncompressed_path: str) -> Dict:

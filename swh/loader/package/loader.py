@@ -18,6 +18,7 @@ from swh.model.identifiers import (
 )
 from swh.storage import get_storage
 from swh.loader.core.converters import content_for_storage
+from swh.loader.package.utils import download
 
 
 logger = logging.getLogger(__name__)
@@ -94,19 +95,19 @@ class PackageLoader:
         yield from {}
 
     def fetch_artifact_archive(
-            self, artifact_archive_path: str, dest: str) -> Tuple[str, Dict]:
+            self, artifact_uri: str, dest: str) -> Tuple[str, Dict]:
         """Fetch artifact archive to a temporary folder and returns its
            path.
 
         Args:
-            artifact_archive_path: Path to artifact archive to uncompress
+            artifact_uri: Artifact uri to fetch
             dest: Directory to write the downloaded archive to
 
         Returns:
             the locally retrieved artifact path
 
         """
-        return '', {}
+        return download(artifact_uri, dest=dest)
 
     def build_revision(
             self, a_metadata: Dict, a_uncompressed_path: str) -> Dict:

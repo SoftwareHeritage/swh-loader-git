@@ -16,7 +16,7 @@ import iso8601
 
 from swh.model.identifiers import normalize_timestamp
 from swh.loader.package.loader import PackageLoader
-from swh.loader.package.utils import download, api_info
+from swh.loader.package.utils import api_info
 
 
 logger = logging.getLogger(__name__)
@@ -247,10 +247,6 @@ class NpmLoader(PackageLoader):
         url = meta['dist']['tarball']
         filename = os.path.basename(url)
         yield filename, url, meta
-
-    def fetch_artifact_archive(
-            self, artifact_uri: str, dest: str) -> Tuple[str, Dict]:
-        return download(artifact_uri, dest=dest)
 
     def build_revision(
             self, a_metadata: Dict, a_uncompressed_path: str) -> Dict:

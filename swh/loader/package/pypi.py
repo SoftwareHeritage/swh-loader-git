@@ -13,7 +13,7 @@ import iso8601
 
 from swh.model.identifiers import normalize_timestamp
 from swh.loader.package.loader import PackageLoader
-from swh.loader.package.utils import download, api_info
+from swh.loader.package.utils import api_info
 
 
 def pypi_api_url(url: str) -> str:
@@ -132,10 +132,6 @@ class PyPILoader(PackageLoader):
             Tuple[str, str, Dict], None, None]:
         for meta in self.info['releases'][version]:
             yield meta['filename'], meta['url'], meta
-
-    def fetch_artifact_archive(
-            self, artifact_uri: str, dest: str) -> Tuple[str, Dict]:
-        return download(artifact_uri, dest=dest)
 
     def build_revision(
             self, a_metadata: Dict, a_uncompressed_path: str) -> Dict:
