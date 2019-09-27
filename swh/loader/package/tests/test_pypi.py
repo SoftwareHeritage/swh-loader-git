@@ -14,7 +14,7 @@ from unittest.mock import patch
 from swh.core.tarball import uncompress
 from swh.model.hashutil import hash_to_bytes
 from swh.loader.package.pypi import (
-    PyPILoader, pypi_api_url, pypi_info, author, extract_intrinsic_metadata
+    PyPILoader, pypi_api_url, author, extract_intrinsic_metadata
 )
 from swh.loader.package.tests.common import (
     check_snapshot, DATADIR
@@ -137,33 +137,6 @@ def test_pypi_api_url():
     """Compute pypi api url from the pypi project url should be ok"""
     url = pypi_api_url('https://pypi.org/project/requests')
     assert url == 'https://pypi.org/pypi/requests/json'
-
-
-def test_pypi_info_failure(requests_mock):
-    """Failure to fetch info/release information should raise"""
-    project_url = 'https://pypi.org/project/requests'
-    info_url = 'https://pypi.org/pypi/requests/json'
-    status_code = 400
-    requests_mock.get(info_url, status_code=status_code)
-
-    with pytest.raises(ValueError) as e0:
-        pypi_info(project_url)
-
-    assert e0.value.args[0] == "Fail to query '%s'. Reason: %s" % (
-        info_url, status_code
-    )
-
-
-def test_pypi_info(requests_mock):
-    """Fetching json info from pypi project should be ok"""
-    url = 'https://pypi.org/project/requests'
-    info_url = 'https://pypi.org/pypi/requests/json'
-    requests_mock.get(info_url,
-                      text='{"version": "0.0.1"}')
-    actual_info = pypi_info(url)
-    assert actual_info == {
-        'version': '0.0.1',
-    }
 
 
 @pytest.mark.fs

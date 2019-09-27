@@ -12,6 +12,27 @@ from swh.model.hashutil import MultiHash, HASH_BLOCK_SIZE
 from swh.loader.package import DEFAULT_PARAMS
 
 
+def api_info(url: str) -> Dict:
+    """Basic api client to retrieve information on project. This deals with
+       fetching json metadata about pypi projects.
+
+    Args:
+        url (str): The api url (e.g PyPI, npm, etc...)
+
+    Raises:
+        ValueError in case of query failures (for some reasons: 404, ...)
+
+    Returns:
+        The associated response's information dict
+
+    """
+    response = requests.get(url, **DEFAULT_PARAMS)
+    if response.status_code != 200:
+        raise ValueError("Fail to query '%s'. Reason: %s" % (
+            url, response.status_code))
+    return response.json()
+
+
 def download(url: str, dest: str) -> Tuple[str, Dict]:
     """Download a remote tarball from url, uncompresses and computes swh hashes
        on it.

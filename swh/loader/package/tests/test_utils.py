@@ -7,7 +7,7 @@
 import os
 import pytest
 
-from swh.loader.package.utils import download
+from swh.loader.package.utils import download, api_info
 
 
 @pytest.mark.fs
@@ -70,3 +70,27 @@ def test_download_fail_hashes_mismatch(tmp_path, requests_mock):
 
     """
     pass
+
+
+def test_api_info_failure(requests_mock):
+    """Failure to fetch info/release information should raise"""
+    url = 'https://pypi.org/pypi/requests/json'
+    status_code = 400
+    requests_mock.get(url, status_code=status_code)
+
+    with pytest.raises(ValueError) as e0:
+        api_info(url)
+
+    assert e0.value.args[0] == "Fail to query '%s'. Reason: %s" % (
+        url, status_code
+    )
+
+
+def test_api_info(requests_mock):
+    """Fetching json info from pypi project should be ok"""
+    url = 'https://pypi.org/pypi/requests/json'
+    requests_mock.get(url, text='{"version": "0.0.1"}')
+    actual_info = api_info(url)
+    assert actual_info == {
+        'version': '0.0.1',
+    }

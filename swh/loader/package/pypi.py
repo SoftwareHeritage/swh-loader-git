@@ -10,12 +10,10 @@ from urllib.parse import urlparse
 from pkginfo import UnpackedSDist
 
 import iso8601
-import requests
 
 from swh.model.identifiers import normalize_timestamp
-from swh.loader.package import DEFAULT_PARAMS
 from swh.loader.package.loader import PackageLoader
-from swh.loader.package.utils import download
+from swh.loader.package.utils import download, api_info
 
 
 def pypi_api_url(url: str) -> str:
@@ -34,30 +32,6 @@ def pypi_api_url(url: str) -> str:
     project_name = p_url.path.split('/')[-1]
     url = '%s://%s/pypi/%s/json' % (p_url.scheme, p_url.netloc, project_name)
     return url
-
-
-def pypi_info(url: str) -> Dict:
-    """PyPI api client to retrieve information on project. This deals with
-       fetching json metadata about pypi projects.
-
-    Args:
-        url (str): PyPI instance's url (e.g: https://pypi.org/project/requests)
-        This deals with correctly transforming the project's api url (e.g
-        https://pypi.org/pypi/requests/json)
-
-    Raises:
-        ValueError in case of query failures (for some reasons: 404, ...)
-
-    Returns:
-        PyPI's information dict
-
-    """
-    api_url = pypi_api_url(url)
-    response = requests.get(api_url, **DEFAULT_PARAMS)
-    if response.status_code != 200:
-        raise ValueError("Fail to query '%s'. Reason: %s" % (
-            api_url, response.status_code))
-    return response.json()
 
 
 def extract_intrinsic_metadata(dir_path: str) -> Dict:
@@ -145,7 +119,7 @@ class PyPILoader(PackageLoader):
 
         """
         if not self._info:
-            self._info = pypi_info(self.url)
+            self._info = api_info(pypi_api_url(self.url))
         return self._info
 
     def get_versions(self) -> Sequence[str]:

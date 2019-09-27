@@ -9,96 +9,17 @@ import os
 import re
 
 from codecs import BOM_UTF8
-from typing import Generator, Dict, Tuple, Sequence, List
+from typing import Generator, Dict, Tuple, Sequence
 
 import chardet
 import iso8601
-import requests
-import tempfile
 
 from swh.model.identifiers import normalize_timestamp
 from swh.loader.package.loader import PackageLoader
-from swh.loader.package.utils import download
+from swh.loader.package.utils import download, api_info
 
 
 logger = logging.getLogger(__name__)
-
-
-class NpmClient:
-    """
-    Helper class internally used by the npm loader to fetch
-    metadata for a specific package hosted on the npm registry.
-
-    Args:
-        temp_dir (str): Path to the temporary disk location used
-            to uncompress the package tarballs
-
-    """
-    def __init__(self, log=None):
-        self.root_temp_dir = tempfile.mkdtemp()
-        self.session = requests.session()
-        self.params = {
-            'headers': {
-                'User-Agent': 'Software Heritage npm loader'
-            }
-        }
-        self.log = log or logging
-
-    def fetch_package_metadata(self, package_metadata_url) -> None:
-        """
-        Fetch metadata for a given package and make it the focused one.
-        This must be called prior any other operations performed
-        by the other methods below.
-
-        Args:
-            package_metadata_url: the package metadata url provided
-                by the npm loader
-        """
-        self.package_metadata_url = package_metadata_url
-        self.package_metadata = self.session.get(
-            self.package_metadata_url).json()
-        self.package = self.package_metadata['name']
-        self.temp_dir = os.path.join(self.root_temp_dir, self.package)
-        return self.package_metadata
-
-    def package_versions(self, known_versions=None) -> List[Dict]:
-        """
-        Return the available versions for the focused package.
-
-        Args:
-            known_versions (dict): may be provided by the loader, it enables
-                to filter out versions already ingested in the archive.
-
-        Returns:
-            dict: A dict whose keys are Tuple[version, tarball_sha1] and
-            values dicts with the following entries:
-
-                    * **name**: the package name
-                    * **version**: the package version
-                    * **filename**: the package source tarball filename
-                    * **sha1**: the package source tarball sha1 checksum
-                    * **date**: the package release date
-                    * **url**: the package source tarball download url
-        """
-        versions = {}
-        if 'versions' in self.package_metadata:
-            for version, data in self.package_metadata['versions'].items():
-                sha1 = data['dist']['shasum']
-                key = (version, sha1)
-                if known_versions and key in known_versions:
-                    continue
-                tarball_url = data['dist']['tarball']
-                filename = os.path.basename(tarball_url)
-                date = self.package_metadata['time'][version]
-                versions[key] = {
-                    'name': self.package,
-                    'version': version,
-                    'filename': filename,
-                    'sha1': sha1,
-                    'date': date,
-                    'url': tarball_url
-                }
-        return versions
 
 
 _EMPTY_AUTHOR = {'fullname': b'', 'name': None, 'email': None}
@@ -298,7 +219,6 @@ class NpmLoader(PackageLoader):
 
         self._info = None
         self._versions = None
-        self.client = NpmClient()
 
         # if package_url is None:
         #     package_url = 'https://www.npmjs.com/package/%s' % package_name
@@ -312,9 +232,7 @@ class NpmLoader(PackageLoader):
 
         """
         if not self._info:
-            # This initializes the metadata retrieval on npm api
-            self._info = self.client.fetch_package_metadata(
-                self.package_metadata_url)
+            self._info = api_info(self.package_metadata_url)
         return self._info
 
     def get_versions(self) -> Sequence[str]:
