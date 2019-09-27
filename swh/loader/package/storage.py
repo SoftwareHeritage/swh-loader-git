@@ -3,14 +3,66 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+from typing import Optional, Sequence, Dict, Set
+from functools import partial
+from collections import deque
+
+from swh.core.utils import grouper
 from swh.storage import get_storage
 
-from typing import Sequence, Dict, Set
+
+class BufferingProxyStorage:
+    """Storage implementation in charge of accumulating objects prior to
+       discussing with the "main" storage.
+
+    """
+    def __init__(self, **storage):
+        self.storage = get_storage(**storage)
+
+        self._max_size = {
+            'content': self.config.get('content_packet_size', 10000),
+            'directory': self.config.get('directory_packet_size', 25000),
+            'revision': self.config.get('directory_packet_size', 100000),
+        }
+        self.object_types = ['content', 'directory', 'revision']
+        self._objects = {k: deque() for k in self.object_types}
+
+    def flush(self, object_types: Optional[Sequence[str]] = None) -> Dict:
+        if object_types is None:
+            object_types = self.object_types
+        summary = {}
+        for object_type in object_types:
+            q = self._objects[object_type]
+            for objs in grouper(q, n=self._max_size[object_type]):
+                add_fn = getattr(self.storage, '%s_add' % object_type)
+                s = add_fn(objs)
+                summary = {k: v + summary.get(k, 0)
+                           for k, v in s.items()}
+
+        return summary
+
+    def object_add(self, objects: Sequence[Dict], *, object_type: str) -> Dict:
+        q = self._objects[object_type]
+        max_size = self._max_size[object_type]
+        q.extend(objects)
+        if len(q) > max_size:
+            return self.flush()
+
+        return {}
+
+    def __getattr__(self, key):
+        if key.endswith('_add'):
+            object_type = key.split('_')[0]
+            if object_type in self.object_types:
+                return partial(
+                    self.object_add, object_type=object_type
+                )
+        return getattr(self.storage, key)
 
 
-class ProxyStorage:
+class FilteringProxyStorage:
     """Storage implementation in charge of filtering existing objects prior to
-       calling the storage api for ingestion
+       calling the storage api for ingestion.
 
     """
     def __init__(self, **storage):

@@ -22,9 +22,12 @@ logger = logging.getLogger(__name__)
 
 
 def get_storage(cls, args):
-    if cls == 'proxy':
-        from swh.loader.package.storage import ProxyStorage
-        return ProxyStorage(**args)
+    if cls == 'filter':
+        from swh.loader.package.storage import FilteringProxyStorage
+        return FilteringProxyStorage(**args)
+    if cls == 'buffer':
+        from swh.loader.package.storage import BufferingProxyStorage
+        return BufferingProxyStorage(**args)
     return initial_get_storage(cls, args)
 
 

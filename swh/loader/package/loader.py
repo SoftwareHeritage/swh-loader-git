@@ -296,6 +296,8 @@ class PackageLoader:
 
             logger.debug('snapshot: %s', snapshot)
             self.storage.snapshot_add([snapshot])
+            if hasattr(self.storage, 'flush'):
+                self.storage.flush()
         except Exception as e:
             logger.warning('Fail to load %s. Reason: %s' % (self.url, e))
             status_visit = 'partial'

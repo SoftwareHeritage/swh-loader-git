@@ -1,5 +1,7 @@
 storage:
-  cls: proxy
+  cls: filter
   args:
-    cls: memory
-    args: {}
+    cls: buffer
+    args:
+      cls: memory
+      args: {}
