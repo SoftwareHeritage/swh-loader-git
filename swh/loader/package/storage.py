@@ -9,13 +9,44 @@ from typing import Sequence, Dict, Set
 
 
 class ProxyStorage:
+    """Storage implementation in charge of filtering existing objects prior to
+       calling the storage api for ingestion
+
+    """
     def __init__(self, **storage):
         self.storage = get_storage(**storage)
         self.objects_seen = {
             'content': set(),    # set of content hashes (sha256) seen
-            'revision': set(),
             'directory': set(),
+            'revision': set(),
         }
+
+    def content_add(self, content: Sequence[Dict]) -> Dict:
+        contents = list(content)
+        contents_to_add = self._filter_missing_contents(contents)
+        return self.storage.content_add(
+            x for x in contents if x['sha256'] in contents_to_add
+        )
+
+    def directory_add(self, directories: Sequence[Dict]) -> Dict:
+        directories = list(directories)
+        missing_ids = self._filter_missing_ids(
+            'directory',
+            (d['id'] for d in directories)
+        )
+        return self.storage.directory_add(
+            d for d in directories if d['id'] in missing_ids
+        )
+
+    def revision_add(self, revisions):
+        revisions = list(revisions)
+        missing_ids = self._filter_missing_ids(
+            'revision',
+            (d['id'] for d in revisions)
+        )
+        return self.storage.revision_add(
+            r for r in revisions if r['id'] in missing_ids
+        )
 
     def _filter_missing_contents(
             self, content_hashes: Sequence[Dict]) -> Set[bytes]:
@@ -38,13 +69,6 @@ class ProxyStorage:
             missing_hashes,
             key_hash='sha256',
         ))
-
-    def content_add(self, content: Sequence[Dict]) -> Dict:
-        contents = list(content)
-        contents_to_add = self._filter_missing_contents(contents)
-        return self.storage.content_add(
-            x for x in contents if x['sha256'] in contents_to_add
-        )
 
     def _filter_missing_ids(
             self,
@@ -75,26 +99,6 @@ class ProxyStorage:
 
         fn = fn_by_object_type[object_type]
         return set(fn(missing_ids))
-
-    def directory_add(self, directories: Sequence[Dict]) -> Dict:
-        directories = list(directories)
-        missing_ids = self._filter_missing_ids(
-            'directory',
-            (d['id'] for d in directories)
-        )
-        return self.storage.directory_add(
-            d for d in directories if d['id'] in missing_ids
-        )
-
-    def revision_add(self, revisions):
-        revisions = list(revisions)
-        missing_ids = self._filter_missing_ids(
-            'revision',
-            (d['id'] for d in revisions)
-        )
-        return self.storage.revision_add(
-            r for r in revisions if r['id'] in missing_ids
-        )
 
     def __getattr__(self, key):
         return getattr(self.storage, key)
