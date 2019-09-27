@@ -60,7 +60,7 @@ def pypi_info(url: str) -> Dict:
     return response.json()
 
 
-def sdist_parse(dir_path: str) -> Dict:
+def extract_intrinsic_metadata(dir_path: str) -> Dict:
     """Given an uncompressed path holding the pkginfo file, returns a
        pkginfo parsed structure as a dict.
 
@@ -166,7 +166,7 @@ class PyPILoader(PackageLoader):
     def build_revision(
             self, a_metadata: Dict, a_uncompressed_path: str) -> Dict:
         # Parse metadata (project, artifact metadata)
-        metadata = sdist_parse(a_uncompressed_path)
+        metadata = extract_intrinsic_metadata(a_uncompressed_path)
 
         # from intrinsic metadata
         name = metadata['version']

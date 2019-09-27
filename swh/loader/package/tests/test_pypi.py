@@ -14,7 +14,7 @@ from unittest.mock import patch
 from swh.core.tarball import uncompress
 from swh.model.hashutil import hash_to_bytes
 from swh.loader.package.pypi import (
-    PyPILoader, pypi_api_url, pypi_info, author, sdist_parse
+    PyPILoader, pypi_api_url, pypi_info, author, extract_intrinsic_metadata
 )
 from swh.loader.package.tests.common import (
     check_snapshot, DATADIR
@@ -167,14 +167,14 @@ def test_pypi_info(requests_mock):
 
 
 @pytest.mark.fs
-def test_sdist_parse(tmp_path):
+def test_extract_intrinsic_metadata(tmp_path):
     """Parsing existing archive's PKG-INFO should yield results"""
     uncompressed_archive_path = str(tmp_path)
     archive_path = path.join(
         DATADIR, 'files.pythonhosted.org', '0805nexter-1.1.0.zip')
     uncompress(archive_path, dest=uncompressed_archive_path)
 
-    actual_sdist = sdist_parse(uncompressed_archive_path)
+    actual_sdist = extract_intrinsic_metadata(uncompressed_archive_path)
     expected_sdist = {
         'metadata_version': '1.0',
         'name': '0805nexter',
@@ -190,16 +190,16 @@ def test_sdist_parse(tmp_path):
 
 
 @pytest.mark.fs
-def test_sdist_parse_failures(tmp_path):
+def test_extract_intrinsic_metadata_failures(tmp_path):
     """Parsing inexistant path/archive/PKG-INFO yield None"""
     # inexistant first level path
-    assert sdist_parse('/something-inexistant') == {}
+    assert extract_intrinsic_metadata('/something-inexistant') == {}
     # inexistant second level path (as expected by pypi archives)
-    assert sdist_parse(tmp_path) == {}
+    assert extract_intrinsic_metadata(tmp_path) == {}
     # inexistant PKG-INFO within second level path
     existing_path_no_pkginfo = str(tmp_path / 'something')
     os.mkdir(existing_path_no_pkginfo)
-    assert sdist_parse(tmp_path) == {}
+    assert extract_intrinsic_metadata(tmp_path) == {}
 
 
 # LOADER SCENARIO #
