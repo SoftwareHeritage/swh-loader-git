@@ -33,7 +33,7 @@ def api_info(url: str) -> Dict:
     return response.json()
 
 
-def download(url: str, dest: str) -> Tuple[str, Dict]:
+def download(url: str, dest: str, hashes: Dict = {}) -> Tuple[str, Dict]:
     """Download a remote tarball from url, uncompresses and computes swh hashes
        on it.
 
@@ -41,8 +41,12 @@ def download(url: str, dest: str) -> Tuple[str, Dict]:
         url: Artifact uri to fetch, uncompress and hash
         dest: Directory to write the archive to
 
+        hashes: Dict of expected hashes (key is the hash algo) for the artifact
+            to download (those hashes are expected to be hex string)
+
     Raises:
-        ValueError in case of any error when fetching/computing
+        ValueError in case of any error when fetching/computing (length,
+        checksums mismatched...)
 
     Returns:
         Tuple of local (filepath, hashes of filepath)
@@ -67,12 +71,17 @@ def download(url: str, dest: str) -> Tuple[str, Dict]:
         raise ValueError('Error when checking size: %s != %s' % (
             length, actual_length))
 
-    # hashes = h.hexdigest()
-    # actual_digest = hashes['sha256']
-    # if actual_digest != artifact['sha256']:
-    #     raise ValueError(
-    #         '%s %s: Checksum mismatched: %s != %s' % (
-    #             project, version, artifact['sha256'], actual_digest))
+    # Also check the expected hashes if provided
+    if hashes:
+        actual_hashes = h.hexdigest()
+        for algo_hash in hashes.keys():
+            actual_digest = actual_hashes[algo_hash]
+            expected_digest = hashes[algo_hash]
+            if actual_digest != expected_digest:
+                raise ValueError(
+                    'Failure when fetching %s. '
+                    'Checksum mismatched: %s != %s' % (
+                        url, expected_digest, actual_digest))
 
     return filepath, {
         'length': length,
