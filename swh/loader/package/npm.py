@@ -9,7 +9,7 @@ import os
 import re
 
 from codecs import BOM_UTF8
-from typing import Generator, Dict, Tuple, Sequence
+from typing import Generator, Dict, Tuple, Sequence, Optional
 
 import chardet
 import iso8601
@@ -247,6 +247,14 @@ class NpmLoader(PackageLoader):
         url = meta['dist']['tarball']
         filename = os.path.basename(url)
         yield filename, url, meta
+
+    def resolve_revision_from(
+            self, known_artifacts: Dict, artifact_metadata: Dict) \
+            -> Optional[bytes]:
+        shasum = artifact_metadata['dist']['shasum']
+        for rev_id, known_artifact in known_artifacts.items():
+            if shasum == known_artifact['dist']['shasum']:
+                return rev_id
 
     def build_revision(
             self, a_metadata: Dict, a_uncompressed_path: str) -> Dict:

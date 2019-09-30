@@ -444,15 +444,15 @@ def test_npm_loader_first_visit(swh_config, local_get):
 
 def test_npm_loader_incremental_visit(swh_config, local_get_visits):
     package = 'org'
-    origin_url = package_url(package)
+    url = package_url(package)
     metadata_url = package_metadata_url(package)
-    loader = NpmLoader(package, origin_url, metadata_url)
-    print(origin_url)
-    print(metadata_url)
+    loader = NpmLoader(package, url, metadata_url)
 
     actual_load_status = loader.load()
 
     assert actual_load_status == {'status': 'eventful'}
+    origin_visit = list(loader.storage.origin_visit_get(url))[-1]
+    assert origin_visit['status'] == 'full'
 
     stats = loader.storage.stat_counters()
 
@@ -472,6 +472,8 @@ def test_npm_loader_incremental_visit(swh_config, local_get_visits):
     actual_load_status2 = loader.load()
 
     assert actual_load_status2 == {'status': 'eventful'}
+    origin_visit2 = list(loader.storage.origin_visit_get(url))[-1]
+    assert origin_visit2['status'] == 'full'
 
     stats = loader.storage.stat_counters()
 
@@ -486,3 +488,9 @@ def test_npm_loader_incremental_visit(swh_config, local_get_visits):
         'skipped_content': 0,
         'snapshot': 2,
     } == stats
+
+    urls = [
+        m.url for m in local_get_visits.request_history
+        if m.url.startswith('https://registry.npmjs.org')
+    ]
+    assert len(urls) == len(set(urls))  # we visited each artifact once across
