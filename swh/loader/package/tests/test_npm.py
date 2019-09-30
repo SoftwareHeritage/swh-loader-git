@@ -161,7 +161,7 @@ def test_parse_npm_package_author():
 
 def test_extract_npm_package_author():
     package_metadata_filepath = os.path.join(
-        DATADIR, 'replicate.npmjs.com', 'org_metadata_visit2.json')
+        DATADIR, 'replicate.npmjs.com', 'org_visit1')
 
     with open(package_metadata_filepath) as json_file:
         package_metadata = json.load(json_file)
@@ -401,7 +401,7 @@ def package_metadata_url(package):
     return 'https://replicate.npmjs.com/%s/' % package
 
 
-def test_npm_loader_2_first_visit(swh_config, local_get):
+def test_npm_loader_first_visit(swh_config, local_get):
 
     package = 'org'
     loader = NpmLoader(package,
@@ -440,3 +440,49 @@ def test_npm_loader_2_first_visit(swh_config, local_get):
         'branches': _expected_branches_first_visit,
     }
     check_snapshot(expected_snapshot, loader.storage)
+
+
+def test_npm_loader_incremental_visit(swh_config, local_get_visits):
+    package = 'org'
+    origin_url = package_url(package)
+    metadata_url = package_metadata_url(package)
+    loader = NpmLoader(package, origin_url, metadata_url)
+    print(origin_url)
+    print(metadata_url)
+
+    actual_load_status = loader.load()
+
+    assert actual_load_status == {'status': 'eventful'}
+
+    stats = loader.storage.stat_counters()
+
+    assert {
+        'content': len(_expected_new_contents_first_visit),
+        'directory': len(_expected_new_directories_first_visit),
+        'origin': 1,
+        'origin_visit': 1,
+        'person': 2,
+        'release': 0,
+        'revision': len(_expected_new_revisions_first_visit),
+        'skipped_content': 0,
+        'snapshot': 1,
+    } == stats
+
+    loader._info = None  # reset loader internal state
+    actual_load_status2 = loader.load()
+
+    assert actual_load_status2 == {'status': 'eventful'}
+
+    stats = loader.storage.stat_counters()
+
+    assert {  # 3 new releases artifacts
+        'content': len(_expected_new_contents_first_visit) + 14,
+        'directory': len(_expected_new_directories_first_visit) + 15,
+        'origin': 1,
+        'origin_visit': 2,
+        'person': 2,
+        'release': 0,
+        'revision': len(_expected_new_revisions_first_visit) + 3,
+        'skipped_content': 0,
+        'snapshot': 2,
+    } == stats
