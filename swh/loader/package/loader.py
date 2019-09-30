@@ -34,8 +34,7 @@ logger = logging.getLogger(__name__)
 # - model: swh.model.merkle.from_disk should output swh.model.model.* objects
 #          to avoid this layer's conversion routine call
 # -> Take this up within swh.model's current implementation
-#
-# - Incremental loading through latest snapshot introspection
+
 
 class PackageLoader:
     # Origin visit type (str) set by the loader
