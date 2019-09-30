@@ -413,7 +413,7 @@ def test_release_artifact_no_prior_visit(swh_config, local_get):
 
 # release artifact, new artifact
 # {visit full, status full, new snapshot with shared history as prior snapshot}
-def test_release_artifact_with_2_visits(swh_config, local_get_visits):
+def test_release_artifact_incremental_visit(swh_config, local_get_visits):
     """With prior visit, 2nd load will result with a different snapshot
 
     with some shared history
@@ -524,6 +524,14 @@ def test_release_artifact_with_2_visits(swh_config, local_get_visits):
 
     origin_visit = next(loader.storage.origin_visit_get(url))
     assert origin_visit['status'] == 'full'
+
+    urls = [
+        m.url for m in local_get_visits.request_history
+        if m.url.startswith('https://files.pythonhosted.org')
+    ]
+    # visited each artifact once across 2 visits
+    assert len(urls) == len(set(urls))
+
 
 # release artifact, no new artifact
 # {visit full, status uneventful, same snapshot as before}

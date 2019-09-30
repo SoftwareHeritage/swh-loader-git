@@ -8,7 +8,7 @@ import logging
 import tempfile
 import os
 
-from typing import Generator, Dict, Tuple, Sequence, List
+from typing import Generator, Dict, Tuple, Sequence, List, Optional
 
 from swh.core.tarball import uncompress
 from swh.core.config import SWHConfig
@@ -17,6 +17,7 @@ from swh.model.identifiers import (
     revision_identifier, snapshot_identifier, identifier_to_bytes
 )
 from swh.storage import get_storage
+from swh.storage.algos.snapshot import snapshot_get_all_branches
 from swh.loader.core.converters import content_for_storage
 from swh.loader.package.utils import download
 
@@ -122,6 +123,64 @@ class PackageLoader:
         """
         return ''
 
+    def last_snapshot(self) -> Optional[Dict]:
+        """Retrieve the last snapshot
+
+        """
+        visit = self.storage.origin_visit_get_latest(
+            self.url, require_snapshot=True)
+        if visit:
+            return snapshot_get_all_branches(
+                self.storage, visit['snapshot']['id'])
+
+    def known_artifacts(self, snapshot: Dict) -> [Dict]:
+        """Retrieve the known releases/artifact for the origin.
+
+        Args
+            snapshot: snapshot for the visit
+
+        Returns:
+            Dict of keys revision id (bytes), values a metadata Dict.
+
+        """
+        if not snapshot or 'branches' not in snapshot:
+            return {}
+
+        # retrieve only revisions (e.g the alias we do not want here)
+        revs = [rev['target']
+                for rev in snapshot['branches'].values()
+                if rev and rev['target_type'] == 'revision']
+        known_revisions = self.storage.revision_get(revs)
+
+        ret = {}
+        for revision in known_revisions:
+            if not revision:  # revision_get can return None
+                continue
+            original_artifact = revision['metadata'].get('original_artifact')
+            if original_artifact:
+                ret[revision['id']] = original_artifact
+
+        return ret
+
+    def resolve_revision_from(
+            self, known_artifacts: Dict, artifact_metadata: Dict) \
+            -> Optional[bytes]:
+        """Resolve the revision from a snapshot and an artifact metadata dict.
+
+        If the artifact has already been downloaded, this will return the
+        existing revision targeting that uncompressed artifact directory.
+        Otherwise, this returns None.
+
+        Args:
+            snapshot: Snapshot
+            artifact_metadata: Information dict
+
+        Returns:
+            None or revision identifier
+
+        """
+        return None
+
     def load(self) -> Dict:
         """Load for a specific origin the associated contents.
 
@@ -178,6 +237,10 @@ class PackageLoader:
                 origin=self.url,
                 date=visit_date,
                 type=self.visit_type)['visit']
+            last_snapshot = self.last_snapshot()
+            logger.debug('last snapshot: %s', last_snapshot)
+            known_artifacts = self.known_artifacts(last_snapshot)
+            logger.debug('known artifacts: %s', known_artifacts)
 
             # Retrieve the default release (the "latest" one)
             default_release = self.get_default_release()
@@ -189,55 +252,60 @@ class PackageLoader:
                 # `a_` stands for `artifact_`
                 for a_filename, a_uri, a_metadata in self.get_artifacts(
                         version):
-                    with tempfile.TemporaryDirectory() as tmpdir:
-                        try:
-                            # a_c_: archive_computed_
-                            a_path, a_c_metadata = self.fetch_artifact_archive(
-                                a_uri, dest=tmpdir)
-                        except Exception as e:
-                            logger.warning('Unable to retrieve %s. Reason: %s',
-                                           a_uri, e)
-                            status_visit = 'partial'
-                            continue
+                    revision_id = self.resolve_revision_from(
+                        known_artifacts, a_metadata)
+                    if revision_id is None:
+                        with tempfile.TemporaryDirectory() as tmpdir:
+                            try:
+                                # a_c_: archive_computed_
+                                a_path, a_c_metadata = self.fetch_artifact_archive(  # noqa
+                                    a_uri, dest=tmpdir)
+                            except Exception as e:
+                                logger.warning(
+                                    'Unable to retrieve %s. Reason: %s',
+                                    a_uri, e)
+                                status_visit = 'partial'
+                                continue
 
-                        logger.debug('archive_path: %s', a_path)
-                        logger.debug('archive_computed_metadata: %s',
-                                     a_c_metadata)
+                            logger.debug('archive_path: %s', a_path)
+                            logger.debug('archive_computed_metadata: %s',
+                                         a_c_metadata)
 
-                        uncompressed_path = os.path.join(tmpdir, 'src')
-                        uncompress(a_path, dest=uncompressed_path)
+                            uncompressed_path = os.path.join(tmpdir, 'src')
+                            uncompress(a_path, dest=uncompressed_path)
 
-                        logger.debug('uncompressed_path: %s',
-                                     uncompressed_path)
+                            logger.debug('uncompressed_path: %s',
+                                         uncompressed_path)
 
-                        directory = Directory.from_disk(
-                            path=uncompressed_path.encode('utf-8'), data=True)
-                        # FIXME: Try not to load the full raw content in memory
-                        objects = directory.collect()
+                            directory = Directory.from_disk(
+                                path=uncompressed_path.encode('utf-8'), data=True)  # noqa
+                            # FIXME: Try not to load the full raw content in
+                            # memory
+                            objects = directory.collect()
 
-                        contents = objects['content'].values()
-                        logger.debug('Number of contents: %s',
-                                     len(contents))
+                            contents = objects['content'].values()
+                            logger.debug('Number of contents: %s',
+                                         len(contents))
 
-                        self.storage.content_add(
-                            map(content_for_storage, contents))
+                            self.storage.content_add(
+                                map(content_for_storage, contents))
 
-                        status_load = 'eventful'
-                        directories = objects['directory'].values()
+                            status_load = 'eventful'
+                            directories = objects['directory'].values()
 
-                        logger.debug('Number of directories: %s',
-                                     len(directories))
+                            logger.debug('Number of directories: %s',
+                                         len(directories))
 
-                        self.storage.directory_add(directories)
+                            self.storage.directory_add(directories)
 
-                        # FIXME: This should be release. cf. D409 discussion
-                        revision = self.build_revision(
-                            a_metadata, uncompressed_path)
-                        revision.update({
-                            'type': 'tar',
-                            'synthetic': True,
-                            'directory': directory.hash,
-                        })
+                            # FIXME: This should be release. cf. D409
+                            revision = self.build_revision(
+                                a_metadata, uncompressed_path)
+                            revision.update({
+                                'type': 'tar',
+                                'synthetic': True,
+                                'directory': directory.hash,
+                            })
 
                         # FIXME: Standardize those metadata keys and use the
                         # correct ones
@@ -246,17 +314,17 @@ class PackageLoader:
                             'hashes_artifact': a_c_metadata
                         })
 
-                        revision['id'] = identifier_to_bytes(
+                        revision['id'] = revision_id = identifier_to_bytes(
                             revision_identifier(revision))
 
                         logger.debug('Revision: %s', revision)
 
                         self.storage.revision_add([revision])
 
-                        tmp_revisions[version].append({
-                            'filename': a_filename,
-                            'target': revision['id'],
-                        })
+                    tmp_revisions[version].append({
+                        'filename': a_filename,
+                        'target': revision_id,
+                    })
 
             # Build and load the snapshot
             branches = {}

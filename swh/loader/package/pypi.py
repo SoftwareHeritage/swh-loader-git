@@ -5,7 +5,7 @@
 
 import os
 
-from typing import Generator, Dict, Tuple, Sequence
+from typing import Generator, Dict, Tuple, Sequence, Optional
 from urllib.parse import urlparse
 from pkginfo import UnpackedSDist
 
@@ -132,6 +132,14 @@ class PyPILoader(PackageLoader):
             Tuple[str, str, Dict], None, None]:
         for meta in self.info['releases'][version]:
             yield meta['filename'], meta['url'], meta
+
+    def resolve_revision_from(
+            self, known_artifacts: Dict, artifact_metadata: Dict) \
+            -> Optional[bytes]:
+        sha256 = artifact_metadata['digests']['sha256']
+        for rev_id, known_artifact in known_artifacts.items():
+            if sha256 == known_artifact['digests']['sha256']:
+                return rev_id
 
     def build_revision(
             self, a_metadata: Dict, a_uncompressed_path: str) -> Dict:
