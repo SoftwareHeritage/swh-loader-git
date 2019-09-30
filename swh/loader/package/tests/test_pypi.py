@@ -522,7 +522,7 @@ def test_release_artifact_incremental_visit(swh_config, local_get_visits):
 
     check_snapshot(expected_snapshot, loader.storage)
 
-    origin_visit = next(loader.storage.origin_visit_get(url))
+    origin_visit = list(loader.storage.origin_visit_get(url))[-1]
     assert origin_visit['status'] == 'full'
 
     urls = [
