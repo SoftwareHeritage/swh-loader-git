@@ -18,7 +18,7 @@ from retrying import retry
 from . import converters
 
 from swh.core import config
-from swh.storage import get_storage
+from swh.storage import get_storage, HashCollision
 
 from .queue import QueuePerSizeAndNbUniqueElements
 from .queue import QueuePerNbUniqueElements
@@ -52,6 +52,7 @@ def retry_loading(error):
     exception_classes = [
         # raised when two parallel insertions insert the same data.
         psycopg2.IntegrityError,
+        HashCollision,
         # raised when uWSGI restarts and hungs up on the worker.
         requests.exceptions.ConnectionError,
     ]
