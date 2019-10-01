@@ -16,3 +16,4 @@ dist/
 .hypothesis
 .pytest_cache
 .tox/
+.mypy_cache/
