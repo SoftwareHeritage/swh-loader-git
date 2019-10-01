@@ -59,6 +59,7 @@ def swh_proxy():
 def celery_includes():
     return [
         'swh.loader.package.archive.tasks',
+        'swh.loader.package.cran.tasks',
         'swh.loader.package.debian.tasks',
         'swh.loader.package.deposit.tasks',
         'swh.loader.package.npm.tasks',

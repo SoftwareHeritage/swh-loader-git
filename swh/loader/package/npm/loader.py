@@ -6,7 +6,6 @@
 import json
 import logging
 import os
-import re
 
 from codecs import BOM_UTF8
 from typing import Any, Dict, Generator, Mapping, Sequence, Tuple, Optional
@@ -17,16 +16,12 @@ import iso8601
 from urllib.parse import quote
 from swh.model.identifiers import normalize_timestamp
 from swh.loader.package.loader import PackageLoader
-from swh.loader.package.utils import api_info, release_name
+from swh.loader.package.utils import (
+    api_info, release_name, parse_author, swh_author
+)
 
 
 logger = logging.getLogger(__name__)
-
-
-_EMPTY_AUTHOR = {'fullname': b'', 'name': None, 'email': None}
-
-# https://github.com/jonschlinkert/author-regex
-_author_regexp = r'([^<(]+?)?[ \t]*(?:<([^>(]+?)>)?[ \t]*(?:\(([^)]+?)\)|$)'
 
 
 class NpmLoader(PackageLoader):
@@ -162,56 +157,6 @@ def artifact_to_revision_id(
     return None
 
 
-def parse_npm_package_author(author_str):
-    """
-    Parse npm package author string.
-
-    It works with a flexible range of formats, as detailed below::
-
-        name
-        name <email> (url)
-        name <email>(url)
-        name<email> (url)
-        name<email>(url)
-        name (url) <email>
-        name (url)<email>
-        name(url) <email>
-        name(url)<email>
-        name (url)
-        name(url)
-        name <email>
-        name<email>
-        <email> (url)
-        <email>(url)
-        (url) <email>
-        (url)<email>
-        <email>
-        (url)
-
-    Args:
-        author_str (str): input author string
-
-    Returns:
-        dict: A dict that may contain the following keys:
-            * name
-            * email
-            * url
-
-    """
-    author = {}
-    matches = re.findall(_author_regexp,
-                         author_str.replace('<>', '').replace('()', ''),
-                         re.M)
-    for match in matches:
-        if match[0].strip():
-            author['name'] = match[0].strip()
-        if match[1].strip():
-            author['email'] = match[1].strip()
-        if match[2].strip():
-            author['url'] = match[2].strip()
-    return author
-
-
 def extract_npm_package_author(package_json):
     """
     Extract package author from a ``package.json`` file content and
@@ -246,31 +191,9 @@ def extract_npm_package_author(package_json):
     for author_key in ('author', 'authors'):
         if author_key in package_json:
             author_str = _author_str(package_json[author_key])
-            author_data = parse_npm_package_author(author_str)
+            author_data = parse_author(author_str)
 
-    name = author_data.get('name')
-    email = author_data.get('email')
-
-    fullname = None
-
-    if name and email:
-        fullname = '%s <%s>' % (name, email)
-    elif name:
-        fullname = name
-
-    if not fullname:
-        return _EMPTY_AUTHOR
-
-    if fullname:
-        fullname = fullname.encode('utf-8')
-
-    if name:
-        name = name.encode('utf-8')
-
-    if email:
-        email = email.encode('utf-8')
-
-    return {'fullname': fullname, 'name': name, 'email': email}
+    return swh_author(author_data)
 
 
 def _lstrip_bom(s, bom=BOM_UTF8):

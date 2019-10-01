@@ -53,6 +53,7 @@ setup(
     entry_points='''
         [swh.workers]
         loader.archive=swh.loader.package.archive:register
+        loader.cran=swh.loader.package.cran:register
         loader.debian=swh.loader.package.debian:register
         loader.deposit=swh.loader.package.deposit:register
         loader.npm=swh.loader.package.npm:register

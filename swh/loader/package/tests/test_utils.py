@@ -9,7 +9,9 @@ import pytest
 
 
 import swh.loader.package
-from swh.loader.package.utils import download, api_info, release_name
+from swh.loader.package.utils import (
+    download, api_info, release_name, parse_author
+)
 
 
 def test_version_generation():
@@ -155,3 +157,151 @@ def test_release_name():
             ('0.0.1', None, 'releases/0.0.1'),
             ('0.0.2', 'something', 'releases/0.0.2/something')]:
         assert release_name(version, filename) == expected_release
+
+
+def _parse_author_string_test(author_str, expected_result):
+    assert parse_author(author_str) == expected_result
+    assert parse_author(' %s' % author_str) == expected_result
+    assert parse_author('%s ' % author_str) == expected_result
+
+
+def test_parse_author():
+    _parse_author_string_test(
+        'John Doe',
+        {
+            'name': 'John Doe'
+        }
+    )
+
+    _parse_author_string_test(
+        '<john.doe@foo.bar>',
+        {
+            'email': 'john.doe@foo.bar'
+        }
+    )
+
+    _parse_author_string_test(
+        '(https://john.doe)',
+        {
+            'url': 'https://john.doe'
+        }
+    )
+
+    _parse_author_string_test(
+        'John Doe <john.doe@foo.bar>',
+        {
+            'name': 'John Doe',
+            'email': 'john.doe@foo.bar'
+        }
+    )
+
+    _parse_author_string_test(
+        'John Doe<john.doe@foo.bar>',
+        {
+            'name': 'John Doe',
+            'email': 'john.doe@foo.bar'
+        }
+    )
+
+    _parse_author_string_test(
+        'John Doe (https://john.doe)',
+        {
+            'name': 'John Doe',
+            'url': 'https://john.doe'
+        }
+    )
+
+    _parse_author_string_test(
+        'John Doe(https://john.doe)',
+        {
+            'name': 'John Doe',
+            'url': 'https://john.doe'
+        }
+    )
+
+    _parse_author_string_test(
+        '<john.doe@foo.bar> (https://john.doe)',
+        {
+            'email': 'john.doe@foo.bar',
+            'url': 'https://john.doe'
+        }
+    )
+
+    _parse_author_string_test(
+        '(https://john.doe) <john.doe@foo.bar>',
+        {
+            'email': 'john.doe@foo.bar',
+            'url': 'https://john.doe'
+        }
+    )
+
+    _parse_author_string_test(
+        'John Doe <john.doe@foo.bar> (https://john.doe)',
+        {
+            'name': 'John Doe',
+            'email': 'john.doe@foo.bar',
+            'url': 'https://john.doe'
+        }
+    )
+
+    _parse_author_string_test(
+        'John Doe (https://john.doe) <john.doe@foo.bar>',
+        {
+            'name': 'John Doe',
+            'email': 'john.doe@foo.bar',
+            'url': 'https://john.doe'
+        }
+    )
+
+    _parse_author_string_test(
+        'John Doe<john.doe@foo.bar> (https://john.doe)',
+        {
+            'name': 'John Doe',
+            'email': 'john.doe@foo.bar',
+            'url': 'https://john.doe'
+        }
+    )
+
+    _parse_author_string_test(
+        'John Doe<john.doe@foo.bar>(https://john.doe)',
+        {
+            'name': 'John Doe',
+            'email': 'john.doe@foo.bar',
+            'url': 'https://john.doe'
+        }
+    )
+
+    _parse_author_string_test('', {})
+    _parse_author_string_test('<>', {})
+    _parse_author_string_test(' <>', {})
+    _parse_author_string_test('<>()', {})
+    _parse_author_string_test('<> ()', {})
+    _parse_author_string_test('()', {})
+    _parse_author_string_test(' ()', {})
+
+    _parse_author_string_test(
+        'John Doe <> ()',
+        {
+            'name': 'John Doe'
+        }
+    )
+
+    _parse_author_string_test(
+        'John Doe <>',
+        {
+            'name': 'John Doe'
+        }
+    )
+
+    _parse_author_string_test(
+        'John Doe ()',
+        {
+            'name': 'John Doe'
+        }
+    )
+
+
+# def test_swh_author():
+#     for author, expected_author in [
+#             ({}, )
+#     ]:
