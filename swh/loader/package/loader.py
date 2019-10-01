@@ -88,21 +88,6 @@ class PackageLoader:
         """
         yield from {}
 
-    def fetch_artifact_archive(
-            self, artifact_uri: str, dest: str) -> Tuple[str, Dict]:
-        """Fetch artifact archive to a temporary folder and returns its
-           path.
-
-        Args:
-            artifact_uri: Artifact uri to fetch
-            dest: Directory to write the downloaded archive to
-
-        Returns:
-            the locally retrieved artifact path
-
-        """
-        return download(artifact_uri, dest=dest)
-
     def build_revision(
             self, a_metadata: Dict, a_uncompressed_path: str) -> Dict:
         """Build the revision dict
@@ -257,7 +242,7 @@ class PackageLoader:
                         with tempfile.TemporaryDirectory() as tmpdir:
                             try:
                                 # a_c_: archive_computed_
-                                a_path, a_c_metadata = self.fetch_artifact_archive(  # noqa
+                                a_path, a_c_metadata = download(
                                     a_uri, dest=tmpdir)
                             except Exception as e:
                                 logger.warning(
