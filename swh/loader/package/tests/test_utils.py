@@ -59,8 +59,8 @@ def test_download_ok(tmp_path, requests_mock):
     actual_filename = os.path.basename(actual_filepath)
     assert actual_filename == filename
     assert actual_hashes['length'] == len(data)
-    assert actual_hashes['sha1'] == 'fdd1ce606a904b08c816ba84f3125f2af44d92b2'
-    assert (actual_hashes['sha256'] ==
+    assert actual_hashes['checksums']['sha1'] == 'fdd1ce606a904b08c816ba84f3125f2af44d92b2'  # noqa
+    assert (actual_hashes['checksums']['sha256'] ==
             '1d9224378d77925d612c9f926eb9fb92850e6551def8328011b6a972323298d5')
 
 
@@ -86,8 +86,8 @@ def test_download_ok_with_hashes(tmp_path, requests_mock):
     actual_filename = os.path.basename(actual_filepath)
     assert actual_filename == filename
     assert actual_hashes['length'] == len(data)
-    assert actual_hashes['sha1'] == good['sha1']
-    assert actual_hashes['sha256'] == good['sha256']
+    assert actual_hashes['checksums']['sha1'] == good['sha1']
+    assert actual_hashes['checksums']['sha256'] == good['sha256']
 
 
 @pytest.mark.fs

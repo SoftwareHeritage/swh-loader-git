@@ -112,6 +112,7 @@ class PyPILoader(PackageLoader):
     def __init__(self, url):
         super().__init__(url=url)
         self._info = None
+        self.provider_url = pypi_api_url(self.url)
 
     @property
     def info(self) -> Dict:
@@ -119,7 +120,7 @@ class PyPILoader(PackageLoader):
 
         """
         if not self._info:
-            self._info = api_info(pypi_api_url(self.url))
+            self._info = api_info(self.provider_url)
         return self._info
 
     def get_versions(self) -> Sequence[str]:
@@ -138,7 +139,7 @@ class PyPILoader(PackageLoader):
             -> Optional[bytes]:
         sha256 = artifact_metadata['digests']['sha256']
         for rev_id, known_artifact in known_artifacts.items():
-            if sha256 == known_artifact['digests']['sha256']:
+            if sha256 == known_artifact['checksums']['sha256']:
                 return rev_id
 
     def build_revision(
@@ -164,6 +165,9 @@ class PyPILoader(PackageLoader):
             'committer_date': date,
             'parents': [],
             'metadata': {
-                'intrinsic_metadata': metadata,
+                'intrinsic': {
+                    'tool': 'PKG-INFO',
+                    'raw': metadata,
+                }
             }
         }

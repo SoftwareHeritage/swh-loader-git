@@ -215,7 +215,7 @@ class NpmLoader(PackageLoader):
 
     def __init__(self, package_name, package_url, package_metadata_url):
         super().__init__(url=package_url)
-        self.package_metadata_url = package_metadata_url
+        self.provider_url = package_metadata_url
 
         self._info = None
         self._versions = None
@@ -232,7 +232,7 @@ class NpmLoader(PackageLoader):
 
         """
         if not self._info:
-            self._info = api_info(self.package_metadata_url)
+            self._info = api_info(self.provider_url)
         return self._info
 
     def get_versions(self) -> Sequence[str]:
@@ -253,7 +253,7 @@ class NpmLoader(PackageLoader):
             -> Optional[bytes]:
         shasum = artifact_metadata['dist']['shasum']
         for rev_id, known_artifact in known_artifacts.items():
-            if shasum == known_artifact['dist']['shasum']:
+            if shasum == known_artifact['checksums']['sha1']:
                 return rev_id
 
     def build_revision(
@@ -277,7 +277,10 @@ class NpmLoader(PackageLoader):
             'committer_date': date,
             'message': message,
             'metadata': {
-                'intrinsic_metadata': i_metadata,
+                'intrinsic': {
+                    'tool': 'package.json',
+                    'raw': i_metadata,
+                }
             },
             'parents': [],
         }

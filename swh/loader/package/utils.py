@@ -3,6 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import logging
 import os
 import requests
 
@@ -10,6 +11,9 @@ from typing import Dict, Tuple
 
 from swh.model.hashutil import MultiHash, HASH_BLOCK_SIZE
 from swh.loader.package import DEFAULT_PARAMS
+
+
+logger = logging.getLogger(__name__)
 
 
 def api_info(url: str) -> Dict:
@@ -58,7 +62,8 @@ def download(url: str, dest: str, hashes: Dict = {}) -> Tuple[str, Dict]:
             url, response.status_code))
     length = int(response.headers['content-length'])
 
-    filepath = os.path.join(dest, os.path.basename(url))
+    filename = os.path.basename(url)
+    filepath = os.path.join(dest, filename)
 
     h = MultiHash(length=length)
     with open(filepath, 'wb') as f:
@@ -83,7 +88,14 @@ def download(url: str, dest: str, hashes: Dict = {}) -> Tuple[str, Dict]:
                     'Checksum mismatched: %s != %s' % (
                         url, expected_digest, actual_digest))
 
-    return filepath, {
+    extrinsic_metadata = {
         'length': length,
-        **h.hexdigest()
+        'filename': filename,
+        'checksums': {
+            **h.hexdigest()
+        },
     }
+
+    logger.debug('extrinsic_metadata', extrinsic_metadata)
+
+    return filepath, extrinsic_metadata

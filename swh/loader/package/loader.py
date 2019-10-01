@@ -39,6 +39,8 @@ logger = logging.getLogger(__name__)
 class PackageLoader:
     # Origin visit type (str) set by the loader
     visit_type = ''
+    # Url providing the artifact information
+    provider_url = ''
 
     def __init__(self, url):
         """Loader's constructor. This raises exception if the minimal required
@@ -236,6 +238,7 @@ class PackageLoader:
                 # `a_` stands for `artifact_`
                 for a_filename, a_uri, a_metadata in self.get_artifacts(
                         version):
+                    logger.debug('a_metadata: %s', a_metadata)
                     revision_id = self.resolve_revision_from(
                         known_artifacts, a_metadata)
                     if revision_id is None:
@@ -291,11 +294,13 @@ class PackageLoader:
                                 'directory': directory.hash,
                             })
 
-                        # FIXME: Standardize those metadata keys and use the
-                        # correct ones
                         revision['metadata'].update({
-                            'original_artifact': a_metadata,
-                            'hashes_artifact': a_c_metadata
+                            'original_artifact': a_c_metadata,
+                            'extrinsic': {
+                                'provider': self.provider_url,
+                                'when': visit_date,
+                                'raw': a_metadata,
+                            },
                         })
 
                         revision['id'] = revision_id = identifier_to_bytes(
