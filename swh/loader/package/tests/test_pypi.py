@@ -147,8 +147,8 @@ def test_extract_intrinsic_metadata(tmp_path):
         DATADIR, 'files.pythonhosted.org', '0805nexter-1.1.0.zip')
     uncompress(archive_path, dest=uncompressed_archive_path)
 
-    actual_sdist = extract_intrinsic_metadata(uncompressed_archive_path)
-    expected_sdist = {
+    actual_metadata = extract_intrinsic_metadata(uncompressed_archive_path)
+    expected_metadata = {
         'metadata_version': '1.0',
         'name': '0805nexter',
         'version': '1.1.0',
@@ -159,7 +159,7 @@ def test_extract_intrinsic_metadata(tmp_path):
         'platforms': ['UNKNOWN'],
     }
 
-    assert actual_sdist == expected_sdist
+    assert actual_metadata == expected_metadata
 
 
 @pytest.mark.fs
