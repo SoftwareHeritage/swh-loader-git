@@ -113,15 +113,13 @@ def test_download_fail_hashes_mismatch(tmp_path, requests_mock):
         expected_hashes = good.copy()
         expected_hashes[hash_algo] = wrong_hash  # set the wrong hash
 
-        with pytest.raises(ValueError) as e:
-            download(url, dest=str(tmp_path), hashes=expected_hashes)
+        expected_msg = ("Failure when fetching %s. "
+                        "Checksum mismatched: %s != %s" % (
+                            url, wrong_hash, good[hash_algo]
+                        ))
 
-        assert (
-            e.value.args[0] == "Failure when fetching %s. "
-                               "Checksum mismatched: %s != %s" % (
-                                   url, wrong_hash, good[hash_algo]
-                               )
-        )
+        with pytest.raises(ValueError, match=expected_msg):
+            download(url, dest=str(tmp_path), hashes=expected_hashes)
 
 
 def test_api_info_failure(requests_mock):
