@@ -12,3 +12,5 @@ storage:
           content_bytes: 100
           directory: 5
           revision: 5
+
+url: https://deposit.softwareheritage.org/1/private

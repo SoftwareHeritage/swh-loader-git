@@ -1,0 +1,80 @@
+{
+  "origin": {
+    "url": "https://hal-test.archives-ouvertes.fr/some-external-id",
+    "type": "deposit"
+  },
+  "origin_metadata": {
+    "metadata": {
+      "@xmlns": [
+        "http://www.w3.org/2005/Atom"
+      ],
+      "author": [
+        "some awesome author",
+        "another one",
+        "no one"
+      ],
+      "codemeta:dateCreated": "2017-10-07T15:17:08Z",
+      "external_identifier": "some-external-id",
+      "url": "https://hal-test.archives-ouvertes.fr/some-external-id"
+    },
+    "provider": {
+      "provider_name": "hal",
+      "provider_type": "deposit_client",
+      "provider_url": "https://hal-test.archives-ouvertes.fr/",
+      "metadata": null
+    },
+    "tool": {
+      "name": "swh-deposit",
+      "version": "0.0.1",
+      "configuration": {
+        "sword_version": "2"
+      }
+    }
+  },
+  "revision": {
+    "synthetic": true,
+    "committer_date": {
+      "timestamp": {
+        "seconds": 1507389428,
+        "microseconds": 0
+      },
+      "offset": 0,
+      "negative_utc": false
+    },
+    "message": "hal: Deposit 666 in collection hal",
+    "author": {
+      "name": "Software Heritage",
+      "fullname": "Software Heritage",
+      "email": "robot@softwareheritage.org"
+    },
+    "committer": {
+      "name": "Software Heritage",
+      "fullname": "Software Heritage",
+      "email": "robot@softwareheritage.org"
+    },
+    "date": {
+      "timestamp": {
+        "seconds": 1507389428,
+        "microseconds": 0
+      },
+      "offset": 0,
+      "negative_utc": false
+    },
+    "metadata": {
+      "@xmlns": [
+        "http://www.w3.org/2005/Atom"
+      ],
+      "author": [
+        "some awesome author",
+        "another one",
+        "no one"
+      ],
+      "external_identifier": "some-external-id",
+      "codemeta:dateCreated": "2017-10-07T15:17:08Z",
+      "url": "https://hal-test.archives-ouvertes.fr/some-external-id"
+    },
+    "type": "tar",
+    "parents": []
+  },
+  "branch_name": "master"
+}

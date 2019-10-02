@@ -244,11 +244,10 @@ class PackageLoader:
                             try:
                                 # a_c_: archive_computed_
                                 a_path, a_c_metadata = download(
-                                    a_uri, dest=tmpdir)
-                            except Exception as e:
-                                logger.warning(
-                                    'Unable to retrieve %s. Reason: %s',
-                                    a_uri, e)
+                                    a_uri, dest=tmpdir, filename=a_filename)
+                            except Exception:
+                                logger.exception('Unable to retrieve %s',
+                                                 a_uri)
                                 status_visit = 'partial'
                                 continue
 
@@ -313,7 +312,9 @@ class PackageLoader:
             branches = {}
             for version, v_branches in tmp_revisions.items():
                 if len(v_branches) == 1:
-                    branch_name = ('releases/%s' % version).encode('utf-8')
+                    branch_name = (
+                        version if version == 'HEAD'
+                        else 'releases/%s' % version).encode('utf-8')
                     if version == default_release:
                         branches[b'HEAD'] = {
                             'target_type': 'alias',
@@ -336,6 +337,8 @@ class PackageLoader:
             snapshot = {
                 'branches': branches
             }
+            logger.debug('snapshot: %s', snapshot)
+
             snapshot['id'] = identifier_to_bytes(
                 snapshot_identifier(snapshot))
 
@@ -343,8 +346,8 @@ class PackageLoader:
             self.storage.snapshot_add([snapshot])
             if hasattr(self.storage, 'flush'):
                 self.storage.flush()
-        except Exception as e:
-            logger.warning('Fail to load %s. Reason: %s' % (self.url, e))
+        except Exception:
+            logger.exception('Fail to load %s' % self.url)
             status_visit = 'partial'
         finally:
             self.storage.origin_visit_update(

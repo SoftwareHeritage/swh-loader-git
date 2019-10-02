@@ -7,7 +7,7 @@ import logging
 import os
 import requests
 
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 
 from swh.model.hashutil import MultiHash, HASH_BLOCK_SIZE
 from swh.loader.package import DEFAULT_PARAMS
@@ -37,7 +37,8 @@ def api_info(url: str) -> Dict:
     return response.json()
 
 
-def download(url: str, dest: str, hashes: Dict = {}) -> Tuple[str, Dict]:
+def download(url: str, dest: str, hashes: Dict = {},
+             filename: Optional[str] = None) -> Tuple[str, Dict]:
     """Download a remote tarball from url, uncompresses and computes swh hashes
        on it.
 
@@ -57,13 +58,16 @@ def download(url: str, dest: str, hashes: Dict = {}) -> Tuple[str, Dict]:
 
     """
     response = requests.get(url, **DEFAULT_PARAMS, stream=True)
+    logger.debug('headers: %s', response.headers)
     if response.status_code != 200:
         raise ValueError("Fail to query '%s'. Reason: %s" % (
             url, response.status_code))
     length = int(response.headers['content-length'])
 
-    filename = os.path.basename(url)
+    filename = filename if filename else os.path.basename(url)
+    logger.debug('filename: %s', filename)
     filepath = os.path.join(dest, filename)
+    logger.debug('filepath: %s', filepath)
 
     h = MultiHash(length=length)
     with open(filepath, 'wb') as f:
