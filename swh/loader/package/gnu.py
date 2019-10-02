@@ -149,8 +149,8 @@ class GNULoader(PackageLoader):
             yield filename, url, a_metadata
 
     def build_revision(
-            self, a_metadata: Dict, a_uncompressed_path: str) -> Dict:
-
+            self, a_metadata: Dict, a_uncompressed_path: str,
+            visit_date: str) -> Dict:
         normalized_date = normalize_timestamp(int(a_metadata['date']))
         return {
             'message': self.REVISION_MESSAGE,
@@ -160,9 +160,11 @@ class GNULoader(PackageLoader):
             'committer_date': normalized_date,
             'parents': [],
             'metadata': {
-                'package': {
-                    'date': a_metadata['date'],
-                    'archive': a_metadata['archive'],
+                'intrinsic': {},
+                'extrinsic': {
+                    'provider': self.url,
+                    'when': visit_date,
+                    'raw': a_metadata,
                 },
             },
         }

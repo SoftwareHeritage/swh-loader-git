@@ -9,7 +9,9 @@ import re
 from swh.model.hashutil import hash_to_bytes
 
 from swh.loader.package.gnu import GNULoader, get_version
-from swh.loader.package.tests.common import check_snapshot
+from swh.loader.package.tests.common import (
+    check_snapshot, check_metadata_paths
+)
 
 
 def test_get_version():
@@ -162,6 +164,41 @@ def test_release_artifact_not_found(swh_config, requests_mock):
 
     origin_visit = next(loader.storage.origin_visit_get(package_url))
     assert origin_visit['status'] == 'partial'
+
+
+def test_revision_metadata_structure(swh_config, local_get):
+    package = '8sync'
+    package_url = 'https://ftp.gnu.org/gnu/8sync/'
+    tarballs = [{
+        'date': '944729610',
+        'archive': 'https://ftp.gnu.org/gnu/8sync/8sync-0.1.0.tar.gz',
+    }]
+
+    loader = GNULoader(package, package_url, tarballs)
+
+    actual_load_status = loader.load()
+    assert actual_load_status == {'status': 'eventful'}
+
+    expected_revision_id = hash_to_bytes(
+        '44183488c0774ce3c957fa19ba695cf18a4a42b3')
+    revision = list(loader.storage.revision_get([expected_revision_id]))[0]
+
+    assert revision is not None
+
+    assert isinstance(revision['metadata'], dict)
+    assert isinstance(revision['metadata']['intrinsic'], dict)
+    assert isinstance(revision['metadata']['extrinsic'], dict)
+    assert isinstance(revision['metadata']['original_artifact'], dict)
+
+    check_metadata_paths(revision['metadata'], paths=[
+        ('intrinsic', dict),
+        ('extrinsic.provider', str),
+        ('extrinsic.when', str),
+        ('extrinsic.raw', dict),
+        ('original_artifact.filename', str),
+        ('original_artifact.length', int),
+        ('original_artifact.checksums', dict),
+    ])
 
 
 def test_release_artifact_no_prior_visit(swh_config, local_get):

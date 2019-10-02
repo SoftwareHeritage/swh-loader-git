@@ -257,7 +257,8 @@ class NpmLoader(PackageLoader):
                 return rev_id
 
     def build_revision(
-            self, a_metadata: Dict, a_uncompressed_path: str) -> Dict:
+            self, a_metadata: Dict, a_uncompressed_path: str,
+            visit_date: str) -> Dict:
         # Parse metadata (project, artifact metadata)
         i_metadata = extract_intrinsic_metadata(a_uncompressed_path)
 
@@ -276,11 +277,16 @@ class NpmLoader(PackageLoader):
             'committer': author,
             'committer_date': date,
             'message': message,
+            'parents': [],
             'metadata': {
                 'intrinsic': {
                     'tool': 'package.json',
                     'raw': i_metadata,
-                }
+                },
+                'extrinsic': {
+                    'provider': self.provider_url,
+                    'when': visit_date,
+                    'raw': a_metadata,
+                },
             },
-            'parents': [],
         }

@@ -17,7 +17,7 @@ from swh.loader.package.pypi import (
     PyPILoader, pypi_api_url, author, extract_intrinsic_metadata
 )
 from swh.loader.package.tests.common import (
-    check_snapshot, DATADIR
+    check_snapshot, DATADIR, check_metadata_paths
 )
 
 from swh.loader.package.tests.conftest import local_get_factory
@@ -265,6 +265,36 @@ local_get_missing_one = local_get_factory(ignore_urls=[
 
 # some missing release artifacts:
 # {visit partial, status: eventful, 1 snapshot}
+
+
+def test_revision_metadata_structure(swh_config, local_get):
+    url = 'https://pypi.org/project/0805nexter'
+    loader = PyPILoader(url)
+
+    actual_load_status = loader.load()
+    assert actual_load_status == {'status': 'eventful'}
+
+    expected_revision_id = hash_to_bytes(
+        'e445da4da22b31bfebb6ffc4383dbf839a074d21')
+    revision = list(loader.storage.revision_get([expected_revision_id]))[0]
+
+    assert revision is not None
+
+    assert isinstance(revision['metadata'], dict)
+    assert isinstance(revision['metadata']['intrinsic'], dict)
+    assert isinstance(revision['metadata']['extrinsic'], dict)
+    assert isinstance(revision['metadata']['original_artifact'], dict)
+
+    check_metadata_paths(revision['metadata'], paths=[
+        ('intrinsic.tool', str),
+        ('intrinsic.raw', dict),
+        ('extrinsic.provider', str),
+        ('extrinsic.when', str),
+        ('extrinsic.raw', dict),
+        ('original_artifact.filename', str),
+        ('original_artifact.length', int),
+        ('original_artifact.checksums', dict),
+    ])
 
 
 def test_release_with_missing_artifact(swh_config, local_get_missing_one):

@@ -6,7 +6,9 @@
 import pytest
 
 from swh.model.hashutil import hash_to_bytes
-from swh.loader.package.tests.common import decode_target, check_snapshot
+from swh.loader.package.tests.common import (
+    decode_target, check_snapshot, check_metadata, check_metadata_paths
+)
 from swh.storage import get_storage
 
 hash_hex = '43e45d56f88993aae6a0198013efa80716fd8920'
@@ -99,3 +101,75 @@ def test_check_snapshot_failure():
 
     with pytest.raises(AssertionError):
         check_snapshot(unexpected_snapshot, storage)
+
+
+def test_check_metadata():
+    metadata = {
+        'a': {
+            'raw': {
+                'time': 'something',
+            },
+        },
+        'b': [],
+        'c': 1,
+    }
+
+    for raw_path, raw_type in [
+        ('a.raw', dict),
+        ('a.raw.time', str),
+        ('b', list),
+        ('c', int),
+    ]:
+        check_metadata(metadata, raw_path, raw_type)
+
+
+def test_check_metadata_ko():
+    metadata = {
+        'a': {
+            'raw': 'hello',
+        },
+        'b': [],
+        'c': 1,
+    }
+
+    for raw_path, raw_type in [
+        ('a.b', dict),
+        ('a.raw.time', str),
+    ]:
+        with pytest.raises(AssertionError):
+            check_metadata(metadata, raw_path, raw_type)
+
+
+def test_check_metadata_paths():
+    metadata = {
+        'a': {
+            'raw': {
+                'time': 'something',
+            },
+        },
+        'b': [],
+        'c': 1,
+    }
+
+    check_metadata_paths(metadata, [
+        ('a.raw', dict),
+        ('a.raw.time', str),
+        ('b', list),
+        ('c', int),
+    ])
+
+
+def test_check_metadata_paths_ko():
+    metadata = {
+        'a': {
+            'raw': 'hello',
+        },
+        'b': [],
+        'c': 1,
+    }
+
+    with pytest.raises(AssertionError):
+        check_metadata_paths(metadata, [
+            ('a.b', dict),
+            ('a.raw.time', str),
+        ])

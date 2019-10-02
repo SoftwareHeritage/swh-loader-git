@@ -12,7 +12,9 @@ from swh.model.hashutil import hash_to_bytes
 from swh.loader.package.npm import (
     parse_npm_package_author, extract_npm_package_author
 )
-from swh.loader.package.tests.common import DATADIR, check_snapshot
+from swh.loader.package.tests.common import (
+    DATADIR, check_snapshot, check_metadata_paths
+)
 
 from swh.loader.package.npm import NpmLoader
 
@@ -399,6 +401,38 @@ def package_url(package):
 
 def package_metadata_url(package):
     return 'https://replicate.npmjs.com/%s/' % package
+
+
+def test_revision_metadata_structure(swh_config, local_get):
+    package = 'org'
+    loader = NpmLoader(package,
+                       package_url(package),
+                       package_metadata_url(package))
+
+    actual_load_status = loader.load()
+    assert actual_load_status == {'status': 'eventful'}
+
+    expected_revision_id = hash_to_bytes(
+        'd8a1c7474d2956ac598a19f0f27d52f7015f117e')
+    revision = list(loader.storage.revision_get([expected_revision_id]))[0]
+
+    assert revision is not None
+
+    assert isinstance(revision['metadata'], dict)
+    assert isinstance(revision['metadata']['intrinsic'], dict)
+    assert isinstance(revision['metadata']['extrinsic'], dict)
+    assert isinstance(revision['metadata']['original_artifact'], dict)
+
+    check_metadata_paths(revision['metadata'], paths=[
+        ('intrinsic.tool', str),
+        ('intrinsic.raw', dict),
+        ('extrinsic.provider', str),
+        ('extrinsic.when', str),
+        ('extrinsic.raw', dict),
+        ('original_artifact.filename', str),
+        ('original_artifact.length', int),
+        ('original_artifact.checksums', dict),
+    ])
 
 
 def test_npm_loader_first_visit(swh_config, local_get):
