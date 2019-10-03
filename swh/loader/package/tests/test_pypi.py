@@ -280,11 +280,6 @@ def test_revision_metadata_structure(swh_config, local_get):
 
     assert revision is not None
 
-    assert isinstance(revision['metadata'], dict)
-    assert isinstance(revision['metadata']['intrinsic'], dict)
-    assert isinstance(revision['metadata']['extrinsic'], dict)
-    assert isinstance(revision['metadata']['original_artifact'], dict)
-
     check_metadata_paths(revision['metadata'], paths=[
         ('intrinsic.tool', str),
         ('intrinsic.raw', dict),
