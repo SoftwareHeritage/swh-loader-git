@@ -157,3 +157,39 @@ def test_deposit_loading_ok(swh_config, local_get):
         'branches': expected_branches,
     }
     check_snapshot(expected_snapshot, storage=loader.storage)
+
+    # check metadata
+
+    tool = {
+        "name": "swh-deposit",
+        "version": "0.0.1",
+        "configuration": {
+            "sword_version": "2",
+        }
+    }
+
+    tool = loader.storage.tool_get(tool)
+    assert tool is not None
+    assert tool['id'] is not None
+
+    provider = {
+        "provider_name": "hal",
+        "provider_type": "deposit_client",
+        "provider_url": "https://hal-test.archives-ouvertes.fr/",
+        "metadata": None,
+    }
+
+    provider = loader.storage.metadata_provider_get_by(provider)
+    assert provider is not None
+    assert provider['id'] is not None
+
+    metadata = loader.storage.origin_metadata_get_by(
+        url, provider_type='deposit_client')
+    assert metadata is not None
+    assert isinstance(metadata, list)
+    assert len(metadata) == 1
+    metadata0 = metadata[0]
+
+    assert metadata0['provider_id'] == provider['id']
+    assert metadata0['provider_type'] == 'deposit_client'
+    assert metadata0['tool_id'] == tool['id']

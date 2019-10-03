@@ -3,10 +3,15 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import logging
+
 from typing import Generator, Dict, Tuple, Sequence
 
 from swh.loader.package.loader import PackageLoader
 from swh.deposit.client import PrivateApiDepositClient as ApiClient
+
+
+logger = logging.getLogger(__name__)
 
 
 class DepositLoader(PackageLoader):
@@ -34,6 +39,13 @@ class DepositLoader(PackageLoader):
         #     deposit id
         self.deposit_update_url = '/%s/update/' % deposit_id
         self.client = ApiClient()
+        self._metadata = None
+
+    @property
+    def metadata(self):
+        if self._metadata is None:
+            self._metadata = self.client.metadata_get(self.metadata_url)
+        return self._metadata
 
     def get_versions(self) -> Sequence[str]:
         # only 1 branch 'HEAD' with no alias since we only have 1 snapshot
@@ -42,10 +54,9 @@ class DepositLoader(PackageLoader):
 
     def get_artifacts(self, version: str) -> Generator[
             Tuple[str, str, Dict], None, None]:
-        meta = self.client.metadata_get(self.metadata_url)
         filename = 'archive.zip'  # do not care about it here
         url = self.client.base_url + self.archive_url
-        yield filename, url, meta
+        yield filename, url, self.metadata
 
     def build_revision(
             self, a_metadata: Dict, a_uncompressed_path: str) -> Dict:
@@ -66,6 +77,37 @@ class DepositLoader(PackageLoader):
         revision['message'] = revision['message'].encode('utf-8')
 
         return revision
+
+    def load(self) -> Dict:
+        # Usual loading
+        r = super().load()
+
+        if r['status'] != 'failed':  # when loading is ok
+
+            # Update archive with metadata information
+            origin_metadata = self.metadata['origin_metadata']
+
+            logger.debug('origin_metadata: %s', origin_metadata)
+            tools = self.storage.tool_add([origin_metadata['tool']])
+            logger.debug('tools: %s', tools)
+            tool_id = tools[0]['id']
+
+            provider = origin_metadata['provider']
+            # FIXME: Shall we delete this info?
+            provider_id = self.storage.metadata_provider_add(
+                provider['provider_name'],
+                provider['provider_type'],
+                provider['provider_url'],
+                metadata=None)
+
+            metadata = origin_metadata['metadata']
+            self.storage.origin_metadata_add(
+                self.url, self.visit_date, provider_id, tool_id, metadata)
+
+            # 3. push update
+            # self.update_deposit()
+
+        return r
 
 
 def parse_author(author):
