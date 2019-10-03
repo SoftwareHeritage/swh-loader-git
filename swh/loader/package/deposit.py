@@ -48,14 +48,13 @@ class DepositLoader(PackageLoader):
         yield filename, url, meta
 
     def build_revision(
-            self, a_metadata: Dict, a_uncompressed_path: str,
-            visit_date: str) -> Dict:
+            self, a_metadata: Dict, a_uncompressed_path: str) -> Dict:
         revision = a_metadata.pop('revision')
         metadata = {
             'extrinsic': {
                 'provider': '%s/%s' % (
                     self.client.base_url, self.metadata_url),
-                'when': visit_date,
+                'when': self.visit_date.isoformat(),
                 'raw': a_metadata,
             },
         }

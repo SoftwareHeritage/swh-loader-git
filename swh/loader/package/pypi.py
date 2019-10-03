@@ -143,8 +143,7 @@ class PyPILoader(PackageLoader):
                 return rev_id
 
     def build_revision(
-            self, a_metadata: Dict, a_uncompressed_path: str,
-            visit_date: str) -> Dict:
+            self, a_metadata: Dict, a_uncompressed_path: str) -> Dict:
         # Parse metadata (project, artifact metadata)
         metadata = extract_intrinsic_metadata(a_uncompressed_path)
 
@@ -172,7 +171,7 @@ class PyPILoader(PackageLoader):
                 },
                 'extrinsic': {
                     'provider': self.provider_url,
-                    'when': visit_date,
+                    'when': self.visit_date.isoformat(),
                     'raw': a_metadata,
                 },
             }

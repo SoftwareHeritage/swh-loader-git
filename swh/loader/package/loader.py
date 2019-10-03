@@ -53,6 +53,7 @@ class PackageLoader:
         self._check_configuration()
         self.storage = get_storage(**self.config['storage'])
         self.url = url
+        self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
 
     def _check_configuration(self):
         """Checks the minimal configuration required is set for the loader.
@@ -216,10 +217,9 @@ class PackageLoader:
             # Prepare origin and origin_visit
             origin = {'url': self.url}
             self.storage.origin_add([origin])
-            visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
             visit_id = self.storage.origin_visit_add(
                 origin=self.url,
-                date=visit_date,
+                date=self.visit_date,
                 type=self.visit_type)['visit']
             last_snapshot = self.last_snapshot()
             logger.debug('last snapshot: %s', last_snapshot)
@@ -284,8 +284,7 @@ class PackageLoader:
 
                             # FIXME: This should be release. cf. D409
                             revision = self.build_revision(
-                                a_metadata, uncompressed_path,
-                                visit_date.isoformat())
+                                a_metadata, uncompressed_path)
                             revision.update({
                                 'type': 'tar',
                                 'synthetic': True,
