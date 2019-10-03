@@ -35,9 +35,7 @@ def test_deposit_loading_failure_to_fetch_metadata(swh_config):
     unknown_deposit_id = 666
     loader = DepositLoader(url, unknown_deposit_id)  # does not exist
 
-    assert loader.archive_url
     actual_load_status = loader.load()
-
     assert actual_load_status == {'status': 'failed'}
 
     stats = loader.storage.stat_counters()
