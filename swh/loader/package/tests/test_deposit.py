@@ -11,6 +11,8 @@ from swh.loader.package.tests.common import (
     check_snapshot, check_metadata_paths
 )
 
+from swh.loader.package.tests.conftest import local_get_factory
+
 
 def test_deposit_init_ok(swh_config):
     url = 'some-url'
@@ -24,8 +26,8 @@ def test_deposit_init_ok(swh_config):
     assert loader.client is not None
 
 
-def test_deposit_loading_failure_to_retrieve_artifact(swh_config):
-    """Error during fetching artifact ends us with partial visit
+def test_deposit_loading_failure_to_fetch_metadata(swh_config):
+    """Error during fetching artifact ends us with failed/partial visit
 
     """
     # private api url form: 'https://deposit.s.o/1/private/hal/666/raw/'
@@ -36,7 +38,7 @@ def test_deposit_loading_failure_to_retrieve_artifact(swh_config):
     assert loader.archive_url
     actual_load_status = loader.load()
 
-    assert actual_load_status == {'status': 'uneventful'}
+    assert actual_load_status == {'status': 'failed'}
 
     stats = loader.storage.stat_counters()
 
@@ -50,6 +52,43 @@ def test_deposit_loading_failure_to_retrieve_artifact(swh_config):
         'revision': 0,
         'skipped_content': 0,
         'snapshot': 0,
+    } == stats
+
+    origin_visit = next(loader.storage.origin_visit_get(url))
+    assert origin_visit['status'] == 'partial'
+
+
+local_get_missing_one = local_get_factory(ignore_urls=[
+    'https://deposit.softwareheritage.org/1/private/666/raw/',
+])
+
+
+def test_deposit_loading_failure_to_retrieve_1_artifact(
+        swh_config, local_get_missing_one):
+    """Deposit with missing artifact ends up with an uneventful/partial visit
+
+    """
+    # private api url form: 'https://deposit.s.o/1/private/hal/666/raw/'
+    url = 'some-url-2'
+    deposit_id = 666
+    loader = DepositLoader(url, deposit_id)
+
+    assert loader.archive_url
+    actual_load_status = loader.load()
+
+    assert actual_load_status == {'status': 'uneventful'}
+
+    stats = loader.storage.stat_counters()
+    assert {
+        'content': 0,
+        'directory': 0,
+        'origin': 1,
+        'origin_visit': 1,
+        'person': 0,
+        'release': 0,
+        'revision': 0,
+        'skipped_content': 0,
+        'snapshot': 1,
     } == stats
 
     origin_visit = next(loader.storage.origin_visit_get(url))

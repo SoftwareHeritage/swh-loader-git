@@ -228,7 +228,7 @@ def test_release_with_traceback(swh_config):
 
         actual_load_status = loader.load()
 
-        assert actual_load_status == {'status': 'uneventful'}
+        assert actual_load_status == {'status': 'failed'}
 
         stats = loader.storage.stat_counters()
 

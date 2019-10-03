@@ -349,8 +349,9 @@ class PackageLoader:
         except Exception:
             logger.exception('Fail to load %s' % self.url)
             status_visit = 'partial'
+            status_load = 'failed'
         finally:
             self.storage.origin_visit_update(
                 origin=self.url, visit_id=visit_id, status=status_visit,
                 snapshot=snapshot)
-            return {'status': status_load}
+        return {'status': status_load}
