@@ -3,9 +3,11 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-from swh.loader.package.deposit import DepositLoader
+import re
+
 
 from swh.model.hashutil import hash_to_bytes
+from swh.loader.package.deposit import DepositLoader
 
 from swh.loader.package.tests.common import (
     check_snapshot, check_metadata_paths
@@ -36,7 +38,7 @@ def test_deposit_loading_failure_to_fetch_metadata(swh_config):
     loader = DepositLoader(url, unknown_deposit_id)  # does not exist
 
     actual_load_status = loader.load()
-    assert actual_load_status == {'status': 'failed'}
+    assert actual_load_status['status'] == 'failed'
 
     stats = loader.storage.stat_counters()
 
@@ -73,8 +75,7 @@ def test_deposit_loading_failure_to_retrieve_1_artifact(
 
     assert loader.archive_url
     actual_load_status = loader.load()
-
-    assert actual_load_status == {'status': 'uneventful'}
+    assert actual_load_status['status'] == 'uneventful'
 
     stats = loader.storage.stat_counters()
     assert {
@@ -93,15 +94,17 @@ def test_deposit_loading_failure_to_retrieve_1_artifact(
     assert origin_visit['status'] == 'partial'
 
 
-def test_revision_metadata_structure(swh_config, local_get):
+def test_revision_metadata_structure(swh_config, local_get, requests_mock):
+    # do not care for deposit update query
+    requests_mock.put(re.compile('https'))
+
     url = 'https://hal-test.archives-ouvertes.fr/some-external-id'
     deposit_id = 666
     loader = DepositLoader(url, deposit_id)
 
     assert loader.archive_url
     actual_load_status = loader.load()
-
-    assert actual_load_status == {'status': 'eventful'}
+    assert actual_load_status['status'] == 'eventful'
 
     expected_revision_id = hash_to_bytes(
         '9471c606239bccb1f269564c9ea114e1eeab9eb4')
@@ -119,15 +122,16 @@ def test_revision_metadata_structure(swh_config, local_get):
     ])
 
 
-def test_deposit_loading_ok(swh_config, local_get):
+def test_deposit_loading_ok(swh_config, local_get, requests_mock):
+    requests_mock.put(re.compile('https'))  # do not care for put
+
     url = 'https://hal-test.archives-ouvertes.fr/some-external-id'
     deposit_id = 666
     loader = DepositLoader(url, deposit_id)
 
     assert loader.archive_url
     actual_load_status = loader.load()
-
-    assert actual_load_status == {'status': 'eventful'}
+    assert actual_load_status['status'] == 'eventful'
 
     stats = loader.storage.stat_counters()
     assert {

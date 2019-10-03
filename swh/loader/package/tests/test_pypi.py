@@ -196,8 +196,7 @@ def test_no_release_artifact(swh_config, local_get_missing_all):
     loader = PyPILoader(url)
 
     actual_load_status = loader.load()
-
-    assert actual_load_status == {'status': 'uneventful'}
+    assert actual_load_status['status'] == 'uneventful'
 
     stats = loader.storage.stat_counters()
     assert {
@@ -227,8 +226,7 @@ def test_release_with_traceback(swh_config):
         loader = PyPILoader(url)
 
         actual_load_status = loader.load()
-
-        assert actual_load_status == {'status': 'failed'}
+        assert actual_load_status['status'] == 'failed'
 
         stats = loader.storage.stat_counters()
 
@@ -272,7 +270,7 @@ def test_revision_metadata_structure(swh_config, local_get):
     loader = PyPILoader(url)
 
     actual_load_status = loader.load()
-    assert actual_load_status == {'status': 'eventful'}
+    assert actual_load_status['status'] == 'eventful'
 
     expected_revision_id = hash_to_bytes(
         'e445da4da22b31bfebb6ffc4383dbf839a074d21')
@@ -300,8 +298,7 @@ def test_release_with_missing_artifact(swh_config, local_get_missing_one):
     loader = PyPILoader(url)
 
     actual_load_status = loader.load()
-
-    assert actual_load_status == {'status': 'eventful'}
+    assert actual_load_status['status'] == 'eventful'
 
     stats = loader.storage.stat_counters()
     assert {
@@ -367,8 +364,7 @@ def test_release_artifact_no_prior_visit(swh_config, local_get):
     loader = PyPILoader(url)
 
     actual_load_status = loader.load()
-
-    assert actual_load_status == {'status': 'eventful'}
+    assert actual_load_status['status'] == 'eventful'
 
     stats = loader.storage.stat_counters()
     assert {
@@ -449,7 +445,7 @@ def test_release_artifact_incremental_visit(swh_config, local_get_visits):
 
     visit1_actual_load_status = loader.load()
     visit1_stats = loader.storage.stat_counters()
-    assert visit1_actual_load_status == {'status': 'eventful'}
+    assert visit1_actual_load_status['status'] == 'eventful'
     origin_visit1 = next(loader.storage.origin_visit_get(url))
     assert origin_visit1['status'] == 'full'
 
@@ -471,7 +467,7 @@ def test_release_artifact_incremental_visit(swh_config, local_get_visits):
     visit2_actual_load_status = loader.load()
     visit2_stats = loader.storage.stat_counters()
 
-    assert visit2_actual_load_status == {'status': 'eventful'}
+    assert visit2_actual_load_status['status'] == 'eventful'
     visits = list(loader.storage.origin_visit_get(url))
     assert len(visits) == 2
     assert visits[1]['status'] == 'full'

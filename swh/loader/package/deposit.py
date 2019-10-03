@@ -7,6 +7,7 @@ import logging
 
 from typing import Generator, Dict, Tuple, Sequence
 
+from swh.model.hashutil import hash_to_hex
 from swh.loader.package.loader import PackageLoader
 from swh.deposit.client import PrivateApiDepositClient as ApiClient
 
@@ -81,9 +82,9 @@ class DepositLoader(PackageLoader):
     def load(self) -> Dict:
         # Usual loading
         r = super().load()
+        success = r['status'] != 'failed'
 
-        if r['status'] != 'failed':  # when loading is ok
-
+        if success:
             # Update archive with metadata information
             origin_metadata = self.metadata['origin_metadata']
 
@@ -104,9 +105,37 @@ class DepositLoader(PackageLoader):
             self.storage.origin_metadata_add(
                 self.url, self.visit_date, provider_id, tool_id, metadata)
 
-            # 3. push update
-            # self.update_deposit()
+        # Update deposit status
+        try:
+            if not success:
+                self.client.status_update(
+                    self.deposit_update_url, status='failed')
+                return r
 
+            snapshot_id = r['snapshot_id']
+            branches = self.storage.snapshot_get(snapshot_id)['branches']
+            logger.debug('branches: %s', branches)
+            if not branches:
+                return r
+            rev_id = branches[b'HEAD']['target']
+
+            revision = next(self.storage.revision_get([rev_id]))
+
+            # Retrieve the revision identifier
+            dir_id = revision['directory']
+
+            # update the deposit's status to success with its
+            # revision-id and directory-id
+            self.client.status_update(
+                self.deposit_update_url,
+                status='done',
+                revision_id=hash_to_hex(rev_id),
+                directory_id=hash_to_hex(dir_id),
+                origin_url=self.url)
+        except Exception:
+            logger.exception(
+                'Problem when trying to update the deposit\'s status')
+            return {'status': 'failed'}
         return r
 
 

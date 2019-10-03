@@ -146,8 +146,7 @@ def test_release_artifact_not_found(swh_config, requests_mock):
     requests_mock.get(re.compile('https://'), status_code=404)
 
     actual_load_status = loader.load()
-
-    assert actual_load_status == {'status': 'uneventful'}
+    assert actual_load_status['status'] == 'uneventful'
     stats = loader.storage.stat_counters()
 
     assert {
@@ -177,7 +176,7 @@ def test_revision_metadata_structure(swh_config, local_get):
     loader = GNULoader(package, package_url, tarballs)
 
     actual_load_status = loader.load()
-    assert actual_load_status == {'status': 'eventful'}
+    assert actual_load_status['status'] == 'eventful'
 
     expected_revision_id = hash_to_bytes(
         '44183488c0774ce3c957fa19ba695cf18a4a42b3')
@@ -211,8 +210,7 @@ def test_release_artifact_no_prior_visit(swh_config, local_get):
     loader = GNULoader(package, package_url, tarballs)
 
     actual_load_status = loader.load()
-
-    assert actual_load_status == {'status': 'eventful'}
+    assert actual_load_status['status'] == 'eventful'
 
     stats = loader.storage.stat_counters()
 

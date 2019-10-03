@@ -410,7 +410,7 @@ def test_revision_metadata_structure(swh_config, local_get):
                        package_metadata_url(package))
 
     actual_load_status = loader.load()
-    assert actual_load_status == {'status': 'eventful'}
+    assert actual_load_status['status'] == 'eventful'
 
     expected_revision_id = hash_to_bytes(
         'd8a1c7474d2956ac598a19f0f27d52f7015f117e')
@@ -438,7 +438,7 @@ def test_npm_loader_first_visit(swh_config, local_get):
                        package_metadata_url(package))
 
     actual_load_status = loader.load()
-    assert actual_load_status == {'status': 'eventful'}
+    assert actual_load_status['status'] == 'eventful'
 
     stats = loader.storage.stat_counters()
 
@@ -479,7 +479,7 @@ def test_npm_loader_incremental_visit(swh_config, local_get_visits):
 
     actual_load_status = loader.load()
 
-    assert actual_load_status == {'status': 'eventful'}
+    assert actual_load_status['status'] == 'eventful'
     origin_visit = list(loader.storage.origin_visit_get(url))[-1]
     assert origin_visit['status'] == 'full'
 
@@ -500,7 +500,7 @@ def test_npm_loader_incremental_visit(swh_config, local_get_visits):
     loader._info = None  # reset loader internal state
     actual_load_status2 = loader.load()
 
-    assert actual_load_status2 == {'status': 'eventful'}
+    assert actual_load_status2['status'] == 'eventful'
     origin_visit2 = list(loader.storage.origin_visit_get(url))[-1]
     assert origin_visit2['status'] == 'full'
 
