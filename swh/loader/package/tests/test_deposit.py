@@ -5,6 +5,12 @@
 
 from swh.loader.package.deposit import DepositLoader
 
+from swh.model.hashutil import hash_to_bytes
+
+from swh.loader.package.tests.common import (
+    check_snapshot, check_metadata_paths
+)
+
 
 def test_deposit_init_ok(swh_config):
     url = 'some-url'
@@ -50,6 +56,32 @@ def test_deposit_loading_failure_to_retrieve_artifact(swh_config):
     assert origin_visit['status'] == 'partial'
 
 
+def test_revision_metadata_structure(swh_config, local_get):
+    url = 'https://hal-test.archives-ouvertes.fr/some-external-id'
+    deposit_id = 666
+    loader = DepositLoader(url, deposit_id)
+
+    assert loader.archive_url
+    actual_load_status = loader.load()
+
+    assert actual_load_status == {'status': 'eventful'}
+
+    expected_revision_id = hash_to_bytes(
+        '9471c606239bccb1f269564c9ea114e1eeab9eb4')
+    revision = list(loader.storage.revision_get([expected_revision_id]))[0]
+
+    assert revision is not None
+
+    check_metadata_paths(revision['metadata'], paths=[
+        ('extrinsic.provider', str),
+        ('extrinsic.when', str),
+        ('extrinsic.raw', dict),
+        ('original_artifact.filename', str),
+        ('original_artifact.length', int),
+        ('original_artifact.checksums', dict),
+    ])
+
+
 def test_deposit_loading_ok(swh_config, local_get):
     url = 'https://hal-test.archives-ouvertes.fr/some-external-id'
     deposit_id = 666
@@ -75,3 +107,16 @@ def test_deposit_loading_ok(swh_config, local_get):
 
     origin_visit = next(loader.storage.origin_visit_get(url))
     assert origin_visit['status'] == 'full'
+
+    expected_branches = {
+        'HEAD': {
+            'target': '9471c606239bccb1f269564c9ea114e1eeab9eb4',
+            'target_type': 'revision',
+        },
+    }
+
+    expected_snapshot = {
+        'id': '453f455d0efb69586143cd6b6e5897f9906b53a7',
+        'branches': expected_branches,
+    }
+    check_snapshot(expected_snapshot, storage=loader.storage)
