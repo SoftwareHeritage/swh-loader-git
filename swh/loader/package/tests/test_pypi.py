@@ -560,3 +560,36 @@ def test_release_artifact_incremental_visit(swh_config, local_get_visits):
 # release artifact, old artifact with different checksums
 # {visit full, status full, new snapshot with shared history and some new
 # different history}
+
+# release with multiple sdist artifacts per pypi "version"
+# snapshot branch output is different
+
+def test_visit_1_release_with_2_artifacts(swh_config, local_get):
+    """With no prior visit, load a pypi project ends up with 1 snapshot
+
+    """
+    url = 'https://pypi.org/project/nexter'
+    loader = PyPILoader(url)
+
+    actual_load_status = loader.load()
+    assert actual_load_status['status'] == 'eventful'
+
+    expected_branches = {
+        'releases/1.1.0/nexter-1.1.0.zip': {
+            'target': '4c99891f93b81450385777235a37b5e966dd1571',
+            'target_type': 'revision',
+        },
+        'releases/1.1.0/nexter-1.1.0.tar.gz': {
+            'target': '0bf88f5760cca7665d0af4d6575d9301134fe11a',
+            'target_type': 'revision',
+        },
+    }
+
+    expected_snapshot = {
+        'id': 'a27e638a4dad6fbfa273c6ebec1c4bf320fb84c6',
+        'branches': expected_branches,
+    }
+    check_snapshot(expected_snapshot, loader.storage)
+
+    origin_visit = next(loader.storage.origin_visit_get(url))
+    assert origin_visit['status'] == 'full'
