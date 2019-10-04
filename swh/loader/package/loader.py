@@ -300,10 +300,7 @@ class PackageLoader:
 
                         self.storage.revision_add([revision])
 
-                    tmp_revisions[version].append({
-                        'filename': a_filename,
-                        'target': revision_id,
-                    })
+                    tmp_revisions[version].append((a_filename, revision_id))
 
             # Build and load the snapshot
             branches = {}
@@ -320,15 +317,15 @@ class PackageLoader:
 
                     branches[branch_name] = {
                         'target_type': 'revision',
-                        'target': v_branches[0]['target'],
+                        'target': v_branches[0][1],
                     }
                 else:
-                    for x in v_branches:
+                    for filename, target in v_branches:
                         branch_name = ('releases/%s/%s' % (
-                            version, v_branches['filename'])).encode('utf-8')
+                            version, filename)).encode('utf-8')
                         branches[branch_name] = {
                             'target_type': 'revision',
-                            'target': x['target'],
+                            'target': target,
                         }
 
             snapshot = {
