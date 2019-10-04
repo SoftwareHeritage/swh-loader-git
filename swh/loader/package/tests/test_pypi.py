@@ -290,7 +290,7 @@ def test_revision_metadata_structure(swh_config, local_get):
     ])
 
 
-def test_release_with_missing_artifact(swh_config, local_get_missing_one):
+def test_visit_with_missing_artifact(swh_config, local_get_missing_one):
     """Load a pypi project with some missing artifacts ends up with 1 snapshot
 
     """
@@ -356,7 +356,7 @@ def test_release_with_missing_artifact(swh_config, local_get_missing_one):
     assert origin_visit['status'] == 'partial'
 
 
-def test_release_artifact_no_prior_visit(swh_config, local_get):
+def test_visit_with_1_release_artifact(swh_config, local_get):
     """With no prior visit, load a pypi project ends up with 1 snapshot
 
     """
@@ -432,12 +432,69 @@ def test_release_artifact_no_prior_visit(swh_config, local_get):
     assert origin_visit['status'] == 'full'
 
 
-# release artifact, new artifact
-# {visit full, status full, new snapshot with shared history as prior snapshot}
-def test_release_artifact_incremental_visit(swh_config, local_get_visits):
-    """With prior visit, 2nd load will result with a different snapshot
+def test_multiple_visits_with_no_change(swh_config, local_get):
+    """Multiple visits with no changes results in 1 same snapshot
 
-    with some shared history
+    """
+    url = 'https://pypi.org/project/0805nexter'
+    loader = PyPILoader(url)
+
+    actual_load_status = loader.load()
+    assert actual_load_status['status'] == 'eventful'
+
+    stats = loader.storage.stat_counters()
+    assert {
+        'content': 6,
+        'directory': 4,
+        'origin': 1,
+        'origin_visit': 1,
+        'person': 1,
+        'release': 0,
+        'revision': 2,
+        'skipped_content': 0,
+        'snapshot': 1
+    } == stats
+
+    expected_branches = {
+        'releases/1.1.0': {
+            'target': '4c99891f93b81450385777235a37b5e966dd1571',
+            'target_type': 'revision',
+        },
+        'releases/1.2.0': {
+            'target': 'e445da4da22b31bfebb6ffc4383dbf839a074d21',
+            'target_type': 'revision',
+        },
+        'HEAD': {
+            'target': 'releases/1.2.0',
+            'target_type': 'alias',
+        },
+    }
+
+    snapshot_id = 'ba6e158ada75d0b3cfb209ffdf6daa4ed34a227a'
+    expected_snapshot = {
+        'id': snapshot_id,
+        'branches': expected_branches,
+    }
+    check_snapshot(expected_snapshot, loader.storage)
+
+    origin_visit = next(loader.storage.origin_visit_get(url))
+    assert origin_visit['status'] == 'full'
+
+    actual_load_status2 = loader.load()
+    assert actual_load_status2['status'] == 'uneventful'
+
+    stats2 = loader.storage.stat_counters()
+    expected_stats2 = stats.copy()
+    expected_stats2['origin_visit'] = 1 + 1
+    assert expected_stats2 == stats2
+
+    # same snapshot
+    actual_snapshot_id = origin_visit['snapshot']['id']
+    assert actual_snapshot_id == hash_to_bytes(snapshot_id)
+
+
+def test_incremental_visit(swh_config, local_get_visits):
+    """With prior visit, 2nd load will result with a different snapshot
 
     """
     url = 'https://pypi.org/project/0805nexter'
