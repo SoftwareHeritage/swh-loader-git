@@ -253,7 +253,8 @@ class NpmLoader(PackageLoader):
             -> Optional[bytes]:
         shasum = artifact_metadata['dist']['shasum']
         for rev_id, known_artifact in known_artifacts.items():
-            if shasum == known_artifact['checksums']['sha1']:
+            original_artifact = known_artifact['original_artifact']
+            if shasum == original_artifact['checksums']['sha1']:
                 return rev_id
 
     def build_revision(

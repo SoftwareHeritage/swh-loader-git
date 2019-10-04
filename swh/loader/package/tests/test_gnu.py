@@ -134,12 +134,13 @@ _expected_branches_first_visit = {
 _expected_new_snapshot_first_visit_id = 'c419397fd912039825ebdbea378bc6283f006bf5'  # noqa
 
 
-def test_release_artifact_not_found(swh_config, requests_mock):
+def test_visit_with_no_artifact_found(swh_config, requests_mock):
     package = '8sync'
     package_url = 'https://ftp.gnu.org/gnu/8sync/'
     tarballs = [{
-        'date': '944729610',
+        'time': '944729610',
         'archive': 'https://ftp.gnu.org/gnu/8sync/8sync-0.1.0.tar.gz',
+        'length': 221837,
     }]
 
     loader = GNULoader(package, package_url, tarballs)
@@ -165,12 +166,13 @@ def test_release_artifact_not_found(swh_config, requests_mock):
     assert origin_visit['status'] == 'partial'
 
 
-def test_revision_metadata_structure(swh_config, local_get):
+def test_check_revision_metadata_structure(swh_config, local_get):
     package = '8sync'
     package_url = 'https://ftp.gnu.org/gnu/8sync/'
     tarballs = [{
-        'date': '944729610',
+        'time': '944729610',
         'archive': 'https://ftp.gnu.org/gnu/8sync/8sync-0.1.0.tar.gz',
+        'length': 221837,
     }]
 
     loader = GNULoader(package, package_url, tarballs)
@@ -195,7 +197,7 @@ def test_revision_metadata_structure(swh_config, local_get):
     ])
 
 
-def test_release_artifact_no_prior_visit(swh_config, local_get):
+def test_visit_with_release_artifact_no_prior_visit(swh_config, local_get):
     """With no prior visit, load a gnu project ends up with 1 snapshot
 
     """
@@ -203,8 +205,9 @@ def test_release_artifact_no_prior_visit(swh_config, local_get):
     package = '8sync'
     package_url = 'https://ftp.gnu.org/gnu/8sync/'
     tarballs = [{
-        'date': '944729610',
+        'time': 944729610,
         'archive': 'https://ftp.gnu.org/gnu/8sync/8sync-0.1.0.tar.gz',
+        'length': 221837,
     }]
 
     loader = GNULoader(package, package_url, tarballs)
@@ -213,7 +216,6 @@ def test_release_artifact_no_prior_visit(swh_config, local_get):
     assert actual_load_status['status'] == 'eventful'
 
     stats = loader.storage.stat_counters()
-
     assert {
         'content': len(_expected_new_contents_first_visit),
         'directory': len(_expected_new_directories_first_visit),
@@ -242,3 +244,110 @@ def test_release_artifact_no_prior_visit(swh_config, local_get):
     }
 
     check_snapshot(expected_snapshot, loader.storage)
+
+
+def test_2_visits_without_change(swh_config, local_get):
+    """With no prior visit, load a gnu project ends up with 1 snapshot
+
+    """
+    assert 'SWH_CONFIG_FILENAME' in os.environ  # cf. tox.ini
+    package = '8sync'
+    url = 'https://ftp.gnu.org/gnu/8sync/'
+    tarballs = [{
+        'time': 944729610,
+        'archive': 'https://ftp.gnu.org/gnu/8sync/8sync-0.1.0.tar.gz',
+        'length': 221837,
+    }]
+
+    loader = GNULoader(package, url, tarballs)
+    actual_load_status = loader.load()
+    assert actual_load_status['status'] == 'eventful'
+    origin_visit = list(loader.storage.origin_visit_get(url))[-1]
+    assert origin_visit['status'] == 'full'
+
+    actual_load_status2 = loader.load()
+    assert actual_load_status2['status'] == 'uneventful'
+    origin_visit2 = list(loader.storage.origin_visit_get(url))[-1]
+    assert origin_visit2['status'] == 'full'
+
+    urls = [
+        m.url for m in local_get.request_history
+        if m.url.startswith('https://ftp.gnu.org')
+    ]
+    assert len(urls) == 1
+
+
+def test_2_visits_with_new_artifact(swh_config, local_get):
+    """With no prior visit, load a gnu project ends up with 1 snapshot
+
+    """
+    assert 'SWH_CONFIG_FILENAME' in os.environ  # cf. tox.ini
+    package = '8sync'
+    url = 'https://ftp.gnu.org/gnu/8sync/'
+    tarball1 = {
+        'time': 944729610,
+        'archive': 'https://ftp.gnu.org/gnu/8sync/8sync-0.1.0.tar.gz',
+        'length': 221837,
+    }
+
+    loader = GNULoader(package, url, [tarball1])
+    actual_load_status = loader.load()
+    assert actual_load_status['status'] == 'eventful'
+    origin_visit = list(loader.storage.origin_visit_get(url))[-1]
+    assert origin_visit['status'] == 'full'
+
+    stats = loader.storage.stat_counters()
+    assert {
+        'content': len(_expected_new_contents_first_visit),
+        'directory': len(_expected_new_directories_first_visit),
+        'origin': 1,
+        'origin_visit': 1,
+        'person': 1,
+        'release': 0,
+        'revision': len(_expected_new_revisions_first_visit),
+        'skipped_content': 0,
+        'snapshot': 1
+    } == stats
+
+    urls = [
+        m.url for m in local_get.request_history
+        if m.url.startswith('https://ftp.gnu.org')
+    ]
+    assert len(urls) == 1
+
+    tarball2 = {
+        'time': 1480991830,
+        'archive': 'https://ftp.gnu.org/gnu/8sync/8sync-0.2.0.tar.gz',
+        'length': 238466,
+    }
+    loader2 = GNULoader(package, url, [tarball1, tarball2])
+    # implementation detail: share the storage in between visits
+    loader2.storage = loader.storage
+    stats2 = loader2.storage.stat_counters()
+    assert stats == stats2  # ensure we share the storage
+
+    actual_load_status2 = loader2.load()
+    assert actual_load_status2['status'] == 'eventful'
+
+    stats2 = loader.storage.stat_counters()
+    assert {
+        'content': len(_expected_new_contents_first_visit) + 14,
+        'directory': len(_expected_new_directories_first_visit) + 8,
+        'origin': 1,
+        'origin_visit': 1 + 1,
+        'person': 1,
+        'release': 0,
+        'revision': len(_expected_new_revisions_first_visit) + 1,
+        'skipped_content': 0,
+        'snapshot': 1 + 1,
+    } == stats2
+
+    origin_visit2 = list(loader.storage.origin_visit_get(url))[-1]
+    assert origin_visit2['status'] == 'full'
+
+    urls = [
+        m.url for m in local_get.request_history
+        if m.url.startswith('https://ftp.gnu.org')
+    ]
+    # 1 artifact (2nd time no modification) + 1 new artifact
+    assert len(urls) == 2

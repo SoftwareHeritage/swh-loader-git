@@ -141,9 +141,7 @@ class PackageLoader:
         for revision in known_revisions:
             if not revision:  # revision_get can return None
                 continue
-            original_artifact = revision['metadata'].get('original_artifact')
-            if original_artifact:
-                ret[revision['id']] = original_artifact
+            ret[revision['id']] = revision['metadata']
 
         return ret
 

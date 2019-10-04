@@ -139,7 +139,8 @@ class PyPILoader(PackageLoader):
             -> Optional[bytes]:
         sha256 = artifact_metadata['digests']['sha256']
         for rev_id, known_artifact in known_artifacts.items():
-            if sha256 == known_artifact['checksums']['sha256']:
+            original_artifact = known_artifact['original_artifact']
+            if sha256 == original_artifact['checksums']['sha256']:
                 return rev_id
 
     def build_revision(

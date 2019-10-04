@@ -3,15 +3,19 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import logging
 import re
 
 from os import path
 
-from typing import Generator, Dict, Tuple, Sequence
+from typing import Dict, Generator, Optional, Sequence, Tuple
 
 from swh.loader.package.loader import PackageLoader
 
 from swh.model.identifiers import normalize_timestamp
+
+
+logger = logging.getLogger(__name__)
 
 
 # to recognize existing naming pattern
@@ -127,7 +131,7 @@ class GNULoader(PackageLoader):
 
         """
         super().__init__(url=package_url)
-        self.tarballs = list(sorted(tarballs, key=lambda v: int(v['date'])))
+        self.tarballs = list(sorted(tarballs, key=lambda v: v['time']))
 
     def get_versions(self) -> Sequence[str]:
         versions = []
@@ -145,12 +149,27 @@ class GNULoader(PackageLoader):
             Tuple[str, str, Dict], None, None]:
         for a_metadata in self.tarballs:
             url = a_metadata['archive']
-            filename = path.split(url)[-1]
-            yield filename, url, a_metadata
+            artifact_version = get_version(url)
+            if version == artifact_version:
+                filename = path.split(url)[-1]
+                yield filename, url, a_metadata
+
+    def resolve_revision_from(
+            self, known_artifacts: Dict, artifact_metadata: Dict) \
+            -> Optional[bytes]:
+        def pk(d):
+            return [d.get(k) for k in ['time', 'archive', 'length']]
+
+        artifact_pk = pk(artifact_metadata)
+        for rev_id, known_artifact in known_artifacts.items():
+            logging.debug('known_artifact: %s', known_artifact)
+            known_pk = pk(known_artifact['extrinsic']['raw'])
+            if artifact_pk == known_pk:
+                return rev_id
 
     def build_revision(
             self, a_metadata: Dict, a_uncompressed_path: str) -> Dict:
-        normalized_date = normalize_timestamp(int(a_metadata['date']))
+        normalized_date = normalize_timestamp(int(a_metadata['time']))
         return {
             'message': self.REVISION_MESSAGE,
             'date': normalized_date,
