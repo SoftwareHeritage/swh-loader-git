@@ -135,7 +135,6 @@ _expected_new_snapshot_first_visit_id = 'c419397fd912039825ebdbea378bc6283f006bf
 
 
 def test_visit_with_no_artifact_found(swh_config, requests_mock):
-    package = '8sync'
     package_url = 'https://ftp.gnu.org/gnu/8sync/'
     tarballs = [{
         'time': '944729610',
@@ -143,7 +142,7 @@ def test_visit_with_no_artifact_found(swh_config, requests_mock):
         'length': 221837,
     }]
 
-    loader = GNULoader(package, package_url, tarballs)
+    loader = GNULoader(package_url, tarballs)
     requests_mock.get(re.compile('https://'), status_code=404)
 
     actual_load_status = loader.load()
@@ -167,7 +166,6 @@ def test_visit_with_no_artifact_found(swh_config, requests_mock):
 
 
 def test_check_revision_metadata_structure(swh_config, local_get):
-    package = '8sync'
     package_url = 'https://ftp.gnu.org/gnu/8sync/'
     tarballs = [{
         'time': '944729610',
@@ -175,7 +173,7 @@ def test_check_revision_metadata_structure(swh_config, local_get):
         'length': 221837,
     }]
 
-    loader = GNULoader(package, package_url, tarballs)
+    loader = GNULoader(package_url, tarballs)
 
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
@@ -202,7 +200,6 @@ def test_visit_with_release_artifact_no_prior_visit(swh_config, local_get):
 
     """
     assert 'SWH_CONFIG_FILENAME' in os.environ  # cf. tox.ini
-    package = '8sync'
     package_url = 'https://ftp.gnu.org/gnu/8sync/'
     tarballs = [{
         'time': 944729610,
@@ -210,7 +207,7 @@ def test_visit_with_release_artifact_no_prior_visit(swh_config, local_get):
         'length': 221837,
     }]
 
-    loader = GNULoader(package, package_url, tarballs)
+    loader = GNULoader(package_url, tarballs)
 
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
@@ -251,7 +248,6 @@ def test_2_visits_without_change(swh_config, local_get):
 
     """
     assert 'SWH_CONFIG_FILENAME' in os.environ  # cf. tox.ini
-    package = '8sync'
     url = 'https://ftp.gnu.org/gnu/8sync/'
     tarballs = [{
         'time': 944729610,
@@ -259,7 +255,7 @@ def test_2_visits_without_change(swh_config, local_get):
         'length': 221837,
     }]
 
-    loader = GNULoader(package, url, tarballs)
+    loader = GNULoader(url, tarballs)
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
     origin_visit = list(loader.storage.origin_visit_get(url))[-1]
@@ -282,7 +278,6 @@ def test_2_visits_with_new_artifact(swh_config, local_get):
 
     """
     assert 'SWH_CONFIG_FILENAME' in os.environ  # cf. tox.ini
-    package = '8sync'
     url = 'https://ftp.gnu.org/gnu/8sync/'
     tarball1 = {
         'time': 944729610,
@@ -290,7 +285,7 @@ def test_2_visits_with_new_artifact(swh_config, local_get):
         'length': 221837,
     }
 
-    loader = GNULoader(package, url, [tarball1])
+    loader = GNULoader(url, [tarball1])
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
     origin_visit = list(loader.storage.origin_visit_get(url))[-1]
@@ -320,7 +315,7 @@ def test_2_visits_with_new_artifact(swh_config, local_get):
         'archive': 'https://ftp.gnu.org/gnu/8sync/8sync-0.2.0.tar.gz',
         'length': 238466,
     }
-    loader2 = GNULoader(package, url, [tarball1, tarball2])
+    loader2 = GNULoader(url, [tarball1, tarball2])
     # implementation detail: share the storage in between visits
     loader2.storage = loader.storage
     stats2 = loader2.storage.stat_counters()

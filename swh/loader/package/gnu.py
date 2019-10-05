@@ -117,13 +117,12 @@ class GNULoader(PackageLoader):
     }
     REVISION_MESSAGE = b'swh-loader-package: synthetic revision message'
 
-    def __init__(self, package: str, package_url: str, tarballs: Sequence):
+    def __init__(self, package_url: str, tarballs: Sequence):
         """Loader constructor.
 
         For now, this is the lister's task output.
 
         Args:
-            package: Package's name (unused)
             package_url: Origin url
 
             tarballs: List of dict with keys `date` (date) and `archive` (str)
