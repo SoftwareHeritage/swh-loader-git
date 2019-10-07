@@ -5,6 +5,7 @@
 
 import requests
 
+from .conftest import DATADIR
 
 # In this arborescence, we override in the local conftest.py module the
 # "datadir" fixture to specify where to retrieve the data files from.
@@ -17,3 +18,7 @@ def test_local_get_with_datadir_fixture_override(local_get):
     response = requests.get('https://example.com/file.json')
     assert response.ok
     assert response.json() == {'welcome': 'you'}
+
+
+def test_data_dir_override(datadir):
+    assert datadir == DATADIR

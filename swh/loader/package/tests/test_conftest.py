@@ -5,6 +5,7 @@
 
 import requests
 
+from os import path
 
 from swh.loader.package.tests.conftest import local_get_factory
 
@@ -81,3 +82,8 @@ def test_get_response_cb_ignore_url_with_visit(local_get_ignore_and_visit):
     response = requests.get('https://example.com/file.json')
     assert not response.ok
     assert response.status_code == 404
+
+
+def test_data_dir(datadir):
+    expected_datadir = path.join(path.abspath(path.dirname(__file__)), 'data')
+    assert datadir == expected_datadir

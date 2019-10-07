@@ -12,8 +12,6 @@ from functools import partial
 from os import path
 from urllib.parse import urlparse
 
-from .common import DATADIR
-
 import swh.storage
 from swh.storage import get_storage as initial_get_storage
 
@@ -40,8 +38,8 @@ MAX_VISIT_FILES = 10
 
 
 @pytest.fixture
-def swh_config(monkeypatch):
-    conffile = os.path.join(DATADIR, 'loader.yml')
+def swh_config(monkeypatch, datadir):
+    conffile = os.path.join(datadir, 'loader.yml')
     monkeypatch.setenv('SWH_CONFIG_FILENAME', conffile)
     return conffile
 
@@ -55,7 +53,7 @@ def get_response_cb(request, context, datadir, ignore_urls=[], visits=None):
     It will look for files on the local filesystem based on the requested URL,
     using the following rules:
 
-    - files are searched in the DATADIR/<hostname> directory
+    - files are searched in the datadir/<hostname> directory
 
     - the local file name is the path part of the URL with path hierarchy
       markers (aka '/') replaced by '_'
@@ -72,7 +70,7 @@ def get_response_cb(request, context, datadir, ignore_urls=[], visits=None):
 
     will look the content of the response in:
 
-        DATADIR/resources/nowhere.com/path_to_resource
+        datadir/nowhere.com/path_to_resource
 
     Args:
         request (requests.Request): Object requests
@@ -118,8 +116,11 @@ def get_response_cb(request, context, datadir, ignore_urls=[], visits=None):
 
 
 @pytest.fixture
-def datadir():
-    return DATADIR
+def datadir(request):
+    """By default, returns the test directory
+
+    """
+    return path.join(path.dirname(request.fspath), 'data')
 
 
 def local_get_factory(ignore_urls=[],

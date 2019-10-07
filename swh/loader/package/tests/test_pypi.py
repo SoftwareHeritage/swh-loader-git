@@ -17,7 +17,7 @@ from swh.loader.package.pypi import (
     PyPILoader, pypi_api_url, author, extract_intrinsic_metadata
 )
 from swh.loader.package.tests.common import (
-    check_snapshot, DATADIR, check_metadata_paths
+    check_snapshot, check_metadata_paths
 )
 
 from swh.loader.package.tests.conftest import local_get_factory
@@ -140,11 +140,11 @@ def test_pypi_api_url():
 
 
 @pytest.mark.fs
-def test_extract_intrinsic_metadata(tmp_path):
+def test_extract_intrinsic_metadata(tmp_path, datadir):
     """Parsing existing archive's PKG-INFO should yield results"""
     uncompressed_archive_path = str(tmp_path)
     archive_path = path.join(
-        DATADIR, 'files.pythonhosted.org', '0805nexter-1.1.0.zip')
+        datadir, 'files.pythonhosted.org', '0805nexter-1.1.0.zip')
     uncompress(archive_path, dest=uncompressed_archive_path)
 
     actual_metadata = extract_intrinsic_metadata(uncompressed_archive_path)

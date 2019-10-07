@@ -13,7 +13,7 @@ from swh.loader.package.npm import (
     parse_npm_package_author, extract_npm_package_author
 )
 from swh.loader.package.tests.common import (
-    DATADIR, check_snapshot, check_metadata_paths
+    check_snapshot, check_metadata_paths
 )
 
 from swh.loader.package.npm import NpmLoader
@@ -161,9 +161,9 @@ def test_parse_npm_package_author():
     )
 
 
-def test_extract_npm_package_author():
+def test_extract_npm_package_author(datadir):
     package_metadata_filepath = os.path.join(
-        DATADIR, 'replicate.npmjs.com', 'org_visit1')
+        datadir, 'replicate.npmjs.com', 'org_visit1')
 
     with open(package_metadata_filepath) as json_file:
         package_metadata = json.load(json_file)
