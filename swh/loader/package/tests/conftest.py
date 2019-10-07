@@ -46,7 +46,7 @@ def swh_config(monkeypatch):
     return conffile
 
 
-def get_response_cb(request, context, ignore_urls=[], visits=None):
+def get_response_cb(request, context, datadir, ignore_urls=[], visits=None):
     """Mount point callback to fetch on disk the content of a request
 
     This is meant to be used as 'body' argument of the requests_mock.get()
@@ -101,7 +101,7 @@ def get_response_cb(request, context, ignore_urls=[], visits=None):
     if filename.endswith('/'):
         filename = filename[:-1]
     filename = filename.replace('/', '_')
-    filepath = path.join(DATADIR, dirname, filename)
+    filepath = path.join(datadir, dirname, filename)
     if visits is not None:
         visit = visits.get(url, 0)
         visits[url] = visit + 1
@@ -117,18 +117,25 @@ def get_response_cb(request, context, ignore_urls=[], visits=None):
     return fd
 
 
+@pytest.fixture
+def datadir():
+    return DATADIR
+
+
 def local_get_factory(ignore_urls=[],
                       has_multi_visit=False):
     @pytest.fixture
-    def local_get(requests_mock):
+    def local_get(requests_mock, datadir):
         if not has_multi_visit:
             cb = partial(get_response_cb,
-                         ignore_urls=ignore_urls)
+                         ignore_urls=ignore_urls,
+                         datadir=datadir)
             requests_mock.get(re.compile('https://'), body=cb)
         else:
             visits = {}
             requests_mock.get(re.compile('https://'), body=partial(
-                get_response_cb, ignore_urls=ignore_urls, visits=visits)
+                get_response_cb, ignore_urls=ignore_urls, visits=visits,
+                datadir=datadir)
             )
 
         return requests_mock
@@ -137,4 +144,5 @@ def local_get_factory(ignore_urls=[],
 
 
 local_get = local_get_factory([])
+
 local_get_visits = local_get_factory(has_multi_visit=True)
