@@ -228,6 +228,12 @@ class GitLoaderFromDisk(UnbufferedLoader):
             else:
                 branches[ref] = None
 
+        for ref, target in self.repo.refs.get_symrefs().items():
+            branches[ref] = {
+                'target': target,
+                'target_type': 'alias',
+            }
+
         self.snapshot = converters.branches_to_snapshot(branches)
         return self.snapshot
 

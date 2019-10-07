@@ -32,14 +32,14 @@ CONTENT1 = {
     '4bdb40dfd6ec75cb730e678b5d7786e30170c5fb',  # file2.txt
 }
 
-SNAPSHOT_ID = 'bdf3b06d6017e0d9ad6447a73da6ff1ae9efb8f0'
+SNAPSHOT_ID = 'a23699280a82a043f8c0994cf1631b568f716f95'
 
 SNAPSHOT1 = {
     'id': SNAPSHOT_ID,
     'branches': {
         'HEAD': {
-            'target': '2f01f5ca7e391a2f08905990277faf81e709a649',
-            'target_type': 'revision',
+            'target': 'refs/heads/master',
+            'target_type': 'alias',
         },
         'refs/heads/master': {
             'target': '2f01f5ca7e391a2f08905990277faf81e709a649',

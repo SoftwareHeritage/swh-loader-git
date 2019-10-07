@@ -234,11 +234,14 @@ class GitLoader(UnbufferedLoader):
 
             pack_buffer.write(data)
 
-        remote_refs = client.fetch_pack(path,
+        pack_result = client.fetch_pack(path,
                                         base_repo.determine_wants,
                                         base_repo.graph_walker(),
                                         do_pack,
-                                        progress=do_activity).refs
+                                        progress=do_activity)
+
+        remote_refs = pack_result.refs
+        symbolic_refs = pack_result.symrefs
 
         if remote_refs:
             local_refs = base_repo.find_remote_ref_types_in_swh(remote_refs)
@@ -252,6 +255,7 @@ class GitLoader(UnbufferedLoader):
         return {
             'remote_refs': base_repo.filter_unwanted_refs(remote_refs),
             'local_refs': local_refs,
+            'symbolic_refs': symbolic_refs,
             'pack_buffer': pack_buffer,
             'pack_size': pack_size,
         }
@@ -313,6 +317,7 @@ class GitLoader(UnbufferedLoader):
 
         self.remote_refs = fetch_info['remote_refs']
         self.local_refs = fetch_info['local_refs']
+        self.symbolic_refs = fetch_info['symbolic_refs']
 
         origin_url = self.origin['url']
 
@@ -465,6 +470,9 @@ class GitLoader(UnbufferedLoader):
             ret_ref['target'] = hashutil.bytehex_to_hash(ret_ref['target'])
 
             branches[ref] = ret_ref
+
+        for ref, target in self.symbolic_refs.items():
+            branches[ref] = {'target_type': 'alias', 'target': target}
 
         self.snapshot = converters.branches_to_snapshot(branches)
         return self.snapshot
