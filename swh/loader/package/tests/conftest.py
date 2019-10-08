@@ -12,24 +12,8 @@ from functools import partial
 from os import path
 from urllib.parse import urlparse
 
-import swh.storage
-from swh.storage import get_storage as initial_get_storage
-
 
 logger = logging.getLogger(__name__)
-
-
-def get_storage(cls, args):
-    if cls == 'filter':
-        from swh.loader.package.storage import FilteringProxyStorage
-        return FilteringProxyStorage(**args)
-    if cls == 'buffer':
-        from swh.loader.package.storage import BufferingProxyStorage
-        return BufferingProxyStorage(**args)
-    return initial_get_storage(cls, args)
-
-
-swh.storage.get_storage = get_storage
 
 
 # Check get_local_factory function

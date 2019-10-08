@@ -7,7 +7,7 @@ storage:
         storage:
           cls: memory
           args: {}
-        thresholds:
+        min_batch_size:
           content: 5
           content_bytes: 100
           directory: 5
