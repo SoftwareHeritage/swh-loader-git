@@ -13,7 +13,7 @@ from swh.loader.package.tests.common import (
     check_snapshot, check_metadata_paths
 )
 
-from swh.loader.package.tests.conftest import local_get_factory
+from swh.core.pytest_plugin import requests_mock_datadir_factory
 
 
 def test_deposit_init_ok(swh_config):
@@ -58,13 +58,13 @@ def test_deposit_loading_failure_to_fetch_metadata(swh_config):
     assert origin_visit['status'] == 'partial'
 
 
-local_get_missing_one = local_get_factory(ignore_urls=[
+requests_mock_datadir_missing_one = requests_mock_datadir_factory(ignore_urls=[
     'https://deposit.softwareheritage.org/1/private/666/raw/',
 ])
 
 
 def test_deposit_loading_failure_to_retrieve_1_artifact(
-        swh_config, local_get_missing_one):
+        swh_config, requests_mock_datadir_missing_one):
     """Deposit with missing artifact ends up with an uneventful/partial visit
 
     """
@@ -94,9 +94,9 @@ def test_deposit_loading_failure_to_retrieve_1_artifact(
     assert origin_visit['status'] == 'partial'
 
 
-def test_revision_metadata_structure(swh_config, local_get, requests_mock):
+def test_revision_metadata_structure(swh_config, requests_mock_datadir):
     # do not care for deposit update query
-    requests_mock.put(re.compile('https'))
+    requests_mock_datadir.put(re.compile('https'))
 
     url = 'https://hal-test.archives-ouvertes.fr/some-external-id'
     deposit_id = 666
@@ -122,8 +122,8 @@ def test_revision_metadata_structure(swh_config, local_get, requests_mock):
     ])
 
 
-def test_deposit_loading_ok(swh_config, local_get, requests_mock):
-    requests_mock.put(re.compile('https'))  # do not care for put
+def test_deposit_loading_ok(swh_config, requests_mock_datadir):
+    requests_mock_datadir.put(re.compile('https'))  # do not care for put
 
     url = 'https://hal-test.archives-ouvertes.fr/some-external-id'
     deposit_id = 666

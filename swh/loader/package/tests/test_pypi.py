@@ -12,15 +12,15 @@ import pytest
 from unittest.mock import patch
 
 from swh.core.tarball import uncompress
+from swh.core.pytest_plugin import requests_mock_datadir_factory
 from swh.model.hashutil import hash_to_bytes
+
 from swh.loader.package.pypi import (
     PyPILoader, pypi_api_url, author, extract_intrinsic_metadata
 )
 from swh.loader.package.tests.common import (
     check_snapshot, check_metadata_paths
 )
-
-from swh.loader.package.tests.conftest import local_get_factory
 
 
 def test_author_basic():
@@ -182,13 +182,13 @@ def test_extract_intrinsic_metadata_failures(tmp_path):
 
 # no release artifact:
 # {visit full, status: uneventful, no contents, etc...}
-local_get_missing_all = local_get_factory(ignore_urls=[
+requests_mock_datadir_missing_all = requests_mock_datadir_factory(ignore_urls=[
     'https://files.pythonhosted.org/packages/ec/65/c0116953c9a3f47de89e71964d6c7b0c783b01f29fa3390584dbf3046b4d/0805nexter-1.1.0.zip',  # noqa
     'https://files.pythonhosted.org/packages/c4/a0/4562cda161dc4ecbbe9e2a11eb365400c0461845c5be70d73869786809c4/0805nexter-1.2.0.zip',  # noqa
 ])
 
 
-def test_no_release_artifact(swh_config, local_get_missing_all):
+def test_no_release_artifact(swh_config, requests_mock_datadir_missing_all):
     """Load a pypi project with all artifacts missing ends up with no snapshot
 
     """
@@ -257,7 +257,7 @@ def test_release_with_traceback(swh_config):
 # "normal" cases (for the same origin) #
 
 
-local_get_missing_one = local_get_factory(ignore_urls=[
+requests_mock_datadir_missing_one = requests_mock_datadir_factory(ignore_urls=[
     'https://files.pythonhosted.org/packages/ec/65/c0116953c9a3f47de89e71964d6c7b0c783b01f29fa3390584dbf3046b4d/0805nexter-1.1.0.zip',  # noqa
 ])
 
@@ -265,7 +265,7 @@ local_get_missing_one = local_get_factory(ignore_urls=[
 # {visit partial, status: eventful, 1 snapshot}
 
 
-def test_revision_metadata_structure(swh_config, local_get):
+def test_revision_metadata_structure(swh_config, requests_mock_datadir):
     url = 'https://pypi.org/project/0805nexter'
     loader = PyPILoader(url)
 
@@ -290,7 +290,8 @@ def test_revision_metadata_structure(swh_config, local_get):
     ])
 
 
-def test_visit_with_missing_artifact(swh_config, local_get_missing_one):
+def test_visit_with_missing_artifact(
+        swh_config, requests_mock_datadir_missing_one):
     """Load a pypi project with some missing artifacts ends up with 1 snapshot
 
     """
@@ -356,7 +357,7 @@ def test_visit_with_missing_artifact(swh_config, local_get_missing_one):
     assert origin_visit['status'] == 'partial'
 
 
-def test_visit_with_1_release_artifact(swh_config, local_get):
+def test_visit_with_1_release_artifact(swh_config, requests_mock_datadir):
     """With no prior visit, load a pypi project ends up with 1 snapshot
 
     """
@@ -432,7 +433,7 @@ def test_visit_with_1_release_artifact(swh_config, local_get):
     assert origin_visit['status'] == 'full'
 
 
-def test_multiple_visits_with_no_change(swh_config, local_get):
+def test_multiple_visits_with_no_change(swh_config, requests_mock_datadir):
     """Multiple visits with no changes results in 1 same snapshot
 
     """
@@ -493,7 +494,7 @@ def test_multiple_visits_with_no_change(swh_config, local_get):
     assert actual_snapshot_id == hash_to_bytes(snapshot_id)
 
 
-def test_incremental_visit(swh_config, local_get_visits):
+def test_incremental_visit(swh_config, requests_mock_datadir_visits):
     """With prior visit, 2nd load will result with a different snapshot
 
     """
@@ -604,7 +605,7 @@ def test_incremental_visit(swh_config, local_get_visits):
     assert origin_visit['status'] == 'full'
 
     urls = [
-        m.url for m in local_get_visits.request_history
+        m.url for m in requests_mock_datadir_visits.request_history
         if m.url.startswith('https://files.pythonhosted.org')
     ]
     # visited each artifact once across 2 visits
@@ -621,7 +622,7 @@ def test_incremental_visit(swh_config, local_get_visits):
 # release with multiple sdist artifacts per pypi "version"
 # snapshot branch output is different
 
-def test_visit_1_release_with_2_artifacts(swh_config, local_get):
+def test_visit_1_release_with_2_artifacts(swh_config, requests_mock_datadir):
     """With no prior visit, load a pypi project ends up with 1 snapshot
 
     """

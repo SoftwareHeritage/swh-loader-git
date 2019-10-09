@@ -165,7 +165,7 @@ def test_visit_with_no_artifact_found(swh_config, requests_mock):
     assert origin_visit['status'] == 'partial'
 
 
-def test_check_revision_metadata_structure(swh_config, local_get):
+def test_check_revision_metadata_structure(swh_config, requests_mock_datadir):
     package_url = 'https://ftp.gnu.org/gnu/8sync/'
     tarballs = [{
         'time': '944729610',
@@ -195,7 +195,8 @@ def test_check_revision_metadata_structure(swh_config, local_get):
     ])
 
 
-def test_visit_with_release_artifact_no_prior_visit(swh_config, local_get):
+def test_visit_with_release_artifact_no_prior_visit(
+        swh_config, requests_mock_datadir):
     """With no prior visit, load a gnu project ends up with 1 snapshot
 
     """
@@ -243,7 +244,7 @@ def test_visit_with_release_artifact_no_prior_visit(swh_config, local_get):
     check_snapshot(expected_snapshot, loader.storage)
 
 
-def test_2_visits_without_change(swh_config, local_get):
+def test_2_visits_without_change(swh_config, requests_mock_datadir):
     """With no prior visit, load a gnu project ends up with 1 snapshot
 
     """
@@ -267,13 +268,13 @@ def test_2_visits_without_change(swh_config, local_get):
     assert origin_visit2['status'] == 'full'
 
     urls = [
-        m.url for m in local_get.request_history
+        m.url for m in requests_mock_datadir.request_history
         if m.url.startswith('https://ftp.gnu.org')
     ]
     assert len(urls) == 1
 
 
-def test_2_visits_with_new_artifact(swh_config, local_get):
+def test_2_visits_with_new_artifact(swh_config, requests_mock_datadir):
     """With no prior visit, load a gnu project ends up with 1 snapshot
 
     """
@@ -305,7 +306,7 @@ def test_2_visits_with_new_artifact(swh_config, local_get):
     } == stats
 
     urls = [
-        m.url for m in local_get.request_history
+        m.url for m in requests_mock_datadir.request_history
         if m.url.startswith('https://ftp.gnu.org')
     ]
     assert len(urls) == 1
@@ -341,7 +342,7 @@ def test_2_visits_with_new_artifact(swh_config, local_get):
     assert origin_visit2['status'] == 'full'
 
     urls = [
-        m.url for m in local_get.request_history
+        m.url for m in requests_mock_datadir.request_history
         if m.url.startswith('https://ftp.gnu.org')
     ]
     # 1 artifact (2nd time no modification) + 1 new artifact

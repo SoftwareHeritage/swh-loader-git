@@ -403,7 +403,7 @@ def package_metadata_url(package):
     return 'https://replicate.npmjs.com/%s/' % package
 
 
-def test_revision_metadata_structure(swh_config, local_get):
+def test_revision_metadata_structure(swh_config, requests_mock_datadir):
     package = 'org'
     loader = NpmLoader(package,
                        package_url(package),
@@ -430,7 +430,7 @@ def test_revision_metadata_structure(swh_config, local_get):
     ])
 
 
-def test_npm_loader_first_visit(swh_config, local_get):
+def test_npm_loader_first_visit(swh_config, requests_mock_datadir):
 
     package = 'org'
     loader = NpmLoader(package,
@@ -471,7 +471,8 @@ def test_npm_loader_first_visit(swh_config, local_get):
     check_snapshot(expected_snapshot, loader.storage)
 
 
-def test_npm_loader_incremental_visit(swh_config, local_get_visits):
+def test_npm_loader_incremental_visit(
+        swh_config, requests_mock_datadir_visits):
     package = 'org'
     url = package_url(package)
     metadata_url = package_metadata_url(package)
@@ -519,7 +520,7 @@ def test_npm_loader_incremental_visit(swh_config, local_get_visits):
     } == stats
 
     urls = [
-        m.url for m in local_get_visits.request_history
+        m.url for m in requests_mock_datadir_visits.request_history
         if m.url.startswith('https://registry.npmjs.org')
     ]
     assert len(urls) == len(set(urls))  # we visited each artifact once across
