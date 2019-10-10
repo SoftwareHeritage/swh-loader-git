@@ -1,3 +1,12 @@
+swh-loader-git (0.0.52-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 0.0.52     - (tagged by Stefano Zacchiroli
+    <zack@upsilon.cc> on 2019-10-10 12:07:05 +0200)
+  * Upstream changes:     - v0.0.52     - (brown paper bag release)     -
+    * MANIFEST.in: ship py.typed
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Thu, 10 Oct 2019 10:12:13 +0000
+
 swh-loader-git (0.0.51-1~swh1) unstable-swh; urgency=medium
 
   * New upstream release 0.0.51     - (tagged by Stefano Zacchiroli
