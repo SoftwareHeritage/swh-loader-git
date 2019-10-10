@@ -26,3 +26,4 @@ swh/loader/git/tests/test_loader.py
 swh/loader/git/tests/test_tasks.py
 swh/loader/git/tests/test_utils.py
 swh/loader/git/tests/data/git-repos/example-submodule.fast-export.xz
+swh/loader/git/tests/resources/testrepo.tgz
