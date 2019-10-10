@@ -1,3 +1,14 @@
+swh-loader-git (0.0.51-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 0.0.51     - (tagged by Stefano Zacchiroli
+    <zack@upsilon.cc> on 2019-10-10 11:59:01 +0200)
+  * Upstream changes:     - v0.0.51     - * tox.ini: Fix py3 environment
+    to use packaged tests     - * typing: minimal changes to make a no-
+    op mypy run pass     - * test_from_disk.py: avoid shadowing base
+    classes in tests
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Thu, 10 Oct 2019 10:02:08 +0000
+
 swh-loader-git (0.0.50-1~swh1) unstable-swh; urgency=medium
 
   * New upstream release 0.0.50     - (tagged by Antoine Lambert
