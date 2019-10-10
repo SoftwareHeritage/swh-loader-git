@@ -7,13 +7,16 @@ import os.path
 import subprocess
 
 
-from swh.loader.git.from_disk import GitLoaderFromDisk, GitLoaderFromArchive
+from swh.loader.git.from_disk import GitLoaderFromDisk \
+    as OrigGitLoaderFromDisk
+from swh.loader.git.from_disk import GitLoaderFromArchive \
+    as OrigGitLoaderFromArchive
 from swh.loader.core.tests import BaseLoaderTest
 
 from . import TEST_LOADER_CONFIG
 
 
-class GitLoaderFromArchive(GitLoaderFromArchive):
+class GitLoaderFromArchive(OrigGitLoaderFromArchive):
     def project_name_from_archive(self, archive_path):
         # We don't want the project name to be 'resources'.
         return 'testrepo'
@@ -102,7 +105,7 @@ class BaseGitLoaderFromDiskTest(BaseLoaderTest):
                       uncompress_archive=uncompress_archive)
 
 
-class GitLoaderFromDiskTest(GitLoaderFromDisk):
+class GitLoaderFromDiskTest(OrigGitLoaderFromDisk):
     def parse_config_file(self, *args, **kwargs):
         return TEST_LOADER_CONFIG
 
