@@ -90,8 +90,9 @@ class PackageLoader:
         yield from {}
 
     def build_revision(
-            self, a_metadata: Dict, a_uncompressed_path: str) -> Dict:
-        """Build the revision dict
+            self, a_metadata: Dict, i_metadata: Dict) -> Dict:
+        """Build the revision dict from the archive metadata (extrinsic
+        artifact metadata) and the intrinsic metadata.
 
         Returns:
             SWH data dict
@@ -163,6 +164,43 @@ class PackageLoader:
 
         """
         return None
+
+    def download_package(self, a_uri: str, tmpdir: str, filename: str,
+                         a_metadata: Dict) -> Tuple[str, Dict]:
+        """Download package from uri within the tmpdir (with name filename).
+        Optionally, this can also use the a_metadata information to retrieve
+        more information.
+
+        Note: Default implementation does not use the a_metadata (debian
+        implementation does)
+
+        """
+        return download(a_uri, dest=tmpdir, filename=filename)
+
+    def read_intrinsic_metadata(
+            self, a_metadata: Dict, a_uncompressed_path: str) -> Dict:
+        """Read intrinsic metadata from either the a_metadata or
+        the uncompressed path.
+
+        Depending on the implementations, some extracts directly from the
+        artifacts to ingest (pypi, npm...), some use api to access directly
+        their intrinsic metadata (debian exposes a dsc through uri) or some
+        have none (gnu).
+
+        """
+        return {}
+
+    def uncompress(
+            self, a_path: str, tmpdir: str, a_metadata: Dict) -> str:
+        """Uncompress the artfifact(s) stored at a_path to tmpdir.
+
+        Optionally, this could need to use the a_metadata dict for some more
+        information (debian).
+
+        """
+        uncompressed_path = os.path.join(tmpdir, 'src')
+        uncompress(a_path, dest=uncompressed_path)
+        return uncompressed_path
 
     def load(self) -> Dict:
         """Load for a specific origin the associated contents.
@@ -241,8 +279,9 @@ class PackageLoader:
                         with tempfile.TemporaryDirectory() as tmpdir:
                             try:
                                 # a_c_: archive_computed_
-                                a_path, a_c_metadata = download(
-                                    a_uri, dest=tmpdir, filename=a_filename)
+                                a_path, a_c_metadata = self.download_package(
+                                    a_uri, tmpdir, a_filename,
+                                    a_metadata=a_metadata)
                             except Exception:
                                 logger.exception('Unable to retrieve %s',
                                                  a_uri)
@@ -253,14 +292,14 @@ class PackageLoader:
                             logger.debug('archive_computed_metadata: %s',
                                          a_c_metadata)
 
-                            uncompressed_path = os.path.join(tmpdir, 'src')
-                            uncompress(a_path, dest=uncompressed_path)
-
+                            uncompressed_path = self.uncompress(
+                                a_path, tmpdir, a_metadata)
                             logger.debug('uncompressed_path: %s',
                                          uncompressed_path)
 
                             directory = Directory.from_disk(
-                                path=uncompressed_path.encode('utf-8'), data=True)  # noqa
+                                path=uncompressed_path.encode('utf-8'),
+                                data=True)  # noqa
                             # FIXME: Try not to load the full raw content in
                             # memory
                             objects = directory.collect()
@@ -280,11 +319,13 @@ class PackageLoader:
 
                             self.storage.directory_add(directories)
 
+                            i_metadata = self.read_intrinsic_metadata(
+                                a_metadata, uncompressed_path)
+
                             # FIXME: This should be release. cf. D409
                             revision = self.build_revision(
-                                a_metadata, uncompressed_path)
+                                a_metadata, i_metadata)
                             revision.update({
-                                'type': 'tar',
                                 'synthetic': True,
                                 'directory': directory.hash,
                             })

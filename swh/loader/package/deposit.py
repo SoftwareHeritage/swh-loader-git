@@ -60,7 +60,7 @@ class DepositLoader(PackageLoader):
         yield filename, url, self.metadata
 
     def build_revision(
-            self, a_metadata: Dict, a_uncompressed_path: str) -> Dict:
+            self, a_metadata: Dict, i_metadata: Dict) -> Dict:
         revision = a_metadata.pop('revision')
         metadata = {
             'extrinsic': {
@@ -76,6 +76,7 @@ class DepositLoader(PackageLoader):
         revision['author'] = parse_author(revision['author'])
         revision['committer'] = parse_author(revision['committer'])
         revision['message'] = revision['message'].encode('utf-8')
+        revision['type'] = 'tar'
 
         return revision
 

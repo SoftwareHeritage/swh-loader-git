@@ -257,10 +257,12 @@ class NpmLoader(PackageLoader):
             if shasum == original_artifact['checksums']['sha1']:
                 return rev_id
 
+    def read_intrinsic_metadata(self, a_metadata: Dict,
+                                a_uncompressed_path: str) -> Dict:
+        return extract_intrinsic_metadata(a_uncompressed_path)
+
     def build_revision(
-            self, a_metadata: Dict, a_uncompressed_path: str) -> Dict:
-        # Parse metadata (project, artifact metadata)
-        i_metadata = extract_intrinsic_metadata(a_uncompressed_path)
+            self, a_metadata: Dict, i_metadata: Dict) -> Dict:
 
         # from intrinsic metadata
         author = extract_npm_package_author(i_metadata)
@@ -272,11 +274,12 @@ class NpmLoader(PackageLoader):
         message = version.encode('ascii')
 
         return {
+            'type': 'tar',
+            'message': message,
             'author': author,
             'date': date,
             'committer': author,
             'committer_date': date,
-            'message': message,
             'parents': [],
             'metadata': {
                 'intrinsic': {

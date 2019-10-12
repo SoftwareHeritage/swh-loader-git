@@ -143,14 +143,16 @@ class PyPILoader(PackageLoader):
             if sha256 == original_artifact['checksums']['sha256']:
                 return rev_id
 
+    def read_intrinsic_metadata(self, a_metadata: Dict,
+                                a_uncompressed_path: str) -> Dict:
+        return extract_intrinsic_metadata(a_uncompressed_path)
+
     def build_revision(
-            self, a_metadata: Dict, a_uncompressed_path: str) -> Dict:
-        # Parse metadata (project, artifact metadata)
-        metadata = extract_intrinsic_metadata(a_uncompressed_path)
+            self, a_metadata: Dict, i_metadata: Dict) -> Dict:
 
         # from intrinsic metadata
-        name = metadata['version']
-        _author = author(metadata)
+        name = i_metadata['version']
+        _author = author(i_metadata)
 
         # from extrinsic metadata
         message = a_metadata.get('comment_text', '')
@@ -159,6 +161,7 @@ class PyPILoader(PackageLoader):
             int(iso8601.parse_date(a_metadata['upload_time']).timestamp()))
 
         return {
+            'type': 'tar',
             'message': message.encode('utf-8'),
             'author': _author,
             'date': date,
@@ -168,7 +171,7 @@ class PyPILoader(PackageLoader):
             'metadata': {
                 'intrinsic': {
                     'tool': 'PKG-INFO',
-                    'raw': metadata,
+                    'raw': i_metadata,
                 },
                 'extrinsic': {
                     'provider': self.provider_url,

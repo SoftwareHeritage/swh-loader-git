@@ -167,9 +167,10 @@ class GNULoader(PackageLoader):
                 return rev_id
 
     def build_revision(
-            self, a_metadata: Dict, a_uncompressed_path: str) -> Dict:
+            self, a_metadata: Dict, i_metadata: Dict) -> Dict:
         normalized_date = normalize_timestamp(int(a_metadata['time']))
         return {
+            'type': 'tar',
             'message': self.REVISION_MESSAGE,
             'date': normalized_date,
             'author': self.SWH_PERSON,
