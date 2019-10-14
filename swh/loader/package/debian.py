@@ -74,9 +74,8 @@ def download_package(package: Dict, tmpdir: Any) -> Mapping[str, Dict]:
 
     """
     all_hashes = {}
-    for filename, fileinfo in copy.deepcopy(package['files']).items():
-        uri = fileinfo.pop('uri')
-        logger.debug('filename: %s', filename)
+    for filename, fileinfo in package['files'].items():
+        uri = fileinfo['uri']
         logger.debug('fileinfo: %s', fileinfo)
         extrinsic_hashes = {'sha256': fileinfo['sha256']}
         logger.debug('extrinsic_hashes(%s): %s', filename, extrinsic_hashes)
@@ -272,18 +271,18 @@ class DebianLoader(PackageLoader):
         return list(self.packages.keys())[0]
 
     def get_artifacts(self, version: str) -> Generator[
-            Tuple[str, str, Dict], None, None]:
-        url = ''  # url is not useful to retrieve the package files here
+            Tuple[Mapping[str, Any], Dict], None, None]:
         a_metadata = self.packages[version]
-        yield version, url, a_metadata  # we care only for version, a_metadata
+        artifacts_package_info = a_metadata.copy()
+        artifacts_package_info['filename'] = version
+        yield artifacts_package_info, a_metadata
 
     def resolve_revision_from(
             self, known_artifacts: Dict, artifact_metadata: Dict) \
             -> Optional[bytes]:
         pass  # for now
 
-    def download_package(self, a_uri: str, tmpdir: str, filename: str,
-                         a_metadata: Dict) -> Tuple[str, Dict]:
+    def download_package(self, a_p_info: str, tmpdir: str) -> Tuple[str, Dict]:
         """Contrary to other package loaders (1 package, 1 artifact),
         `a_metadata` represents the package's datafiles set to fetch:
         - <package-version>.orig.tar.gz
@@ -293,8 +292,8 @@ class DebianLoader(PackageLoader):
         This is delegated to the `download_package` function.
 
         """
-        logger.debug('debian: a_metadata: %s', a_metadata)
-        a_c_metadata = download_package(a_metadata, tmpdir)
+        logger.debug('debian: artifactS_package_info: %s', a_p_info)
+        a_c_metadata = download_package(a_p_info, tmpdir)
         return tmpdir, a_c_metadata
 
     def uncompress(self, a_path: str, tmpdir: str, a_metadata: Dict) -> str:

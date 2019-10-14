@@ -9,7 +9,7 @@ import os
 import re
 
 from codecs import BOM_UTF8
-from typing import Generator, Dict, Tuple, Sequence, Optional
+from typing import Dict, Generator, Mapping, Sequence, Tuple, Optional
 
 import chardet
 import iso8601
@@ -242,11 +242,14 @@ class NpmLoader(PackageLoader):
         return self.info['dist-tags'].get('latest', '')
 
     def get_artifacts(self, version: str) -> Generator[
-            Tuple[str, str, Dict], None, None]:
+            Tuple[Mapping[str, str], Dict], None, None]:
         meta = self.info['versions'][version]
         url = meta['dist']['tarball']
-        filename = os.path.basename(url)
-        yield filename, url, meta
+        artifact_package_info = {
+            'url': url,
+            'filename': os.path.basename(url),
+        }
+        yield artifact_package_info, meta
 
     def resolve_revision_from(
             self, known_artifacts: Dict, artifact_metadata: Dict) \

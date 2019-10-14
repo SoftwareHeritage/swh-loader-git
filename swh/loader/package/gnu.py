@@ -8,7 +8,7 @@ import re
 
 from os import path
 
-from typing import Dict, Generator, Optional, Sequence, Tuple
+from typing import Dict, Generator, Mapping, Optional, Sequence, Tuple
 
 from swh.loader.package.loader import PackageLoader
 
@@ -145,13 +145,16 @@ class GNULoader(PackageLoader):
         return get_version(self.tarballs[-1]['archive'])
 
     def get_artifacts(self, version: str) -> Generator[
-            Tuple[str, str, Dict], None, None]:
+            Tuple[Mapping[str, str], Dict], None, None]:
         for a_metadata in self.tarballs:
             url = a_metadata['archive']
             artifact_version = get_version(url)
             if version == artifact_version:
-                filename = path.split(url)[-1]
-                yield filename, url, a_metadata
+                artifact_package_info = {
+                    'url': url,
+                    'filename': path.split(url)[-1]
+                }
+                yield artifact_package_info, a_metadata
 
     def resolve_revision_from(
             self, known_artifacts: Dict, artifact_metadata: Dict) \

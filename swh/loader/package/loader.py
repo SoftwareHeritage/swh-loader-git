@@ -8,7 +8,7 @@ import logging
 import tempfile
 import os
 
-from typing import Generator, Dict, Tuple, Sequence, List, Optional
+from typing import Dict, Generator, List, Mapping, Optional, Sequence, Tuple
 
 from swh.core.tarball import uncompress
 from swh.core.config import SWHConfig
@@ -165,16 +165,28 @@ class PackageLoader:
         """
         return None
 
-    def download_package(self, a_uri: str, tmpdir: str, filename: str,
-                         a_metadata: Dict) -> Tuple[str, Dict]:
-        """Download package from uri within the tmpdir (with name filename).
-        Optionally, this can also use the a_metadata information to retrieve
-        more information.
+    def download_package(self, artifacts_package_info: Mapping[str, str],
+                         tmpdir: str) -> Tuple[str, Dict]:
+        """Download artifacts for a specific package. All downloads happen in the
+        the tmpdir folder.
 
-        Note: Default implementation does not use the a_metadata (debian
-        implementation does)
+        Default implementation expects the artifacts package info to be
+        about one artifact per package.
+
+        Note that most implementation have 1 artifact per package. But some
+        implementation have multiple artifacts per package (debian), some have
+        none, the package is the artifact (gnu).
+
+        Args:
+            artifacts_package_info: Information on the package artifacts to
+                download (uri, filename, etc...)
+            tmpdir: Location to retrieve such artifacts
+
+        Note:
 
         """
+        a_uri = artifacts_package_info['url']
+        filename = artifacts_package_info.get('filename')
         return download(a_uri, dest=tmpdir, filename=filename)
 
     def read_intrinsic_metadata(
@@ -269,9 +281,9 @@ class PackageLoader:
             for version in self.get_versions():  # for each
                 logger.debug('version: %s', version)
                 tmp_revisions[version] = []
-                # `a_` stands for `artifact_`
-                for a_filename, a_uri, a_metadata in self.get_artifacts(
-                        version):
+                # `a_` stands for `artifact_`, `p_` stands for `package_`
+                for a_p_info, a_metadata in self.get_artifacts(version):
+                    logger.debug('a_p_info: %s', a_p_info)
                     logger.debug('a_metadata: %s', a_metadata)
                     revision_id = self.resolve_revision_from(
                         known_artifacts, a_metadata)
@@ -280,11 +292,10 @@ class PackageLoader:
                             try:
                                 # a_c_: archive_computed_
                                 a_path, a_c_metadata = self.download_package(
-                                    a_uri, tmpdir, a_filename,
-                                    a_metadata=a_metadata)
+                                    a_p_info, tmpdir)
                             except Exception:
                                 logger.exception('Unable to retrieve %s',
-                                                 a_uri)
+                                                 a_p_info['url'])
                                 status_visit = 'partial'
                                 continue
 
@@ -341,7 +352,8 @@ class PackageLoader:
 
                         self.storage.revision_add([revision])
 
-                    tmp_revisions[version].append((a_filename, revision_id))
+                    tmp_revisions[version].append(
+                        (a_p_info['filename'], revision_id))
 
             # Build and load the snapshot
             branches = {}

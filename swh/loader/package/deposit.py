@@ -5,7 +5,7 @@
 
 import logging
 
-from typing import Generator, Dict, Tuple, Sequence
+from typing import Dict, Generator, Mapping, Sequence, Tuple
 
 from swh.model.hashutil import hash_to_hex
 from swh.loader.package.loader import PackageLoader
@@ -54,10 +54,12 @@ class DepositLoader(PackageLoader):
         return ['HEAD']
 
     def get_artifacts(self, version: str) -> Generator[
-            Tuple[str, str, Dict], None, None]:
-        filename = 'archive.zip'  # do not care about it here
-        url = self.client.base_url + self.archive_url
-        yield filename, url, self.metadata
+            Tuple[Mapping[str, str], Dict], None, None]:
+        artifact_package_info = {
+            'url': self.client.base_url + self.archive_url,
+            'filename': 'archive.zip',
+        }
+        yield artifact_package_info, self.metadata
 
     def build_revision(
             self, a_metadata: Dict, i_metadata: Dict) -> Dict:

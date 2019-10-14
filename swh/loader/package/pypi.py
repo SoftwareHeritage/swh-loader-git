@@ -5,7 +5,7 @@
 
 import os
 
-from typing import Generator, Dict, Tuple, Sequence, Optional
+from typing import Generator, Dict, Mapping, Optional, Sequence, Tuple
 from urllib.parse import urlparse
 from pkginfo import UnpackedSDist
 
@@ -130,9 +130,13 @@ class PyPILoader(PackageLoader):
         return self.info['info']['version']
 
     def get_artifacts(self, version: str) -> Generator[
-            Tuple[str, str, Dict], None, None]:
+            Tuple[Mapping[str, str], Dict], None, None]:
         for meta in self.info['releases'][version]:
-            yield meta['filename'], meta['url'], meta
+            artifact_package_info = {
+                'url': meta['url'],
+                'filename': meta['filename'],
+            }
+            yield artifact_package_info, meta
 
     def resolve_revision_from(
             self, known_artifacts: Dict, artifact_metadata: Dict) \
