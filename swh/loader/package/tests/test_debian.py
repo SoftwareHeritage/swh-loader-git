@@ -3,10 +3,13 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import copy
+import pytest
+
 from os import path
 
 from swh.loader.package.debian import (
-    DebianLoader, get_file_info, download_package
+    DebianLoader, get_file_info, download_package, dsc_information
 )
 from swh.loader.package.tests.common import check_snapshot
 
@@ -92,6 +95,39 @@ def test_download_package(datadir, tmpdir, requests_mock_http_datadir):
             },
             'filename': 'cicero_0.7.2.orig.tar.gz',
             'length': 96527}}
+
+
+def test_dsc_information_ok():
+    fname = 'cicero_0.7.2-3.dsc'
+    dsc_url, dsc_name = dsc_information(PACKAGE_FILES)
+
+    assert dsc_url == PACKAGE_FILES['files'][fname]['uri']
+    assert dsc_name == PACKAGE_FILES['files'][fname]['name']
+
+
+def test_dsc_information_not_found():
+    fname = 'cicero_0.7.2-3.dsc'
+    package_files = copy.deepcopy(PACKAGE_FILES)
+    package_files['files'].pop(fname)
+
+    dsc_url, dsc_name = dsc_information(package_files)
+
+    assert dsc_url is None
+    assert dsc_name is None
+
+
+def test_dsc_information_too_many_dsc_entries():
+    # craft an extra dsc file
+    fname = 'cicero_0.7.2-3.dsc'
+    package_files = copy.deepcopy(PACKAGE_FILES)
+    data = package_files['files'][fname]
+    fname2 = fname.replace('cicero', 'ciceroo')
+    package_files['files'][fname2] = data
+
+    with pytest.raises(
+            ValueError, match='Package %s_%s references several dsc' % (
+                package_files['name'], package_files['version'])):
+        dsc_information(package_files)
 
 
 def test_debian_first_visit(

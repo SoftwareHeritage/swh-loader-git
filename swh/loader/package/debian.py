@@ -14,6 +14,7 @@ import subprocess
 from dateutil.parser import parse as parse_date
 from debian.changelog import Changelog
 from debian.deb822 import Dsc
+from os import path
 from typing import Any, Dict, Generator, Mapping, Optional, Sequence, Tuple
 
 from swh.model import hashutil
@@ -87,24 +88,18 @@ def download_package(package: Dict, tmpdir: Any) -> Mapping[str, Dict]:
     return all_hashes
 
 
-def extract_package(package: Dict, tmpdir: str) -> Tuple[str, str, str]:
-    """Extract a Debian source package to a given directory.
-
-    Note that after extraction the target directory will be the root of the
-    extracted package, rather than containing it.
+def dsc_information(package: Dict) -> Tuple[str, str]:
+    """Retrieve dsc information from a package.
 
     Args:
-        package (dict): package information dictionary
-        tmpdir (str): directory where the package files are stored
+        package: Package metadata information
 
     Returns:
-        tuple: path to the dsc, uri used to retrieve the dsc, extraction
-        directory
+        Tuple of dsc file's uri, dsc's full disk path
 
     """
     dsc_name = None
     dsc_url = None
-
     for filename, fileinfo in package['files'].items():
         if filename.endswith('.dsc'):
             if dsc_name:
@@ -115,10 +110,27 @@ def extract_package(package: Dict, tmpdir: str) -> Tuple[str, str, str]:
             dsc_url = fileinfo['uri']
             dsc_name = filename
 
+    return dsc_url, dsc_name
+
+
+def extract_package(package: Dict, tmpdir: str) -> str:
+    """Extract a Debian source package to a given directory.
+
+    Note that after extraction the target directory will be the root of the
+    extracted package, rather than containing it.
+
+    Args:
+        package (dict): package information dictionary
+        tmpdir (str): directory where the package files are stored
+
+    Returns:
+        Package extraction directory
+
+    """
+    _, dsc_name = dsc_information(package)
     dsc_path = os.path.join(tmpdir, dsc_name)
     destdir = os.path.join(tmpdir, 'extracted')
     logfile = os.path.join(tmpdir, 'extract.log')
-
     logger.debug('extract Debian source package %s in %s' %
                  (dsc_path, destdir), extra={
                      'swh_type': 'deb_extract',
@@ -140,7 +152,7 @@ def extract_package(package: Dict, tmpdir: str) -> Tuple[str, str, str]:
         raise ValueError('dpkg-source exited with code %s: %s' %
                          (e.returncode, logdata)) from None
 
-    return dsc_path, dsc_url, destdir
+    return destdir
 
 
 def get_file_info(filepath):
@@ -254,8 +266,6 @@ class DebianLoader(PackageLoader):
         super().__init__(url=url)
         self._info = None
         self.packages = packages
-        self.dsc_path = None
-        self.dsc_url = None
 
     def get_versions(self) -> Sequence[str]:
         """Returns the keys of the packages input (e.g.
@@ -297,20 +307,20 @@ class DebianLoader(PackageLoader):
         return tmpdir, a_c_metadata
 
     def uncompress(self, a_path: str, tmpdir: str, a_metadata: Dict) -> str:
-        self.dsc_path, self.dsc_url, a_uncompressed_path = extract_package(
-            a_metadata, tmpdir)
+        a_uncompressed_path = extract_package(a_metadata, tmpdir)
         return a_uncompressed_path
 
     def read_intrinsic_metadata(self, a_metadata: Dict,
                                 a_uncompressed_path: str) -> Dict:
-        dsc_path = self.dsc_path  # XXX
+        _, dsc_name = dsc_information(a_metadata)
+        dsc_path = path.join(path.dirname(a_uncompressed_path), dsc_name)
         i_metadata = get_package_metadata(
             a_metadata, dsc_path, a_uncompressed_path)
         return i_metadata
 
     def build_revision(
             self, a_metadata: Dict, i_metadata: Dict) -> Dict:
-
+        dsc_url, _ = dsc_information(a_metadata)
         logger.debug('i_metadata: %s', i_metadata)
         logger.debug('a_metadata: %s', a_metadata)
 
@@ -349,7 +359,7 @@ class DebianLoader(PackageLoader):
                     'raw': prepare(package_info),
                 },
                 'extrinsic': {
-                    'provider': self.dsc_url,
+                    'provider': dsc_url,
                     'when': self.visit_date.isoformat(),
                     'raw': a_metadata,
                 },
