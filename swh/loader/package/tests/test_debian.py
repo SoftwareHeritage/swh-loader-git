@@ -7,7 +7,8 @@ import copy
 import pytest
 
 from swh.loader.package.debian import (
-    DebianLoader, download_package, dsc_information
+    DebianLoader, download_package, dsc_information, uid_to_person,
+    prepare_person
 )
 from swh.loader.package.tests.common import check_snapshot
 
@@ -45,6 +46,31 @@ PACKAGE_FILES = {
 PACKAGE_PER_VERSION = {
     'stretch/contrib/0.7.2-3': PACKAGE_FILES
 }
+
+
+def test_uid_to_person():
+    uid = 'Someone Name <someone@orga.org>'
+    actual_person = uid_to_person(uid)
+
+    assert actual_person == {
+        'name': 'Someone Name',
+        'email': 'someone@orga.org',
+        'fullname': uid,
+    }
+
+
+def test_prepare_person():
+    actual_author = prepare_person({
+        'name': 'Someone Name',
+        'email': 'someone@orga.org',
+        'fullname': 'Someone Name <someone@orga.org>',
+    })
+
+    assert actual_author == {
+        'name': b'Someone Name',
+        'email': b'someone@orga.org',
+        'fullname': b'Someone Name <someone@orga.org>',
+    }
 
 
 def test_download_package(datadir, tmpdir, requests_mock_http_datadir):

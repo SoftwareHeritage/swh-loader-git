@@ -3,8 +3,6 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import copy
-import datetime
 import email.utils
 import logging
 import re
@@ -24,20 +22,21 @@ logger = logging.getLogger(__name__)
 UPLOADERS_SPLIT = re.compile(r'(?<=\>)\s*,\s*')
 
 
-def uid_to_person(uid, encode=True):
+def uid_to_person(uid: str) -> Mapping[str, str]:
     """Convert an uid to a person suitable for insertion.
 
     Args:
         uid: an uid of the form "Name <email@ddress>"
-        encode: whether to convert the output to bytes or not
 
     Returns:
-        dict: a dictionary with the following keys:
+        a dictionary with the following keys:
 
         - name: the name associated to the uid
         - email: the mail associated to the uid
-    """
+        - fullname: the actual uid input
 
+    """
+    logger.debug('uid: %s', uid)
     ret = {
         'name': '',
         'email': '',
@@ -45,17 +44,27 @@ def uid_to_person(uid, encode=True):
     }
 
     name, mail = email.utils.parseaddr(uid)
-
     if name and email:
         ret['name'] = name
         ret['email'] = mail
     else:
         ret['name'] = uid
+    return ret
 
-    if encode:
-        for key in list(ret):
-            ret[key] = ret[key].encode('utf-8')
 
+def prepare_person(person: Mapping[str, str]) -> Mapping[str, bytes]:
+    """Prepare person for swh serialization...
+
+    Args:
+        A person dict
+
+    Returns:
+        A person dict ready for storage
+
+    """
+    ret = {}
+    for key, value in person.items():
+        ret[key] = value.encode('utf-8')
     return ret
 
 
@@ -152,7 +161,8 @@ def extract_package(package: Dict, tmpdir: str) -> str:
     return destdir
 
 
-def get_package_metadata(package, dsc_path, extracted_path):
+def get_package_metadata(package: Mapping[str, Any], dsc_path: str,
+                         extracted_path: str) -> Mapping[str, Any]:
     """Get the package metadata from the source package at dsc_path,
     extracted in extracted_path.
 
@@ -202,10 +212,10 @@ def get_package_metadata(package, dsc_path, extracted_path):
     }
 
     maintainers = [
-        uid_to_person(parsed_dsc['Maintainer'], encode=False),
+        uid_to_person(parsed_dsc['Maintainer']),
     ]
     maintainers.extend(
-        uid_to_person(person, encode=False)
+        uid_to_person(person)
         for person in UPLOADERS_SPLIT.split(parsed_dsc.get('Uploaders', ''))
     )
     package_info['maintainers'] = maintainers
@@ -260,20 +270,17 @@ class DebianLoader(PackageLoader):
 
         """
         logger.debug('debian: artifactS_package_info: %s', a_p_info)
-        a_c_metadata = download_package(a_p_info, tmpdir)
-        return tmpdir, a_c_metadata
+        return tmpdir, download_package(a_p_info, tmpdir)
 
     def uncompress(self, a_path: str, tmpdir: str, a_metadata: Dict) -> str:
-        a_uncompressed_path = extract_package(a_metadata, tmpdir)
-        return a_uncompressed_path
+        return extract_package(a_metadata, tmpdir)
 
     def read_intrinsic_metadata(self, a_metadata: Dict,
                                 a_uncompressed_path: str) -> Dict:
         _, dsc_name = dsc_information(a_metadata)
         dsc_path = path.join(path.dirname(a_uncompressed_path), dsc_name)
-        i_metadata = get_package_metadata(
+        return get_package_metadata(
             a_metadata, dsc_path, a_uncompressed_path)
-        return i_metadata
 
     def build_revision(
             self, a_metadata: Dict, i_metadata: Dict) -> Dict:
@@ -281,23 +288,11 @@ class DebianLoader(PackageLoader):
         logger.debug('i_metadata: %s', i_metadata)
         logger.debug('a_metadata: %s', a_metadata)
 
-        def prepare(obj):
-            if isinstance(obj, list):
-                return [prepare(item) for item in obj]
-            elif isinstance(obj, dict):
-                return {k: prepare(v) for k, v in obj.items()}
-            elif isinstance(obj, datetime.datetime):
-                return obj.isoformat()
-            elif isinstance(obj, bytes):
-                return obj.decode('utf-8')
-            else:
-                return copy.deepcopy(obj)
-
         msg = 'Synthetic revision for Debian source package %s version %s' % (
             a_metadata['name'], a_metadata['version'])
 
         date = i_metadata['changelog']['date']
-        author = i_metadata['changelog']['person']
+        author = prepare_person(i_metadata['changelog']['person'])
 
         # inspired from swh.loader.debian.converters.package_metadata_to_revision  # noqa
         return {
@@ -311,7 +306,7 @@ class DebianLoader(PackageLoader):
             'metadata': {
                 'intrinsic': {
                     'tool': 'dsc',
-                    'raw': prepare(i_metadata),
+                    'raw': i_metadata,
                 },
                 'extrinsic': {
                     'provider': dsc_url,
