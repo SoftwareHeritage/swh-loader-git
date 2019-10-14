@@ -208,7 +208,7 @@ class PackageLoader:
         """
         status_load = 'uneventful'  # either: eventful, uneventful, failed
         status_visit = 'full'       # either: partial, full
-        tmp_revisions: Dict[str, List] = {}
+        tmp_revisions = {}  # type: Dict[str, List]
         snapshot = None
 
         try:
