@@ -3,7 +3,6 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import os
 import copy
 import datetime
 import email.utils
@@ -16,8 +15,6 @@ from debian.changelog import Changelog
 from debian.deb822 import Dsc
 from os import path
 from typing import Any, Dict, Generator, Mapping, Optional, Sequence, Tuple
-
-from swh.model import hashutil
 
 from swh.loader.package.loader import PackageLoader
 from swh.loader.package.utils import download
@@ -128,9 +125,9 @@ def extract_package(package: Dict, tmpdir: str) -> str:
 
     """
     _, dsc_name = dsc_information(package)
-    dsc_path = os.path.join(tmpdir, dsc_name)
-    destdir = os.path.join(tmpdir, 'extracted')
-    logfile = os.path.join(tmpdir, 'extract.log')
+    dsc_path = path.join(tmpdir, dsc_name)
+    destdir = path.join(tmpdir, 'extracted')
+    logfile = path.join(tmpdir, 'extract.log')
     logger.debug('extract Debian source package %s in %s' %
                  (dsc_path, destdir), extra={
                      'swh_type': 'deb_extract',
@@ -155,31 +152,6 @@ def extract_package(package: Dict, tmpdir: str) -> str:
     return destdir
 
 
-def get_file_info(filepath):
-    """Retrieve the original file information from the file at filepath.
-
-    Args:
-        filepath: the path to the original file
-
-    Returns:
-        dict: information about the original file, in a dictionary with the
-        following keys
-
-        - name: the file name
-        - sha1, sha1_git, sha256: original file hashes
-        - length: original file length
-    """
-
-    name = os.path.basename(filepath)
-    if isinstance(name, bytes):
-        name = name.decode('utf-8')
-
-    hashes = hashutil.MultiHash.from_path(filepath).hexdigest()
-    hashes['name'] = name
-    hashes['length'] = os.path.getsize(filepath)
-    return hashes
-
-
 def get_package_metadata(package, dsc_path, extracted_path):
     """Get the package metadata from the source package at dsc_path,
     extracted in extracted_path.
@@ -194,26 +166,13 @@ def get_package_metadata(package, dsc_path, extracted_path):
 
         - history: list of (package_name, package_version) tuples parsed from
           the package changelog
-        - source_files: information about all the files in the source package
 
     """
-    ret = {}
-
     with open(dsc_path, 'rb') as dsc:
         parsed_dsc = Dsc(dsc)
 
-    source_files = [get_file_info(dsc_path)]
-
-    dsc_dir = os.path.dirname(dsc_path)
-    for filename in package['files']:
-        file_path = os.path.join(dsc_dir, filename)
-        file_info = get_file_info(file_path)
-        source_files.append(file_info)
-
-    ret['original_artifact'] = source_files
-
     # Parse the changelog to retrieve the rest of the package information
-    changelog_path = os.path.join(extracted_path, 'debian/changelog')
+    changelog_path = path.join(extracted_path, 'debian/changelog')
     with open(changelog_path, 'rb') as changelog:
         try:
             parsed_changelog = Changelog(changelog)
@@ -251,9 +210,7 @@ def get_package_metadata(package, dsc_path, extracted_path):
     )
     package_info['maintainers'] = maintainers
 
-    ret['package_info'] = package_info
-
-    return ret
+    return package_info
 
 
 class DebianLoader(PackageLoader):
@@ -336,13 +293,11 @@ class DebianLoader(PackageLoader):
             else:
                 return copy.deepcopy(obj)
 
-        package_info = i_metadata['package_info']
-
         msg = 'Synthetic revision for Debian source package %s version %s' % (
             a_metadata['name'], a_metadata['version'])
 
-        date = package_info['changelog']['date']
-        author = package_info['changelog']['person']
+        date = i_metadata['changelog']['date']
+        author = i_metadata['changelog']['person']
 
         # inspired from swh.loader.debian.converters.package_metadata_to_revision  # noqa
         return {
@@ -356,7 +311,7 @@ class DebianLoader(PackageLoader):
             'metadata': {
                 'intrinsic': {
                     'tool': 'dsc',
-                    'raw': prepare(package_info),
+                    'raw': prepare(i_metadata),
                 },
                 'extrinsic': {
                     'provider': dsc_url,
