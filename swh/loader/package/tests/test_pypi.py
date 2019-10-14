@@ -144,7 +144,7 @@ def test_extract_intrinsic_metadata(tmp_path, datadir):
     """Parsing existing archive's PKG-INFO should yield results"""
     uncompressed_archive_path = str(tmp_path)
     archive_path = path.join(
-        datadir, 'files.pythonhosted.org', '0805nexter-1.1.0.zip')
+        datadir, 'https_files.pythonhosted.org', '0805nexter-1.1.0.zip')
     uncompress(archive_path, dest=uncompressed_archive_path)
 
     actual_metadata = extract_intrinsic_metadata(uncompressed_archive_path)

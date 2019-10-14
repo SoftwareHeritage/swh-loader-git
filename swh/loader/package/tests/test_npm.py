@@ -163,7 +163,7 @@ def test_parse_npm_package_author():
 
 def test_extract_npm_package_author(datadir):
     package_metadata_filepath = os.path.join(
-        datadir, 'replicate.npmjs.com', 'org_visit1')
+        datadir, 'https_replicate.npmjs.com', 'org_visit1')
 
     with open(package_metadata_filepath) as json_file:
         package_metadata = json.load(json_file)
