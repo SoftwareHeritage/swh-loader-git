@@ -73,7 +73,7 @@ def test_prepare_person():
     }
 
 
-def test_download_package(datadir, tmpdir, requests_mock_http_datadir):
+def test_download_package(datadir, tmpdir, requests_mock_datadir):
     tmpdir = str(tmpdir)  # py3.5 work around (LocalPath issue)
     all_hashes = download_package(PACKAGE_FILES, tmpdir)
     assert all_hashes == {
@@ -140,7 +140,7 @@ def test_dsc_information_too_many_dsc_entries():
 
 
 def test_debian_first_visit(
-        swh_config, requests_mock_http_datadir):
+        swh_config, requests_mock_datadir):
     """With no prior visit, load a gnu project ends up with 1 snapshot
 
     """
