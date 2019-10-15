@@ -281,7 +281,7 @@ class PackageLoader:
             for version in self.get_versions():  # for each
                 logger.debug('version: %s', version)
                 tmp_revisions[version] = []
-                # `a_` stands for `artifact_`, `p_` stands for `package_`
+                # `a_` stands for `artifact(s)_`, `p_` stands for `package_`
                 for a_p_info, a_metadata in self.get_artifacts(version):
                     logger.debug('a_p_info: %s', a_p_info)
                     logger.debug('a_metadata: %s', a_metadata)
