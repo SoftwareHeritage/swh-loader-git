@@ -54,11 +54,33 @@ class DebianLoader(PackageLoader):
         yield artifacts_package_info, a_metadata
 
     def resolve_revision_from(
-            self, known_artifacts: Dict, artifact_metadata: Dict) \
+            self, known_package_artifacts: Dict, artifact_metadata: Dict) \
             -> Optional[bytes]:
-        logger.debug('known_artifacts: %s' % known_artifacts)
-        logger.debug('artifact_metadata: %s' % artifact_metadata)
-        pass  # for now
+        artifacts_to_fetch = artifact_metadata['files']
+        logger.debug('k_p_artifacts: %s', known_package_artifacts)
+        logger.debug('artifacts_to_fetch: %s', artifacts_to_fetch)
+        for rev_id, known_artifacts in known_package_artifacts.items():
+            logger.debug('Revision: %s', rev_id)
+            logger.debug('Associated known_artifacts: %s', known_artifacts)
+            known_artifacts = known_artifacts['extrinsic']['raw']['files']
+            rev_found = True
+            for a_name, k_artifact in known_artifacts.items():
+                artifact_to_fetch = artifacts_to_fetch.get(a_name)
+                logger.debug('artifact_to_fetch: %s', artifact_to_fetch)
+                if artifact_to_fetch is None:
+                    # as soon as we do not see an artifact, we consider we need
+                    # to check the other revision
+                    rev_found = False
+                if k_artifact['sha256'] != artifact_to_fetch['sha256']:
+                    # Hash is different, we consider we need to check the other
+                    # revisions
+                    rev_found = False
+            if rev_found:
+                logger.debug('Existing revision %s found for new artifacts.',
+                             rev_id)
+                return rev_id
+        # if we pass here, we did not find any known artifacts
+        logger.debug('No existing revision found for the new artifacts.')
 
     def download_package(self, a_p_info: str, tmpdir: str) -> Tuple[str, Dict]:
         """Contrary to other package loaders (1 package, 1 artifact),

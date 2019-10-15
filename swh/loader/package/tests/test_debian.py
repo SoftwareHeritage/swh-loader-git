@@ -144,7 +144,7 @@ def test_debian_first_visit_then_another_visit(
 
     # No change in between load
     actual_load_status2 = loader.load()
-    assert actual_load_status2['status'] == 'eventful'
+    assert actual_load_status2['status'] == 'uneventful'
     origin_visit2 = list(loader.storage.origin_visit_get(url))
     assert origin_visit2[-1]['status'] == 'full'
 
@@ -166,7 +166,7 @@ def test_debian_first_visit_then_another_visit(
         if m.url.startswith('http://deb.debian.org')
     ]
     # visited each package artifact twice across 2 visits
-    assert len(urls) == 2 * len(set(urls))
+    assert len(urls) == len(set(urls))
 
 
 def test_uid_to_person():
