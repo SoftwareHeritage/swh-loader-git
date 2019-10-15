@@ -54,6 +54,121 @@ PACKAGE_PER_VERSION = {
 }
 
 
+def test_debian_first_visit(
+        swh_config, requests_mock_datadir):
+    """With no prior visit, load a gnu project ends up with 1 snapshot
+
+    """
+    loader = DebianLoader(
+        url='deb://Debian/packages/cicero',
+        date='2019-10-12T05:58:09.165557+00:00',
+        packages=PACKAGE_PER_VERSION)
+
+    actual_load_status = loader.load()
+    assert actual_load_status['status'] == 'eventful'
+
+    stats = loader.storage.stat_counters()
+    assert {
+        'content': 42,
+        'directory': 2,
+        'origin': 1,
+        'origin_visit': 1,
+        'person': 1,
+        'release': 0,
+        'revision': 1,  # all artifacts under 1 revision
+        'skipped_content': 0,
+        'snapshot': 1
+    } == stats
+
+    expected_snapshot = {
+        'id': 'a59ec49a01ff329dcbbc63fd36a5654143aef240',
+        'branches': {
+            'HEAD': {
+                'target_type': 'alias',
+                'target': 'releases/stretch/contrib/0.7.2-3'
+            },
+            'releases/stretch/contrib/0.7.2-3': {
+                'target_type': 'revision',
+                'target': '2807f5b3f84368b4889a9ae827fe85854ffecf07',
+            }
+        },
+    }  # different than the previous loader as no release is done
+
+    check_snapshot(expected_snapshot, loader.storage)
+
+
+def test_debian_first_visit_then_another_visit(
+        swh_config, requests_mock_datadir):
+    """With no prior visit, load a gnu project ends up with 1 snapshot
+
+    """
+    url = 'deb://Debian/packages/cicero'
+    loader = DebianLoader(
+        url=url,
+        date='2019-10-12T05:58:09.165557+00:00',
+        packages=PACKAGE_PER_VERSION)
+
+    actual_load_status = loader.load()
+    assert actual_load_status['status'] == 'eventful'
+    origin_visit = next(loader.storage.origin_visit_get(url))
+    assert origin_visit['status'] == 'full'
+
+    stats = loader.storage.stat_counters()
+    assert {
+        'content': 42,
+        'directory': 2,
+        'origin': 1,
+        'origin_visit': 1,
+        'person': 1,
+        'release': 0,
+        'revision': 1,  # all artifacts under 1 revision
+        'skipped_content': 0,
+        'snapshot': 1
+    } == stats
+
+    expected_snapshot = {
+        'id': 'a59ec49a01ff329dcbbc63fd36a5654143aef240',
+        'branches': {
+            'HEAD': {
+                'target_type': 'alias',
+                'target': 'releases/stretch/contrib/0.7.2-3'
+            },
+            'releases/stretch/contrib/0.7.2-3': {
+                'target_type': 'revision',
+                'target': '2807f5b3f84368b4889a9ae827fe85854ffecf07',
+            }
+        },
+    }  # different than the previous loader as no release is done
+
+    check_snapshot(expected_snapshot, loader.storage)
+
+    # No change in between load
+    actual_load_status2 = loader.load()
+    assert actual_load_status2['status'] == 'eventful'
+    origin_visit2 = list(loader.storage.origin_visit_get(url))
+    assert origin_visit2[-1]['status'] == 'full'
+
+    stats2 = loader.storage.stat_counters()
+    assert {
+        'content': 42 + 0,
+        'directory': 2 + 0,
+        'origin': 1,
+        'origin_visit': 1 + 1,  # a new visit occurred
+        'person': 1,
+        'release': 0,
+        'revision': 1,
+        'skipped_content': 0,
+        'snapshot': 1,  # same snapshot across 2 visits
+    } == stats2
+
+    urls = [
+        m.url for m in requests_mock_datadir.request_history
+        if m.url.startswith('http://deb.debian.org')
+    ]
+    # visited each package artifact twice across 2 visits
+    assert len(urls) == 2 * len(set(urls))
+
+
 def test_uid_to_person():
     uid = 'Someone Name <someone@orga.org>'
     actual_person = uid_to_person(uid)
@@ -203,46 +318,3 @@ def test_get_package_metadata(requests_mock_datadir, datadir, tmp_path):
         'name': 'cicero',
         'version': '0.7.2-3'
     }
-
-
-def test_debian_first_visit(
-        swh_config, requests_mock_datadir):
-    """With no prior visit, load a gnu project ends up with 1 snapshot
-
-    """
-    loader = DebianLoader(
-        url='deb://Debian/packages/cicero',
-        date='2019-10-12T05:58:09.165557+00:00',
-        packages=PACKAGE_PER_VERSION)
-
-    actual_load_status = loader.load()
-    assert actual_load_status['status'] == 'eventful'
-
-    stats = loader.storage.stat_counters()
-    assert {
-        'content': 42,
-        'directory': 2,
-        'origin': 1,
-        'origin_visit': 1,
-        'person': 1,
-        'release': 0,
-        'revision': 1,  # all artifacts under 1 revision
-        'skipped_content': 0,
-        'snapshot': 1
-    } == stats
-
-    expected_snapshot = {
-        'id': 'a59ec49a01ff329dcbbc63fd36a5654143aef240',
-        'branches': {
-            'HEAD': {
-                'target_type': 'alias',
-                'target': 'releases/stretch/contrib/0.7.2-3'
-            },
-            'releases/stretch/contrib/0.7.2-3': {
-                'target_type': 'revision',
-                'target': '2807f5b3f84368b4889a9ae827fe85854ffecf07',
-            }
-        },
-    }  # different than the previous loader as no release is done
-
-    check_snapshot(expected_snapshot, loader.storage)

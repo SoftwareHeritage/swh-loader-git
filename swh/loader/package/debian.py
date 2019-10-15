@@ -55,6 +55,8 @@ class DebianLoader(PackageLoader):
     def resolve_revision_from(
             self, known_artifacts: Dict, artifact_metadata: Dict) \
             -> Optional[bytes]:
+        logger.debug('known_artifacts: %s' % known_artifacts)
+        logger.debug('artifact_metadata: %s' % artifact_metadata)
         pass  # for now
 
     def download_package(self, a_p_info: str, tmpdir: str) -> Tuple[str, Dict]:
