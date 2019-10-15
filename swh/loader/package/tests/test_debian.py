@@ -284,13 +284,9 @@ def test_get_package_metadata(requests_mock_datadir, datadir, tmp_path):
 
     logger.debug('actual_package_info: %s', actual_package_info)
 
-    import datetime
-    from dateutil.tz import tzoffset
-
     assert actual_package_info == {
         'changelog': {
-            'date': datetime.datetime(
-                2014, 10, 19, 16, 52, 35, tzinfo=tzoffset(None, 7200)),
+            'date': '2014-10-19T16:52:35+02:00',
             'history': [
                 ('cicero', '0.7.2-2'),
                 ('cicero', '0.7.2-1'),

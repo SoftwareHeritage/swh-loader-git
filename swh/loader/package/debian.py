@@ -4,6 +4,7 @@
 # See top-level LICENSE file for more information
 
 import email.utils
+import iso8601
 import logging
 import re
 import subprocess
@@ -91,7 +92,7 @@ class DebianLoader(PackageLoader):
         msg = 'Synthetic revision for Debian source package %s version %s' % (
             a_metadata['name'], a_metadata['version'])
 
-        date = i_metadata['changelog']['date']
+        date = iso8601.parse_date(i_metadata['changelog']['date'])
         author = prepare_person(i_metadata['changelog']['person'])
 
         # inspired from swh.loader.debian.converters.package_metadata_to_revision  # noqa
@@ -301,7 +302,7 @@ def get_package_metadata(package: Mapping[str, Any], dsc_path: str,
         'version': str(package['version']),
         'changelog': {
             'person': uid_to_person(parsed_changelog.author),
-            'date': parse_date(parsed_changelog.date),
+            'date': parse_date(parsed_changelog.date).isoformat(),
             'history': [(block.package, str(block.version))
                         for block in parsed_changelog][1:],
         }
