@@ -109,7 +109,9 @@ def test_download_package(datadir, tmpdir, requests_mock_datadir):
                 'sha256': '63f40f2436ea9f67b44e2d4bd669dbabe90e2635a204526c20e0b3c8ee957786'  # noqa
             },
             'filename': 'cicero_0.7.2.orig.tar.gz',
-            'length': 96527}}
+            'length': 96527
+        }
+    }
 
 
 def test_dsc_information_ok():

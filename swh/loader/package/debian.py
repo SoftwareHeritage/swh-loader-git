@@ -28,9 +28,8 @@ class DebianLoader(PackageLoader):
     """
     visit_type = 'debian'
 
-    def __init__(self, url: str, date: str, packages: Mapping[str, Dict]):
+    def __init__(self, url: str, date: str, packages: Mapping[str, Any]):
         super().__init__(url=url)
-        self._info = None
         self.packages = packages
 
     def get_versions(self) -> Sequence[str]:
@@ -162,7 +161,8 @@ def prepare_person(person: Mapping[str, str]) -> Mapping[str, bytes]:
     return ret
 
 
-def download_package(package: Dict, tmpdir: Any) -> Mapping[str, Dict]:
+def download_package(
+        package: Mapping[str, Any], tmpdir: Any) -> Mapping[str, Any]:
     """Fetch a source package in a temporary directory and check the checksums
     for all files.
 
@@ -188,7 +188,7 @@ def download_package(package: Dict, tmpdir: Any) -> Mapping[str, Dict]:
     return all_hashes
 
 
-def dsc_information(package: Dict) -> Tuple[str, str]:
+def dsc_information(package: Mapping[str, Any]) -> Tuple[str, str]:
     """Retrieve dsc information from a package.
 
     Args:
@@ -213,7 +213,7 @@ def dsc_information(package: Dict) -> Tuple[str, str]:
     return dsc_url, dsc_name
 
 
-def extract_package(package: Dict, tmpdir: str) -> str:
+def extract_package(package: Mapping[str, Any], tmpdir: str) -> str:
     """Extract a Debian source package to a given directory.
 
     Note that after extraction the target directory will be the root of the
