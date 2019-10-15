@@ -4,13 +4,19 @@
 # See top-level LICENSE file for more information
 
 import copy
+import logging
 import pytest
+
+from os import path
 
 from swh.loader.package.debian import (
     DebianLoader, download_package, dsc_information, uid_to_person,
-    prepare_person
+    prepare_person, get_package_metadata, extract_package
 )
 from swh.loader.package.tests.common import check_snapshot
+
+
+logger = logging.getLogger(__name__)
 
 
 PACKAGE_FILES = {
@@ -137,6 +143,64 @@ def test_dsc_information_too_many_dsc_entries():
             ValueError, match='Package %s_%s references several dsc' % (
                 package_files['name'], package_files['version'])):
         dsc_information(package_files)
+
+
+def test_get_package_metadata(requests_mock_datadir, datadir, tmp_path):
+    tmp_path = str(tmp_path)  # py3.5 compat.
+    package = PACKAGE_FILES
+
+    logger.debug('package: %s', package)
+
+    # download the packages
+    download_package(package, tmp_path)
+
+    # Retrieve information from package
+    _, dsc_name = dsc_information(package)
+
+    # Extract information from package
+    extracted_path = extract_package(package, tmp_path)
+
+    # Retrieve information on package
+    dsc_path = path.join(path.dirname(extracted_path), dsc_name)
+    actual_package_info = get_package_metadata(
+        package, dsc_path, extracted_path)
+
+    logger.debug('actual_package_info: %s', actual_package_info)
+
+    import datetime
+    from dateutil.tz import tzoffset
+
+    assert actual_package_info == {
+        'changelog': {
+            'date': datetime.datetime(
+                2014, 10, 19, 16, 52, 35, tzinfo=tzoffset(None, 7200)),
+            'history': [
+                ('cicero', '0.7.2-2'),
+                ('cicero', '0.7.2-1'),
+                ('cicero', '0.7-1')
+            ],
+            'person': {
+                'email': 'sthibault@debian.org',
+                'fullname': 'Samuel Thibault <sthibault@debian.org>',
+                'name': 'Samuel Thibault'
+            }
+        },
+        'maintainers': [
+            {
+                'email': 'debian-accessibility@lists.debian.org',
+                'fullname': 'Debian Accessibility Team '
+                '<debian-accessibility@lists.debian.org>',
+                'name': 'Debian Accessibility Team'
+            },
+            {
+                'email': 'sthibault@debian.org',
+                'fullname': 'Samuel Thibault <sthibault@debian.org>',
+                'name': 'Samuel Thibault'
+            }
+        ],
+        'name': 'cicero',
+        'version': '0.7.2-3'
+    }
 
 
 def test_debian_first_visit(
