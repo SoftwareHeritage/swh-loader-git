@@ -372,28 +372,6 @@ _expected_new_revisions_first_visit = normalize_hashes({
     'd7895533ef5edbcffdea3f057d9fef3a1ef845ce'}
 )
 
-_expected_new_snapshot_first_visit_id = normalize_hashes(
-    'd0587e1195aed5a8800411a008f2f2d627f18e2d')
-
-_expected_branches_first_visit = {
-    'HEAD': {
-        'target': 'releases/0.0.4',
-        'target_type': 'alias'
-    },
-    'releases/0.0.2': {
-        'target': 'd8a1c7474d2956ac598a19f0f27d52f7015f117e',
-        'target_type': 'revision'
-    },
-    'releases/0.0.3': {
-        'target': '5f9eb78af37ffd12949f235e86fac04898f9f72a',
-        'target_type': 'revision'
-    },
-    'releases/0.0.4': {
-        'target': 'ba019b192bdb94bd0b5bd68b3a5f92b5acc2239a',
-        'target_type': 'revision'
-    }
-}
-
 
 def package_url(package):
     return 'https://www.npmjs.com/package/%s' % package
@@ -470,8 +448,25 @@ def test_npm_loader_first_visit(swh_config, requests_mock_datadir):
         _expected_new_revisions_first_visit)) == []
 
     expected_snapshot = {
-        'id': _expected_new_snapshot_first_visit_id,
-        'branches': _expected_branches_first_visit,
+        'id': 'd0587e1195aed5a8800411a008f2f2d627f18e2d',
+        'branches': {
+            'HEAD': {
+                'target': 'releases/0.0.4',
+                'target_type': 'alias'
+            },
+            'releases/0.0.2': {
+                'target': 'd8a1c7474d2956ac598a19f0f27d52f7015f117e',
+                'target_type': 'revision'
+            },
+            'releases/0.0.3': {
+                'target': '5f9eb78af37ffd12949f235e86fac04898f9f72a',
+                'target_type': 'revision'
+            },
+            'releases/0.0.4': {
+                'target': 'ba019b192bdb94bd0b5bd68b3a5f92b5acc2239a',
+                'target_type': 'revision'
+            }
+        }
     }
     check_snapshot(expected_snapshot, loader.storage)
 

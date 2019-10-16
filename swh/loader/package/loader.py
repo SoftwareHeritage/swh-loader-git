@@ -338,6 +338,7 @@ class PackageLoader:
 
                     tmp_revisions[version].append((branch_name, revision_id))
 
+            logger.debug('tmp_revisions: %s', tmp_revisions)
             # Build and load the snapshot
             branches = {}
             for version, branch_name_revisions in tmp_revisions.items():

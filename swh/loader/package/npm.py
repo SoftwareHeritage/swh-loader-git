@@ -236,7 +236,7 @@ class NpmLoader(PackageLoader):
         return self._info
 
     def get_versions(self) -> Sequence[str]:
-        return sorted(self.info['versions'].keys())
+        return sorted(list(self.info['versions'].keys()))
 
     def get_default_release(self) -> str:
         return self.info['dist-tags'].get('latest', '')
