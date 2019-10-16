@@ -3,74 +3,25 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import os
 import re
 
 from swh.model.hashutil import hash_to_bytes
 
-from swh.loader.package.gnu import GNULoader, get_version
+from swh.loader.package.gnu import GNULoader
 from swh.loader.package.tests.common import (
     check_snapshot, check_metadata_paths, get_stats
 )
 
-
-def test_get_version():
-    """From url to branch name should yield something relevant
-
-    """
-    for url, expected_branchname in [
-            ('https://gnu.org/sthg/info-2.1.0.tar.gz', '2.1.0'),
-            ('https://gnu.org/sthg/info-2.1.2.zip', '2.1.2'),
-            ('https://sthg.org/gnu/sthg.tar.gz', 'sthg'),
-            ('https://sthg.org/gnu/DLDF-1.1.4.tar.gz', '1.1.4'),
-            ('https://sthg.org/gnu/anubis-latest.tar.bz2', 'latest'),
-            ('https://ftp.org/gnu/aris-w32.zip', 'w32'),
-            ('https://ftp.org/gnu/aris-w32-2.2.zip', 'w32-2.2'),
-            ('https://ftp.org/gnu/autogen.info.tar.gz', 'autogen.info'),
-            ('https://ftp.org/gnu/crypto-build-demo.tar.gz',
-             'crypto-build-demo'),
-            ('https://ftp.org/gnu/clue+clio+xit.clisp.tar.gz',
-             'clue+clio+xit.clisp'),
-            ('https://ftp.org/gnu/clue+clio.for-pcl.tar.gz',
-             'clue+clio.for-pcl'),
-            ('https://ftp.org/gnu/clisp-hppa2.0-hp-hpux10.20.tar.gz',
-             'hppa2.0-hp-hpux10.20'),
-            ('clisp-i386-solaris2.6.tar.gz', 'i386-solaris2.6'),
-            ('clisp-mips-sgi-irix6.5.tar.gz', 'mips-sgi-irix6.5'),
-            ('clisp-powerpc-apple-macos.tar.gz', 'powerpc-apple-macos'),
-            ('clisp-powerpc-unknown-linuxlibc6.tar.gz',
-             'powerpc-unknown-linuxlibc6'),
-
-            ('clisp-rs6000-ibm-aix3.2.5.tar.gz', 'rs6000-ibm-aix3.2.5'),
-            ('clisp-sparc-redhat51-linux.tar.gz', 'sparc-redhat51-linux'),
-            ('clisp-sparc-sun-solaris2.4.tar.gz', 'sparc-sun-solaris2.4'),
-            ('clisp-sparc-sun-sunos4.1.3_U1.tar.gz',
-             'sparc-sun-sunos4.1.3_U1'),
-            ('clisp-2.25.1-powerpc-apple-MacOSX.tar.gz',
-             '2.25.1-powerpc-apple-MacOSX'),
-            ('clisp-2.27-PowerMacintosh-powerpc-Darwin-1.3.7.tar.gz',
-             '2.27-PowerMacintosh-powerpc-Darwin-1.3.7'),
-            ('clisp-2.27-i686-unknown-Linux-2.2.19.tar.gz',
-             '2.27-i686-unknown-Linux-2.2.19'),
-            ('clisp-2.28-i386-i386-freebsd-4.3-RELEASE.tar.gz',
-             '2.28-i386-i386-freebsd-4.3-RELEASE'),
-            ('clisp-2.28-i686-unknown-cygwin_me-4.90-1.3.10.tar.gz',
-             '2.28-i686-unknown-cygwin_me-4.90-1.3.10'),
-            ('clisp-2.29-i386-i386-freebsd-4.6-STABLE.tar.gz',
-             '2.29-i386-i386-freebsd-4.6-STABLE'),
-            ('clisp-2.29-i686-unknown-cygwin_nt-5.0-1.3.12.tar.gz',
-             '2.29-i686-unknown-cygwin_nt-5.0-1.3.12'),
-            ('gcl-2.5.3-ansi-japi-xdr.20030701_mingw32.zip',
-             '2.5.3-ansi-japi-xdr.20030701_mingw32'),
-            ('gettext-runtime-0.13.1.bin.woe32.zip', '0.13.1.bin.woe32'),
-            ('sather-logo_images.tar.gz', 'sather-logo_images'),
-            ('sather-specification-000328.html.tar.gz', '000328.html')
-
-    ]:
-        actual_branchname = get_version(url)
-
-        assert actual_branchname == expected_branchname
-
+URL = 'https://ftp.gnu.org/gnu/8sync/'
+ARTIFACTS = [
+    {
+        'time': '944729610',
+        'archive': 'https://ftp.gnu.org/gnu/8sync/8sync-0.1.0.tar.gz',
+        'length': 221837,
+        'filename': '8sync-0.1.0.tar.gz',
+        'version': '0.1.0',
+    }
+]
 
 _expected_new_contents_first_visit = [
     'e9258d81faf5881a2f96a77ba609396f82cb97ad',
@@ -135,14 +86,8 @@ _expected_new_snapshot_first_visit_id = 'c419397fd912039825ebdbea378bc6283f006bf
 
 
 def test_visit_with_no_artifact_found(swh_config, requests_mock):
-    package_url = 'https://ftp.gnu.org/gnu/8sync/'
-    tarballs = [{
-        'time': '944729610',
-        'archive': 'https://ftp.gnu.org/gnu/8sync/8sync-0.1.0.tar.gz',
-        'length': 221837,
-    }]
-
-    loader = GNULoader(package_url, tarballs)
+    url = URL
+    loader = GNULoader(url, artifacts=ARTIFACTS)
     requests_mock.get(re.compile('https://'), status_code=404)
 
     actual_load_status = loader.load()
@@ -161,19 +106,12 @@ def test_visit_with_no_artifact_found(swh_config, requests_mock):
         'snapshot': 1,
     } == stats
 
-    origin_visit = next(loader.storage.origin_visit_get(package_url))
+    origin_visit = next(loader.storage.origin_visit_get(url))
     assert origin_visit['status'] == 'partial'
 
 
 def test_check_revision_metadata_structure(swh_config, requests_mock_datadir):
-    package_url = 'https://ftp.gnu.org/gnu/8sync/'
-    tarballs = [{
-        'time': '944729610',
-        'archive': 'https://ftp.gnu.org/gnu/8sync/8sync-0.1.0.tar.gz',
-        'length': 221837,
-    }]
-
-    loader = GNULoader(package_url, tarballs)
+    loader = GNULoader(url=URL, artifacts=ARTIFACTS)
 
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
@@ -205,15 +143,7 @@ def test_visit_with_release_artifact_no_prior_visit(
     """With no prior visit, load a gnu project ends up with 1 snapshot
 
     """
-    assert 'SWH_CONFIG_FILENAME' in os.environ  # cf. tox.ini
-    package_url = 'https://ftp.gnu.org/gnu/8sync/'
-    tarballs = [{
-        'time': 944729610,
-        'archive': 'https://ftp.gnu.org/gnu/8sync/8sync-0.1.0.tar.gz',
-        'length': 221837,
-    }]
-
-    loader = GNULoader(package_url, tarballs)
+    loader = GNULoader(url=URL, artifacts=ARTIFACTS)
 
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
@@ -253,15 +183,9 @@ def test_2_visits_without_change(swh_config, requests_mock_datadir):
     """With no prior visit, load a gnu project ends up with 1 snapshot
 
     """
-    assert 'SWH_CONFIG_FILENAME' in os.environ  # cf. tox.ini
-    url = 'https://ftp.gnu.org/gnu/8sync/'
-    tarballs = [{
-        'time': 944729610,
-        'archive': 'https://ftp.gnu.org/gnu/8sync/8sync-0.1.0.tar.gz',
-        'length': 221837,
-    }]
+    url = URL
+    loader = GNULoader(url, artifacts=ARTIFACTS)
 
-    loader = GNULoader(url, tarballs)
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
     origin_visit = list(loader.storage.origin_visit_get(url))[-1]
@@ -283,15 +207,10 @@ def test_2_visits_with_new_artifact(swh_config, requests_mock_datadir):
     """With no prior visit, load a gnu project ends up with 1 snapshot
 
     """
-    assert 'SWH_CONFIG_FILENAME' in os.environ  # cf. tox.ini
-    url = 'https://ftp.gnu.org/gnu/8sync/'
-    tarball1 = {
-        'time': 944729610,
-        'archive': 'https://ftp.gnu.org/gnu/8sync/8sync-0.1.0.tar.gz',
-        'length': 221837,
-    }
+    url = URL
+    artifact1 = ARTIFACTS[0]
+    loader = GNULoader(url, [artifact1])
 
-    loader = GNULoader(url, [tarball1])
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
     origin_visit = list(loader.storage.origin_visit_get(url))[-1]
@@ -316,12 +235,15 @@ def test_2_visits_with_new_artifact(swh_config, requests_mock_datadir):
     ]
     assert len(urls) == 1
 
-    tarball2 = {
+    artifact2 = {
         'time': 1480991830,
         'archive': 'https://ftp.gnu.org/gnu/8sync/8sync-0.2.0.tar.gz',
         'length': 238466,
+        'filename': '8sync-0.2.0.tar.gz',
+        'version': '0.2.0',
     }
-    loader2 = GNULoader(url, [tarball1, tarball2])
+
+    loader2 = GNULoader(url, [artifact1, artifact2])
     # implementation detail: share the storage in between visits
     loader2.storage = loader.storage
     stats2 = get_stats(loader2.storage)

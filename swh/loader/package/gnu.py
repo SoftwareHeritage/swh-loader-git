@@ -4,9 +4,6 @@
 # See top-level LICENSE file for more information
 
 import logging
-import re
-
-from os import path
 
 from typing import Any, Dict, Generator, Mapping, Optional, Sequence, Tuple
 
@@ -17,137 +14,51 @@ from swh.model.identifiers import normalize_timestamp
 
 
 logger = logging.getLogger(__name__)
-
-
-# to recognize existing naming pattern
-extensions = [
-    'zip',
-    'tar',
-    'gz', 'tgz',
-    'bz2', 'bzip2',
-    'lzma', 'lz',
-    'xz',
-    'Z',
-]
-
-version_keywords = [
-    'cygwin_me',
-    'w32', 'win32', 'nt', 'cygwin', 'mingw',
-    'latest', 'alpha', 'beta',
-    'release', 'stable',
-    'hppa',
-    'solaris', 'sunos', 'sun4u', 'sparc', 'sun',
-    'aix', 'ibm', 'rs6000',
-    'i386', 'i686',
-    'linux', 'redhat', 'linuxlibc',
-    'mips',
-    'powerpc', 'macos', 'apple', 'darwin', 'macosx', 'powermacintosh',
-    'unknown',
-    'netbsd', 'freebsd',
-    'sgi', 'irix',
-]
-
-# Match a filename into components.
-#
-# We use Debian's release number heuristic: A release number starts
-# with a digit, and is followed by alphanumeric characters or any of
-# ., +, :, ~ and -
-#
-# We hardcode a list of possible extensions, as this release number
-# scheme would match them too... We match on any combination of those.
-#
-# Greedy matching is done right to left (we only match the extension
-# greedily with +, software_name and release_number are matched lazily
-# with +? and *?).
-
-pattern = r'''
-^
-(?:
-    # We have a software name and a release number, separated with a
-    # -, _ or dot.
-    (?P<software_name1>.+?[-_.])
-    (?P<release_number>(%(vkeywords)s|[0-9][0-9a-zA-Z_.+:~-]*?)+)
-|
-    # We couldn't match a release number, put everything in the
-    # software name.
-    (?P<software_name2>.+?)
-)
-(?P<extension>(?:\.(?:%(extensions)s))+)
-$
-''' % {
-    'extensions': '|'.join(extensions),
-    'vkeywords': '|'.join('%s[-]?' % k for k in version_keywords),
+SWH_PERSON = {
+    'name': b'Software Heritage',
+    'fullname': b'Software Heritage',
+    'email': b'robot@softwareheritage.org'
 }
-
-
-def get_version(url: str) -> str:
-    """Extract branch name from tarball url
-
-    Args:
-        url (str): Tarball URL
-
-    Returns:
-        byte: Branch name
-
-    Example:
-        For url = https://ftp.gnu.org/gnu/8sync/8sync-0.2.0.tar.gz
-
-        >>> get_version(url)
-        '0.2.0'
-
-    """
-    filename = path.split(url)[-1]
-    m = re.match(pattern, filename,
-                 flags=re.VERBOSE | re.IGNORECASE)
-    if m:
-        d = m.groupdict()
-        if d['software_name1'] and d['release_number']:
-            return d['release_number']
-        if d['software_name2']:
-            return d['software_name2']
-
-    return ''
+REVISION_MESSAGE = b'swh-loader-package: synthetic revision message'
 
 
 class GNULoader(PackageLoader):
-    visit_type = 'gnu'
-    SWH_PERSON = {
-        'name': b'Software Heritage',
-        'fullname': b'Software Heritage',
-        'email': b'robot@softwareheritage.org'
-    }
-    REVISION_MESSAGE = b'swh-loader-package: synthetic revision message'
+    visit_type = 'tar'
 
-    def __init__(self, package_url: str, tarballs: Sequence):
+    def __init__(self, url: str, artifacts: Sequence):
         """Loader constructor.
 
         For now, this is the lister's task output.
 
         Args:
-            package_url: Origin url
+            url: Origin url
+            artifacts: List of dict with keys:
 
-            tarballs: List of dict with keys `date` (date) and `archive` (str)
-            the url to retrieve one versioned archive
+               **time**: last modification time
+               **url**: the artifact url to retrieve
+               **filename**: artifact's filename
+               **version**: artifact's version
+               **length**: artifact's size
 
         """
-        super().__init__(url=package_url)
-        self.tarballs = list(sorted(tarballs, key=lambda v: v['time']))
+        super().__init__(url=url)
+        self.artifacts = list(sorted(artifacts, key=lambda v: v['time']))
 
     def get_versions(self) -> Sequence[str]:
         versions = []
-        for archive in self.tarballs:
-            v = get_version(archive['archive'])
+        for archive in self.artifacts:
+            v = archive.get('version')
             if v:
                 versions.append(v)
         return versions
 
     def get_default_version(self) -> str:
         # It's the most recent, so for this loader, it's the last one
-        return get_version(self.tarballs[-1]['archive'])
+        return self.artifacts[-1]['version']
 
     def get_package_info(self, version: str) -> Generator[
             Tuple[str, Mapping[str, Any]], None, None]:
-        for a_metadata in self.tarballs:
+        for a_metadata in self.artifacts:
             url = a_metadata['archive']
             package_version = get_version(url)
             if version == package_version:
@@ -164,7 +75,7 @@ class GNULoader(PackageLoader):
             self, known_artifacts: Dict, artifact_metadata: Dict) \
             -> Optional[bytes]:
         def pk(d):
-            return [d.get(k) for k in ['time', 'archive', 'length']]
+            return [d.get(k) for k in ['time', 'url', 'length', 'version']]
 
         artifact_pk = pk(artifact_metadata)
         for rev_id, known_artifact in known_artifacts.items():
@@ -179,10 +90,10 @@ class GNULoader(PackageLoader):
         normalized_date = normalize_timestamp(int(a_metadata['time']))
         return {
             'type': 'tar',
-            'message': self.REVISION_MESSAGE,
+            'message': REVISION_MESSAGE,
             'date': normalized_date,
-            'author': self.SWH_PERSON,
-            'committer': self.SWH_PERSON,
+            'author': SWH_PERSON,
+            'committer': SWH_PERSON,
             'committer_date': normalized_date,
             'parents': [],
             'metadata': {
