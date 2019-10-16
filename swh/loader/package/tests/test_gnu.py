@@ -189,10 +189,15 @@ def test_check_revision_metadata_structure(swh_config, requests_mock_datadir):
         ('extrinsic.provider', str),
         ('extrinsic.when', str),
         ('extrinsic.raw', dict),
-        ('original_artifact.filename', str),
-        ('original_artifact.length', int),
-        ('original_artifact.checksums', dict),
+        ('original_artifact', list),
     ])
+
+    for original_artifact in revision['metadata']['original_artifact']:
+        check_metadata_paths(original_artifact, paths=[
+            ('filename', str),
+            ('length', int),
+            ('checksums', dict),
+        ])
 
 
 def test_visit_with_release_artifact_no_prior_visit(

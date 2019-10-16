@@ -8,7 +8,9 @@ import logging
 import tempfile
 import os
 
-from typing import Dict, Generator, List, Mapping, Optional, Sequence, Tuple
+from typing import (
+    Any, Dict, Generator, List, Mapping, Optional, Sequence, Tuple
+)
 
 from swh.core.tarball import uncompress
 from swh.core.config import SWHConfig
@@ -75,16 +77,16 @@ class PackageLoader:
         """
         return []
 
-    def get_artifacts(self, version: str) -> Generator[
-            Tuple[str, str, Dict], None, None]:
+    def get_package_info(self, version: str) -> Generator[
+            Tuple[str, Mapping[str, Any]], None, None]:
         """Given a release version of a package, retrieve the associated
-           artifact information for such version.
+           package information for such version.
 
         Args:
             version: Package version
 
         Returns:
-            (artifact filename, artifact uri, raw artifact metadata)
+            (branch name, package metadata)
 
         """
         yield from {}
@@ -165,10 +167,10 @@ class PackageLoader:
         """
         return None
 
-    def download_package(self, artifacts_package_info: Mapping[str, str],
-                         tmpdir: str) -> Tuple[str, Dict]:
-        """Download artifacts for a specific package. All downloads happen in the
-        the tmpdir folder.
+    def download_package(self, p_info: Mapping[str, Any],
+                         tmpdir: str) -> [Tuple[str, Dict]]:
+        """Download artifacts for a specific package. All downloads happen in
+        in the tmpdir folder.
 
         Default implementation expects the artifacts package info to be
         about one artifact per package.
@@ -179,39 +181,28 @@ class PackageLoader:
 
         Args:
             artifacts_package_info: Information on the package artifacts to
-                download (uri, filename, etc...)
+                download (url, filename, etc...)
             tmpdir: Location to retrieve such artifacts
 
-        Note:
+        Returns:
+            List of (path, computed hashes)
 
         """
-        a_uri = artifacts_package_info['url']
-        filename = artifacts_package_info.get('filename')
-        return download(a_uri, dest=tmpdir, filename=filename)
+        a_uri = p_info['url']
+        filename = p_info.get('filename')
+        return [download(a_uri, dest=tmpdir, filename=filename)]
 
-    def read_intrinsic_metadata(
-            self, a_metadata: Dict, a_uncompressed_path: str) -> Dict:
-        """Read intrinsic metadata from either the a_metadata or
-        the uncompressed path.
+    def uncompress(self, dl_artifacts: List[Tuple[str, Mapping[str, Any]]],
+                   dest: str) -> str:
+        """Uncompress the artifact(s) in the destination folder dest.
 
-        Depending on the implementations, some extracts directly from the
-        artifacts to ingest (pypi, npm...), some use api to access directly
-        their intrinsic metadata (debian exposes a dsc through uri) or some
-        have none (gnu).
-
-        """
-        return {}
-
-    def uncompress(
-            self, a_path: str, tmpdir: str, a_metadata: Dict) -> str:
-        """Uncompress the artfifact(s) stored at a_path to tmpdir.
-
-        Optionally, this could need to use the a_metadata dict for some more
+        Optionally, this could need to use the p_info dict for some more
         information (debian).
 
         """
-        uncompressed_path = os.path.join(tmpdir, 'src')
-        uncompress(a_path, dest=uncompressed_path)
+        uncompressed_path = os.path.join(dest, 'src')
+        for a_path, _ in dl_artifacts:
+            uncompress(a_path, dest=uncompressed_path)
         return uncompressed_path
 
     def load(self) -> Dict:
@@ -281,30 +272,24 @@ class PackageLoader:
             for version in self.get_versions():  # for each
                 logger.debug('version: %s', version)
                 tmp_revisions[version] = []
-                # `a_` stands for `artifact(s)_`, `p_` stands for `package_`
-                for a_p_info, a_metadata in self.get_artifacts(version):
-                    logger.debug('a_p_info: %s', a_p_info)
-                    logger.debug('a_metadata: %s', a_metadata)
+                # `p_` stands for `package_`
+                for branch_name, p_info in self.get_package_info(version):
+                    logger.debug('package_info: %s', p_info)
                     revision_id = self.resolve_revision_from(
-                        known_artifacts, a_metadata)
+                        known_artifacts, p_info['raw'])
                     if revision_id is None:
                         with tempfile.TemporaryDirectory() as tmpdir:
                             try:
-                                # a_c_: archive_computed_
-                                a_path, a_c_metadata = self.download_package(
-                                    a_p_info, tmpdir)
+                                dl_artifacts = self.download_package(
+                                    p_info, tmpdir)
                             except Exception:
                                 logger.exception('Unable to retrieve %s',
-                                                 a_p_info['url'])
+                                                 p_info)
                                 status_visit = 'partial'
                                 continue
 
-                            logger.debug('archive_path: %s', a_path)
-                            logger.debug('archive_computed_metadata: %s',
-                                         a_c_metadata)
-
                             uncompressed_path = self.uncompress(
-                                a_path, tmpdir, a_metadata)
+                                dl_artifacts, dest=tmpdir)
                             logger.debug('uncompressed_path: %s',
                                          uncompressed_path)
 
@@ -330,19 +315,18 @@ class PackageLoader:
 
                             self.storage.directory_add(directories)
 
-                            i_metadata = self.read_intrinsic_metadata(
-                                a_metadata, uncompressed_path)
-
                             # FIXME: This should be release. cf. D409
                             revision = self.build_revision(
-                                a_metadata, i_metadata)
+                                p_info['raw'], uncompressed_path)
                             revision.update({
                                 'synthetic': True,
                                 'directory': directory.hash,
                             })
 
                         revision['metadata'].update({
-                            'original_artifact': a_c_metadata,
+                            'original_artifact': [
+                                hashes for _, hashes in dl_artifacts
+                            ],
                         })
 
                         revision['id'] = revision_id = identifier_to_bytes(
@@ -352,34 +336,25 @@ class PackageLoader:
 
                         self.storage.revision_add([revision])
 
-                    tmp_revisions[version].append(
-                        (a_p_info['filename'], revision_id))
+                    tmp_revisions[version].append((branch_name, revision_id))
 
             # Build and load the snapshot
             branches = {}
-            for version, v_branches in tmp_revisions.items():
-                if len(v_branches) == 1:
-                    branch_name = (
-                        version if version == 'HEAD'
-                        else 'releases/%s' % version).encode('utf-8')
-                    if version == default_release:
+            for version, branch_name_revisions in tmp_revisions.items():
+                if len(branch_name_revisions) == 1:
+                    branch_name, target = branch_name_revisions[0]
+                    if branch_name != 'HEAD':
                         branches[b'HEAD'] = {
                             'target_type': 'alias',
-                            'target': branch_name,
+                            'target': branch_name.encode('utf-8'),
                         }
 
+                for branch_name, target in branch_name_revisions:
+                    branch_name = branch_name.encode('utf-8')
                     branches[branch_name] = {
                         'target_type': 'revision',
-                        'target': v_branches[0][1],
+                        'target': target,
                     }
-                else:
-                    for filename, target in v_branches:
-                        branch_name = ('releases/%s/%s' % (
-                            version, filename)).encode('utf-8')
-                        branches[branch_name] = {
-                            'target_type': 'revision',
-                            'target': target,
-                        }
 
             snapshot = {
                 'branches': branches

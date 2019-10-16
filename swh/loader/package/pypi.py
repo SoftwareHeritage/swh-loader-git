@@ -5,7 +5,7 @@
 
 import os
 
-from typing import Generator, Dict, Mapping, Optional, Sequence, Tuple
+from typing import Any, Dict, Generator, Mapping, Optional, Sequence, Tuple
 from urllib.parse import urlparse
 from pkginfo import UnpackedSDist
 
@@ -129,30 +129,37 @@ class PyPILoader(PackageLoader):
     def get_default_release(self) -> str:
         return self.info['info']['version']
 
-    def get_artifacts(self, version: str) -> Generator[
-            Tuple[Mapping[str, str], Dict], None, None]:
+    def get_package_info(self, version: str) -> Generator[
+            Tuple[str, Mapping[str, Any]], None, None]:
+        res = []
         for meta in self.info['releases'][version]:
-            artifact_package_info = {
+            filename = meta['filename']
+            p_info = {
                 'url': meta['url'],
-                'filename': meta['filename'],
+                'filename': filename,
+                'raw': meta,
             }
-            yield artifact_package_info, meta
+            res.append((version, p_info))
+
+        if len(res) == 1:
+            version, p_info = res[0]
+            yield 'releases/%s' % version, p_info
+        else:
+            for version, p_info in res:
+                yield 'releases/%s/%s' % (version, p_info['filename']), p_info
 
     def resolve_revision_from(
             self, known_artifacts: Dict, artifact_metadata: Dict) \
             -> Optional[bytes]:
         sha256 = artifact_metadata['digests']['sha256']
         for rev_id, known_artifact in known_artifacts.items():
-            original_artifact = known_artifact['original_artifact']
-            if sha256 == original_artifact['checksums']['sha256']:
-                return rev_id
-
-    def read_intrinsic_metadata(self, a_metadata: Dict,
-                                a_uncompressed_path: str) -> Dict:
-        return extract_intrinsic_metadata(a_uncompressed_path)
+            for original_artifact in known_artifact['original_artifact']:
+                if sha256 == original_artifact['checksums']['sha256']:
+                    return rev_id
 
     def build_revision(
-            self, a_metadata: Dict, i_metadata: Dict) -> Dict:
+            self, a_metadata: Dict, uncompressed_path: str) -> Dict:
+        i_metadata = extract_intrinsic_metadata(uncompressed_path)
 
         # from intrinsic metadata
         name = i_metadata['version']

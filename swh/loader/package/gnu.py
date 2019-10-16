@@ -8,7 +8,7 @@ import re
 
 from os import path
 
-from typing import Dict, Generator, Mapping, Optional, Sequence, Tuple
+from typing import Any, Dict, Generator, Mapping, Optional, Sequence, Tuple
 
 from swh.loader.package.loader import PackageLoader
 
@@ -144,17 +144,20 @@ class GNULoader(PackageLoader):
         # It's the most recent, so for this loader, it's the last one
         return get_version(self.tarballs[-1]['archive'])
 
-    def get_artifacts(self, version: str) -> Generator[
-            Tuple[Mapping[str, str], Dict], None, None]:
+    def get_package_info(self, version: str) -> Generator[
+            Tuple[str, Mapping[str, Any]], None, None]:
         for a_metadata in self.tarballs:
             url = a_metadata['archive']
-            artifact_version = get_version(url)
-            if version == artifact_version:
-                artifact_package_info = {
+            package_version = get_version(url)
+            if version == package_version:
+                p_info = {
                     'url': url,
-                    'filename': path.split(url)[-1]
+                    'filename': path.split(url)[-1],
+                    'raw': a_metadata,
                 }
-                yield artifact_package_info, a_metadata
+                # FIXME: this code assumes we have only 1 artifact per
+                # versioned package
+                yield 'releases/%s' % version, p_info
 
     def resolve_revision_from(
             self, known_artifacts: Dict, artifact_metadata: Dict) \
@@ -170,7 +173,8 @@ class GNULoader(PackageLoader):
                 return rev_id
 
     def build_revision(
-            self, a_metadata: Dict, i_metadata: Dict) -> Dict:
+            self, a_metadata: Mapping[str, Any],
+            uncompressed_path: str) -> Dict:
         normalized_date = normalize_timestamp(int(a_metadata['time']))
         return {
             'type': 'tar',

@@ -13,7 +13,9 @@ from dateutil.parser import parse as parse_date
 from debian.changelog import Changelog
 from debian.deb822 import Dsc
 from os import path
-from typing import Any, Dict, Generator, Mapping, Optional, Sequence, Tuple
+from typing import (
+    Any, Dict, Generator, List, Mapping, Optional, Sequence, Tuple
+)
 
 from swh.loader.package.loader import PackageLoader
 from swh.loader.package.utils import download
@@ -46,12 +48,12 @@ class DebianLoader(PackageLoader):
         """
         return list(self.packages.keys())[0]
 
-    def get_artifacts(self, version: str) -> Generator[
-            Tuple[Mapping[str, Any], Dict], None, None]:
-        a_metadata = self.packages[version]
-        artifacts_package_info = a_metadata.copy()
-        artifacts_package_info['filename'] = version
-        yield artifacts_package_info, a_metadata
+    def get_package_info(self, version: str) -> Generator[
+            Tuple[str, Mapping[str, Any]], None, None]:
+        meta = self.packages[version]
+        p_info = meta.copy()
+        p_info['raw'] = meta
+        yield 'releases/%s' % version, p_info
 
     def resolve_revision_from(
             self, known_package_artifacts: Dict, artifact_metadata: Dict) \
@@ -82,7 +84,8 @@ class DebianLoader(PackageLoader):
         # if we pass here, we did not find any known artifacts
         logger.debug('No existing revision found for the new artifacts.')
 
-    def download_package(self, a_p_info: str, tmpdir: str) -> Tuple[str, Dict]:
+    def download_package(self, p_info: Mapping[str, Any],
+                         tmpdir: str) -> [Tuple[str, Dict]]:
         """Contrary to other package loaders (1 package, 1 artifact),
         `a_metadata` represents the package's datafiles set to fetch:
         - <package-version>.orig.tar.gz
@@ -92,22 +95,25 @@ class DebianLoader(PackageLoader):
         This is delegated to the `download_package` function.
 
         """
-        logger.debug('debian: artifactS_package_info: %s', a_p_info)
-        return tmpdir, download_package(a_p_info, tmpdir)
+        all_hashes = download_package(p_info, tmpdir)
+        logger.debug('all_hashes: %s', all_hashes)
+        res = []
+        for hashes in all_hashes.values():
+            res.append((tmpdir, hashes))
+        logger.debug('res: %s', res)
+        return res
 
-    def uncompress(self, a_path: str, tmpdir: str, a_metadata: Dict) -> str:
-        return extract_package(a_metadata, tmpdir)
+    def uncompress(self, dl_artifacts: [Tuple[str, Dict]], dest: str) -> str:
+        logger.debug('dl_artifacts: %s', dl_artifacts)
+        return extract_package(dl_artifacts, dest=dest)
 
-    def read_intrinsic_metadata(self, a_metadata: Dict,
-                                a_uncompressed_path: str) -> Dict:
-        _, dsc_name = dsc_information(a_metadata)
-        dsc_path = path.join(path.dirname(a_uncompressed_path), dsc_name)
-        return get_package_metadata(
-            a_metadata, dsc_path, a_uncompressed_path)
+    def build_revision(self, a_metadata: Mapping[str, Any],
+                       uncompressed_path: str) -> Dict:
+        dsc_url, dsc_name = dsc_information(a_metadata)
+        dsc_path = path.join(path.dirname(uncompressed_path), dsc_name)
+        i_metadata = get_package_metadata(
+            a_metadata, dsc_path, uncompressed_path)
 
-    def build_revision(
-            self, a_metadata: Dict, i_metadata: Dict) -> Dict:
-        dsc_url, _ = dsc_information(a_metadata)
         logger.debug('i_metadata: %s', i_metadata)
         logger.debug('a_metadata: %s', a_metadata)
 
@@ -238,24 +244,32 @@ def dsc_information(package: Mapping[str, Any]) -> Tuple[str, str]:
     return dsc_url, dsc_name
 
 
-def extract_package(package: Mapping[str, Any], tmpdir: str) -> str:
+def extract_package(dl_artifacts: List[Tuple[str, Dict]], dest: str) -> str:
     """Extract a Debian source package to a given directory.
 
     Note that after extraction the target directory will be the root of the
     extracted package, rather than containing it.
 
     Args:
-        package (dict): package information dictionary
-        tmpdir (str): directory where the package files are stored
+        package: package information dictionary
+        dest: directory where the package files are stored
 
     Returns:
         Package extraction directory
 
     """
-    _, dsc_name = dsc_information(package)
-    dsc_path = path.join(tmpdir, dsc_name)
-    destdir = path.join(tmpdir, 'extracted')
-    logfile = path.join(tmpdir, 'extract.log')
+    a_path = dl_artifacts[0][0]
+    logger.debug('dl_artifacts: %s', dl_artifacts)
+    for _, hashes in dl_artifacts:
+        logger.debug('hashes: %s', hashes)
+        filename = hashes['filename']
+        if filename.endswith('.dsc'):
+            dsc_name = filename
+            break
+
+    dsc_path = path.join(a_path, dsc_name)
+    destdir = path.join(dest, 'extracted')
+    logfile = path.join(dest, 'extract.log')
     logger.debug('extract Debian source package %s in %s' %
                  (dsc_path, destdir), extra={
                      'swh_type': 'deb_extract',

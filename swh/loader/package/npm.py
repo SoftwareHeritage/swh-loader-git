@@ -9,7 +9,7 @@ import os
 import re
 
 from codecs import BOM_UTF8
-from typing import Dict, Generator, Mapping, Sequence, Tuple, Optional
+from typing import Any, Dict, Generator, Mapping, Sequence, Tuple, Optional
 
 import chardet
 import iso8601
@@ -241,32 +241,29 @@ class NpmLoader(PackageLoader):
     def get_default_release(self) -> str:
         return self.info['dist-tags'].get('latest', '')
 
-    def get_artifacts(self, version: str) -> Generator[
-            Tuple[Mapping[str, str], Dict], None, None]:
+    def get_package_info(self, version: str) -> Generator[
+            Tuple[str, Mapping[str, Any]], None, None]:
         meta = self.info['versions'][version]
         url = meta['dist']['tarball']
-        artifact_package_info = {
+        p_info = {
             'url': url,
             'filename': os.path.basename(url),
+            'raw': meta,
         }
-        yield artifact_package_info, meta
+        yield 'releases/%s' % version, p_info
 
     def resolve_revision_from(
             self, known_artifacts: Dict, artifact_metadata: Dict) \
             -> Optional[bytes]:
         shasum = artifact_metadata['dist']['shasum']
         for rev_id, known_artifact in known_artifacts.items():
-            original_artifact = known_artifact['original_artifact']
+            original_artifact = known_artifact['original_artifact'][0]
             if shasum == original_artifact['checksums']['sha1']:
                 return rev_id
 
-    def read_intrinsic_metadata(self, a_metadata: Dict,
-                                a_uncompressed_path: str) -> Dict:
-        return extract_intrinsic_metadata(a_uncompressed_path)
-
     def build_revision(
-            self, a_metadata: Dict, i_metadata: Dict) -> Dict:
-
+            self, a_metadata: Dict, uncompressed_path: str) -> Dict:
+        i_metadata = extract_intrinsic_metadata(uncompressed_path)
         # from intrinsic metadata
         author = extract_npm_package_author(i_metadata)
         # extrinsic metadata

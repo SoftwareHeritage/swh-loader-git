@@ -269,13 +269,15 @@ def test_get_package_metadata(requests_mock_datadir, datadir, tmp_path):
     logger.debug('package: %s', package)
 
     # download the packages
-    download_package(package, tmp_path)
+    all_hashes = download_package(package, tmp_path)
 
     # Retrieve information from package
     _, dsc_name = dsc_information(package)
 
+    dl_artifacts = [(tmp_path, hashes) for hashes in all_hashes.values()]
+
     # Extract information from package
-    extracted_path = extract_package(package, tmp_path)
+    extracted_path = extract_package(dl_artifacts, tmp_path)
 
     # Retrieve information on package
     dsc_path = path.join(path.dirname(extracted_path), dsc_name)

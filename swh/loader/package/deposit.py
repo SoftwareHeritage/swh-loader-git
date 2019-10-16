@@ -53,16 +53,17 @@ class DepositLoader(PackageLoader):
         # branch
         return ['HEAD']
 
-    def get_artifacts(self, version: str) -> Generator[
+    def get_package_info(self, version: str) -> Generator[
             Tuple[Mapping[str, str], Dict], None, None]:
-        artifact_package_info = {
+        p_info = {
             'url': self.client.base_url + self.archive_url,
             'filename': 'archive.zip',
+            'raw': self.metadata,
         }
-        yield artifact_package_info, self.metadata
+        yield 'HEAD', p_info
 
     def build_revision(
-            self, a_metadata: Dict, i_metadata: Dict) -> Dict:
+            self, a_metadata: Dict, uncompressed_path: str) -> Dict:
         revision = a_metadata.pop('revision')
         metadata = {
             'extrinsic': {
