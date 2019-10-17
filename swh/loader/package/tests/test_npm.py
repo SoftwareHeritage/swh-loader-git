@@ -13,7 +13,7 @@ from swh.loader.package.npm import (
     parse_npm_package_author, extract_npm_package_author
 )
 from swh.loader.package.tests.common import (
-    check_snapshot, check_metadata_paths
+    check_snapshot, check_metadata_paths, get_stats
 )
 
 from swh.loader.package.npm import NpmLoader
@@ -423,7 +423,7 @@ def test_npm_loader_first_visit(swh_config, requests_mock_datadir):
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
 
-    stats = loader.storage.stat_counters()
+    stats = get_stats(loader.storage)
 
     assert {
         'content': len(_expected_new_contents_first_visit),
@@ -484,7 +484,7 @@ def test_npm_loader_incremental_visit(
     origin_visit = list(loader.storage.origin_visit_get(url))[-1]
     assert origin_visit['status'] == 'full'
 
-    stats = loader.storage.stat_counters()
+    stats = get_stats(loader.storage)
 
     assert {
         'content': len(_expected_new_contents_first_visit),
@@ -505,7 +505,7 @@ def test_npm_loader_incremental_visit(
     origin_visit2 = list(loader.storage.origin_visit_get(url))[-1]
     assert origin_visit2['status'] == 'full'
 
-    stats = loader.storage.stat_counters()
+    stats = get_stats(loader.storage)
 
     assert {  # 3 new releases artifacts
         'content': len(_expected_new_contents_first_visit) + 14,

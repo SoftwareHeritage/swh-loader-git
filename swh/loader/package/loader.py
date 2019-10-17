@@ -119,7 +119,7 @@ class PackageLoader:
             self.url, require_snapshot=True)
         if visit:
             return snapshot_get_all_branches(
-                self.storage, visit['snapshot']['id'])
+                self.storage, visit['snapshot'])
 
     def known_artifacts(self, snapshot: Dict) -> [Dict]:
         """Retrieve the known releases/artifact for the origin.
@@ -255,7 +255,7 @@ class PackageLoader:
         try:
             # Prepare origin and origin_visit
             origin = {'url': self.url}
-            self.storage.origin_add([origin])
+            self.storage.origin_add_one(origin)
             visit_id = self.storage.origin_visit_add(
                 origin=self.url,
                 date=self.visit_date,
@@ -380,7 +380,7 @@ class PackageLoader:
         finally:
             self.storage.origin_visit_update(
                 origin=self.url, visit_id=visit_id, status=status_visit,
-                snapshot=snapshot)
+                snapshot=snapshot and snapshot['id'])
         result = {
             'status': status_load,
         }

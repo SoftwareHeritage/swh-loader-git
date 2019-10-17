@@ -111,3 +111,16 @@ def check_metadata_paths(metadata: Dict, paths: List[Tuple[str, str]]):
     """
     for key_path, raw_type in paths:
         check_metadata(metadata, key_path, raw_type)
+
+
+def get_stats(storage) -> Dict:
+    """Adaptation utils to unify the stats counters across storage
+       implementation.
+
+    """
+    storage.refresh_stat_counters()
+    stats = storage.stat_counters()
+
+    keys = ['content', 'directory', 'origin', 'origin_visit', 'person',
+            'release', 'revision', 'skipped_content', 'snapshot']
+    return {k: stats.get(k) for k in keys}

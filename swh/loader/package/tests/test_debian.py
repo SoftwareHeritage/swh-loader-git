@@ -13,7 +13,7 @@ from swh.loader.package.debian import (
     DebianLoader, download_package, dsc_information, uid_to_person,
     prepare_person, get_package_metadata, extract_package
 )
-from swh.loader.package.tests.common import check_snapshot
+from swh.loader.package.tests.common import check_snapshot, get_stats
 
 
 logger = logging.getLogger(__name__)
@@ -65,7 +65,7 @@ def test_debian_first_visit(
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
 
-    stats = loader.storage.stat_counters()
+    stats = get_stats(loader.storage)
     assert {
         'content': 42,
         'directory': 2,
@@ -107,7 +107,7 @@ def test_debian_first_visit_then_another_visit(
     origin_visit = next(loader.storage.origin_visit_get(url))
     assert origin_visit['status'] == 'full'
 
-    stats = loader.storage.stat_counters()
+    stats = get_stats(loader.storage)
     assert {
         'content': 42,
         'directory': 2,
@@ -138,7 +138,7 @@ def test_debian_first_visit_then_another_visit(
     origin_visit2 = list(loader.storage.origin_visit_get(url))
     assert origin_visit2[-1]['status'] == 'full'
 
-    stats2 = loader.storage.stat_counters()
+    stats2 = get_stats(loader.storage)
     assert {
         'content': 42 + 0,
         'directory': 2 + 0,

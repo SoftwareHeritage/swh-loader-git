@@ -10,7 +10,7 @@ from swh.model.hashutil import hash_to_bytes
 from swh.loader.package.deposit import DepositLoader
 
 from swh.loader.package.tests.common import (
-    check_snapshot, check_metadata_paths
+    check_snapshot, check_metadata_paths, get_stats
 )
 
 from swh.core.pytest_plugin import requests_mock_datadir_factory
@@ -40,7 +40,7 @@ def test_deposit_loading_failure_to_fetch_metadata(swh_config):
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'failed'
 
-    stats = loader.storage.stat_counters()
+    stats = get_stats(loader.storage)
 
     assert {
         'content': 0,
@@ -77,7 +77,7 @@ def test_deposit_loading_failure_to_retrieve_1_artifact(
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'uneventful'
 
-    stats = loader.storage.stat_counters()
+    stats = get_stats(loader.storage)
     assert {
         'content': 0,
         'directory': 0,
@@ -138,7 +138,7 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
 
-    stats = loader.storage.stat_counters()
+    stats = get_stats(loader.storage)
     assert {
         'content': 303,
         'directory': 12,
@@ -192,8 +192,8 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
     assert provider is not None
     assert provider['id'] is not None
 
-    metadata = loader.storage.origin_metadata_get_by(
-        url, provider_type='deposit_client')
+    metadata = list(loader.storage.origin_metadata_get_by(
+        url, provider_type='deposit_client'))
     assert metadata is not None
     assert isinstance(metadata, list)
     assert len(metadata) == 1

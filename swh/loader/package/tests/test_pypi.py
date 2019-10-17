@@ -19,7 +19,7 @@ from swh.loader.package.pypi import (
     PyPILoader, pypi_api_url, author, extract_intrinsic_metadata
 )
 from swh.loader.package.tests.common import (
-    check_snapshot, check_metadata_paths
+    check_snapshot, check_metadata_paths, get_stats
 )
 
 
@@ -199,7 +199,7 @@ def test_no_release_artifact(swh_config, requests_mock_datadir_missing_all):
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'uneventful'
 
-    stats = loader.storage.stat_counters()
+    stats = get_stats(loader.storage)
     assert {
         'content': 0,
         'directory': 0,
@@ -229,7 +229,7 @@ def test_release_with_traceback(swh_config):
         actual_load_status = loader.load()
         assert actual_load_status['status'] == 'failed'
 
-        stats = loader.storage.stat_counters()
+        stats = get_stats(loader.storage)
 
         assert {
             'content': 0,
@@ -307,7 +307,8 @@ def test_visit_with_missing_artifact(
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
 
-    stats = loader.storage.stat_counters()
+    stats = get_stats(loader.storage)
+
     assert {
         'content': 3,
         'directory': 2,
@@ -373,7 +374,7 @@ def test_visit_with_1_release_artifact(swh_config, requests_mock_datadir):
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
 
-    stats = loader.storage.stat_counters()
+    stats = get_stats(loader.storage)
     assert {
         'content': 6,
         'directory': 4,
@@ -449,7 +450,8 @@ def test_multiple_visits_with_no_change(swh_config, requests_mock_datadir):
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
 
-    stats = loader.storage.stat_counters()
+    stats = get_stats(loader.storage)
+
     assert {
         'content': 6,
         'directory': 4,
@@ -490,13 +492,13 @@ def test_multiple_visits_with_no_change(swh_config, requests_mock_datadir):
     actual_load_status2 = loader.load()
     assert actual_load_status2['status'] == 'uneventful'
 
-    stats2 = loader.storage.stat_counters()
+    stats2 = get_stats(loader.storage)
     expected_stats2 = stats.copy()
     expected_stats2['origin_visit'] = 1 + 1
     assert expected_stats2 == stats2
 
     # same snapshot
-    actual_snapshot_id = origin_visit['snapshot']['id']
+    actual_snapshot_id = origin_visit['snapshot']
     assert actual_snapshot_id == hash_to_bytes(snapshot_id)
 
 
@@ -508,7 +510,7 @@ def test_incremental_visit(swh_config, requests_mock_datadir_visits):
     loader = PyPILoader(url)
 
     visit1_actual_load_status = loader.load()
-    visit1_stats = loader.storage.stat_counters()
+    visit1_stats = get_stats(loader.storage)
     assert visit1_actual_load_status['status'] == 'eventful'
     origin_visit1 = next(loader.storage.origin_visit_get(url))
     assert origin_visit1['status'] == 'full'
@@ -529,7 +531,7 @@ def test_incremental_visit(swh_config, requests_mock_datadir_visits):
     loader._info = None
 
     visit2_actual_load_status = loader.load()
-    visit2_stats = loader.storage.stat_counters()
+    visit2_stats = get_stats(loader.storage)
 
     assert visit2_actual_load_status['status'] == 'eventful'
     visits = list(loader.storage.origin_visit_get(url))

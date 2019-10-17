@@ -10,7 +10,7 @@ from swh.model.hashutil import hash_to_bytes
 
 from swh.loader.package.gnu import GNULoader, get_version
 from swh.loader.package.tests.common import (
-    check_snapshot, check_metadata_paths
+    check_snapshot, check_metadata_paths, get_stats
 )
 
 
@@ -147,7 +147,7 @@ def test_visit_with_no_artifact_found(swh_config, requests_mock):
 
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'uneventful'
-    stats = loader.storage.stat_counters()
+    stats = get_stats(loader.storage)
 
     assert {
         'content': 0,
@@ -218,7 +218,7 @@ def test_visit_with_release_artifact_no_prior_visit(
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
 
-    stats = loader.storage.stat_counters()
+    stats = get_stats(loader.storage)
     assert {
         'content': len(_expected_new_contents_first_visit),
         'directory': len(_expected_new_directories_first_visit),
@@ -297,7 +297,7 @@ def test_2_visits_with_new_artifact(swh_config, requests_mock_datadir):
     origin_visit = list(loader.storage.origin_visit_get(url))[-1]
     assert origin_visit['status'] == 'full'
 
-    stats = loader.storage.stat_counters()
+    stats = get_stats(loader.storage)
     assert {
         'content': len(_expected_new_contents_first_visit),
         'directory': len(_expected_new_directories_first_visit),
@@ -324,13 +324,13 @@ def test_2_visits_with_new_artifact(swh_config, requests_mock_datadir):
     loader2 = GNULoader(url, [tarball1, tarball2])
     # implementation detail: share the storage in between visits
     loader2.storage = loader.storage
-    stats2 = loader2.storage.stat_counters()
+    stats2 = get_stats(loader2.storage)
     assert stats == stats2  # ensure we share the storage
 
     actual_load_status2 = loader2.load()
     assert actual_load_status2['status'] == 'eventful'
 
-    stats2 = loader.storage.stat_counters()
+    stats2 = get_stats(loader.storage)
     assert {
         'content': len(_expected_new_contents_first_visit) + 14,
         'directory': len(_expected_new_directories_first_visit) + 8,

@@ -5,11 +5,30 @@
 
 import os
 import pytest
+import yaml
+
+from swh.storage.tests.conftest import * # noqa
 
 
 @pytest.fixture
-def swh_config(monkeypatch, datadir):
-    conffile = os.path.join(datadir, 'loader.yml')
+def swh_config(monkeypatch, swh_storage_postgresql, tmp_path):
+    storage_config = {
+        'storage': {
+            'cls': 'local',
+            'args': {
+                'db': swh_storage_postgresql.dsn,
+                'objstorage': {
+                    'cls': 'memory',
+                    'args': {}
+                },
+            },
+        },
+        'url': 'https://deposit.softwareheritage.org/1/private',
+    }
+
+    conffile = os.path.join(str(tmp_path), 'loader.yml')
+    with open(conffile, 'w') as f:
+        f.write(yaml.dump(storage_config))
     monkeypatch.setenv('SWH_CONFIG_FILENAME', conffile)
     return conffile
 
