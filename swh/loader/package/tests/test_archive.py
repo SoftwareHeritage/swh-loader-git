@@ -3,20 +3,19 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import re
-
 from swh.model.hashutil import hash_to_bytes
 
-from swh.loader.package.gnu import GNULoader
+from swh.loader.package.archive import ArchiveLoader, artifact_identity
 from swh.loader.package.tests.common import (
     check_snapshot, check_metadata_paths, get_stats
 )
 
+
 URL = 'https://ftp.gnu.org/gnu/8sync/'
-ARTIFACTS = [
+GNU_ARTIFACTS = [
     {
-        'time': '944729610',
-        'archive': 'https://ftp.gnu.org/gnu/8sync/8sync-0.1.0.tar.gz',
+        'time': 944729610,
+        'url': 'https://ftp.gnu.org/gnu/8sync/8sync-0.1.0.tar.gz',
         'length': 221837,
         'filename': '8sync-0.1.0.tar.gz',
         'version': '0.1.0',
@@ -85,10 +84,18 @@ _expected_branches_first_visit = {
 _expected_new_snapshot_first_visit_id = 'c419397fd912039825ebdbea378bc6283f006bf5'  # noqa
 
 
-def test_visit_with_no_artifact_found(swh_config, requests_mock):
+def visit_with_no_artifact_found(swh_config, requests_mock_datadir):
     url = URL
-    loader = GNULoader(url, artifacts=ARTIFACTS)
-    requests_mock.get(re.compile('https://'), status_code=404)
+    unknown_artifact_url = 'https://ftp.g.o/unknown/8sync-0.1.0.tar.gz'
+    loader = ArchiveLoader(url, artifacts=[
+        {
+            'time': 944729610,
+            'url': unknown_artifact_url,  # unknown artifact
+            'length': 221837,
+            'filename': '8sync-0.1.0.tar.gz',
+            'version': '0.1.0',
+        }
+    ])
 
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'uneventful'
@@ -111,7 +118,7 @@ def test_visit_with_no_artifact_found(swh_config, requests_mock):
 
 
 def test_check_revision_metadata_structure(swh_config, requests_mock_datadir):
-    loader = GNULoader(url=URL, artifacts=ARTIFACTS)
+    loader = ArchiveLoader(url=URL, artifacts=GNU_ARTIFACTS)
 
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
@@ -143,7 +150,7 @@ def test_visit_with_release_artifact_no_prior_visit(
     """With no prior visit, load a gnu project ends up with 1 snapshot
 
     """
-    loader = GNULoader(url=URL, artifacts=ARTIFACTS)
+    loader = ArchiveLoader(url=URL, artifacts=GNU_ARTIFACTS)
 
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
@@ -184,7 +191,7 @@ def test_2_visits_without_change(swh_config, requests_mock_datadir):
 
     """
     url = URL
-    loader = GNULoader(url, artifacts=ARTIFACTS)
+    loader = ArchiveLoader(url, artifacts=GNU_ARTIFACTS)
 
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
@@ -208,8 +215,8 @@ def test_2_visits_with_new_artifact(swh_config, requests_mock_datadir):
 
     """
     url = URL
-    artifact1 = ARTIFACTS[0]
-    loader = GNULoader(url, [artifact1])
+    artifact1 = GNU_ARTIFACTS[0]
+    loader = ArchiveLoader(url, [artifact1])
 
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
@@ -237,13 +244,13 @@ def test_2_visits_with_new_artifact(swh_config, requests_mock_datadir):
 
     artifact2 = {
         'time': 1480991830,
-        'archive': 'https://ftp.gnu.org/gnu/8sync/8sync-0.2.0.tar.gz',
+        'url': 'https://ftp.gnu.org/gnu/8sync/8sync-0.2.0.tar.gz',
         'length': 238466,
         'filename': '8sync-0.2.0.tar.gz',
         'version': '0.2.0',
     }
 
-    loader2 = GNULoader(url, [artifact1, artifact2])
+    loader2 = ArchiveLoader(url, [artifact1, artifact2])
     # implementation detail: share the storage in between visits
     loader2.storage = loader.storage
     stats2 = get_stats(loader2.storage)
@@ -274,3 +281,64 @@ def test_2_visits_with_new_artifact(swh_config, requests_mock_datadir):
     ]
     # 1 artifact (2nd time no modification) + 1 new artifact
     assert len(urls) == 2
+
+
+def test_artifact_identity():
+    """Compute primary key should return the right identity
+
+    """
+    data = {
+        'a': 1,
+        'b': 2,
+        'length': 221837,
+        'filename': '8sync-0.1.0.tar.gz',
+        'version': '0.1.0',
+    }
+
+    for id_keys, expected_id in [
+            (['a', 'b'], [1, 2]),
+            ([], []),
+            (['a', 'key-that-does-not-exist'], [1, None])
+    ]:
+        actual_id = artifact_identity(data, id_keys=id_keys)
+        assert actual_id == expected_id
+
+
+def test_2_visits_without_change_not_gnu(swh_config, requests_mock_datadir):
+    """Load a project archive (not gnu) ends up with 1 snapshot
+
+    """
+    url = 'https://something.else.org/8sync/'
+    artifacts = [  # this is not a gnu artifact
+        {
+            'time': '1999-12-09T09:53:30+00:00',  # it's also not a timestamp
+            'sha256': 'd5d1051e59b2be6f065a9fc6aedd3a391e44d0274b78b9bb4e2b57a09134dbe4',  # noqa
+            # keep a gnu artifact reference to avoid adding other test files
+            'url': 'https://ftp.gnu.org/gnu/8sync/8sync-0.2.0.tar.gz',
+            'length': 238466,
+            'filename': '8sync-0.2.0.tar.gz',
+            'version': '0.2.0',
+        }
+    ]
+
+    # Here the loader defines the id_keys to use for existence in the snapshot
+    # It's not the default archive loader which
+    loader = ArchiveLoader(
+        url, artifacts=artifacts, identity_artifact_keys=[
+            'sha256', 'length', 'url'])
+
+    actual_load_status = loader.load()
+    assert actual_load_status['status'] == 'eventful'
+    origin_visit = list(loader.storage.origin_visit_get(url))[-1]
+    assert origin_visit['status'] == 'full'
+
+    actual_load_status2 = loader.load()
+    assert actual_load_status2['status'] == 'uneventful'
+    origin_visit2 = list(loader.storage.origin_visit_get(url))[-1]
+    assert origin_visit2['status'] == 'full'
+
+    urls = [
+        m.url for m in requests_mock_datadir.request_history
+        if m.url.startswith('https://ftp.gnu.org')
+    ]
+    assert len(urls) == 1

@@ -3,13 +3,14 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import iso8601
 import logging
 
+from os import path
 from typing import Any, Dict, Generator, Mapping, Optional, Sequence, Tuple
 
 from swh.loader.package.loader import PackageLoader
 from swh.loader.package.utils import release_name
-
 from swh.model.identifiers import normalize_timestamp
 
 
@@ -22,27 +23,35 @@ SWH_PERSON = {
 REVISION_MESSAGE = b'swh-loader-package: synthetic revision message'
 
 
-class GNULoader(PackageLoader):
+class ArchiveLoader(PackageLoader):
     visit_type = 'tar'
 
-    def __init__(self, url: str, artifacts: Sequence):
+    def __init__(self, url: str, artifacts: Sequence[Mapping[str, Any]],
+                 identity_artifact_keys: Optional[Sequence[str]] = None):
         """Loader constructor.
 
         For now, this is the lister's task output.
 
         Args:
             url: Origin url
-            artifacts: List of dict with keys:
+            artifacts: List of artifact information with keys:
 
-               **time**: last modification time
-               **url**: the artifact url to retrieve
-               **filename**: artifact's filename
-               **version**: artifact's version
-               **length**: artifact's size
+               **time**: last modification time as either isoformat date string
+                   or timestamp
+               **url**: the artifact url to retrieve filename
+               **artifact's filename version**: artifact's version length
+               **length**: artifact's length
+
+            identity_artifact_keys: Optional List of keys forming the
+                "identity" of an artifact
 
         """
         super().__init__(url=url)
-        self.artifacts = list(sorted(artifacts, key=lambda v: v['time']))
+        self.artifacts = artifacts  # assume order is enforced in the lister
+        if not identity_artifact_keys:
+            # default keys for gnu
+            identity_artifact_keys = ['time', 'url', 'length', 'version']
+        self.identity_artifact_keys = identity_artifact_keys
 
     def get_versions(self) -> Sequence[str]:
         versions = []
@@ -59,12 +68,13 @@ class GNULoader(PackageLoader):
     def get_package_info(self, version: str) -> Generator[
             Tuple[str, Mapping[str, Any]], None, None]:
         for a_metadata in self.artifacts:
-            url = a_metadata['archive']
-            package_version = get_version(url)
+            url = a_metadata['url']
+            package_version = a_metadata['version']
             if version == package_version:
+                filename = a_metadata.get('filename')
                 p_info = {
                     'url': url,
-                    'filename': path.split(url)[-1],
+                    'filename': filename if filename else path.split(url)[-1],
                     'raw': a_metadata,
                 }
                 # FIXME: this code assumes we have only 1 artifact per
@@ -74,27 +84,29 @@ class GNULoader(PackageLoader):
     def resolve_revision_from(
             self, known_artifacts: Dict, artifact_metadata: Dict) \
             -> Optional[bytes]:
-        def pk(d):
-            return [d.get(k) for k in ['time', 'url', 'length', 'version']]
-
-        artifact_pk = pk(artifact_metadata)
+        identity = artifact_identity(
+            artifact_metadata, id_keys=self.identity_artifact_keys)
         for rev_id, known_artifact in known_artifacts.items():
             logging.debug('known_artifact: %s', known_artifact)
-            known_pk = pk(known_artifact['extrinsic']['raw'])
-            if artifact_pk == known_pk:
+            reference_artifact = known_artifact['extrinsic']['raw']
+            known_identity = artifact_identity(
+                reference_artifact, id_keys=self.identity_artifact_keys)
+            if identity == known_identity:
                 return rev_id
 
-    def build_revision(
-            self, a_metadata: Mapping[str, Any],
-            uncompressed_path: str) -> Dict:
-        normalized_date = normalize_timestamp(int(a_metadata['time']))
+    def build_revision(self, a_metadata: Mapping[str, Any],
+                       uncompressed_path: str) -> Dict:
+        time = a_metadata['time']  # assume it's a timestamp
+        if isinstance(time, str):  # otherwise, assume it's a parsable date
+            time = iso8601.parse_date(time)
+        normalized_time = normalize_timestamp(time)
         return {
             'type': 'tar',
             'message': REVISION_MESSAGE,
-            'date': normalized_date,
+            'date': normalized_time,
             'author': SWH_PERSON,
             'committer': SWH_PERSON,
-            'committer_date': normalized_date,
+            'committer_date': normalized_time,
             'parents': [],
             'metadata': {
                 'intrinsic': {},
@@ -105,3 +117,19 @@ class GNULoader(PackageLoader):
                 },
             },
         }
+
+
+def artifact_identity(d: Mapping[str, Any],
+                      id_keys: Sequence[str]) -> Sequence[Any]:
+    """Compute the primary key for a dict using the id_keys as primary key
+       composite.
+
+    Args:
+        d: A dict entry to compute the primary key on
+        id_keys: Sequence of keys to use as primary key
+
+    Returns:
+        The identity for that dict entry
+
+    """
+    return [d.get(k) for k in id_keys]
