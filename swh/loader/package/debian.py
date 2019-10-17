@@ -42,7 +42,7 @@ class DebianLoader(PackageLoader):
         """
         return self.packages.keys()
 
-    def get_default_release(self) -> str:
+    def get_default_version(self) -> str:
         """Take the first version as default release
 
         """

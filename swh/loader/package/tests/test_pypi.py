@@ -222,7 +222,7 @@ def test_no_release_artifact(swh_config, requests_mock_datadir_missing_all):
 
 def test_release_with_traceback(swh_config):
     url = 'https://pypi.org/project/0805nexter'
-    with patch('swh.loader.package.pypi.PyPILoader.get_default_release',
+    with patch('swh.loader.package.pypi.PyPILoader.get_default_version',
                side_effect=ValueError('Problem')):
         loader = PyPILoader(url)
 

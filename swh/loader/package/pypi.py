@@ -126,7 +126,7 @@ class PyPILoader(PackageLoader):
     def get_versions(self) -> Sequence[str]:
         return self.info['releases'].keys()
 
-    def get_default_release(self) -> str:
+    def get_default_version(self) -> str:
         return self.info['info']['version']
 
     def get_package_info(self, version: str) -> Generator[

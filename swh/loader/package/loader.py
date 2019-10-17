@@ -102,7 +102,7 @@ class PackageLoader:
         """
         return {}
 
-    def get_default_release(self) -> str:
+    def get_default_version(self) -> str:
         """Retrieve the latest release version
 
         Returns:
@@ -265,9 +265,9 @@ class PackageLoader:
             known_artifacts = self.known_artifacts(last_snapshot)
             logger.debug('known artifacts: %s', known_artifacts)
 
-            # Retrieve the default release (the "latest" one)
-            default_release = self.get_default_release()
-            logger.debug('default release: %s', default_release)
+            # Retrieve the default release version (the "latest" one)
+            default_version = self.get_default_version()
+            logger.debug('default version: %s', default_version)
 
             for version in self.get_versions():  # for each
                 logger.debug('version: %s', version)
@@ -342,8 +342,12 @@ class PackageLoader:
             # Build and load the snapshot
             branches = {}
             for version, branch_name_revisions in tmp_revisions.items():
-                if len(branch_name_revisions) == 1:
+                if version == default_version and \
+                   len(branch_name_revisions) == 1:
+                    # only 1 branch (no ambiguity), we can create an alias
+                    # branch 'HEAD'
                     branch_name, target = branch_name_revisions[0]
+                    # except for some corner case (deposit)
                     if branch_name != 'HEAD':
                         branches[b'HEAD'] = {
                             'target_type': 'alias',

@@ -140,7 +140,7 @@ class GNULoader(PackageLoader):
                 versions.append(v)
         return versions
 
-    def get_default_release(self) -> str:
+    def get_default_version(self) -> str:
         # It's the most recent, so for this loader, it's the last one
         return get_version(self.tarballs[-1]['archive'])
 
