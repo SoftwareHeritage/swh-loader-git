@@ -346,7 +346,7 @@ class PackageLoader:
                    len(branch_name_revisions) == 1:
                     # only 1 branch (no ambiguity), we can create an alias
                     # branch 'HEAD'
-                    branch_name, target = branch_name_revisions[0]
+                    branch_name, _ = branch_name_revisions[0]
                     # except for some corner case (deposit)
                     if branch_name != 'HEAD':
                         branches[b'HEAD'] = {

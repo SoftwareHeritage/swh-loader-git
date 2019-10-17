@@ -32,6 +32,45 @@ class DebianLoader(PackageLoader):
     visit_type = 'debian'
 
     def __init__(self, url: str, date: str, packages: Mapping[str, Any]):
+        """Debian Loader implementation.
+
+        Args:
+            url: Origin url (e.g. deb://Debian/packages/cicero)
+            date: Ignored
+            packages: versioned packages and associated artifacts, example::
+
+              {
+                'stretch/contrib/0.7.2-3': {
+                  'name': 'cicero',
+                  'version': '0.7.2-3'
+                  'files': {
+                    'cicero_0.7.2-3.diff.gz': {
+                       'md5sum': 'a93661b6a48db48d59ba7d26796fc9ce',
+                       'name': 'cicero_0.7.2-3.diff.gz',
+                       'sha256': 'f039c9642fe15c75bed5254315e2a29f...',
+                       'size': 3964,
+                       'uri': 'http://d.d.o/cicero_0.7.2-3.diff.gz',
+                    },
+                    'cicero_0.7.2-3.dsc': {
+                      'md5sum': 'd5dac83eb9cfc9bb52a15eb618b4670a',
+                      'name': 'cicero_0.7.2-3.dsc',
+                      'sha256': '35b7f1048010c67adfd8d70e4961aefb...',
+                      'size': 1864,
+                      'uri': 'http://d.d.o/cicero_0.7.2-3.dsc',
+                    },
+                    'cicero_0.7.2.orig.tar.gz': {
+                      'md5sum': '4353dede07c5728319ba7f5595a7230a',
+                      'name': 'cicero_0.7.2.orig.tar.gz',
+                      'sha256': '63f40f2436ea9f67b44e2d4bd669dbab...',
+                      'size': 96527,
+                      'uri': 'http://d.d.o/cicero_0.7.2.orig.tar.gz',
+                    }
+                  },
+                },
+                # ...
+              }
+
+        """
         super().__init__(url=url)
         self.packages = packages
 
@@ -43,10 +82,10 @@ class DebianLoader(PackageLoader):
         return self.packages.keys()
 
     def get_default_version(self) -> str:
-        """Take the first version as default release
+        """No default version for debian so no HEAD alias in snapshot.
 
         """
-        return list(self.packages.keys())[0]
+        return None
 
     def get_package_info(self, version: str) -> Generator[
             Tuple[str, Mapping[str, Any]], None, None]:
@@ -81,7 +120,7 @@ class DebianLoader(PackageLoader):
                 logger.debug('Existing revision %s found for new artifacts.',
                              rev_id)
                 return rev_id
-        # if we pass here, we did not find any known artifacts
+            # if we pass here, we did not find any known artifacts
         logger.debug('No existing revision found for the new artifacts.')
 
     def download_package(self, p_info: Mapping[str, Any],
@@ -100,7 +139,7 @@ class DebianLoader(PackageLoader):
         res = []
         for hashes in all_hashes.values():
             res.append((tmpdir, hashes))
-        logger.debug('res: %s', res)
+            logger.debug('res: %s', res)
         return res
 
     def uncompress(self, dl_artifacts: [Tuple[str, Dict]], dest: str) -> str:

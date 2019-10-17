@@ -20,6 +20,8 @@ logger = logging.getLogger(__name__)
 
 
 PACKAGE_FILES = {
+    'name': 'cicero',
+    'version': '0.7.2-3',
     'files': {
         'cicero_0.7.2-3.diff.gz': {
             'md5sum': 'a93661b6a48db48d59ba7d26796fc9ce',
@@ -42,10 +44,6 @@ PACKAGE_FILES = {
             'uri': 'http://deb.debian.org/debian//pool/contrib/c/cicero/cicero_0.7.2.orig.tar.gz'  # noqa
         }
     },
-    'id': 23,
-    'name': 'cicero',
-    'revision_id': None,
-    'version': '0.7.2-3'
 }
 
 
@@ -81,12 +79,8 @@ def test_debian_first_visit(
     } == stats
 
     expected_snapshot = {
-        'id': 'a59ec49a01ff329dcbbc63fd36a5654143aef240',
+        'id': '3b6b66e6ee4e7d903a379a882684a2a50480c0b4',
         'branches': {
-            'HEAD': {
-                'target_type': 'alias',
-                'target': 'releases/stretch/contrib/0.7.2-3'
-            },
             'releases/stretch/contrib/0.7.2-3': {
                 'target_type': 'revision',
                 'target': '2807f5b3f84368b4889a9ae827fe85854ffecf07',
@@ -127,12 +121,8 @@ def test_debian_first_visit_then_another_visit(
     } == stats
 
     expected_snapshot = {
-        'id': 'a59ec49a01ff329dcbbc63fd36a5654143aef240',
+        'id': '3b6b66e6ee4e7d903a379a882684a2a50480c0b4',
         'branches': {
-            'HEAD': {
-                'target_type': 'alias',
-                'target': 'releases/stretch/contrib/0.7.2-3'
-            },
             'releases/stretch/contrib/0.7.2-3': {
                 'target_type': 'revision',
                 'target': '2807f5b3f84368b4889a9ae827fe85854ffecf07',
