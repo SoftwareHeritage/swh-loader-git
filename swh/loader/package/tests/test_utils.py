@@ -7,7 +7,7 @@
 import os
 import pytest
 
-from swh.loader.package.utils import download, api_info
+from swh.loader.package.utils import download, api_info, release_name
 
 
 @pytest.mark.fs
@@ -144,3 +144,10 @@ def test_api_info(requests_mock):
     assert actual_info == {
         'version': '0.0.1',
     }
+
+
+def test_release_name():
+    for version, filename, expected_release in [
+            ('0.0.1', None, 'releases/0.0.1'),
+            ('0.0.2', 'something', 'releases/0.0.2/something')]:
+        assert release_name(version, filename) == expected_release

@@ -18,7 +18,7 @@ from typing import (
 )
 
 from swh.loader.package.loader import PackageLoader
-from swh.loader.package.utils import download
+from swh.loader.package.utils import download, release_name
 
 
 logger = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ class DebianLoader(PackageLoader):
         meta = self.packages[version]
         p_info = meta.copy()
         p_info['raw'] = meta
-        yield 'releases/%s' % version, p_info
+        yield release_name(version), p_info
 
     def resolve_revision_from(
             self, known_package_artifacts: Dict, artifact_metadata: Dict) \

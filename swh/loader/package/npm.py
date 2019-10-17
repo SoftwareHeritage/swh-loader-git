@@ -16,7 +16,7 @@ import iso8601
 
 from swh.model.identifiers import normalize_timestamp
 from swh.loader.package.loader import PackageLoader
-from swh.loader.package.utils import api_info
+from swh.loader.package.utils import api_info, release_name
 
 
 logger = logging.getLogger(__name__)
@@ -250,7 +250,7 @@ class NpmLoader(PackageLoader):
             'filename': os.path.basename(url),
             'raw': meta,
         }
-        yield 'releases/%s' % version, p_info
+        yield release_name(version), p_info
 
     def resolve_revision_from(
             self, known_artifacts: Dict, artifact_metadata: Dict) \

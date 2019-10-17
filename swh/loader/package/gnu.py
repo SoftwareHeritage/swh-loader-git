@@ -11,6 +11,7 @@ from os import path
 from typing import Any, Dict, Generator, Mapping, Optional, Sequence, Tuple
 
 from swh.loader.package.loader import PackageLoader
+from swh.loader.package.utils import release_name
 
 from swh.model.identifiers import normalize_timestamp
 
@@ -157,7 +158,7 @@ class GNULoader(PackageLoader):
                 }
                 # FIXME: this code assumes we have only 1 artifact per
                 # versioned package
-                yield 'releases/%s' % version, p_info
+                yield release_name(version), p_info
 
     def resolve_revision_from(
             self, known_artifacts: Dict, artifact_metadata: Dict) \

@@ -13,7 +13,7 @@ import iso8601
 
 from swh.model.identifiers import normalize_timestamp
 from swh.loader.package.loader import PackageLoader
-from swh.loader.package.utils import api_info
+from swh.loader.package.utils import api_info, release_name
 
 
 def pypi_api_url(url: str) -> str:
@@ -143,10 +143,10 @@ class PyPILoader(PackageLoader):
 
         if len(res) == 1:
             version, p_info = res[0]
-            yield 'releases/%s' % version, p_info
+            yield release_name(version), p_info
         else:
             for version, p_info in res:
-                yield 'releases/%s/%s' % (version, p_info['filename']), p_info
+                yield release_name(version, p_info['filename']), p_info
 
     def resolve_revision_from(
             self, known_artifacts: Dict, artifact_metadata: Dict) \

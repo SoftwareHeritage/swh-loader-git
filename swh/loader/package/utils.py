@@ -103,3 +103,9 @@ def download(url: str, dest: str, hashes: Dict = {},
     logger.debug('extrinsic_metadata', extrinsic_metadata)
 
     return filepath, extrinsic_metadata
+
+
+def release_name(version: str, filename: Optional[str] = None) -> str:
+    if filename:
+        return 'releases/%s/%s' % (version, filename)
+    return 'releases/%s' % version
