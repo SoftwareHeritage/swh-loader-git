@@ -8,6 +8,7 @@ import pytest
 import yaml
 
 from swh.storage.tests.conftest import * # noqa
+from swh.scheduler.tests.conftest import *  # noqa
 
 
 @pytest.fixture
@@ -41,3 +42,10 @@ def swh_proxy():
     """
     os.environ['http_proxy'] = 'http://localhost:999'
     os.environ['https_proxy'] = 'http://localhost:999'
+
+
+@pytest.fixture(scope='session')  # type: ignore  # expected redefinition
+def celery_includes():
+    return [
+        'swh.loader.package.tasks',
+    ]

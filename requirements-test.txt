@@ -1,3 +1,4 @@
 pytest
 requests_mock
 swh-core[testing]
+swh-scheduler[testing]
