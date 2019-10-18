@@ -28,27 +28,60 @@ PACKAGE_FILES = {
             'name': 'cicero_0.7.2-3.diff.gz',
             'sha256': 'f039c9642fe15c75bed5254315e2a29f9f2700da0e29d9b0729b3ffc46c8971c',  # noqa
             'size': 3964,
-            'uri': 'http://deb.debian.org/debian//pool/contrib/c/cicero/cicero_0.7.2-3.diff.gz'  # noqa
+            'uri': 'http://deb.debian.org/debian/pool/contrib/c/cicero/cicero_0.7.2-3.diff.gz'  # noqa
         },
         'cicero_0.7.2-3.dsc': {
             'md5sum': 'd5dac83eb9cfc9bb52a15eb618b4670a',
             'name': 'cicero_0.7.2-3.dsc',
             'sha256': '35b7f1048010c67adfd8d70e4961aefd8800eb9a83a4d1cc68088da0009d9a03',  # noqa
             'size': 1864,
-            'uri': 'http://deb.debian.org/debian//pool/contrib/c/cicero/cicero_0.7.2-3.dsc'},  # noqa
+            'uri': 'http://deb.debian.org/debian/pool/contrib/c/cicero/cicero_0.7.2-3.dsc'},  # noqa
         'cicero_0.7.2.orig.tar.gz': {
             'md5sum': '4353dede07c5728319ba7f5595a7230a',
             'name': 'cicero_0.7.2.orig.tar.gz',
             'sha256': '63f40f2436ea9f67b44e2d4bd669dbabe90e2635a204526c20e0b3c8ee957786',  # noqa
             'size': 96527,
-            'uri': 'http://deb.debian.org/debian//pool/contrib/c/cicero/cicero_0.7.2.orig.tar.gz'  # noqa
+            'uri': 'http://deb.debian.org/debian/pool/contrib/c/cicero/cicero_0.7.2.orig.tar.gz'  # noqa
         }
     },
 }
 
+PACKAGE_FILES2 = {
+    'name': 'cicero',
+    'version': '0.7.2-4',
+    'files': {
+        'cicero_0.7.2-4.diff.gz': {
+            'md5sum': '1e7e6fc4a59d57c98082a3af78145734',
+            'name': 'cicero_0.7.2-4.diff.gz',
+            'sha256': '2e6fa296ee7005473ff58d0971f4fd325617b445671480e9f2cfb738d5dbcd01',  # noqa
+            'size': 4038,
+            'uri': 'http://deb.debian.org/debian/pool/contrib/c/cicero/cicero_0.7.2-4.diff.gz'  # noqa
+        },
+        'cicero_0.7.2-4.dsc': {
+            'md5sum': '1a6c8855a73b4282bb31d15518f18cde',
+            'name': 'cicero_0.7.2-4.dsc',
+            'sha256': '913ee52f7093913420de5cbe95d63cfa817f1a1daf997961149501894e754f8b',  # noqa
+            'size': 1881,
+            'uri': 'http://deb.debian.org/debian/pool/contrib/c/cicero/cicero_0.7.2-4.dsc'},  # noqa
+        'cicero_0.7.2.orig.tar.gz': {
+            'md5sum': '4353dede07c5728319ba7f5595a7230a',
+            'name': 'cicero_0.7.2.orig.tar.gz',
+            'sha256': '63f40f2436ea9f67b44e2d4bd669dbabe90e2635a204526c20e0b3c8ee957786',  # noqa
+            'size': 96527,
+            'uri': 'http://deb.debian.org/debian/pool/contrib/c/cicero/cicero_0.7.2.orig.tar.gz'  # noqa
+        }
+    }
+}
+
 
 PACKAGE_PER_VERSION = {
-    'stretch/contrib/0.7.2-3': PACKAGE_FILES
+    'stretch/contrib/0.7.2-3': PACKAGE_FILES,
+}
+
+
+PACKAGES_PER_VERSION = {
+    'stretch/contrib/0.7.2-3': PACKAGE_FILES,
+    'buster/contrib/0.7.2-4': PACKAGE_FILES2,
 }
 
 
@@ -306,3 +339,33 @@ def test_get_package_metadata(requests_mock_datadir, datadir, tmp_path):
         'name': 'cicero',
         'version': '0.7.2-3'
     }
+
+
+def test_debian_multiple_packages(swh_config, requests_mock_datadir):
+    url = 'deb://Debian/packages/cicero'
+    loader = DebianLoader(
+        url=url,
+        date='2019-10-12T05:58:09.165557+00:00',
+        packages=PACKAGES_PER_VERSION)
+
+    actual_load_status = loader.load()
+    assert actual_load_status['status'] == 'eventful'
+
+    origin_visit = next(loader.storage.origin_visit_get(url))
+    assert origin_visit['status'] == 'full'
+
+    expected_snapshot = {
+        'id': 'defc19021187f3727293121fcf6c5c82cb923604',
+        'branches': {
+            'releases/stretch/contrib/0.7.2-3': {
+                'target_type': 'revision',
+                'target': '2807f5b3f84368b4889a9ae827fe85854ffecf07',
+            },
+            'releases/buster/contrib/0.7.2-4': {
+                'target_type': 'revision',
+                'target': '8224139c274c984147ef4b09aa0e462c55a10bd3',
+            }
+        },
+    }
+
+    check_snapshot(expected_snapshot, loader.storage)

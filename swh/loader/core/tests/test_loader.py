@@ -34,7 +34,8 @@ class DummyLoader:
         self.origin = origin
         self.origin_url = origin['url']
         self.visit_date = datetime.datetime.utcnow()
-        self.storage.origin_visit_add(origin['id'], self.visit_date)
+        self.storage.origin_visit_add(origin['id'], self.visit_date,
+                                      origin['type'])
 
     def parse_config_file(self, *args, **kwargs):
         return {
