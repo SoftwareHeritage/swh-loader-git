@@ -28,6 +28,91 @@ _EMPTY_AUTHOR = {'fullname': b'', 'name': None, 'email': None}
 _author_regexp = r'([^<(]+?)?[ \t]*(?:<([^>(]+?)>)?[ \t]*(?:\(([^)]+?)\)|$)'
 
 
+class NpmLoader(PackageLoader):
+    visit_type = 'npm'
+
+    def __init__(self, package_name, package_url, package_metadata_url):
+        super().__init__(url=package_url)
+        self.provider_url = package_metadata_url
+
+        self._info = None
+        self._versions = None
+
+        # if package_url is None:
+        #     package_url = 'https://www.npmjs.com/package/%s' % package_name
+        # if package_metadata_url is None:
+        #     package_metadata_url = 'https://replicate.npmjs.com/%s/' %\
+        #                             quote(package_name, safe='')
+
+    @property
+    def info(self) -> Dict:
+        """Return the project metadata information (fetched from npm registry)
+
+        """
+        if not self._info:
+            self._info = api_info(self.provider_url)
+        return self._info
+
+    def get_versions(self) -> Sequence[str]:
+        return sorted(list(self.info['versions'].keys()))
+
+    def get_default_version(self) -> str:
+        return self.info['dist-tags'].get('latest', '')
+
+    def get_package_info(self, version: str) -> Generator[
+            Tuple[str, Mapping[str, Any]], None, None]:
+        meta = self.info['versions'][version]
+        url = meta['dist']['tarball']
+        p_info = {
+            'url': url,
+            'filename': os.path.basename(url),
+            'raw': meta,
+        }
+        yield release_name(version), p_info
+
+    def resolve_revision_from(
+            self, known_artifacts: Dict, artifact_metadata: Dict) \
+            -> Optional[bytes]:
+        shasum = artifact_metadata['dist']['shasum']
+        for rev_id, known_artifact in known_artifacts.items():
+            original_artifact = known_artifact['original_artifact'][0]
+            if shasum == original_artifact['checksums']['sha1']:
+                return rev_id
+
+    def build_revision(
+            self, a_metadata: Dict, uncompressed_path: str) -> Dict:
+        i_metadata = extract_intrinsic_metadata(uncompressed_path)
+        # from intrinsic metadata
+        author = extract_npm_package_author(i_metadata)
+        # extrinsic metadata
+        version = i_metadata['version']
+        date = self.info['time'][version]
+        date = iso8601.parse_date(date)
+        date = normalize_timestamp(int(date.timestamp()))
+        message = version.encode('ascii')
+
+        return {
+            'type': 'tar',
+            'message': message,
+            'author': author,
+            'date': date,
+            'committer': author,
+            'committer_date': date,
+            'parents': [],
+            'metadata': {
+                'intrinsic': {
+                    'tool': 'package.json',
+                    'raw': i_metadata,
+                },
+                'extrinsic': {
+                    'provider': self.provider_url,
+                    'when': self.visit_date.isoformat(),
+                    'raw': a_metadata,
+                },
+            },
+        }
+
+
 def parse_npm_package_author(author_str):
     """
     Parse npm package author string.
@@ -208,88 +293,3 @@ def extract_intrinsic_metadata(dir_path: str) -> Dict:
     with open(package_json_path, 'rb') as package_json_file:
         package_json_bytes = package_json_file.read()
         return load_json(package_json_bytes)
-
-
-class NpmLoader(PackageLoader):
-    visit_type = 'npm'
-
-    def __init__(self, package_name, package_url, package_metadata_url):
-        super().__init__(url=package_url)
-        self.provider_url = package_metadata_url
-
-        self._info = None
-        self._versions = None
-
-        # if package_url is None:
-        #     package_url = 'https://www.npmjs.com/package/%s' % package_name
-        # if package_metadata_url is None:
-        #     package_metadata_url = 'https://replicate.npmjs.com/%s/' %\
-        #                             quote(package_name, safe='')
-
-    @property
-    def info(self) -> Dict:
-        """Return the project metadata information (fetched from npm registry)
-
-        """
-        if not self._info:
-            self._info = api_info(self.provider_url)
-        return self._info
-
-    def get_versions(self) -> Sequence[str]:
-        return sorted(list(self.info['versions'].keys()))
-
-    def get_default_version(self) -> str:
-        return self.info['dist-tags'].get('latest', '')
-
-    def get_package_info(self, version: str) -> Generator[
-            Tuple[str, Mapping[str, Any]], None, None]:
-        meta = self.info['versions'][version]
-        url = meta['dist']['tarball']
-        p_info = {
-            'url': url,
-            'filename': os.path.basename(url),
-            'raw': meta,
-        }
-        yield release_name(version), p_info
-
-    def resolve_revision_from(
-            self, known_artifacts: Dict, artifact_metadata: Dict) \
-            -> Optional[bytes]:
-        shasum = artifact_metadata['dist']['shasum']
-        for rev_id, known_artifact in known_artifacts.items():
-            original_artifact = known_artifact['original_artifact'][0]
-            if shasum == original_artifact['checksums']['sha1']:
-                return rev_id
-
-    def build_revision(
-            self, a_metadata: Dict, uncompressed_path: str) -> Dict:
-        i_metadata = extract_intrinsic_metadata(uncompressed_path)
-        # from intrinsic metadata
-        author = extract_npm_package_author(i_metadata)
-        # extrinsic metadata
-        version = i_metadata['version']
-        date = self.info['time'][version]
-        date = iso8601.parse_date(date)
-        date = normalize_timestamp(int(date.timestamp()))
-        message = version.encode('ascii')
-
-        return {
-            'type': 'tar',
-            'message': message,
-            'author': author,
-            'date': date,
-            'committer': author,
-            'committer_date': date,
-            'parents': [],
-            'metadata': {
-                'intrinsic': {
-                    'tool': 'package.json',
-                    'raw': i_metadata,
-                },
-                'extrinsic': {
-                    'provider': self.provider_url,
-                    'when': self.visit_date.isoformat(),
-                    'raw': a_metadata,
-                },
-            },
-        }
