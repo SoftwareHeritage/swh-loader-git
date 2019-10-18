@@ -305,10 +305,10 @@ class PackageLoader:
                                          len(contents))
 
                             self.storage.content_add(
-                                map(content_for_storage, contents))
+                                [content_for_storage(x) for x in contents])
 
                             status_load = 'eventful'
-                            directories = objects['directory'].values()
+                            directories = list(objects['directory'].values())
 
                             logger.debug('Number of directories: %s',
                                          len(directories))
