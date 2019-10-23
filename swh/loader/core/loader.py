@@ -230,8 +230,7 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
     def send_origin(self, origin):
         log_id = str(uuid.uuid4())
-        self.log.debug('Creating %s origin for %s' % (origin['type'],
-                                                      origin['url']),
+        self.log.debug('Creating origin for %s' % origin['url'],
                        extra={
                            'swh_type': 'storage_send_start',
                            'swh_content_type': 'origin',
@@ -239,8 +238,7 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                            'swh_id': log_id
                        })
         self.storage.origin_add_one(origin)
-        self.log.debug('Done creating %s origin for %s' % (origin['type'],
-                                                           origin['url']),
+        self.log.debug('Done creating origin for %s' % origin['url'],
                        extra={
                            'swh_type': 'storage_send_end',
                            'swh_content_type': 'origin',

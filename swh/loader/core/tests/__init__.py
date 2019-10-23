@@ -134,20 +134,18 @@ class BaseLoaderStorageTest:
         }
         self.assertEqual(expected_branches, branches)
 
-    def assertOriginMetadataContains(self, origin_type, origin_url,
+    def assertOriginMetadataContains(self, origin_url,
                                      expected_origin_metadata):
         """Check the storage contains this metadata for the given origin.
 
         Args:
 
-            origin_type (str): type of origin ('deposit', 'git', 'svn', ...)
             origin_url (str): URL of the origin
             expected_origin_metadata (dict):
                               Extrinsic metadata of the origin
                               <https://forge.softwareheritage.org/T1344>
         """
-        origin = self.storage.origin_get(
-                dict(type=origin_type, url=origin_url))
+        origin = self.storage.origin_get({'url': origin_url})
         results = self.storage.origin_metadata_get_by(origin['url'])
         self.assertEqual(len(results), 1, results)
         result = results[0]

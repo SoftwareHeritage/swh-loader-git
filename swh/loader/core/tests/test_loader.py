@@ -34,7 +34,9 @@ class DummyLoader:
         self.origin = origin
         self.origin_url = origin['url']
         self.visit_date = datetime.datetime.utcnow()
-        self.storage.origin_visit_add(origin['id'], self.visit_date)
+        self.visit_type = 'git'
+        self.storage.origin_visit_add(origin['id'], self.visit_date,
+                                      self.visit_type)
 
     def parse_config_file(self, *args, **kwargs):
         return {
@@ -314,19 +316,16 @@ class CoreBufferedLoaderTest(DummyBaseLoaderTest):
             self.loader.visit_date, provider_id,
             tool_id, {'test_metadata': 'foobar'})
 
-        self.assertOriginMetadataContains(
-            self.in_origin['type'], self.in_origin['url'],
-            {'test_metadata': 'foobar'})
+        self.assertOriginMetadataContains(self.in_origin['url'],
+                                          {'test_metadata': 'foobar'})
 
         with self.assertRaises(AssertionError):
-            self.assertOriginMetadataContains(
-                self.in_origin['type'], self.in_origin['url'],
-                {'test_metadata': 'foobarbaz'})
+            self.assertOriginMetadataContains(self.in_origin['url'],
+                                              {'test_metadata': 'foobarbaz'})
 
         with self.assertRaises(Exception):
-            self.assertOriginMetadataContains(
-                self.in_origin['type'], self.in_origin['url'] + 'blah',
-                {'test_metadata': 'foobar'})
+            self.assertOriginMetadataContains(self.in_origin['url'] + 'blah',
+                                              {'test_metadata': 'foobar'})
 
 
 def test_loader_logger_default_name():
