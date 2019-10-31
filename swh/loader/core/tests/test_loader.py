@@ -35,7 +35,7 @@ class DummyLoader:
         self.origin_url = origin['url']
         self.visit_date = datetime.datetime.utcnow()
         self.visit_type = 'git'
-        self.storage.origin_visit_add(origin['id'], self.visit_date,
+        self.storage.origin_visit_add(self.origin_url, self.visit_date,
                                       self.visit_type)
 
     def parse_config_file(self, *args, **kwargs):

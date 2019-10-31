@@ -738,10 +738,6 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
 
         """
         origin = self.origin.copy()
-        if 'id' in origin:
-            # TODO: remove the condition when we finished migrating away
-            # from origin ids
-            del origin['id']
         self.send_origin(origin)
 
         if not self.visit_date:  # now as default visit_date if not provided
