@@ -78,6 +78,7 @@ class NpmLoader(PackageLoader):
             original_artifact = known_artifact['original_artifact'][0]
             if shasum == original_artifact['checksums']['sha1']:
                 return rev_id
+        return None
 
     def build_revision(
             self, a_metadata: Dict, uncompressed_path: str) -> Dict:

@@ -69,6 +69,7 @@ class PyPILoader(PackageLoader):
             for original_artifact in known_artifact['original_artifact']:
                 if sha256 == original_artifact['checksums']['sha256']:
                     return rev_id
+        return None
 
     def build_revision(
             self, a_metadata: Dict, uncompressed_path: str) -> Dict:
@@ -173,6 +174,7 @@ def author(data: Dict) -> Dict:
     """
     name = data.get('author')
     email = data.get('author_email')
+    fullname = None  # type: Optional[str]
 
     if email:
         fullname = '%s <%s>' % (name, email)
@@ -182,12 +184,14 @@ def author(data: Dict) -> Dict:
     if not fullname:
         return {'fullname': b'', 'name': None, 'email': None}
 
-    fullname = fullname.encode('utf-8')
-
     if name is not None:
         name = name.encode('utf-8')
 
     if email is not None:
         email = email.encode('utf-8')
 
-    return {'fullname': fullname, 'name': name, 'email': email}
+    return {
+        'fullname': fullname.encode('utf-8'),
+        'name': name,
+        'email': email
+    }

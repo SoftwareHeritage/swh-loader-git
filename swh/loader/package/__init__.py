@@ -5,7 +5,7 @@
 
 
 try:
-    from swh.loader.core._version import __version__
+    from swh.loader.core._version import __version__   # type: ignore
 except ImportError:
     __version__ = 'devel'
 

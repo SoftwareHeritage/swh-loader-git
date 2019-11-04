@@ -95,7 +95,7 @@ def check_metadata(metadata: Dict, key_path: str, raw_type: str):
             # KeyError: because path too long
             # TypeError: data is not a dict
             raise AssertionError(e)
-    assert isinstance(data, raw_type)
+    assert isinstance(data, raw_type)  # type: ignore
 
 
 def check_metadata_paths(metadata: Dict, paths: List[Tuple[str, str]]):

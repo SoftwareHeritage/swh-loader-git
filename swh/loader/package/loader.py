@@ -92,9 +92,13 @@ class PackageLoader:
         yield from {}
 
     def build_revision(
-            self, a_metadata: Dict, i_metadata: Dict) -> Dict:
+            self, a_metadata: Dict, uncompressed_path: str) -> Dict:
         """Build the revision dict from the archive metadata (extrinsic
         artifact metadata) and the intrinsic metadata.
+
+        Args:
+            a_metadata: Artifact metadata
+            uncompressed_path: Artifact uncompressed path on disk
 
         Returns:
             SWH data dict
@@ -103,7 +107,7 @@ class PackageLoader:
         return {}
 
     def get_default_version(self) -> str:
-        """Retrieve the latest release version
+        """Retrieve the latest release version if any.
 
         Returns:
             Latest version
@@ -115,13 +119,15 @@ class PackageLoader:
         """Retrieve the last snapshot
 
         """
+        snapshot = None
         visit = self.storage.origin_visit_get_latest(
             self.url, require_snapshot=True)
         if visit:
-            return snapshot_get_all_branches(
+            snapshot = snapshot_get_all_branches(
                 self.storage, visit['snapshot'])
+        return snapshot
 
-    def known_artifacts(self, snapshot: Dict) -> [Dict]:
+    def known_artifacts(self, snapshot: Optional[Dict]) -> Dict:
         """Retrieve the known releases/artifact for the origin.
 
         Args
@@ -168,7 +174,7 @@ class PackageLoader:
         return None
 
     def download_package(self, p_info: Mapping[str, Any],
-                         tmpdir: str) -> [Tuple[str, Dict]]:
+                         tmpdir: str) -> List[Tuple[str, Mapping]]:
         """Download artifacts for a specific package. All downloads happen in
         in the tmpdir folder.
 
@@ -340,7 +346,7 @@ class PackageLoader:
 
             logger.debug('tmp_revisions: %s', tmp_revisions)
             # Build and load the snapshot
-            branches = {}
+            branches = {}  # type: Dict[bytes, Mapping[str, Any]]
             for version, branch_name_revisions in tmp_revisions.items():
                 if version == default_version and \
                    len(branch_name_revisions) == 1:
@@ -355,8 +361,7 @@ class PackageLoader:
                         }
 
                 for branch_name, target in branch_name_revisions:
-                    branch_name = branch_name.encode('utf-8')
-                    branches[branch_name] = {
+                    branches[branch_name.encode('utf-8')] = {
                         'target_type': 'revision',
                         'target': target,
                     }
@@ -383,7 +388,7 @@ class PackageLoader:
                 snapshot=snapshot and snapshot['id'])
         result = {
             'status': status_load,
-        }
+        }  # type: Dict[str, Any]
         if snapshot:
             result['snapshot_id'] = snapshot['id']
         return result

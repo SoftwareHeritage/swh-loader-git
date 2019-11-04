@@ -93,6 +93,7 @@ class ArchiveLoader(PackageLoader):
                 reference_artifact, id_keys=self.identity_artifact_keys)
             if identity == known_identity:
                 return rev_id
+        return None
 
     def build_revision(self, a_metadata: Mapping[str, Any],
                        uncompressed_path: str) -> Dict:

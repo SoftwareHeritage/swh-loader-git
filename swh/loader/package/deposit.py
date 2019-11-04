@@ -5,7 +5,7 @@
 
 import logging
 
-from typing import Dict, Generator, Mapping, Sequence, Tuple
+from typing import Any, Dict, Generator, Mapping, Sequence, Tuple
 
 from swh.model.hashutil import hash_to_hex
 from swh.loader.package.loader import PackageLoader
@@ -54,7 +54,7 @@ class DepositLoader(PackageLoader):
         return ['HEAD']
 
     def get_package_info(self, version: str) -> Generator[
-            Tuple[Mapping[str, str], Dict], None, None]:
+            Tuple[str, Mapping[str, Any]], None, None]:
         p_info = {
             'url': self.client.base_url + self.archive_url,
             'filename': 'archive.zip',

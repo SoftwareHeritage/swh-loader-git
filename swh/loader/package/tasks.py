@@ -28,11 +28,6 @@ def load_deposit(*, url, deposit_id):
     return DepositLoader(url, deposit_id).load()
 
 
-@shared_task(name=__name__ + '.LoadGNU')
-def load_gnu(*, url, tarballs):
-    return GNULoader(url, tarballs).load()
-
-
 @shared_task(name=__name__ + '.LoadNpm')
 def load_npm(*, package_name, package_url, package_metadata_url):
     return NpmLoader(package_name, package_url, package_metadata_url).load()

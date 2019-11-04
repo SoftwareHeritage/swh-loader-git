@@ -79,13 +79,7 @@ class DebianLoader(PackageLoader):
            stretch/contrib/0.7.2-3, etc...)
 
         """
-        return self.packages.keys()
-
-    def get_default_version(self) -> str:
-        """No default version for debian so no HEAD alias in snapshot.
-
-        """
-        return None
+        return list(self.packages.keys())
 
     def get_package_info(self, version: str) -> Generator[
             Tuple[str, Mapping[str, Any]], None, None]:
@@ -120,11 +114,11 @@ class DebianLoader(PackageLoader):
                 logger.debug('Existing revision %s found for new artifacts.',
                              rev_id)
                 return rev_id
-            # if we pass here, we did not find any known artifacts
         logger.debug('No existing revision found for the new artifacts.')
+        return None
 
     def download_package(self, p_info: Mapping[str, Any],
-                         tmpdir: str) -> [Tuple[str, Dict]]:
+                         tmpdir: str) -> List[Tuple[str, Mapping]]:
         """Contrary to other package loaders (1 package, 1 artifact),
         `a_metadata` represents the package's datafiles set to fetch:
         - <package-version>.orig.tar.gz
@@ -142,13 +136,17 @@ class DebianLoader(PackageLoader):
             logger.debug('res: %s', res)
         return res
 
-    def uncompress(self, dl_artifacts: [Tuple[str, Dict]], dest: str) -> str:
+    def uncompress(self, dl_artifacts: List[Tuple[str, Mapping[str, Any]]],
+                   dest: str) -> str:
         logger.debug('dl_artifacts: %s', dl_artifacts)
         return extract_package(dl_artifacts, dest=dest)
 
     def build_revision(self, a_metadata: Mapping[str, Any],
                        uncompressed_path: str) -> Dict:
         dsc_url, dsc_name = dsc_information(a_metadata)
+        if not dsc_name:
+            raise ValueError(
+                'dsc name for url %s should not be None' % dsc_url)
         dsc_path = path.join(path.dirname(uncompressed_path), dsc_name)
         i_metadata = get_package_metadata(
             a_metadata, dsc_path, uncompressed_path)
@@ -258,7 +256,8 @@ def download_package(
     return all_hashes
 
 
-def dsc_information(package: Mapping[str, Any]) -> Tuple[str, str]:
+def dsc_information(package: Mapping[str, Any]) -> Tuple[
+        Optional[str], Optional[str]]:
     """Retrieve dsc information from a package.
 
     Args:
@@ -283,7 +282,7 @@ def dsc_information(package: Mapping[str, Any]) -> Tuple[str, str]:
     return dsc_url, dsc_name
 
 
-def extract_package(dl_artifacts: List[Tuple[str, Dict]], dest: str) -> str:
+def extract_package(dl_artifacts: List[Tuple[str, Mapping]], dest: str) -> str:
     """Extract a Debian source package to a given directory.
 
     Note that after extraction the target directory will be the root of the
@@ -361,11 +360,11 @@ def get_package_metadata(package: Mapping[str, Any], dsc_path: str,
         except UnicodeDecodeError:
             logger.warning('Unknown encoding for changelog %s,'
                            ' falling back to iso' %
-                           changelog_path.decode('utf-8'), extra={
+                           changelog_path, extra={
                                'swh_type': 'deb_changelog_encoding',
                                'swh_name': package['name'],
                                'swh_version': str(package['version']),
-                               'swh_changelog': changelog_path.decode('utf-8'),
+                               'swh_changelog': changelog_path,
                            })
 
             # need to reset as Changelog scrolls to the end of the file
