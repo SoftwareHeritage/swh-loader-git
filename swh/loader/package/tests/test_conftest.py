@@ -3,17 +3,10 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-
-try:
-    from swh.loader.core._version import __version__
-except ImportError:
-    __version__ = 'devel'
+import pytest
+import requests
 
 
-DEFAULT_PARAMS = {
-    'headers': {
-        'User-Agent': 'Software Heritage Loader (%s)' % (
-            __version__
-        )
-    }
-}
+def test_swh_proxy():
+    with pytest.raises(requests.exceptions.ProxyError):
+        requests.get('https://www.softwareheritage.org')

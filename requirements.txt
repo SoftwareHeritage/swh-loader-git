@@ -5,3 +5,6 @@ vcversioner
 retrying
 psutil
 requests
+iso8601
+pkginfo
+python-debian

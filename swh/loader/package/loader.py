@@ -3,475 +3,387 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import datetime
+import logging
+import tempfile
 import os
-import shutil
-import requests
 
-try:
-    from _version import __version__  # type: ignore
-except ImportError:
-    __version__ = 'devel'
-
-
-from tempfile import mkdtemp
-
-from swh.core import tarball
-from swh.loader.core.utils import clean_dangling_folders
-from swh.loader.core.loader import BufferedLoader
-from swh.model.identifiers import normalize_timestamp
-from swh.model.hashutil import MultiHash, HASH_BLOCK_SIZE
-from swh.model.from_disk import Directory
-
-from swh.model.identifiers import (
-    identifier_to_bytes, revision_identifier, snapshot_identifier
+from typing import (
+    Any, Dict, Generator, List, Mapping, Optional, Sequence, Tuple
 )
 
-DEBUG_MODE = '** DEBUG MODE **'
+from swh.core.tarball import uncompress
+from swh.core.config import SWHConfig
+from swh.model.from_disk import Directory
+from swh.model.identifiers import (
+    revision_identifier, snapshot_identifier, identifier_to_bytes
+)
+from swh.storage import get_storage
+from swh.storage.algos.snapshot import snapshot_get_all_branches
+from swh.loader.core.converters import content_for_storage
+from swh.loader.package.utils import download
 
 
-class GNULoader(BufferedLoader):
+logger = logging.getLogger(__name__)
 
-    SWH_PERSON = {
-        'name': b'Software Heritage',
-        'fullname': b'Software Heritage',
-        'email': b'robot@softwareheritage.org'
-    }
-    REVISION_MESSAGE = b'swh-loader-package: synthetic revision message'
 
-    visit_type = 'gnu'
+# Not implemented yet:
+# - clean up disk routines from previous killed workers (when OOMkilled)
+# -> separation of concern would like this to be abstracted from the code
+# -> experience tells us it's complicated to do as such (T903, T964, T982,
+#    etc...)
+#
+# - model: swh.model.merkle.from_disk should output swh.model.model.* objects
+#          to avoid this layer's conversion routine call
+# -> Take this up within swh.model's current implementation
 
-    def __init__(self):
-        self.TEMPORARY_DIR_PREFIX_PATTERN = 'swh.loader.gnu.'
-        super().__init__(logging_class='swh.loader.package.GNULoader')
 
-        self.dir_path = None
-        temp_directory = self.config['temp_directory']
-        os.makedirs(temp_directory, exist_ok=True)
+class PackageLoader:
+    # Origin visit type (str) set by the loader
+    visit_type = ''
 
-        self.temp_directory = mkdtemp(
-            suffix='-%s' % os.getpid(),
-            prefix=self.TEMPORARY_DIR_PREFIX_PATTERN,
-            dir=temp_directory)
-
-        self.debug = self.config.get('debug', False)
-        self.session = requests.session()
-        self.params = {
-            'headers': {
-                'User-Agent': 'Software Heritage Loader (%s)' % (
-                    __version__
-                )
-            }
-        }
-
-    def pre_cleanup(self):
-        """To prevent disk explosion if some other workers exploded
-        in mid-air (OOM killed), we try and clean up dangling files.
-
-        """
-        if self.debug:
-            self.log.warning('%s Will not pre-clean up temp dir %s' % (
-                DEBUG_MODE, self.temp_directory
-            ))
-            return
-        clean_dangling_folders(self.temp_directory,
-                               pattern_check=self.TEMPORARY_DIR_PREFIX_PATTERN,
-                               log=self.log)
-
-    def prepare_origin_visit(self, name, origin_url, **kwargs):
-        """Prepare package visit.
+    def __init__(self, url):
+        """Loader's constructor. This raises exception if the minimal required
+           configuration is missing (cf. fn:`check` method).
 
         Args:
-            name (str): Package Name
-            origin_url (str): Package origin url
-            **kwargs: Arbitrary keyword arguments passed by the lister.
+            url (str): Origin url to load data from
 
         """
-        # reset statuses
-        self._load_status = 'uneventful'
-        self._visit_status = 'full'
-        self.done = False
+        # This expects to use the environment variable SWH_CONFIG_FILENAME
+        self.config = SWHConfig.parse_config_file()
+        self._check_configuration()
+        self.storage = get_storage(**self.config['storage'])
+        self.url = url
+        self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
 
-        self.origin = {
-            'url': origin_url,
-            'type': self.visit_type,
-        }
+    def _check_configuration(self):
+        """Checks the minimal configuration required is set for the loader.
 
-        self.visit_date = None  # loader core will populate it
+        If some required configuration is missing, exception detailing the
+        issue is raised.
 
-    def prepare(self, name, origin_url, **kwargs):
-        """Prepare effective loading of source tarballs for a package manager
-           package.
+        """
+        if 'storage' not in self.config:
+            raise ValueError(
+                'Misconfiguration, at least the storage key should be set')
+
+    def get_versions(self) -> Sequence[str]:
+        """Return the list of all published package versions.
+
+        Returns:
+            Sequence of published versions
+
+        """
+        return []
+
+    def get_package_info(self, version: str) -> Generator[
+            Tuple[str, Mapping[str, Any]], None, None]:
+        """Given a release version of a package, retrieve the associated
+           package information for such version.
 
         Args:
-            name (str): Package Name
-            origin_url (str): Package origin url
-            **kwargs: Arbitrary keyword arguments passed by the lister.
+            version: Package version
+
+        Returns:
+            (branch name, package metadata)
 
         """
-        self.package_contents = []
-        self.package_directories = []
-        self.package_revisions = []
-        self.all_version_data = []
-        self.latest_timestamp = 0
-        # Conceled the data into one dictionary to eliminate the need of
-        # passing all the parameters when required in some method
-        self.package_details = {
-            'name': name,
-            'origin_url': origin_url,
-            'tarballs': kwargs['tarballs'],
-        }
+        yield from {}
 
-        self.package_temp_dir = os.path.join(self.temp_directory,
-                                             self.package_details['name'])
+    def build_revision(
+            self, a_metadata: Dict, i_metadata: Dict) -> Dict:
+        """Build the revision dict from the archive metadata (extrinsic
+        artifact metadata) and the intrinsic metadata.
 
-        self.new_versions = \
-            self.prepare_package_versions(self.package_details['tarballs'])
-
-    def prepare_package_versions(self, tarballs):
-        """
-        Instantiate a generator that will process a specific package release
-        version at each iteration step. The following operations will be
-        performed:
-
-            1. Create a temporary directory to download and extract the
-               release tarball.
-            2. Download the tarball.
-            3. Uncompress the tarball.
-            4. Parse the file associated to the package version to extract
-               metadata (optional).
-            5. Delete unnecessary files (optional).
-
-        Args:
-            tarballs (list): a list of dicts containing information about the
-                respective tarball that is provided by lister.
-            known_versions (dict): may be provided by the loader, it enables
-                to filter out versions already ingested in the archive.
-
-        Yields:
-            Tuple[dict, str]: tuples containing the following
-            members:
-
-                * a dict holding package tarball information and metadata
-                * a string holding the path of the uncompressed package to
-                  load into the archive
+        Returns:
+            SWH data dict
 
         """
-        for package_version_data in tarballs:
+        return {}
 
-            tarball_url = package_version_data['archive']
-            tarball_request = self._request(tarball_url,
-                                            throw_error=False)
-            if tarball_request.status_code == 404:
-                self.log.warning('Tarball url %s returns a 404 error.',
-                                 tarball_url)
-                self._visit_status = 'partial'
-                # FIX ME: Do we need to mark it `partial` here
+    def get_default_version(self) -> str:
+        """Retrieve the latest release version
+
+        Returns:
+            Latest version
+
+        """
+        return ''
+
+    def last_snapshot(self) -> Optional[Dict]:
+        """Retrieve the last snapshot
+
+        """
+        visit = self.storage.origin_visit_get_latest(
+            self.url, require_snapshot=True)
+        if visit:
+            return snapshot_get_all_branches(
+                self.storage, visit['snapshot'])
+
+    def known_artifacts(self, snapshot: Dict) -> [Dict]:
+        """Retrieve the known releases/artifact for the origin.
+
+        Args
+            snapshot: snapshot for the visit
+
+        Returns:
+            Dict of keys revision id (bytes), values a metadata Dict.
+
+        """
+        if not snapshot or 'branches' not in snapshot:
+            return {}
+
+        # retrieve only revisions (e.g the alias we do not want here)
+        revs = [rev['target']
+                for rev in snapshot['branches'].values()
+                if rev and rev['target_type'] == 'revision']
+        known_revisions = self.storage.revision_get(revs)
+
+        ret = {}
+        for revision in known_revisions:
+            if not revision:  # revision_get can return None
                 continue
+            ret[revision['id']] = revision['metadata']
 
-            yield self._prepare_package_version(package_version_data,
-                                                tarball_request)
+        return ret
 
-    def _request(self, url, throw_error=True):
-        """Request the remote tarball url.
+    def resolve_revision_from(
+            self, known_artifacts: Dict, artifact_metadata: Dict) \
+            -> Optional[bytes]:
+        """Resolve the revision from a snapshot and an artifact metadata dict.
+
+        If the artifact has already been downloaded, this will return the
+        existing revision targeting that uncompressed artifact directory.
+        Otherwise, this returns None.
 
         Args:
-            url (str): Url (file or http*).
-
-        Raises:
-            ValueError in case of failing to query.
+            snapshot: Snapshot
+            artifact_metadata: Information dict
 
         Returns:
-            Tuple of local (filepath, hashes of filepath).
+            None or revision identifier
 
         """
-        response = self.session.get(url, **self.params, stream=True)
-        if response.status_code != 200 and throw_error:
-            raise ValueError("Fail to query '%s'. Reason: %s" % (
-                url, response.status_code))
+        return None
 
-        return response
+    def download_package(self, p_info: Mapping[str, Any],
+                         tmpdir: str) -> [Tuple[str, Dict]]:
+        """Download artifacts for a specific package. All downloads happen in
+        in the tmpdir folder.
 
-    def _prepare_package_version(self, package_version_data, tarball_request):
-        """Process the package release version.
+        Default implementation expects the artifacts package info to be
+        about one artifact per package.
 
-        The following operations are performed:
-
-            1. Download the tarball
-            2. Uncompress the tarball
-            3. Delete unnecessary files (optional)
-            4. Parse the file associated to the package version to extract
-               metadata (optional)
+        Note that most implementation have 1 artifact per package. But some
+        implementation have multiple artifacts per package (debian), some have
+        none, the package is the artifact (gnu).
 
         Args:
-            package_version_data (dict): containing information
-                about the focused package version.
-            known_versions (dict): may be provided by the loader, it enables
-                to filter out versions already ingested in the archive.
-
-        Return:
-            Tuple[dict, str]: tuples containing the following
-            members:
-
-                * a dict holding package tarball information and metadata
-                * a string holding the path of the uncompressed package to
-                  load into the archive
-
-        """
-        url = package_version_data['archive']
-        tarball_path, hashes = self.download_generate_hash(tarball_request,
-                                                           url)
-        uncompressed_path = os.path.join(self.package_temp_dir, 'uncompressed',
-                                         os.path.basename(url))     # SEE ME
-        self.uncompress_tarball(tarball_path, uncompressed_path)
-
-        # remove tarball
-        os.remove(tarball_path)
-
-        if self.tarball_invalid:
-            return None, None
-
-        return package_version_data, uncompressed_path
-
-    def download_generate_hash(self, response, url):
-        """Store file in temp directory and computes hash of its filepath.
-
-        Args:
-            response (Response): Server response of the url
-            url (str): Url of the tarball
+            artifacts_package_info: Information on the package artifacts to
+                download (url, filename, etc...)
+            tmpdir: Location to retrieve such artifacts
 
         Returns:
-            Tuple of local (filepath, hashes of filepath)
+            List of (path, computed hashes)
 
         """
-        length = int(response.headers['content-length'])
-        os.makedirs(self.package_temp_dir, exist_ok=True)
-        # SEE ME
-        filepath = os.path.join(self.package_temp_dir, os.path.basename(url))
+        a_uri = p_info['url']
+        filename = p_info.get('filename')
+        return [download(a_uri, dest=tmpdir, filename=filename)]
 
-        # Convert the server response to a file.
-        h = MultiHash(length=length)
-        with open(filepath, 'wb') as f:
-            for chunk in response.iter_content(chunk_size=HASH_BLOCK_SIZE):
-                h.update(chunk)
-                f.write(chunk)
+    def uncompress(self, dl_artifacts: List[Tuple[str, Mapping[str, Any]]],
+                   dest: str) -> str:
+        """Uncompress the artifact(s) in the destination folder dest.
 
-        # Check for the validity of the tarball downloaded.
-        actual_length = os.path.getsize(filepath)
-        if length != actual_length:
-            raise ValueError('Error when checking size: %s != %s' % (
-                length, actual_length))
-
-        hashes = {
-            'length': length,
-            **h.hexdigest()
-        }
-        return filepath, hashes
-
-    def uncompress_tarball(self, filepath, path):
-        """Uncompress a tarball.
-
-        Args:
-            filepath (str): Path of tarball to uncompress
-            path (str): The destination folder where to uncompress the tarball
-        Returns:
-            The nature of the tarball, zip or tar.
+        Optionally, this could need to use the p_info dict for some more
+        information (debian).
 
         """
+        uncompressed_path = os.path.join(dest, 'src')
+        for a_path, _ in dl_artifacts:
+            uncompress(a_path, dest=uncompressed_path)
+        return uncompressed_path
+
+    def load(self) -> Dict:
+        """Load for a specific origin the associated contents.
+
+        for each package version of the origin
+
+        1. Fetch the files for one package version By default, this can be
+           implemented as a simple HTTP request. Loaders with more specific
+           requirements can override this, e.g.: the PyPI loader checks the
+           integrity of the downloaded files; the Debian loader has to download
+           and check several files for one package version.
+
+        2. Extract the downloaded files By default, this would be a universal
+           archive/tarball extraction.
+
+           Loaders for specific formats can override this method (for instance,
+           the Debian loader uses dpkg-source -x).
+
+        3. Convert the extracted directory to a set of Software Heritage
+           objects Using swh.model.from_disk.
+
+        4. Extract the metadata from the unpacked directories This would only
+           be applicable for "smart" loaders like npm (parsing the
+           package.json), PyPI (parsing the PKG-INFO file) or Debian (parsing
+           debian/changelog and debian/control).
+
+           On "minimal-metadata" sources such as the GNU archive, the lister
+           should provide the minimal set of metadata needed to populate the
+           revision/release objects (authors, dates) as an argument to the
+           task.
+
+        5. Generate the revision/release objects for the given version. From
+           the data generated at steps 3 and 4.
+
+        end for each
+
+        6. Generate and load the snapshot for the visit
+
+        Using the revisions/releases collected at step 5., and the branch
+        information from step 0., generate a snapshot and load it into the
+        Software Heritage archive
+
+        """
+        status_load = 'uneventful'  # either: eventful, uneventful, failed
+        status_visit = 'full'       # either: partial, full
+        tmp_revisions = {}  # type: Dict[str, List]
+        snapshot = None
+
         try:
-            self.tarball_invalid = False
-            tarball.uncompress(filepath, path)
+            # Prepare origin and origin_visit
+            origin = {'url': self.url}
+            self.storage.origin_add_one(origin)
+            visit_id = self.storage.origin_visit_add(
+                origin=self.url,
+                date=self.visit_date,
+                type=self.visit_type)['visit']
+            last_snapshot = self.last_snapshot()
+            logger.debug('last snapshot: %s', last_snapshot)
+            known_artifacts = self.known_artifacts(last_snapshot)
+            logger.debug('known artifacts: %s', known_artifacts)
+
+            # Retrieve the default release version (the "latest" one)
+            default_version = self.get_default_version()
+            logger.debug('default version: %s', default_version)
+
+            for version in self.get_versions():  # for each
+                logger.debug('version: %s', version)
+                tmp_revisions[version] = []
+                # `p_` stands for `package_`
+                for branch_name, p_info in self.get_package_info(version):
+                    logger.debug('package_info: %s', p_info)
+                    revision_id = self.resolve_revision_from(
+                        known_artifacts, p_info['raw'])
+                    if revision_id is None:
+                        with tempfile.TemporaryDirectory() as tmpdir:
+                            try:
+                                dl_artifacts = self.download_package(
+                                    p_info, tmpdir)
+                            except Exception:
+                                logger.exception('Unable to retrieve %s',
+                                                 p_info)
+                                status_visit = 'partial'
+                                continue
+
+                            uncompressed_path = self.uncompress(
+                                dl_artifacts, dest=tmpdir)
+                            logger.debug('uncompressed_path: %s',
+                                         uncompressed_path)
+
+                            directory = Directory.from_disk(
+                                path=uncompressed_path.encode('utf-8'),
+                                data=True)  # noqa
+                            # FIXME: Try not to load the full raw content in
+                            # memory
+                            objects = directory.collect()
+
+                            contents = objects['content'].values()
+                            logger.debug('Number of contents: %s',
+                                         len(contents))
+
+                            self.storage.content_add(
+                                [content_for_storage(x) for x in contents])
+
+                            status_load = 'eventful'
+                            directories = list(objects['directory'].values())
+
+                            logger.debug('Number of directories: %s',
+                                         len(directories))
+
+                            self.storage.directory_add(directories)
+
+                            # FIXME: This should be release. cf. D409
+                            revision = self.build_revision(
+                                p_info['raw'], uncompressed_path)
+                            revision.update({
+                                'synthetic': True,
+                                'directory': directory.hash,
+                            })
+
+                        revision['metadata'].update({
+                            'original_artifact': [
+                                hashes for _, hashes in dl_artifacts
+                            ],
+                        })
+
+                        revision['id'] = revision_id = identifier_to_bytes(
+                            revision_identifier(revision))
+
+                        logger.debug('Revision: %s', revision)
+
+                        self.storage.revision_add([revision])
+
+                    tmp_revisions[version].append((branch_name, revision_id))
+
+            logger.debug('tmp_revisions: %s', tmp_revisions)
+            # Build and load the snapshot
+            branches = {}
+            for version, branch_name_revisions in tmp_revisions.items():
+                if version == default_version and \
+                   len(branch_name_revisions) == 1:
+                    # only 1 branch (no ambiguity), we can create an alias
+                    # branch 'HEAD'
+                    branch_name, _ = branch_name_revisions[0]
+                    # except for some corner case (deposit)
+                    if branch_name != 'HEAD':
+                        branches[b'HEAD'] = {
+                            'target_type': 'alias',
+                            'target': branch_name.encode('utf-8'),
+                        }
+
+                for branch_name, target in branch_name_revisions:
+                    branch_name = branch_name.encode('utf-8')
+                    branches[branch_name] = {
+                        'target_type': 'revision',
+                        'target': target,
+                    }
+
+            snapshot = {
+                'branches': branches
+            }
+            logger.debug('snapshot: %s', snapshot)
+
+            snapshot['id'] = identifier_to_bytes(
+                snapshot_identifier(snapshot))
+
+            logger.debug('snapshot: %s', snapshot)
+            self.storage.snapshot_add([snapshot])
+            if hasattr(self.storage, 'flush'):
+                self.storage.flush()
         except Exception:
-            self.tarball_invalid = True
-            self._visit_status = 'partial'
-
-    def fetch_data(self):
-        """Called once per release artifact version (can be many for one
-           release).
-
-        This will for each call:
-        - retrieve a release artifact (associated to a release version)
-        - Computes the swh objects
-
-        Returns:
-            True as long as data to fetch exist
-
-        """
-        data = None
-        if self.done:
-            return False
-
-        try:
-            data = next(self.new_versions)
-            self._load_status = 'eventful'
-        except StopIteration:
-            self.done = True
-            return False
-
-        package_version_data, dir_path = data
-
-        #  package release tarball was corrupted
-        if self.tarball_invalid:
-            return not self.done
-
-        dir_path = dir_path.encode('utf-8')
-        directory = Directory.from_disk(path=dir_path, data=True)
-        objects = directory.collect()
-
-        if 'content' not in objects:
-            objects['content'] = {}
-        if 'directory' not in objects:
-            objects['directory'] = {}
-
-        self.package_contents = objects['content'].values()
-        self.package_directories = objects['directory'].values()
-
-        revision = self.build_revision(directory,
-                                       package_version_data)
-
-        revision['id'] = identifier_to_bytes(
-            revision_identifier(revision))
-        self.package_revisions.append(revision)
-        self.log.debug(revision)
-        package_version_data['id'] = revision['id']
-        self.all_version_data.append(package_version_data)
-
-        # To find the latest version
-        if self.latest_timestamp < int(package_version_data['date']):
-            self.latest_timestamp = int(package_version_data['date'])
-
-        self.log.debug('Removing unpacked package files at %s', dir_path)
-        shutil.rmtree(dir_path)
-
-        return not self.done
-
-    def build_revision(self, directory, package_version_data):
-        normalize_date = normalize_timestamp(int(package_version_data['date']))
-        return {
-            'metadata': {
-                'package': {
-                    'date': package_version_data['date'],
-                    'archive': package_version_data['archive'],
-                    },
-                },
-            'date': normalize_date,
-            'committer_date': normalize_date,
-            'author': self.SWH_PERSON,
-            'committer': self.SWH_PERSON,
-            'type': 'tar',
-            'message': self.REVISION_MESSAGE,
-            'directory': directory.hash,
-            'synthetic': True,
-            'parents': [],
-            }
-
-    def store_data(self):
-        """Store fetched data in the database.
-
-        """
-        self.maybe_load_contents(self.package_contents)
-        self.maybe_load_directories(self.package_directories)
-        self.maybe_load_revisions(self.package_revisions)
-
-        if self.done:
-            self.generate_and_load_snapshot()
-            self.flush()
-
-    def generate_and_load_snapshot(self):
-        """Generate and load snapshot for the package visit.
-
-        """
-        branches = {}
-        for version_data in self.all_version_data:
-            branch_name = self.find_branch_name(version_data['archive'])
-
-            target = self.target_from_version(version_data['id'])
-            branches[branch_name] = target
-            branches = self.find_head(branches, branch_name,
-                                      version_data['date'])
-
-            if not target:
-                self._visit_status = 'partial'
-
-        snapshot = {
-            'branches': branches,
+            logger.exception('Fail to load %s' % self.url)
+            status_visit = 'partial'
+            status_load = 'failed'
+        finally:
+            self.storage.origin_visit_update(
+                origin=self.url, visit_id=visit_id, status=status_visit,
+                snapshot=snapshot and snapshot['id'])
+        result = {
+            'status': status_load,
         }
-
-        snapshot['id'] = identifier_to_bytes(snapshot_identifier(snapshot))
-        self.maybe_load_snapshot(snapshot)
-
-    def find_branch_name(self, url):
-        """Extract branch name from tarball url
-
-        Args:
-            url (str): Tarball URL
-
-        Returns:
-            byte: Branch name
-
-        Example:
-            For url = https://ftp.gnu.org/gnu/8sync/8sync-0.2.0.tar.gz
-
-            >>> find_branch_name(url)
-            b'release/8sync-0.2.0'
-
-        """
-        branch_name = ''
-        filename = os.path.basename(url)
-        filename_parts = filename.split(".")
-        if len(filename_parts) > 1 and filename_parts[-2] == 'tar':
-            for part in filename_parts[:-2]:
-                branch_name += '.' + part
-        elif len(filename_parts) > 1 and filename_parts[-1] == 'zip':
-            for part in filename_parts[:-1]:
-                branch_name += '.' + part
-
-        return (('release/%s') % branch_name[1:]).encode('ascii')
-
-    def find_head(self, branches, branch_name, timestamp):
-        """Make branch head.
-
-        Checks if the current version is the latest version. Make it as head
-        if it is the latest version.
-
-        Args:
-            branches (dict): Branches for the focused package.
-            branch_name (str): Branch name
-
-        Returns:
-            dict: Branches for the focused package
-
-        """
-        if self.latest_timestamp == int(timestamp):
-            branches[b'HEAD'] = {
-                'target_type': 'alias',
-                'target': branch_name,
-            }
-        return branches
-
-    def target_from_version(self, revision_id):
-        return {
-            'target': revision_id,
-            'target_type': 'revision',
-        } if revision_id else None
-
-    def load_status(self):
-        return {
-            'status': self._load_status,
-        }
-
-    def visit_status(self):
-        return self._visit_status
-
-    def cleanup(self):
-        """Clean up temporary disk use after downloading and extracting
-        package tarballs.
-
-        """
-        if self.debug:
-            self.log.warning('%s Will not clean up temp dir %s' % (
-                DEBUG_MODE, self.temp_directory
-            ))
-            return
-        if os.path.exists(self.temp_directory):
-            self.log.debug('Clean up %s' % self.temp_directory)
-            shutil.rmtree(self.temp_directory)
+        if snapshot:
+            result['snapshot_id'] = snapshot['id']
+        return result
