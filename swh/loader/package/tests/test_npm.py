@@ -389,6 +389,7 @@ def test_revision_metadata_structure(swh_config, requests_mock_datadir):
 
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
+    assert actual_load_status['snapshot_id'] is not None
 
     expected_revision_id = hash_to_bytes(
         'd8a1c7474d2956ac598a19f0f27d52f7015f117e')
@@ -421,7 +422,11 @@ def test_npm_loader_first_visit(swh_config, requests_mock_datadir):
                        package_metadata_url(package))
 
     actual_load_status = loader.load()
-    assert actual_load_status['status'] == 'eventful'
+    expected_snapshot_id = 'd0587e1195aed5a8800411a008f2f2d627f18e2d'
+    assert actual_load_status == {
+        'status': 'eventful',
+        'snapshot_id': expected_snapshot_id
+    }
 
     stats = get_stats(loader.storage)
 
@@ -448,7 +453,7 @@ def test_npm_loader_first_visit(swh_config, requests_mock_datadir):
         _expected_new_revisions_first_visit)) == []
 
     expected_snapshot = {
-        'id': 'd0587e1195aed5a8800411a008f2f2d627f18e2d',
+        'id': expected_snapshot_id,
         'branches': {
             'HEAD': {
                 'target': 'releases/0.0.4',
@@ -479,8 +484,8 @@ def test_npm_loader_incremental_visit(
     loader = NpmLoader(package, url, metadata_url)
 
     actual_load_status = loader.load()
-
     assert actual_load_status['status'] == 'eventful'
+    assert actual_load_status['status'] is not None
     origin_visit = list(loader.storage.origin_visit_get(url))[-1]
     assert origin_visit['status'] == 'full'
     assert origin_visit['type'] == 'npm'
@@ -501,8 +506,11 @@ def test_npm_loader_incremental_visit(
 
     loader._info = None  # reset loader internal state
     actual_load_status2 = loader.load()
-
     assert actual_load_status2['status'] == 'eventful'
+    snap_id2 = actual_load_status2['snapshot_id']
+    assert snap_id2 is not None
+    assert snap_id2 != actual_load_status['snapshot_id']
+
     origin_visit2 = list(loader.storage.origin_visit_get(url))[-1]
     assert origin_visit2['status'] == 'full'
     assert origin_visit2['type'] == 'npm'

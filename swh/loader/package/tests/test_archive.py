@@ -99,6 +99,7 @@ def visit_with_no_artifact_found(swh_config, requests_mock_datadir):
 
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'uneventful'
+    assert actual_load_status['snapshot_id'] is not None
     stats = get_stats(loader.storage)
 
     assert {
@@ -123,6 +124,7 @@ def test_check_revision_metadata_structure(swh_config, requests_mock_datadir):
 
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
+    assert actual_load_status['snapshot_id'] is not None
 
     expected_revision_id = hash_to_bytes(
         '44183488c0774ce3c957fa19ba695cf18a4a42b3')
@@ -155,6 +157,7 @@ def test_visit_with_release_artifact_no_prior_visit(
 
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
+    assert actual_load_status['snapshot_id'] == _expected_new_snapshot_first_visit_id  # noqa
 
     stats = get_stats(loader.storage)
     assert {
@@ -196,12 +199,18 @@ def test_2_visits_without_change(swh_config, requests_mock_datadir):
 
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
+    assert actual_load_status['snapshot_id'] is not None
     origin_visit = list(loader.storage.origin_visit_get(url))[-1]
     assert origin_visit['status'] == 'full'
     assert origin_visit['type'] == 'tar'
 
     actual_load_status2 = loader.load()
     assert actual_load_status2['status'] == 'uneventful'
+    assert actual_load_status2['snapshot_id'] is not None
+
+    assert actual_load_status['snapshot_id'] == actual_load_status2[
+        'snapshot_id']
+
     origin_visit2 = list(loader.storage.origin_visit_get(url))[-1]
     assert origin_visit2['status'] == 'full'
     assert origin_visit2['type'] == 'tar'
@@ -223,6 +232,8 @@ def test_2_visits_with_new_artifact(swh_config, requests_mock_datadir):
 
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
+    assert actual_load_status['snapshot_id'] is not None
+
     origin_visit = list(loader.storage.origin_visit_get(url))[-1]
     assert origin_visit['status'] == 'full'
     assert origin_visit['type'] == 'tar'
@@ -262,6 +273,7 @@ def test_2_visits_with_new_artifact(swh_config, requests_mock_datadir):
 
     actual_load_status2 = loader2.load()
     assert actual_load_status2['status'] == 'eventful'
+    assert actual_load_status2['snapshot_id'] is not None
 
     stats2 = get_stats(loader.storage)
     assert {
@@ -334,12 +346,15 @@ def test_2_visits_without_change_not_gnu(swh_config, requests_mock_datadir):
 
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
+    assert actual_load_status['snapshot_id'] is not None
     origin_visit = list(loader.storage.origin_visit_get(url))[-1]
     assert origin_visit['status'] == 'full'
     assert origin_visit['type'] == 'tar'
 
     actual_load_status2 = loader.load()
     assert actual_load_status2['status'] == 'uneventful'
+    assert actual_load_status2['snapshot_id'] == actual_load_status[
+        'snapshot_id']
     origin_visit2 = list(loader.storage.origin_visit_get(url))[-1]
     assert origin_visit2['status'] == 'full'
     assert origin_visit2['type'] == 'tar'
