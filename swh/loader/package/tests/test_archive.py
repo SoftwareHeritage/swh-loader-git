@@ -115,6 +115,7 @@ def visit_with_no_artifact_found(swh_config, requests_mock_datadir):
 
     origin_visit = next(loader.storage.origin_visit_get(url))
     assert origin_visit['status'] == 'partial'
+    assert origin_visit['type'] == 'tar'
 
 
 def test_check_revision_metadata_structure(swh_config, requests_mock_datadir):
@@ -197,11 +198,13 @@ def test_2_visits_without_change(swh_config, requests_mock_datadir):
     assert actual_load_status['status'] == 'eventful'
     origin_visit = list(loader.storage.origin_visit_get(url))[-1]
     assert origin_visit['status'] == 'full'
+    assert origin_visit['type'] == 'tar'
 
     actual_load_status2 = loader.load()
     assert actual_load_status2['status'] == 'uneventful'
     origin_visit2 = list(loader.storage.origin_visit_get(url))[-1]
     assert origin_visit2['status'] == 'full'
+    assert origin_visit2['type'] == 'tar'
 
     urls = [
         m.url for m in requests_mock_datadir.request_history
@@ -222,6 +225,7 @@ def test_2_visits_with_new_artifact(swh_config, requests_mock_datadir):
     assert actual_load_status['status'] == 'eventful'
     origin_visit = list(loader.storage.origin_visit_get(url))[-1]
     assert origin_visit['status'] == 'full'
+    assert origin_visit['type'] == 'tar'
 
     stats = get_stats(loader.storage)
     assert {
@@ -274,6 +278,7 @@ def test_2_visits_with_new_artifact(swh_config, requests_mock_datadir):
 
     origin_visit2 = list(loader.storage.origin_visit_get(url))[-1]
     assert origin_visit2['status'] == 'full'
+    assert origin_visit2['type'] == 'tar'
 
     urls = [
         m.url for m in requests_mock_datadir.request_history
@@ -331,11 +336,13 @@ def test_2_visits_without_change_not_gnu(swh_config, requests_mock_datadir):
     assert actual_load_status['status'] == 'eventful'
     origin_visit = list(loader.storage.origin_visit_get(url))[-1]
     assert origin_visit['status'] == 'full'
+    assert origin_visit['type'] == 'tar'
 
     actual_load_status2 = loader.load()
     assert actual_load_status2['status'] == 'uneventful'
     origin_visit2 = list(loader.storage.origin_visit_get(url))[-1]
     assert origin_visit2['status'] == 'full'
+    assert origin_visit2['type'] == 'tar'
 
     urls = [
         m.url for m in requests_mock_datadir.request_history

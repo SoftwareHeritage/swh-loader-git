@@ -214,6 +214,7 @@ def test_no_release_artifact(swh_config, requests_mock_datadir_missing_all):
 
     origin_visit = next(loader.storage.origin_visit_get(url))
     assert origin_visit['status'] == 'partial'
+    assert origin_visit['type'] == 'pypi'
 
 
 # problem during loading:
@@ -245,6 +246,7 @@ def test_release_with_traceback(swh_config):
 
     origin_visit = next(loader.storage.origin_visit_get(url))
     assert origin_visit['status'] == 'partial'
+    assert origin_visit['type'] == 'pypi'
 
 
 # problem during loading: failure early enough in between swh contents...
@@ -362,6 +364,7 @@ def test_visit_with_missing_artifact(
 
     origin_visit = next(loader.storage.origin_visit_get(url))
     assert origin_visit['status'] == 'partial'
+    assert origin_visit['type'] == 'pypi'
 
 
 def test_visit_with_1_release_artifact(swh_config, requests_mock_datadir):
@@ -438,6 +441,7 @@ def test_visit_with_1_release_artifact(swh_config, requests_mock_datadir):
 
     origin_visit = next(loader.storage.origin_visit_get(url))
     assert origin_visit['status'] == 'full'
+    assert origin_visit['type'] == 'pypi'
 
 
 def test_multiple_visits_with_no_change(swh_config, requests_mock_datadir):
@@ -488,6 +492,7 @@ def test_multiple_visits_with_no_change(swh_config, requests_mock_datadir):
 
     origin_visit = next(loader.storage.origin_visit_get(url))
     assert origin_visit['status'] == 'full'
+    assert origin_visit['type'] == 'pypi'
 
     actual_load_status2 = loader.load()
     assert actual_load_status2['status'] == 'uneventful'
@@ -514,6 +519,7 @@ def test_incremental_visit(swh_config, requests_mock_datadir_visits):
     assert visit1_actual_load_status['status'] == 'eventful'
     origin_visit1 = next(loader.storage.origin_visit_get(url))
     assert origin_visit1['status'] == 'full'
+    assert origin_visit1['type'] == 'pypi'
 
     assert {
         'content': 6,
@@ -537,6 +543,7 @@ def test_incremental_visit(swh_config, requests_mock_datadir_visits):
     visits = list(loader.storage.origin_visit_get(url))
     assert len(visits) == 2
     assert visits[1]['status'] == 'full'
+    assert visits[1]['type'] == 'pypi'
 
     assert {
         'content': 6 + 1,     # 1 more content
@@ -611,6 +618,7 @@ def test_incremental_visit(swh_config, requests_mock_datadir_visits):
 
     origin_visit = list(loader.storage.origin_visit_get(url))[-1]
     assert origin_visit['status'] == 'full'
+    assert origin_visit['type'] == 'pypi'
 
     urls = [
         m.url for m in requests_mock_datadir_visits.request_history
@@ -659,3 +667,4 @@ def test_visit_1_release_with_2_artifacts(swh_config, requests_mock_datadir):
 
     origin_visit = next(loader.storage.origin_visit_get(url))
     assert origin_visit['status'] == 'full'
+    assert origin_visit['type'] == 'pypi'

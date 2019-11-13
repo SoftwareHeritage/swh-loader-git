@@ -483,6 +483,7 @@ def test_npm_loader_incremental_visit(
     assert actual_load_status['status'] == 'eventful'
     origin_visit = list(loader.storage.origin_visit_get(url))[-1]
     assert origin_visit['status'] == 'full'
+    assert origin_visit['type'] == 'npm'
 
     stats = get_stats(loader.storage)
 
@@ -504,6 +505,7 @@ def test_npm_loader_incremental_visit(
     assert actual_load_status2['status'] == 'eventful'
     origin_visit2 = list(loader.storage.origin_visit_get(url))[-1]
     assert origin_visit2['status'] == 'full'
+    assert origin_visit2['type'] == 'npm'
 
     stats = get_stats(loader.storage)
 

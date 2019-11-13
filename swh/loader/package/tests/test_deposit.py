@@ -56,6 +56,7 @@ def test_deposit_loading_failure_to_fetch_metadata(swh_config):
 
     origin_visit = next(loader.storage.origin_visit_get(url))
     assert origin_visit['status'] == 'partial'
+    assert origin_visit['type'] == 'deposit'
 
 
 requests_mock_datadir_missing_one = requests_mock_datadir_factory(ignore_urls=[
@@ -93,6 +94,7 @@ def test_deposit_loading_failure_to_retrieve_1_artifact(
 
     origin_visit = next(loader.storage.origin_visit_get(url))
     assert origin_visit['status'] == 'partial'
+    assert origin_visit['type'] == 'deposit'
 
 
 def test_revision_metadata_structure(swh_config, requests_mock_datadir):
@@ -159,6 +161,7 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
 
     origin_visit = next(loader.storage.origin_visit_get(url))
     assert origin_visit['status'] == 'full'
+    assert origin_visit['type'] == 'deposit'
 
     expected_branches = {
         'HEAD': {
