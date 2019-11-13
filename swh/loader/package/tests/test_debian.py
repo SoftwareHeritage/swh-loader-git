@@ -96,7 +96,11 @@ def test_debian_first_visit(
         packages=PACKAGE_PER_VERSION)
 
     actual_load_status = loader.load()
-    assert actual_load_status['status'] == 'eventful'
+    expected_snapshot_id = '3b6b66e6ee4e7d903a379a882684a2a50480c0b4'
+    assert actual_load_status == {
+        'status': 'eventful',
+        'snapshot_id': expected_snapshot_id
+    }
 
     stats = get_stats(loader.storage)
     assert {
@@ -112,7 +116,7 @@ def test_debian_first_visit(
     } == stats
 
     expected_snapshot = {
-        'id': '3b6b66e6ee4e7d903a379a882684a2a50480c0b4',
+        'id': expected_snapshot_id,
         'branches': {
             'releases/stretch/contrib/0.7.2-3': {
                 'target_type': 'revision',
@@ -126,7 +130,7 @@ def test_debian_first_visit(
 
 def test_debian_first_visit_then_another_visit(
         swh_config, requests_mock_datadir):
-    """With no prior visit, load a gnu project ends up with 1 snapshot
+    """With no prior visit, load a debian project ends up with 1 snapshot
 
     """
     url = 'deb://Debian/packages/cicero'
@@ -136,7 +140,13 @@ def test_debian_first_visit_then_another_visit(
         packages=PACKAGE_PER_VERSION)
 
     actual_load_status = loader.load()
-    assert actual_load_status['status'] == 'eventful'
+
+    expected_snapshot_id = '3b6b66e6ee4e7d903a379a882684a2a50480c0b4'
+    assert actual_load_status == {
+        'status': 'eventful',
+        'snapshot_id': expected_snapshot_id
+    }
+
     origin_visit = next(loader.storage.origin_visit_get(url))
     assert origin_visit['status'] == 'full'
     assert origin_visit['type'] == 'deb'
@@ -155,7 +165,7 @@ def test_debian_first_visit_then_another_visit(
     } == stats
 
     expected_snapshot = {
-        'id': '3b6b66e6ee4e7d903a379a882684a2a50480c0b4',
+        'id': expected_snapshot_id,
         'branches': {
             'releases/stretch/contrib/0.7.2-3': {
                 'target_type': 'revision',
@@ -351,14 +361,18 @@ def test_debian_multiple_packages(swh_config, requests_mock_datadir):
         packages=PACKAGES_PER_VERSION)
 
     actual_load_status = loader.load()
-    assert actual_load_status['status'] == 'eventful'
+    expected_snapshot_id = 'defc19021187f3727293121fcf6c5c82cb923604'
+    assert actual_load_status == {
+        'status': 'eventful',
+        'snapshot_id': expected_snapshot_id
+    }
 
     origin_visit = next(loader.storage.origin_visit_get(url))
     assert origin_visit['status'] == 'full'
     assert origin_visit['type'] == 'deb'
 
     expected_snapshot = {
-        'id': 'defc19021187f3727293121fcf6c5c82cb923604',
+        'id': expected_snapshot_id,
         'branches': {
             'releases/stretch/contrib/0.7.2-3': {
                 'target_type': 'revision',

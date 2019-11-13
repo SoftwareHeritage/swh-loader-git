@@ -7,7 +7,7 @@ import logging
 
 from typing import Any, Dict, Generator, Mapping, Sequence, Tuple
 
-from swh.model.hashutil import hash_to_hex
+from swh.model.hashutil import hash_to_hex, hash_to_bytes
 from swh.loader.package.loader import PackageLoader
 from swh.deposit.client import PrivateApiDepositClient as ApiClient
 
@@ -116,7 +116,7 @@ class DepositLoader(PackageLoader):
                     self.deposit_update_url, status='failed')
                 return r
 
-            snapshot_id = r['snapshot_id']
+            snapshot_id = hash_to_bytes(r['snapshot_id'])
             branches = self.storage.snapshot_get(snapshot_id)['branches']
             logger.debug('branches: %s', branches)
             if not branches:

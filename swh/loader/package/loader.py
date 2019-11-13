@@ -15,6 +15,7 @@ from typing import (
 from swh.core.tarball import uncompress
 from swh.core.config import SWHConfig
 from swh.model.from_disk import Directory
+from swh.model.hashutil import hash_to_hex
 from swh.model.identifiers import (
     revision_identifier, snapshot_identifier, identifier_to_bytes
 )
@@ -390,5 +391,5 @@ class PackageLoader:
             'status': status_load,
         }  # type: Dict[str, Any]
         if snapshot:
-            result['snapshot_id'] = snapshot['id']
+            result['snapshot_id'] = hash_to_hex(snapshot['id'])
         return result
