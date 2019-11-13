@@ -29,7 +29,7 @@ class DebianLoader(PackageLoader):
     """Load debian origins into swh archive.
 
     """
-    visit_type = 'debian'
+    visit_type = 'deb'
 
     def __init__(self, url: str, date: str, packages: Mapping[str, Any]):
         """Debian Loader implementation.

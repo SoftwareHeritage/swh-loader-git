@@ -139,6 +139,7 @@ def test_debian_first_visit_then_another_visit(
     assert actual_load_status['status'] == 'eventful'
     origin_visit = next(loader.storage.origin_visit_get(url))
     assert origin_visit['status'] == 'full'
+    assert origin_visit['type'] == 'deb'
 
     stats = get_stats(loader.storage)
     assert {
@@ -170,6 +171,7 @@ def test_debian_first_visit_then_another_visit(
     assert actual_load_status2['status'] == 'uneventful'
     origin_visit2 = list(loader.storage.origin_visit_get(url))
     assert origin_visit2[-1]['status'] == 'full'
+    assert origin_visit2[-1]['type'] == 'deb'
 
     stats2 = get_stats(loader.storage)
     assert {
@@ -353,6 +355,7 @@ def test_debian_multiple_packages(swh_config, requests_mock_datadir):
 
     origin_visit = next(loader.storage.origin_visit_get(url))
     assert origin_visit['status'] == 'full'
+    assert origin_visit['type'] == 'deb'
 
     expected_snapshot = {
         'id': 'defc19021187f3727293121fcf6c5c82cb923604',
