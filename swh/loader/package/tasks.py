@@ -19,7 +19,7 @@ def load_archive(url=None, artifacts=None, identity_artifact_keys=None):
 
 
 @shared_task(name=__name__ + '.LoadDebian')
-def load_debian(*, url, date, packages):
+def load_deb(*, url, date, packages):
     return DebianLoader(url, date, packages).load()
 
 
