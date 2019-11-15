@@ -50,6 +50,10 @@ setup(
     extras_require={'testing': parse_requirements('test')},
     vcversioner={},
     include_package_data=True,
+    entrypoints='''
+        [swh.workers]
+        loader.package=swh.loader.package:register
+    ''',
     classifiers=[
         "Programming Language :: Python :: 3",
         "Intended Audience :: Developers",

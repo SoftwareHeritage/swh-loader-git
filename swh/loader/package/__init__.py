@@ -4,6 +4,8 @@
 # See top-level LICENSE file for more information
 
 
+from typing import Any, Mapping
+
 try:
     from swh.loader.core._version import __version__   # type: ignore
 except ImportError:
@@ -17,3 +19,9 @@ DEFAULT_PARAMS = {
         )
     }
 }
+
+
+def register() -> Mapping[str, Any]:
+    return {
+        'task_modules': ['%s.tasks' % __name__],
+    }
