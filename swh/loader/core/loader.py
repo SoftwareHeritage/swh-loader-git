@@ -401,7 +401,7 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                                'swh_id': log_id,
                            })
             result = self.storage.content_add(content_list)
-            self.counters['contents'] += result['content:add']
+            self.counters['contents'] += result.get('content:add', 0)
             self.log.debug("Done sending %d contents" % num_contents,
                            extra={
                                'swh_type': 'storage_send_end',
@@ -426,7 +426,7 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                                'swh_id': log_id,
                            })
             result = self.storage.directory_add(directory_list)
-            self.counters['directories'] += result['directory:add']
+            self.counters['directories'] += result.get('directory:add', 0)
             self.log.debug("Done sending %d directories" % num_directories,
                            extra={
                                'swh_type': 'storage_send_end',
@@ -451,7 +451,7 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                                'swh_id': log_id,
                            })
             result = self.storage.revision_add(revision_list)
-            self.counters['revisions'] += result['revision:add']
+            self.counters['revisions'] += result.get('revision:add', 0)
             self.log.debug("Done sending %d revisions" % num_revisions,
                            extra={
                                'swh_type': 'storage_send_end',
@@ -476,7 +476,7 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                                'swh_id': log_id,
                            })
             result = self.storage.release_add(release_list)
-            self.counters['releases'] += result['release:add']
+            self.counters['releases'] += result.get('release:add', 0)
             self.log.debug("Done sending %d releases" % num_releases,
                            extra={
                                'swh_type': 'storage_send_end',
