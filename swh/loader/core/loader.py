@@ -691,6 +691,8 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
             self.send_batch_releases(releases)
         if self.config['send_snapshot'] and self.snapshot:
             self.send_snapshot(self.snapshot)
+        if hasattr(self.storage, 'flush'):
+            self.storage.flush()
 
     def prepare_metadata(self):
         """First step for origin_metadata insertion, resolving the
@@ -956,10 +958,10 @@ class UnbufferedLoader(BufferedLoader):
         raise NotImplementedError
 
     def flush(self):
-        """Unbuffered loader does not flush since it has no state to flush.
-
+        """Flush the storage if needed.
         """
-        pass
+        if hasattr(self.storage, 'flush'):
+            self.storage.flush()
 
     def store_data(self):
         if self.config['save_data']:
