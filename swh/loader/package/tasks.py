@@ -14,25 +14,30 @@ from swh.loader.package.archive import ArchiveLoader
 
 @shared_task(name=__name__ + '.LoadArchive')
 def load_archive(url=None, artifacts=None, identity_artifact_keys=None):
+    """Load archive's artifacts (e.g gnu, etc...)"""
     return ArchiveLoader(url, artifacts,
                          identity_artifact_keys=identity_artifact_keys).load()
 
 
 @shared_task(name=__name__ + '.LoadDebian')
 def load_deb(*, url, date, packages):
+    """Load Debian package"""
     return DebianLoader(url, date, packages).load()
 
 
 @shared_task(name=__name__ + '.LoadDeposit')
 def load_deposit(*, url, deposit_id):
+    """Load Deposit artifacts"""
     return DepositLoader(url, deposit_id).load()
 
 
 @shared_task(name=__name__ + '.LoadNpm')
 def load_npm(*, package_name, package_url, package_metadata_url):
+    """Load Npm package"""
     return NpmLoader(package_name, package_url, package_metadata_url).load()
 
 
 @shared_task(name=__name__ + '.LoadPyPI')
 def load_pypi(*, url=None):
+    """Load PyPI package"""
     return PyPILoader(url).load()
