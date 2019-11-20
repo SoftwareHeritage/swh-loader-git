@@ -4,7 +4,7 @@
 # See top-level LICENSE file for more information
 
 
-from typing import Any, Mapping
+from typing import Any, Dict, Mapping
 
 try:
     from swh.loader.core._version import __version__   # type: ignore
@@ -12,7 +12,7 @@ except ImportError:
     __version__ = 'devel'
 
 
-DEFAULT_PARAMS = {
+DEFAULT_PARAMS: Dict[str, Any] = {
     'headers': {
         'User-Agent': 'Software Heritage Loader (%s)' % (
             __version__

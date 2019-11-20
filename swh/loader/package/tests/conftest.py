@@ -7,13 +7,15 @@ import os
 import pytest
 import yaml
 
+from typing import Any, Dict
+
 from swh.storage.tests.conftest import * # noqa
 from swh.scheduler.tests.conftest import *  # noqa
 
 
 @pytest.fixture
-def swh_config(monkeypatch, swh_storage_postgresql, tmp_path):
-    storage_config = {
+def swh_loader_config(swh_storage_postgresql) -> Dict[str, Any]:
+    return {
         'storage': {
             'cls': 'local',
             'args': {
@@ -24,12 +26,21 @@ def swh_config(monkeypatch, swh_storage_postgresql, tmp_path):
                 },
             },
         },
-        'url': 'https://deposit.softwareheritage.org/1/private',
+        'deposit': {
+            'url': 'https://deposit.softwareheritage.org/1/private',
+            'auth': {
+                'username': 'user',
+                'password': 'pass',
+            }
+        },
     }
 
+
+@pytest.fixture
+def swh_config(swh_loader_config, monkeypatch, tmp_path):
     conffile = os.path.join(str(tmp_path), 'loader.yml')
     with open(conffile, 'w') as f:
-        f.write(yaml.dump(storage_config))
+        f.write(yaml.dump(swh_loader_config))
     monkeypatch.setenv('SWH_CONFIG_FILENAME', conffile)
     return conffile
 

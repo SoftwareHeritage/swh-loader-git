@@ -3,6 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import copy
 import logging
 import os
 import requests
@@ -38,16 +39,18 @@ def api_info(url: str) -> Dict:
 
 
 def download(url: str, dest: str, hashes: Dict = {},
-             filename: Optional[str] = None) -> Tuple[str, Dict]:
+             filename: Optional[str] = None,
+             auth: Optional[Tuple[str, str]] = None) -> Tuple[str, Dict]:
     """Download a remote tarball from url, uncompresses and computes swh hashes
        on it.
 
     Args:
         url: Artifact uri to fetch, uncompress and hash
         dest: Directory to write the archive to
-
         hashes: Dict of expected hashes (key is the hash algo) for the artifact
             to download (those hashes are expected to be hex string)
+        auth: Optional tuple of login/password (for http authentication
+            service, e.g. deposit)
 
     Raises:
         ValueError in case of any error when fetching/computing (length,
@@ -57,7 +60,10 @@ def download(url: str, dest: str, hashes: Dict = {},
         Tuple of local (filepath, hashes of filepath)
 
     """
-    response = requests.get(url, **DEFAULT_PARAMS, stream=True)
+    params = copy.deepcopy(DEFAULT_PARAMS)
+    if auth is not None:
+        params['auth'] = auth
+    response = requests.get(url, **params, stream=True)
     logger.debug('headers: %s', response.headers)
     if response.status_code != 200:
         raise ValueError("Fail to query '%s'. Reason: %s" % (

@@ -4,12 +4,15 @@
 # See top-level LICENSE file for more information
 
 import logging
+import requests
 
-from typing import Any, Dict, Generator, Mapping, Sequence, Tuple
+from typing import (
+    Any, Dict, Generator, List, Mapping, Optional, Sequence, Tuple, Union
+)
 
 from swh.model.hashutil import hash_to_hex, hash_to_bytes
 from swh.loader.package.loader import PackageLoader
-from swh.deposit.client import PrivateApiDepositClient as ApiClient
+from swh.loader.package.utils import download
 
 
 logger = logging.getLogger(__name__)
@@ -31,21 +34,16 @@ class DepositLoader(PackageLoader):
         """
         super().__init__(url=url)
 
-        # For now build back existing api urls
-        # archive_url: Private api url to retrieve archive artifact
-        self.archive_url = '/%s/raw/' % deposit_id
-        # metadata_url: Private api url to retrieve the deposit metadata
-        self.metadata_url = '/%s/meta/' % deposit_id
-        # deposit_update_url: Private api to push pids and status update on the
-        #     deposit id
-        self.deposit_update_url = '/%s/update/' % deposit_id
-        self.client = ApiClient()
+        config_deposit = self.config['deposit']
+        self.deposit_id = deposit_id
+        self.client = ApiClient(url=config_deposit['url'],
+                                auth=config_deposit['auth'])
         self._metadata = None
 
     @property
     def metadata(self):
         if self._metadata is None:
-            self._metadata = self.client.metadata_get(self.metadata_url)
+            self._metadata = self.client.metadata_get(self.deposit_id)
         return self._metadata
 
     def get_versions(self) -> Sequence[str]:
@@ -56,19 +54,25 @@ class DepositLoader(PackageLoader):
     def get_package_info(self, version: str) -> Generator[
             Tuple[str, Mapping[str, Any]], None, None]:
         p_info = {
-            'url': self.client.base_url + self.archive_url,
             'filename': 'archive.zip',
             'raw': self.metadata,
         }
         yield 'HEAD', p_info
+
+    def download_package(self, p_info: Mapping[str, Any],
+                         tmpdir: str) -> List[Tuple[str, Mapping]]:
+        """Override to allow use of the dedicated deposit client
+
+        """
+        return [self.client.archive_get(
+            self.deposit_id, tmpdir, p_info['filename'])]
 
     def build_revision(
             self, a_metadata: Dict, uncompressed_path: str) -> Dict:
         revision = a_metadata.pop('revision')
         metadata = {
             'extrinsic': {
-                'provider': '%s/%s' % (
-                    self.client.base_url, self.metadata_url),
+                'provider': self.client.metadata_url(self.deposit_id),
                 'when': self.visit_date.isoformat(),
                 'raw': a_metadata,
             },
@@ -112,8 +116,7 @@ class DepositLoader(PackageLoader):
         # Update deposit status
         try:
             if not success:
-                self.client.status_update(
-                    self.deposit_update_url, status='failed')
+                self.client.status_update(self.deposit_id, status='failed')
                 return r
 
             snapshot_id = hash_to_bytes(r['snapshot_id'])
@@ -131,7 +134,7 @@ class DepositLoader(PackageLoader):
             # update the deposit's status to success with its
             # revision-id and directory-id
             self.client.status_update(
-                self.deposit_update_url,
+                self.deposit_id,
                 status='done',
                 revision_id=hash_to_hex(rev_id),
                 directory_id=hash_to_hex(dir_id),
@@ -152,3 +155,72 @@ def parse_author(author):
         'name': author['name'].encode('utf-8'),
         'email': author['email'].encode('utf-8'),
     }
+
+
+class ApiClient:
+    """Private Deposit Api client
+
+    """
+    def __init__(self, url, auth: Optional[Mapping[str, str]]):
+        self.base_url = url.rstrip('/')
+        self.auth = None if not auth else (auth['username'], auth['password'])
+
+    def do(self, method: str, url: str, *args, **kwargs):
+        """Internal method to deal with requests, possibly with basic http
+           authentication.
+
+        Args:
+            method (str): supported http methods as in get/post/put
+
+        Returns:
+            The request's execution output
+
+        """
+        method_fn = getattr(requests, method)
+        if self.auth:
+            kwargs['auth'] = self.auth
+        return method_fn(url, *args, **kwargs)
+
+    def archive_get(
+            self, deposit_id: Union[int, str], tmpdir: str,
+            filename: str) -> Tuple[str, Dict]:
+        """Retrieve deposit's archive artifact locally
+
+        """
+        url = f'{self.base_url}/{deposit_id}/raw/'
+        return download(url, dest=tmpdir, filename=filename, auth=self.auth)
+
+    def metadata_url(self, deposit_id: Union[int, str]) -> str:
+        return f'{self.base_url}/{deposit_id}/meta/'
+
+    def metadata_get(self, deposit_id: Union[int, str]) -> Dict[str, Any]:
+        """Retrieve deposit's metadata artifact as json
+
+        """
+        url = self.metadata_url(deposit_id)
+        r = self.do('get', url)
+        if r.ok:
+            return r.json()
+
+        msg = f'Problem when retrieving deposit metadata at {url}'
+        logger.error(msg)
+        raise ValueError(msg)
+
+    def status_update(self, deposit_id: Union[int, str], status: str,
+                      revision_id: Optional[str] = None,
+                      directory_id: Optional[str] = None,
+                      origin_url: Optional[str] = None):
+        """Update deposit's information including status, and persistent
+           identifiers result of the loading.
+
+        """
+        url = f'/{self.base_url}/{deposit_id}/update/'
+        payload = {'status': status}
+        if revision_id:
+            payload['revision_id'] = revision_id
+        if directory_id:
+            payload['directory_id'] = directory_id
+        if origin_url:
+            payload['origin_url'] = origin_url
+
+        self.do('put', url, json=payload)

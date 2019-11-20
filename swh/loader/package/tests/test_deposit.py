@@ -16,16 +16,14 @@ from swh.loader.package.tests.common import (
 from swh.core.pytest_plugin import requests_mock_datadir_factory
 
 
-def test_deposit_init_ok(swh_config):
+def test_deposit_init_ok(swh_config, swh_loader_config):
     url = 'some-url'
     deposit_id = 999
     loader = DepositLoader(url, deposit_id)  # Something that does not exist
 
     assert loader.url == url
-    assert loader.archive_url == '/%s/raw/' % deposit_id
-    assert loader.metadata_url == '/%s/meta/' % deposit_id
-    assert loader.deposit_update_url == '/%s/update/' % deposit_id
     assert loader.client is not None
+    assert loader.client.base_url == swh_loader_config['deposit']['url']
 
 
 def test_deposit_loading_failure_to_fetch_metadata(swh_config):
@@ -74,7 +72,6 @@ def test_deposit_loading_failure_to_retrieve_1_artifact(
     deposit_id = 666
     loader = DepositLoader(url, deposit_id)
 
-    assert loader.archive_url
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'uneventful'
     assert actual_load_status['snapshot_id'] is not None
@@ -105,7 +102,6 @@ def test_revision_metadata_structure(swh_config, requests_mock_datadir):
     deposit_id = 666
     loader = DepositLoader(url, deposit_id)
 
-    assert loader.archive_url
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
     assert actual_load_status['snapshot_id'] is not None
@@ -138,7 +134,6 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
     deposit_id = 666
     loader = DepositLoader(url, deposit_id)
 
-    assert loader.archive_url
     actual_load_status = loader.load()
     expected_snapshot_id = '453f455d0efb69586143cd6b6e5897f9906b53a7'
     assert actual_load_status == {
