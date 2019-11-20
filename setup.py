@@ -50,7 +50,7 @@ setup(
     extras_require={'testing': parse_requirements('test')},
     vcversioner={},
     include_package_data=True,
-    entrypoints='''
+    entry_points='''
         [swh.workers]
         loader.package=swh.loader.package:register
     ''',
