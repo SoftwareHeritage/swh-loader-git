@@ -20,7 +20,7 @@ def load_archive_files(url=None, artifacts=None, identity_artifact_keys=None):
 
 
 @shared_task(name=__name__ + '.LoadDebian')
-def load_deb(*, url, date, packages):
+def load_deb_package(*, url, date, packages):
     """Load Debian package"""
     return DebianLoader(url, date, packages).load()
 
