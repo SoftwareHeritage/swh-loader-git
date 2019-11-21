@@ -6,9 +6,12 @@
 
 from typing import Any, Dict, Mapping
 
+import pkg_resources
+
+
 try:
-    from swh.loader.core._version import __version__   # type: ignore
-except ImportError:
+    __version__ = pkg_resources.get_distribution('swh.loader.core').version
+except pkg_resources.DistributionNotFound:
     __version__ = 'devel'
 
 

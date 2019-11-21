@@ -7,7 +7,14 @@
 import os
 import pytest
 
+
+import swh.loader.package
 from swh.loader.package.utils import download, api_info, release_name
+
+
+def test_version_generation():
+    assert swh.loader.package.__version__ != 'devel', \
+        "Make sure swh.loader.core is installed (e.g. pip install -e .)"
 
 
 @pytest.mark.fs
@@ -62,6 +69,26 @@ def test_download_ok(tmp_path, requests_mock):
     assert actual_hashes['checksums']['sha1'] == 'fdd1ce606a904b08c816ba84f3125f2af44d92b2'  # noqa
     assert (actual_hashes['checksums']['sha256'] ==
             '1d9224378d77925d612c9f926eb9fb92850e6551def8328011b6a972323298d5')
+
+
+@pytest.mark.fs
+def test_download_headers(tmp_path, requests_mock):
+    """Check that we send proper headers when downloading files"""
+    filename = 'requests-0.0.1.tar.gz'
+    url = 'https://pypi.org/pypi/requests/%s' % filename
+    data = 'this is something'
+    requests_mock.get(url, text=data, headers={
+        'content-length': str(len(data))
+    })
+
+    actual_filepath, actual_hashes = download(url, dest=str(tmp_path))
+
+    assert len(requests_mock.request_history) == 1
+    req = requests_mock.request_history[0]
+    assert 'User-Agent' in req.headers
+    user_agent = req.headers['User-Agent']
+    assert 'Software Heritage Loader' in user_agent
+    assert swh.loader.package.__version__ in user_agent
 
 
 @pytest.mark.fs
