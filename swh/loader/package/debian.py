@@ -273,7 +273,7 @@ def dsc_information(package: Mapping[str, Any]) -> Tuple[
         if filename.endswith('.dsc'):
             if dsc_name:
                 raise ValueError(
-                    'Package %s_%s references several dsc files' %
+                    'Package %s_%s references several dsc files.' %
                     (package['name'], package['version'])
                 )
             dsc_url = fileinfo['uri']

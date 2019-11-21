@@ -164,13 +164,13 @@ def test_extract_intrinsic_metadata(tmp_path, datadir):
 
 @pytest.mark.fs
 def test_extract_intrinsic_metadata_failures(tmp_path):
-    """Parsing inexistant path/archive/PKG-INFO yield None"""
+    """Parsing inexistent path/archive/PKG-INFO yield None"""
     tmp_path = str(tmp_path)  # py3.5 work around (PosixPath issue)
-    # inexistant first level path
-    assert extract_intrinsic_metadata('/something-inexistant') == {}
-    # inexistant second level path (as expected by pypi archives)
+    # inexistent first level path
+    assert extract_intrinsic_metadata('/something-inexistent') == {}
+    # inexistent second level path (as expected by pypi archives)
     assert extract_intrinsic_metadata(tmp_path) == {}
-    # inexistant PKG-INFO within second level path
+    # inexistent PKG-INFO within second level path
     existing_path_no_pkginfo = path.join(tmp_path, 'something')
     os.mkdir(existing_path_no_pkginfo)
     assert extract_intrinsic_metadata(tmp_path) == {}
