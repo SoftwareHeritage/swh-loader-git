@@ -70,7 +70,7 @@ does not know yet.
 The data memory model has the following structure for each possible type:
 - signatures list
 - map indexed by git sha1, object representation.
-Type of object ; content, directory, revision, release, occurence is kept.
+Type of object; content, directory, revision, release, occurrence is kept.
 
 02. Worker sends in the api backend's protocol the sha1s.
 
