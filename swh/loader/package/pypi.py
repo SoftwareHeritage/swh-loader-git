@@ -120,7 +120,7 @@ def pypi_api_url(url: str) -> str:
 
     """
     p_url = urlparse(url)
-    project_name = p_url.path.split('/')[-1]
+    project_name = p_url.path.rstrip('/').split('/')[-1]
     url = '%s://%s/pypi/%s/json' % (p_url.scheme, p_url.netloc, project_name)
     return url
 

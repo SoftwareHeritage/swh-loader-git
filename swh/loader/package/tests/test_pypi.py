@@ -139,6 +139,12 @@ def test_pypi_api_url():
     assert url == 'https://pypi.org/pypi/requests/json'
 
 
+def test_pypi_api_url_with_slash():
+    """Compute pypi api url from the pypi project url should be ok"""
+    url = pypi_api_url('https://pypi.org/project/requests/')
+    assert url == 'https://pypi.org/pypi/requests/json'
+
+
 @pytest.mark.fs
 def test_extract_intrinsic_metadata(tmp_path, datadir):
     """Parsing existing archive's PKG-INFO should yield results"""
