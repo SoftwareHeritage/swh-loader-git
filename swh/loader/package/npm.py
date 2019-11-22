@@ -85,12 +85,17 @@ class NpmLoader(PackageLoader):
         i_metadata = extract_intrinsic_metadata(uncompressed_path)
         # from intrinsic metadata
         author = extract_npm_package_author(i_metadata)
-        # extrinsic metadata
-        version = i_metadata['version']
-        date = self.info['time'][version]
+        message = i_metadata['version'].encode('ascii')
+
+        # from extrinsic metadata
+
+        # No date available in intrinsic metadata: retrieve it from the API
+        # metadata, using the version number that the API claims this package
+        # has.
+        extrinsic_version = a_metadata['version']
+        date = self.info['time'][extrinsic_version]
         date = iso8601.parse_date(date)
         date = normalize_timestamp(int(date.timestamp()))
-        message = version.encode('ascii')
 
         return {
             'type': 'tar',

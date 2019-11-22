@@ -6,6 +6,7 @@
 
 import json
 import os
+import pytest
 
 from swh.model.hashutil import hash_to_bytes
 
@@ -534,3 +535,50 @@ def test_npm_loader_incremental_visit(
         if m.url.startswith('https://registry.npmjs.org')
     ]
     assert len(urls) == len(set(urls))  # we visited each artifact once across
+
+
+@pytest.mark.usefixtures('requests_mock_datadir')
+def test_npm_loader_version_divergence(swh_config):
+    package = '@aller_shared'
+    url = package_url(package)
+    loader = NpmLoader(package, url, package_metadata_url(package))
+
+    actual_load_status = loader.load()
+    assert actual_load_status['status'] == 'eventful'
+    assert actual_load_status['status'] is not None
+    origin_visit = list(loader.storage.origin_visit_get(url))[-1]
+    assert origin_visit['status'] == 'full'
+    assert origin_visit['type'] == 'npm'
+
+    stats = get_stats(loader.storage)
+
+    assert {  # 1 new releases artifacts
+        'content': 534,
+        'directory': 153,
+        'origin': 1,
+        'origin_visit': 1,
+        'person': 1,
+        'release': 0,
+        'revision': 2,
+        'skipped_content': 0,
+        'snapshot': 1,
+    } == stats
+
+    expected_snapshot = {
+        'id': 'b11ebac8c9d0c9e5063a2df693a18e3aba4b2f92',
+        'branches': {
+            'HEAD': {
+                'target_type': 'alias',
+                'target': 'releases/0.1.0'
+            },
+            'releases/0.1.0': {
+                'target_type': 'revision',
+                'target': '845673bfe8cbd31b1eaf757745a964137e6f9116',
+            },
+            'releases/0.1.1-alpha.14': {
+                'target_type': 'revision',
+                'target': '05181c12cd8c22035dd31155656826b85745da37',
+            },
+        },
+    }
+    check_snapshot(expected_snapshot, loader.storage)
