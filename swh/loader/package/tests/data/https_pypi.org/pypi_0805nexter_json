@@ -51,6 +51,23 @@
         "size": 862,
         "upload_time": "2016-01-31T05:28:42",
         "url": "https://files.pythonhosted.org/packages/ec/65/c0116953c9a3f47de89e71964d6c7b0c783b01f29fa3390584dbf3046b4d/0805nexter-1.1.0.zip"
+      },
+      {
+        "comment_text": "wheel will be ignored",
+        "digests": {
+          "md5": "666c93fc12821c1405c3483db88154af",
+          "sha256": "666d128ad3afe539478abc7440d4b043384295fbe6b0958a237cb6d92646503"
+        },
+        "downloads": -1,
+        "filename": "0805nexter-1.1.0.whl",
+        "has_sig": false,
+        "md5_digest": "666c93fc12821c1405c3483db88154af",
+        "packagetype": "whl",
+        "python_version": "source",
+        "requires_python": null,
+        "size": 862,
+        "upload_time": "2016-01-31T05:28:42",
+        "url": "https://files.pythonhosted.org/packages/ec/66/6d116953c9a3f47de89e71964d6c7b0c783b01f29fa3390584dbf3046b4d/0805nexter-1.1.0.whl"
       }
     ],
     "1.2.0": [

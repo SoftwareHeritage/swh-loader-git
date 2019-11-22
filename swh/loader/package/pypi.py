@@ -46,6 +46,8 @@ class PyPILoader(PackageLoader):
             Tuple[str, Mapping[str, Any]], None, None]:
         res = []
         for meta in self.info['releases'][version]:
+            if meta['packagetype'] != 'sdist':
+                continue
             filename = meta['filename']
             p_info = {
                 'url': meta['url'],
