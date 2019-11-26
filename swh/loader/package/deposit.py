@@ -5,6 +5,7 @@
 
 import logging
 import requests
+import types
 
 from typing import (
     Any, Dict, Generator, List, Mapping, Optional, Sequence, Tuple, Union
@@ -128,7 +129,11 @@ class DepositLoader(PackageLoader):
                 return r
             rev_id = branches[b'HEAD']['target']
 
-            revision = next(self.storage.revision_get([rev_id]))
+            revisions = self.storage.revision_get([rev_id])
+            # FIXME: inconsistency between tests and production code
+            if isinstance(revisions, types.GeneratorType):
+                revisions = list(revisions)
+            revision = revisions[0]
 
             # Retrieve the revision identifier
             dir_id = revision['directory']
