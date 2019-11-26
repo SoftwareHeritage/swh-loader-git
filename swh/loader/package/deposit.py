@@ -214,7 +214,7 @@ class ApiClient:
            identifiers result of the loading.
 
         """
-        url = f'/{self.base_url}/{deposit_id}/update/'
+        url = f'{self.base_url}/{deposit_id}/update/'
         payload = {'status': status}
         if revision_id:
             payload['revision_id'] = revision_id
