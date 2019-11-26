@@ -68,7 +68,9 @@ def download(url: str, dest: str, hashes: Dict = {},
     if response.status_code != 200:
         raise ValueError("Fail to query '%s'. Reason: %s" % (
             url, response.status_code))
-    length = int(response.headers['content-length'])
+    _length = response.headers.get('content-length')
+    # some server do not provide the content-length header...
+    length = int(_length) if _length is not None else len(response.content)
 
     filename = filename if filename else os.path.basename(url)
     logger.debug('filename: %s', filename)
