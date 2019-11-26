@@ -84,6 +84,8 @@ class DepositLoader(PackageLoader):
         revision['committer'] = parse_author(revision['committer'])
         revision['message'] = revision['message'].encode('utf-8')
         revision['type'] = 'tar'
+        parents = revision.get('parents', [])
+        revision['parents'] = [hash_to_bytes(p) for p in parents]
 
         return revision
 
