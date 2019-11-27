@@ -4,6 +4,7 @@
 # See top-level LICENSE file for more information
 
 import os
+import logging
 
 from typing import Any, Dict, Generator, Mapping, Optional, Sequence, Tuple
 from urllib.parse import urlparse
@@ -14,6 +15,8 @@ import iso8601
 from swh.model.identifiers import normalize_timestamp
 from swh.loader.package.loader import PackageLoader
 from swh.loader.package.utils import api_info, release_name
+
+logger = logging.getLogger(__name__)
 
 
 class PyPILoader(PackageLoader):
@@ -66,12 +69,7 @@ class PyPILoader(PackageLoader):
     def resolve_revision_from(
             self, known_artifacts: Dict, artifact_metadata: Dict) \
             -> Optional[bytes]:
-        sha256 = artifact_metadata['digests']['sha256']
-        for rev_id, known_artifact in known_artifacts.items():
-            for original_artifact in known_artifact['original_artifact']:
-                if sha256 == original_artifact['checksums']['sha256']:
-                    return rev_id
-        return None
+        return artifact_to_revision_id(known_artifacts, artifact_metadata)
 
     def build_revision(
             self, a_metadata: Dict, uncompressed_path: str) -> Dict:
@@ -107,6 +105,54 @@ class PyPILoader(PackageLoader):
                 },
             }
         }
+
+
+def artifact_to_revision_id(
+        known_artifacts: Dict, artifact_metadata: Dict) -> Optional[bytes]:
+    """Given metadata artifact, solves the associated revision id.
+
+    The following code allows to deal with 2 metadata formats (column metadata
+    in 'revision')
+
+    - old format sample:
+
+        {
+            'original_artifact': {
+                'sha256': "6975816f2c5ad4046acc676ba112f2fff945b01522d63948531f11f11e0892ec",  # noqa
+                ...
+            },
+            ...
+        }
+
+    - new format sample:
+
+        {
+            'original_artifact': [{
+                'checksums': {
+                    'sha256': "6975816f2c5ad4046acc676ba112f2fff945b01522d63948531f11f11e0892ec",  # noqa
+                    ...
+                },
+            }],
+            ...
+        }
+
+    """
+    sha256 = artifact_metadata['digests']['sha256']
+    for rev_id, known_artifact in known_artifacts.items():
+        original_artifact = known_artifact['original_artifact']
+        if isinstance(original_artifact, dict):
+            # previous loader-pypi version stored metadata as dict
+            original_sha256 = original_artifact['sha256']
+            if sha256 == original_sha256:
+                return rev_id
+            continue
+        # new pypi loader actually store metadata dict differently...
+        assert isinstance(original_artifact, list)
+        # current loader-pypi stores metadata as list of dict
+        for original_artifact in known_artifact['original_artifact']:
+            if sha256 == original_artifact['checksums']['sha256']:
+                return rev_id
+    return None
 
 
 def pypi_api_url(url: str) -> str:
