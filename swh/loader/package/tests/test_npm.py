@@ -11,7 +11,8 @@ import pytest
 from swh.model.hashutil import hash_to_bytes
 
 from swh.loader.package.npm import (
-    parse_npm_package_author, extract_npm_package_author
+    parse_npm_package_author, extract_npm_package_author,
+    artifact_to_revision_id
 )
 from swh.loader.package.tests.common import (
     check_snapshot, check_metadata_paths, get_stats
@@ -582,3 +583,79 @@ def test_npm_loader_version_divergence(swh_config):
         },
     }
     check_snapshot(expected_snapshot, loader.storage)
+
+
+def test_npm_artifact_to_revision_id_none():
+    """Current loader version should stop soon if nothing can be found
+
+    """
+    artifact_metadata = {
+        'dist': {
+            'shasum': '05181c12cd8c22035dd31155656826b85745da37',
+        },
+    }
+
+    known_artifacts = {
+        'b11ebac8c9d0c9e5063a2df693a18e3aba4b2f92': {},
+    }
+
+    assert artifact_to_revision_id(known_artifacts, artifact_metadata) is None
+
+
+def test_npm_artifact_to_revision_id_old_loader_version():
+    """Current loader version should solve old metadata scheme
+
+    """
+    artifact_metadata = {
+        'dist': {
+            'shasum': '05181c12cd8c22035dd31155656826b85745da37',
+        }
+    }
+
+    known_artifacts = {
+        hash_to_bytes('b11ebac8c9d0c9e5063a2df693a18e3aba4b2f92'): {
+            'package_source': {
+                'sha1': "something-wrong"
+            }
+        },
+        hash_to_bytes('845673bfe8cbd31b1eaf757745a964137e6f9116'): {
+            'package_source': {
+                'sha1': '05181c12cd8c22035dd31155656826b85745da37',
+            }
+        }
+
+    }
+
+    assert artifact_to_revision_id(known_artifacts, artifact_metadata) \
+        == hash_to_bytes('845673bfe8cbd31b1eaf757745a964137e6f9116')
+
+
+def test_npm_artifact_to_revision_id_current_loader_version():
+    """Current loader version should be able to solve current metadata scheme
+
+    """
+    artifact_metadata = {
+        'dist': {
+            'shasum': '05181c12cd8c22035dd31155656826b85745da37',
+        }
+    }
+
+    known_artifacts = {
+        hash_to_bytes('b11ebac8c9d0c9e5063a2df693a18e3aba4b2f92'): {
+            'original_artifact': [{
+                'checksums': {
+                    'sha1': "05181c12cd8c22035dd31155656826b85745da37"
+                },
+            }],
+        },
+        hash_to_bytes('845673bfe8cbd31b1eaf757745a964137e6f9116'): {
+            'original_artifact': [{
+                'checksums': {
+                    'sha1': 'something-wrong'
+                },
+            }],
+        },
+    }
+
+    assert artifact_to_revision_id(known_artifacts, artifact_metadata) \
+        == hash_to_bytes('b11ebac8c9d0c9e5063a2df693a18e3aba4b2f92')

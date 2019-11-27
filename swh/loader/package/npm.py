@@ -73,12 +73,7 @@ class NpmLoader(PackageLoader):
     def resolve_revision_from(
             self, known_artifacts: Dict, artifact_metadata: Dict) \
             -> Optional[bytes]:
-        shasum = artifact_metadata['dist']['shasum']
-        for rev_id, known_artifact in known_artifacts.items():
-            original_artifact = known_artifact['original_artifact'][0]
-            if shasum == original_artifact['checksums']['sha1']:
-                return rev_id
-        return None
+        return artifact_to_revision_id(known_artifacts, artifact_metadata)
 
     def build_revision(
             self, a_metadata: Dict, uncompressed_path: str) -> Dict:
@@ -117,6 +112,50 @@ class NpmLoader(PackageLoader):
                 },
             },
         }
+
+
+def artifact_to_revision_id(
+        known_artifacts: Dict, artifact_metadata: Dict) -> Optional[bytes]:
+    """Given metadata artifact, solves the associated revision id.
+
+    The following code allows to deal with 2 metadata formats:
+
+    - old format sample:
+
+        {
+            'package_source': {
+                'sha1': '05181c12cd8c22035dd31155656826b85745da37',
+            }
+        }
+
+    - new format sample:
+
+        {
+            'original_artifact': [{
+                'checksums': {
+                    'sha256': "6975816f2c5ad4046acc676ba112f2fff945b01522d63948531f11f11e0892ec",  # noqa
+                    ...
+                },
+            }],
+            ...
+        }
+
+    """
+    shasum = artifact_metadata['dist']['shasum']
+    for rev_id, known_artifact in known_artifacts.items():
+        known_original_artifact = known_artifact.get('original_artifact')
+        if not known_original_artifact:
+            # previous loader-npm version kept original artifact elsewhere
+            known_original_artifact = known_artifact.get('package_source')
+            if not known_original_artifact:
+                continue
+            original_hash = known_original_artifact['sha1']
+        else:
+            assert isinstance(known_original_artifact, list)
+            original_hash = known_original_artifact[0]['checksums']['sha1']
+        if shasum == original_hash:
+            return rev_id
+    return None
 
 
 def parse_npm_package_author(author_str):
