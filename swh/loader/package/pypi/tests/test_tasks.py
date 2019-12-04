@@ -6,13 +6,13 @@
 from unittest.mock import patch
 
 
-@patch('swh.loader.package.pypi.PyPILoader.load')
+@patch('swh.loader.package.pypi.loader.PyPILoader.load')
 def test_pypi_loader(
         mock_loader, swh_app, celery_session_worker, swh_config):
     mock_loader.return_value = {'status': 'eventful'}
 
     res = swh_app.send_task(
-        'swh.loader.package.tasks.LoadPyPI',
+        'swh.loader.package.pypi.tasks.LoadPyPI',
         (), dict(url='some-url'))
     assert res
     res.wait()

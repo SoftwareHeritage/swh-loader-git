@@ -5,7 +5,7 @@
 
 from celery import shared_task
 
-from swh.loader.package.pypi import PyPILoader
+from swh.loader.package.pypi.loader import PyPILoader
 
 
 @shared_task(name=__name__ + '.LoadPyPI')

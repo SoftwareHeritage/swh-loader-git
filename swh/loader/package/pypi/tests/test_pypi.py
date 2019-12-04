@@ -15,7 +15,7 @@ from swh.core.tarball import uncompress
 from swh.core.pytest_plugin import requests_mock_datadir_factory
 from swh.model.hashutil import hash_to_bytes
 
-from swh.loader.package.pypi import (
+from swh.loader.package.pypi.loader import (
     PyPILoader, pypi_api_url, author, extract_intrinsic_metadata,
     artifact_to_revision_id
 )
@@ -231,7 +231,7 @@ def test_no_release_artifact(swh_config, requests_mock_datadir_missing_all):
 
 def test_release_with_traceback(swh_config):
     url = 'https://pypi.org/project/0805nexter'
-    with patch('swh.loader.package.pypi.PyPILoader.get_default_version',
+    with patch('swh.loader.package.pypi.loader.PyPILoader.get_default_version',
                side_effect=ValueError('Problem')):
         loader = PyPILoader(url)
 

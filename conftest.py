@@ -58,9 +58,9 @@ def swh_proxy():
 @pytest.fixture(scope='session')  # type: ignore  # expected redefinition
 def celery_includes():
     return [
-        'swh.loader.package.tasks',
         'swh.loader.package.archive.tasks',
         'swh.loader.package.debian.tasks',
         'swh.loader.package.deposit.tasks',
         'swh.loader.package.npm.tasks',
+        'swh.loader.package.pypi.tasks',
     ]

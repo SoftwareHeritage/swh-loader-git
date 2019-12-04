@@ -56,6 +56,7 @@ setup(
         loader.debian=swh.loader.package.debian:register
         loader.deposit=swh.loader.package.deposit:register
         loader.npm=swh.loader.package.npm:register
+        loader.pypi=swh.loader.package.pypi:register
     ''',
     classifiers=[
         "Programming Language :: Python :: 3",
