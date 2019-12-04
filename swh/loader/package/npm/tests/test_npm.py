@@ -382,9 +382,7 @@ def package_metadata_url(package):
 
 def test_revision_metadata_structure(swh_config, requests_mock_datadir):
     package = 'org'
-    loader = NpmLoader(package,
-                       package_url(package),
-                       package_metadata_url(package))
+    loader = NpmLoader(package_url(package))
 
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
@@ -416,9 +414,7 @@ def test_revision_metadata_structure(swh_config, requests_mock_datadir):
 def test_npm_loader_first_visit(swh_config, requests_mock_datadir):
 
     package = 'org'
-    loader = NpmLoader(package,
-                       package_url(package),
-                       package_metadata_url(package))
+    loader = NpmLoader(package_url(package))
 
     actual_load_status = loader.load()
     expected_snapshot_id = 'd0587e1195aed5a8800411a008f2f2d627f18e2d'
@@ -479,8 +475,7 @@ def test_npm_loader_incremental_visit(
         swh_config, requests_mock_datadir_visits):
     package = 'org'
     url = package_url(package)
-    metadata_url = package_metadata_url(package)
-    loader = NpmLoader(package, url, metadata_url)
+    loader = NpmLoader(url)
 
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
@@ -539,7 +534,7 @@ def test_npm_loader_incremental_visit(
 def test_npm_loader_version_divergence(swh_config):
     package = '@aller_shared'
     url = package_url(package)
-    loader = NpmLoader(package, url, package_metadata_url(package))
+    loader = NpmLoader(url)
 
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'

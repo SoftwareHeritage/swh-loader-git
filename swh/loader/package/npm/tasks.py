@@ -9,6 +9,6 @@ from swh.loader.package.npm.loader import NpmLoader
 
 
 @shared_task(name=__name__ + '.LoadNpm')
-def load_npm(*, package_name, package_url, package_metadata_url):
+def load_npm(*, url: str):
     """Load Npm package"""
-    return NpmLoader(package_name, package_url, package_metadata_url).load()
+    return NpmLoader(url).load()

@@ -14,6 +14,7 @@ from typing import Any, Dict, Generator, Mapping, Sequence, Tuple, Optional
 import chardet
 import iso8601
 
+from urllib.parse import quote
 from swh.model.identifiers import normalize_timestamp
 from swh.loader.package.loader import PackageLoader
 from swh.loader.package.utils import api_info, release_name
@@ -31,21 +32,21 @@ _author_regexp = r'([^<(]+?)?[ \t]*(?:<([^>(]+?)>)?[ \t]*(?:\(([^)]+?)\)|$)'
 class NpmLoader(PackageLoader):
     visit_type = 'npm'
 
-    def __init__(self, package_name, package_url, package_metadata_url):
-        super().__init__(url=package_url)
-        self.provider_url = package_metadata_url
+    def __init__(self, url: str):
+        """Constructor
 
-        self._info = None
+        Args
+            str: origin url (e.g. https://www.npmjs.com/package/<package-name>)
+        """
+        super().__init__(url=url)
+        package_name = url.split('https://www.npmjs.com/package/')[1]
+        safe_name = quote(package_name, safe='')
+        self.provider_url = f'https://replicate.npmjs.com/{safe_name}/'
+        self._info: Dict[str, Any] = {}
         self._versions = None
 
-        # if package_url is None:
-        #     package_url = 'https://www.npmjs.com/package/%s' % package_name
-        # if package_metadata_url is None:
-        #     package_metadata_url = 'https://replicate.npmjs.com/%s/' %\
-        #                             quote(package_name, safe='')
-
     @property
-    def info(self) -> Dict:
+    def info(self) -> Dict[str, Any]:
         """Return the project metadata information (fetched from npm registry)
 
         """

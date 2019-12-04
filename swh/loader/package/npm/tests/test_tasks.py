@@ -13,9 +13,7 @@ def test_npm_loader(
 
     res = swh_app.send_task(
         'swh.loader.package.npm.tasks.LoadNpm',
-        (), dict(package_name='some-package',
-                 package_url='some',
-                 package_metadata_url='something'))
+        (), dict(url='https://www.npmjs.com/package/some-package'))
     assert res
     res.wait()
     assert res.successful()
