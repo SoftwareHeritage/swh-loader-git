@@ -5,15 +5,8 @@
 
 from celery import shared_task
 
-from swh.loader.package.deposit import DepositLoader
 from swh.loader.package.npm import NpmLoader
 from swh.loader.package.pypi import PyPILoader
-
-
-@shared_task(name=__name__ + '.LoadDeposit')
-def load_deposit(*, url, deposit_id):
-    """Load Deposit artifacts"""
-    return DepositLoader(url, deposit_id).load()
 
 
 @shared_task(name=__name__ + '.LoadNpm')

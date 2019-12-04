@@ -7,7 +7,7 @@ import re
 
 
 from swh.model.hashutil import hash_to_bytes
-from swh.loader.package.deposit import DepositLoader
+from swh.loader.package.deposit.loader import DepositLoader
 
 from swh.loader.package.tests.common import (
     check_snapshot, check_metadata_paths, get_stats

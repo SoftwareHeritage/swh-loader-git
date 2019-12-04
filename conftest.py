@@ -61,4 +61,5 @@ def celery_includes():
         'swh.loader.package.tasks',
         'swh.loader.package.archive.tasks',
         'swh.loader.package.debian.tasks',
+        'swh.loader.package.deposit.tasks',
     ]

@@ -54,6 +54,7 @@ setup(
         [swh.workers]
         loader.archive=swh.loader.package.archive:register
         loader.debian=swh.loader.package.debian:register
+        loader.deposit=swh.loader.package.deposit:register
     ''',
     classifiers=[
         "Programming Language :: Python :: 3",
