@@ -9,6 +9,8 @@ from typing import Any, Mapping
 
 def register() -> Mapping[str, Any]:
     """Register the current worker module's definition"""
+    from .loader import DepositLoader
     return {
         'task_modules': [f'{__name__}.tasks'],
+        'loader': DepositLoader,
     }
