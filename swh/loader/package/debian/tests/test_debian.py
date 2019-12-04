@@ -9,7 +9,7 @@ import pytest
 
 from os import path
 
-from swh.loader.package.debian import (
+from swh.loader.package.debian.loader import (
     DebianLoader, download_package, dsc_information, uid_to_person,
     prepare_person, get_package_metadata, extract_package
 )

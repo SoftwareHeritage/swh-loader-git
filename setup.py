@@ -53,6 +53,7 @@ setup(
     entry_points='''
         [swh.workers]
         loader.archive=swh.loader.package.archive:register
+        loader.debian=swh.loader.package.debian:register
     ''',
     classifiers=[
         "Programming Language :: Python :: 3",

@@ -11,7 +11,7 @@ repos:
   rev: v1.16.0
   hooks:
   - id: codespell
-    exclude: ^(swh/loader/package/tests/data/.*)$
+    exclude: ^(swh/loader/package/.*[/]+tests/data/.*)$
 
 - repo: local
   hooks:
