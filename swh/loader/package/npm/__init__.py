@@ -3,12 +3,12 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-from celery import shared_task
 
-from swh.loader.package.pypi import PyPILoader
+from typing import Any, Mapping
 
 
-@shared_task(name=__name__ + '.LoadPyPI')
-def load_pypi(*, url=None):
-    """Load PyPI package"""
-    return PyPILoader(url).load()
+def register() -> Mapping[str, Any]:
+    """Register the current worker module's definition"""
+    return {
+        'task_modules': [f'{__name__}.tasks'],
+    }

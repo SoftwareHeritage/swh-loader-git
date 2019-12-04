@@ -3,22 +3,19 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-
 import json
 import os
 import pytest
 
 from swh.model.hashutil import hash_to_bytes
 
-from swh.loader.package.npm import (
-    parse_npm_package_author, extract_npm_package_author,
+from swh.loader.package.npm.loader import (
+    NpmLoader, parse_npm_package_author, extract_npm_package_author,
     artifact_to_revision_id
 )
 from swh.loader.package.tests.common import (
     check_snapshot, check_metadata_paths, get_stats
 )
-
-from swh.loader.package.npm import NpmLoader
 
 
 def _parse_author_string_test(author_str, expected_result):

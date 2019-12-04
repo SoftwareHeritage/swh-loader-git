@@ -5,10 +5,10 @@
 
 from celery import shared_task
 
-from swh.loader.package.pypi import PyPILoader
+from swh.loader.package.npm.loader import NpmLoader
 
 
-@shared_task(name=__name__ + '.LoadPyPI')
-def load_pypi(*, url=None):
-    """Load PyPI package"""
-    return PyPILoader(url).load()
+@shared_task(name=__name__ + '.LoadNpm')
+def load_npm(*, package_name, package_url, package_metadata_url):
+    """Load Npm package"""
+    return NpmLoader(package_name, package_url, package_metadata_url).load()
