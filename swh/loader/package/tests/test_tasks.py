@@ -6,21 +6,6 @@
 from unittest.mock import patch
 
 
-@patch('swh.loader.package.archive.ArchiveLoader.load')
-def test_gnu_loader(
-        mock_loader, swh_app, celery_session_worker, swh_config):
-    mock_loader.return_value = {'status': 'eventful'}
-
-    res = swh_app.send_task(
-        'swh.loader.package.tasks.LoadArchive',
-        (), dict(url='some-url', artifacts=[]))
-    assert res
-    res.wait()
-    assert res.successful()
-
-    assert res.result == {'status': 'eventful'}
-
-
 @patch('swh.loader.package.debian.DebianLoader.load')
 def test_debian_loader(
         mock_loader, swh_app, celery_session_worker, swh_config):

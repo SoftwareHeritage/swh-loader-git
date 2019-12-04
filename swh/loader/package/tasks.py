@@ -9,14 +9,6 @@ from swh.loader.package.debian import DebianLoader
 from swh.loader.package.deposit import DepositLoader
 from swh.loader.package.npm import NpmLoader
 from swh.loader.package.pypi import PyPILoader
-from swh.loader.package.archive import ArchiveLoader
-
-
-@shared_task(name=__name__ + '.LoadArchive')
-def load_archive_files(url=None, artifacts=None, identity_artifact_keys=None):
-    """Load archive's artifacts (e.g gnu, etc...)"""
-    return ArchiveLoader(url, artifacts,
-                         identity_artifact_keys=identity_artifact_keys).load()
 
 
 @shared_task(name=__name__ + '.LoadDebian')

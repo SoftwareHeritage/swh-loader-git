@@ -5,7 +5,7 @@
 
 from swh.model.hashutil import hash_to_bytes
 
-from swh.loader.package.archive import ArchiveLoader, artifact_identity
+from swh.loader.package.archive.loader import ArchiveLoader, artifact_identity
 from swh.loader.package.tests.common import (
     check_snapshot, check_metadata_paths, get_stats
 )

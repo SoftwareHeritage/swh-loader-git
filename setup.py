@@ -52,7 +52,7 @@ setup(
     include_package_data=True,
     entry_points='''
         [swh.workers]
-        loader.package=swh.loader.package:register
+        loader.archive=swh.loader.package.archive:register
     ''',
     classifiers=[
         "Programming Language :: Python :: 3",
