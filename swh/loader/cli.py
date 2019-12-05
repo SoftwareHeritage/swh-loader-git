@@ -8,6 +8,8 @@ import logging
 import click
 import pkg_resources
 
+from typing import Any
+
 from swh.core.cli import CONTEXT_SETTINGS
 from swh.scheduler.cli.utils import parse_options
 
@@ -23,12 +25,12 @@ LOADERS = {entry_point.name.split('.', 1)[1]: entry_point
 SUPPORTED_LOADERS = list(LOADERS)
 
 
-def get_loader(name: str, **kwargs):
+def get_loader(name: str, **kwargs) -> Any:
     """Given a loader name, instantiate it.
 
     Args:
-        name (str): Lister's name
-        conf (dict): Configuration dict (lister db cnx, policy, priority...)
+        name: Loader's name
+        kwargs: Configuration dict (url...)
 
     Returns:
         An instantiated loader
@@ -36,7 +38,7 @@ def get_loader(name: str, **kwargs):
     """
     if name not in LOADERS:
         raise ValueError(
-            'Invalid lister %s: only supported listers are %s' %
+            'Invalid loader %s: only supported loaders are %s' %
             (name, SUPPORTED_LOADERS))
 
     registry_entry = LOADERS[name].load()()
