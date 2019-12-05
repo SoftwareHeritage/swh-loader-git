@@ -1,9 +1,8 @@
-# Copyright (C) 2018  The Software Heritage developers
+# Copyright (C) 2018-2019  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import datetime
 from unittest.mock import patch
 
 
@@ -19,7 +18,7 @@ def test_git_loader(mock_loader, swh_app, celery_session_worker):
     assert res.successful()
 
     assert res.result == {'status': 'eventful'}
-    mock_loader.assert_called_once_with('origin_url', base_url=None)
+    mock_loader.assert_called_once_with()
 
 
 @patch('swh.loader.git.from_disk.GitLoaderFromDisk.load')
@@ -34,8 +33,7 @@ def test_git_loader_from_disk(mock_loader, swh_app, celery_session_worker):
     assert res.successful()
 
     assert res.result == {'status': 'uneventful'}
-    mock_loader.assert_called_once_with(
-        'origin_url2', '/some/repo', datetime.datetime(2018, 12, 10, 0, 0))
+    mock_loader.assert_called_once_with()
 
 
 @patch('swh.loader.git.from_disk.GitLoaderFromArchive.load')
@@ -50,5 +48,4 @@ def test_git_loader_from_archive(mock_loader, swh_app, celery_session_worker):
     assert res.successful()
 
     assert res.result == {'status': 'failed'}
-    mock_loader.assert_called_once_with(
-        'origin_url3', '/some/repo', datetime.datetime(2017, 1, 10, 0, 0))
+    mock_loader.assert_called_once_with()

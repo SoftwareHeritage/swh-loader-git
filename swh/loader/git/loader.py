@@ -1,4 +1,4 @@
-# Copyright (C) 2016-2018 The Software Heritage developers
+# Copyright (C) 2016-2019 The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -194,7 +194,8 @@ class GitLoader(UnbufferedLoader):
 
     visit_type = 'git'
 
-    def __init__(self, repo_representation=RepoRepresentation, config=None):
+    def __init__(self, url, base_url=None, ignore_history=False,
+                 repo_representation=RepoRepresentation, config=None):
         """Initialize the bulk updater.
 
         Args:
@@ -205,6 +206,9 @@ class GitLoader(UnbufferedLoader):
         """
         super().__init__(logging_class='swh.loader.git.BulkLoader',
                          config=config)
+        self.origin_url = url
+        self.base_url = base_url
+        self.ignore_history = ignore_history
         self.repo_representation = repo_representation
 
     def fetch_pack_from_origin(self, origin_url,
@@ -273,9 +277,9 @@ class GitLoader(UnbufferedLoader):
 
         return id_to_type, type_to_ids
 
-    def prepare_origin_visit(self, origin_url, **kwargs):
+    def prepare_origin_visit(self, *args, **kwargs):
         self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
-        self.origin = converters.origin_url_to_origin(origin_url)
+        self.origin = converters.origin_url_to_origin(self.origin_url)
 
     def get_full_snapshot(self, origin_url):
         prev_snapshot = self.storage.snapshot_get_latest(origin_url)
@@ -284,16 +288,16 @@ class GitLoader(UnbufferedLoader):
 
         return prev_snapshot
 
-    def prepare(self, origin_url, base_url=None, ignore_history=False):
+    def prepare(self, *args, **kwargs):
         base_origin_url = origin_url = self.origin['url']
 
         prev_snapshot = None
 
-        if not ignore_history:
+        if not self.ignore_history:
             prev_snapshot = self.get_full_snapshot(origin_url)
 
-        if base_url and not prev_snapshot:
-            base_origin = converters.origin_url_to_origin(base_url)
+        if self.base_url and not prev_snapshot:
+            base_origin = converters.origin_url_to_origin(self.base_url)
             base_origin = self.storage.origin_get(base_origin)
             if base_origin:
                 base_origin_url = base_origin['url']
@@ -301,7 +305,6 @@ class GitLoader(UnbufferedLoader):
 
         self.base_snapshot = prev_snapshot
         self.base_origin_url = base_origin_url
-        self.ignore_history = ignore_history
 
     def fetch_data(self):
         def do_progress(msg):
@@ -512,10 +515,11 @@ if __name__ == '__main__':
     @click.option('--ignore-history/--no-ignore-history',
                   help='Ignore the repository history', default=False)
     def main(origin_url, base_url, ignore_history):
-        return GitLoader().load(
+        loader = GitLoader(
             origin_url,
             base_url=base_url,
             ignore_history=ignore_history,
         )
+        return loader.load()
 
     main()
