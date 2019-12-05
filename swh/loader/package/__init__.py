@@ -3,8 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-
-from typing import Any, Dict, Mapping
+from typing import Any, Dict
 
 import pkg_resources
 
@@ -22,9 +21,3 @@ DEFAULT_PARAMS: Dict[str, Any] = {
         )
     }
 }
-
-
-def register() -> Mapping[str, Any]:
-    return {
-        'task_modules': ['%s.tasks' % __name__],
-    }
