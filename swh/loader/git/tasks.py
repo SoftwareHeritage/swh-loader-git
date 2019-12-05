@@ -12,7 +12,7 @@ from swh.loader.git.loader import GitLoader
 
 
 @app.task(name=__name__ + '.UpdateGitRepository')
-def update_git_repository(repo_url, base_url=None):
+def load_git(repo_url, base_url=None):
     """Import a git repository from a remote location"""
     loader = GitLoader(repo_url, base_url=base_url)
     return loader.load()
