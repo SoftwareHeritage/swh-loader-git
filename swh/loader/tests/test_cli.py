@@ -10,7 +10,6 @@ from swh.loader.cli import run, get_loader, SUPPORTED_LOADERS
 from swh.loader.package.loader import PackageLoader
 
 from click.testing import CliRunner
-from unittest.mock import patch
 
 
 def test_get_loader_wrong_input(swh_config):
@@ -77,11 +76,11 @@ def test_run_help(swh_config):
     assert result.output.startswith(help_msg)
 
 
-@patch('swh.loader.package.pypi.loader.PyPILoader')
-def test_run_pypi(mock_loader, swh_config):
+def test_run_pypi(mocker, swh_config):
     """Triggering a load should be ok
 
     """
+    mock_loader = mocker.patch('swh.loader.package.pypi.loader.PyPILoader')
     runner = CliRunner()
     result = runner.invoke(run, [
         '--type', 'pypi',
