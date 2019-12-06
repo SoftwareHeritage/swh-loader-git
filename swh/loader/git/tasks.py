@@ -5,20 +5,20 @@
 
 import dateutil.parser
 
-from celery import current_app as app
+from celery import shared_task
 
 from swh.loader.git.from_disk import GitLoaderFromDisk, GitLoaderFromArchive
 from swh.loader.git.loader import GitLoader
 
 
-@app.task(name=__name__ + '.UpdateGitRepository')
+@shared_task(name=__name__ + '.UpdateGitRepository')
 def load_git(repo_url, base_url=None):
     """Import a git repository from a remote location"""
     loader = GitLoader(repo_url, base_url=base_url)
     return loader.load()
 
 
-@app.task(name=__name__ + '.LoadDiskGitRepository')
+@shared_task(name=__name__ + '.LoadDiskGitRepository')
 def load_git_from_dir(origin_url, directory, date):
     """Import a git repository from a local repository
 
@@ -32,7 +32,7 @@ def load_git_from_dir(origin_url, directory, date):
     return loader.load()
 
 
-@app.task(name=__name__ + '.UncompressAndLoadDiskGitRepository')
+@shared_task(name=__name__ + '.UncompressAndLoadDiskGitRepository')
 def load_git_from_zip(origin_url, archive_path, date):
     """Import a git repository from a zip archive
 
