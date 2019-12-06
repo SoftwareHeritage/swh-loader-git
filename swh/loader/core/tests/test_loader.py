@@ -38,36 +38,55 @@ class DummyLoader:
         self.storage.origin_visit_add(self.origin_url, self.visit_date,
                                       self.visit_type)
 
+
+class DummyUnbufferedLoader(DummyLoader, UnbufferedLoader):
+    """Unbuffered loader will send directly to storage new data
+
+    """
     def parse_config_file(self, *args, **kwargs):
         return {
             'storage': {
-                'cls': 'memory',
-                'args': {
-                }
+                'cls': 'pipeline',
+                'steps': [
+                    {
+                        'cls': 'filter'
+                    },
+                    {
+                        'cls': 'memory'
+                    },
+                ]
             },
-
-            'send_contents': True,
-            'send_directories': True,
-            'send_revisions': True,
-            'send_releases': True,
-            'send_snapshot': True,
-
-            'content_packet_size': 2,
-            'content_packet_size_bytes': 8,
-            'directory_packet_size': 2,
-            'revision_packet_size': 2,
-            'release_packet_size': 2,
-
-            'content_size_limit': 10000,
         }
 
 
-class DummyUnbufferedLoader(DummyLoader, UnbufferedLoader):
-    pass
-
-
 class DummyBufferedLoader(DummyLoader, BufferedLoader):
-    pass
+    """Buffered loader will send new data when threshold is reached
+
+    """
+    def parse_config_file(self, *args, **kwargs):
+        return {
+            'storage': {
+                'cls': 'pipeline',
+                'steps': [
+                    {
+                        'cls': 'filter'
+                    },
+                    {
+                        'cls': 'buffer',
+                        'min_batch_size': {
+                            'content': 2,
+                            'content_bytes': 8,
+                            'directory': 2,
+                            'revision': 2,
+                            'release': 2,
+                        },
+                    },
+                    {
+                        'cls': 'memory'
+                    },
+                ]
+            },
+        }
 
 
 class DummyBaseLoaderTest(BaseLoaderTest):
@@ -230,20 +249,20 @@ class CoreBufferedLoaderTest(DummyBaseLoaderTest):
     def test_buffered_loader(self):
         self.loader.load()  # initialize the loader
 
-        self.loader.maybe_load_contents(self.in_contents[0:1])
-        self.loader.maybe_load_directories(self.in_directories[0:1])
-        self.loader.maybe_load_revisions(self.in_revisions[0:1])
-        self.loader.maybe_load_releases(self.in_releases[0:1])
+        self.loader.send_contents(self.in_contents[0:1])
+        self.loader.send_directories(self.in_directories[0:1])
+        self.loader.send_revisions(self.in_revisions[0:1])
+        self.loader.send_releases(self.in_releases[0:1])
 
         self.assertCountContents(0)
         self.assertCountDirectories(0)
         self.assertCountRevisions(0)
         self.assertCountReleases(0)
 
-        self.loader.maybe_load_contents(self.in_contents[1:])
-        self.loader.maybe_load_directories(self.in_directories[1:])
-        self.loader.maybe_load_revisions(self.in_revisions[1:])
-        self.loader.maybe_load_releases(self.in_releases[1:])
+        self.loader.send_contents(self.in_contents[1:])
+        self.loader.send_directories(self.in_directories[1:])
+        self.loader.send_revisions(self.in_revisions[1:])
+        self.loader.send_releases(self.in_releases)
 
         self.assertCountContents(len(self.in_contents))
         self.assertCountDirectories(len(self.in_directories))
@@ -254,8 +273,8 @@ class CoreBufferedLoaderTest(DummyBaseLoaderTest):
         """Checks that sending a directory triggers sending contents"""
         self.loader.load()  # initialize the loader
 
-        self.loader.maybe_load_contents(self.in_contents[0:1])
-        self.loader.maybe_load_directories(self.in_directories)
+        self.loader.send_contents(self.in_contents[0:1])
+        self.loader.send_directories(self.in_directories)
 
         self.assertCountContents(1)
         self.assertCountDirectories(len(self.in_directories))
@@ -266,9 +285,9 @@ class CoreBufferedLoaderTest(DummyBaseLoaderTest):
 
         self.loader.load()  # initialize the loader
 
-        self.loader.maybe_load_contents(self.in_contents[0:1])
-        self.loader.maybe_load_directories(self.in_directories[0:1])
-        self.loader.maybe_load_revisions(self.in_revisions)
+        self.loader.send_contents(self.in_contents[0:1])
+        self.loader.send_directories(self.in_directories[0:1])
+        self.loader.send_revisions(self.in_revisions)
 
         self.assertCountContents(1)
         self.assertCountDirectories(1)
@@ -279,10 +298,10 @@ class CoreBufferedLoaderTest(DummyBaseLoaderTest):
         contents, and directories."""
         self.loader.load()  # initialize the loader
 
-        self.loader.maybe_load_contents(self.in_contents[0:1])
-        self.loader.maybe_load_directories(self.in_directories[0:1])
-        self.loader.maybe_load_revisions(self.in_revisions[0:1])
-        self.loader.maybe_load_releases(self.in_releases)
+        self.loader.send_contents(self.in_contents[0:1])
+        self.loader.send_directories(self.in_directories[0:1])
+        self.loader.send_revisions(self.in_revisions[0:1])
+        self.loader.send_releases(self.in_releases)
 
         self.assertCountContents(1)
         self.assertCountDirectories(1)
@@ -294,11 +313,11 @@ class CoreBufferedLoaderTest(DummyBaseLoaderTest):
         revisions, contents, and directories."""
         self.loader.load()  # initialize the loader
 
-        self.loader.maybe_load_contents(self.in_contents[0:1])
-        self.loader.maybe_load_directories(self.in_directories[0:1])
-        self.loader.maybe_load_revisions(self.in_revisions[0:1])
-        self.loader.maybe_load_releases(self.in_releases[0:1])
-        self.loader.maybe_load_snapshot(self.in_snapshot)
+        self.loader.send_contents(self.in_contents[0:1])
+        self.loader.send_directories(self.in_directories[0:1])
+        self.loader.send_revisions(self.in_revisions[0:1])
+        self.loader.send_releases(self.in_releases[0:1])
+        self.loader.send_snapshot(self.in_snapshot)
 
         self.assertCountContents(1)
         self.assertCountDirectories(1)
