@@ -3,11 +3,9 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-from unittest.mock import patch
 
-
-@patch('swh.loader.git.loader.GitLoader.load')
-def test_git_loader(mock_loader, swh_app, celery_session_worker):
+def test_git_loader(mocker, swh_app, celery_session_worker):
+    mock_loader = mocker.patch('swh.loader.git.loader.GitLoader.load')
     mock_loader.return_value = {'status': 'eventful'}
 
     res = swh_app.send_task(
@@ -21,8 +19,9 @@ def test_git_loader(mock_loader, swh_app, celery_session_worker):
     mock_loader.assert_called_once_with()
 
 
-@patch('swh.loader.git.from_disk.GitLoaderFromDisk.load')
-def test_git_loader_from_disk(mock_loader, swh_app, celery_session_worker):
+def test_git_loader_from_disk(mocker, swh_app, celery_session_worker):
+    mock_loader = mocker.patch(
+        'swh.loader.git.from_disk.GitLoaderFromDisk.load')
     mock_loader.return_value = {'status': 'uneventful'}
 
     res = swh_app.send_task(
@@ -36,8 +35,10 @@ def test_git_loader_from_disk(mock_loader, swh_app, celery_session_worker):
     mock_loader.assert_called_once_with()
 
 
-@patch('swh.loader.git.from_disk.GitLoaderFromArchive.load')
-def test_git_loader_from_archive(mock_loader, swh_app, celery_session_worker):
+def test_git_loader_from_archive(mocker, swh_app, celery_session_worker):
+    mock_loader = mocker.patch(
+        'swh.loader.git.from_disk.GitLoaderFromArchive.load')
+
     mock_loader.return_value = {'status': 'failed'}
 
     res = swh_app.send_task(
