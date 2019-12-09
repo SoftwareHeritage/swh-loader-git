@@ -10,7 +10,9 @@ def test_git_loader(mocker, swh_app, celery_session_worker):
 
     res = swh_app.send_task(
         'swh.loader.git.tasks.UpdateGitRepository',
-        ('origin_url',))
+        kwargs={
+            'url': 'origin_url',
+        })
     assert res
     res.wait()
     assert res.successful()
@@ -26,7 +28,11 @@ def test_git_loader_from_disk(mocker, swh_app, celery_session_worker):
 
     res = swh_app.send_task(
         'swh.loader.git.tasks.LoadDiskGitRepository',
-        ('origin_url2', '/some/repo', '2018-12-10 00:00'))
+        kwargs={
+            'url': 'origin_url2',
+            'directory': '/some/repo',
+            'date': '2018-12-10 00:00',
+        })
     assert res
     res.wait()
     assert res.successful()
@@ -43,7 +49,11 @@ def test_git_loader_from_archive(mocker, swh_app, celery_session_worker):
 
     res = swh_app.send_task(
         'swh.loader.git.tasks.UncompressAndLoadDiskGitRepository',
-        ('origin_url3', '/some/repo', '2017-01-10 00:00'))
+        kwargs={
+            'url': 'origin_url3',
+            'archive_path': '/some/repo',
+            'date': '2017-01-10 00:00',
+        })
     assert res
     res.wait()
     assert res.successful()
