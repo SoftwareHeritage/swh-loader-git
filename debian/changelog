@@ -1,8 +1,20 @@
-swh-loader-git (0.0.52-1~swh1~bpo10+1) buster-swh; urgency=medium
+swh-loader-git (0.0.53-1~swh1) unstable-swh; urgency=medium
 
-  * Rebuild for buster-swh
+  * New upstream release 0.0.53     - (tagged by Antoine R. Dumont
+    (@ardumont) <antoine.romain.dumont@gmail.com> on 2019-12-10 11:24:30
+    +0100)
+  * Upstream changes:     - v0.0.53     - tasks: Unify message format
+    with other loaders     - tasks: Use celery's shared_task decorator
+    - tests: Migrate to pytest-mock's fixture     - loader.git: Register
+    git worker     - tasks: Rename task according to production     -
+    git: Unify loaders constructor     - Fix a typo reported by
+    codespell     - Add a pre-commit config file     - Migrate tox.ini
+    to extras = xxx instead of deps = .[testing]     - De-specify
+    testenv:py3     - Drop version constraint on pytest < 4     -
+    Include all requirements in MANIFEST.in     - Add support for
+    symbolic references
 
- -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Thu, 10 Oct 2019 10:13:37 +0000
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Tue, 10 Dec 2019 10:27:32 +0000
 
 swh-loader-git (0.0.52-1~swh1) unstable-swh; urgency=medium
 

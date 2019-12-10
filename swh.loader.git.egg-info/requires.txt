@@ -9,5 +9,6 @@ swh.scheduler>=0.0.39
 swh.storage>=0.0.108
 
 [testing]
-pytest<4
+pytest
+pytest-mock
 swh.scheduler[testing]

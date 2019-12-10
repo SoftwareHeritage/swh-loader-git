@@ -1,4 +1,4 @@
-# Copyright (C) 2016-2018 The Software Heritage developers
+# Copyright (C) 2016-2019 The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -194,7 +194,8 @@ class GitLoader(UnbufferedLoader):
 
     visit_type = 'git'
 
-    def __init__(self, repo_representation=RepoRepresentation, config=None):
+    def __init__(self, url, base_url=None, ignore_history=False,
+                 repo_representation=RepoRepresentation, config=None):
         """Initialize the bulk updater.
 
         Args:
@@ -205,6 +206,9 @@ class GitLoader(UnbufferedLoader):
         """
         super().__init__(logging_class='swh.loader.git.BulkLoader',
                          config=config)
+        self.origin_url = url
+        self.base_url = base_url
+        self.ignore_history = ignore_history
         self.repo_representation = repo_representation
 
     def fetch_pack_from_origin(self, origin_url,
@@ -234,11 +238,14 @@ class GitLoader(UnbufferedLoader):
 
             pack_buffer.write(data)
 
-        remote_refs = client.fetch_pack(path,
+        pack_result = client.fetch_pack(path,
                                         base_repo.determine_wants,
                                         base_repo.graph_walker(),
                                         do_pack,
-                                        progress=do_activity).refs
+                                        progress=do_activity)
+
+        remote_refs = pack_result.refs
+        symbolic_refs = pack_result.symrefs
 
         if remote_refs:
             local_refs = base_repo.find_remote_ref_types_in_swh(remote_refs)
@@ -252,6 +259,7 @@ class GitLoader(UnbufferedLoader):
         return {
             'remote_refs': base_repo.filter_unwanted_refs(remote_refs),
             'local_refs': local_refs,
+            'symbolic_refs': symbolic_refs,
             'pack_buffer': pack_buffer,
             'pack_size': pack_size,
         }
@@ -269,9 +277,9 @@ class GitLoader(UnbufferedLoader):
 
         return id_to_type, type_to_ids
 
-    def prepare_origin_visit(self, origin_url, **kwargs):
+    def prepare_origin_visit(self, *args, **kwargs):
         self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
-        self.origin = converters.origin_url_to_origin(origin_url)
+        self.origin = converters.origin_url_to_origin(self.origin_url)
 
     def get_full_snapshot(self, origin_url):
         prev_snapshot = self.storage.snapshot_get_latest(origin_url)
@@ -280,16 +288,16 @@ class GitLoader(UnbufferedLoader):
 
         return prev_snapshot
 
-    def prepare(self, origin_url, base_url=None, ignore_history=False):
+    def prepare(self, *args, **kwargs):
         base_origin_url = origin_url = self.origin['url']
 
         prev_snapshot = None
 
-        if not ignore_history:
+        if not self.ignore_history:
             prev_snapshot = self.get_full_snapshot(origin_url)
 
-        if base_url and not prev_snapshot:
-            base_origin = converters.origin_url_to_origin(base_url)
+        if self.base_url and not prev_snapshot:
+            base_origin = converters.origin_url_to_origin(self.base_url)
             base_origin = self.storage.origin_get(base_origin)
             if base_origin:
                 base_origin_url = base_origin['url']
@@ -297,7 +305,6 @@ class GitLoader(UnbufferedLoader):
 
         self.base_snapshot = prev_snapshot
         self.base_origin_url = base_origin_url
-        self.ignore_history = ignore_history
 
     def fetch_data(self):
         def do_progress(msg):
@@ -313,6 +320,7 @@ class GitLoader(UnbufferedLoader):
 
         self.remote_refs = fetch_info['remote_refs']
         self.local_refs = fetch_info['local_refs']
+        self.symbolic_refs = fetch_info['symbolic_refs']
 
         origin_url = self.origin['url']
 
@@ -466,6 +474,9 @@ class GitLoader(UnbufferedLoader):
 
             branches[ref] = ret_ref
 
+        for ref, target in self.symbolic_refs.items():
+            branches[ref] = {'target_type': 'alias', 'target': target}
+
         self.snapshot = converters.branches_to_snapshot(branches)
         return self.snapshot
 
@@ -504,10 +515,11 @@ if __name__ == '__main__':
     @click.option('--ignore-history/--no-ignore-history',
                   help='Ignore the repository history', default=False)
     def main(origin_url, base_url, ignore_history):
-        return GitLoader().load(
+        loader = GitLoader(
             origin_url,
             base_url=base_url,
             ignore_history=ignore_history,
         )
+        return loader.load()
 
     main()

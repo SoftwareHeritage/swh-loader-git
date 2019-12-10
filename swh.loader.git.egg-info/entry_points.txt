@@ -1,0 +1,4 @@
+
+        [swh.workers]
+        loader.git=swh.loader.git:register
+    
