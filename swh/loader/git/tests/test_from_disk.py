@@ -1,4 +1,4 @@
-# Copyright (C) 2018  The Software Heritage developers
+# Copyright (C) 2018-2019  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -32,14 +32,14 @@ CONTENT1 = {
     '4bdb40dfd6ec75cb730e678b5d7786e30170c5fb',  # file2.txt
 }
 
-SNAPSHOT_ID = 'bdf3b06d6017e0d9ad6447a73da6ff1ae9efb8f0'
+SNAPSHOT_ID = 'a23699280a82a043f8c0994cf1631b568f716f95'
 
 SNAPSHOT1 = {
     'id': SNAPSHOT_ID,
     'branches': {
         'HEAD': {
-            'target': '2f01f5ca7e391a2f08905990277faf81e709a649',
-            'target_type': 'revision',
+            'target': 'refs/heads/master',
+            'target_type': 'alias',
         },
         'refs/heads/master': {
             'target': '2f01f5ca7e391a2f08905990277faf81e709a649',
@@ -119,14 +119,15 @@ class BaseDirGitLoaderFromDiskTest(BaseGitLoaderFromDiskTest):
     """
     def setUp(self):
         super().setUp('testrepo.tgz', uncompress_archive=True)
-        self.loader = GitLoaderFromDiskTest()
+        self.loader = GitLoaderFromDiskTest(
+            url=self.repo_url,
+            visit_date='2016-05-03 15:16:32+00',
+            directory=self.destination_path
+        )
         self.storage = self.loader.storage
 
     def load(self):
-        return self.loader.load(
-            origin_url=self.repo_url,
-            visit_date='2016-05-03 15:16:32+00',
-            directory=self.destination_path)
+        return self.loader.load()
 
 
 class BaseGitLoaderFromArchiveTest(BaseGitLoaderFromDiskTest):
@@ -138,14 +139,15 @@ class BaseGitLoaderFromArchiveTest(BaseGitLoaderFromDiskTest):
     """
     def setUp(self):
         super().setUp('testrepo.tgz', uncompress_archive=False)
-        self.loader = GitLoaderFromArchive()
+        self.loader = GitLoaderFromArchive(
+            url=self.repo_url,
+            visit_date='2016-05-03 15:16:32+00',
+            archive_path=self.destination_path,
+        )
         self.storage = self.loader.storage
 
     def load(self):
-        return self.loader.load(
-            origin_url=self.repo_url,
-            visit_date='2016-05-03 15:16:32+00',
-            archive_path=self.destination_path)
+        return self.loader.load()
 
 
 class GitLoaderFromDiskTests:
