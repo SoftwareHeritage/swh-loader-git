@@ -2,6 +2,7 @@ MANIFEST.in
 Makefile
 README.md
 requirements-swh.txt
+requirements-test.txt
 requirements.txt
 setup.py
 version.txt
@@ -9,6 +10,7 @@ swh/__init__.py
 swh.loader.git.egg-info/PKG-INFO
 swh.loader.git.egg-info/SOURCES.txt
 swh.loader.git.egg-info/dependency_links.txt
+swh.loader.git.egg-info/entry_points.txt
 swh.loader.git.egg-info/requires.txt
 swh.loader.git.egg-info/top_level.txt
 swh/loader/__init__.py

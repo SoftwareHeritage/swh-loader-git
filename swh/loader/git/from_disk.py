@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2018  The Software Heritage developers
+# Copyright (C) 2015-2019  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -25,19 +25,17 @@ class GitLoaderFromDisk(UnbufferedLoader):
 
     visit_type = 'git'
 
-    def __init__(self, config=None):
+    def __init__(self, url, visit_date=None, directory=None, config=None):
         super().__init__(logging_class='swh.loader.git.Loader', config=config)
-
-    def _prepare_origin_visit(self, origin_url, visit_date):
-        self.origin_url = origin_url
-        self.origin = converters.origin_url_to_origin(self.origin_url)
+        self.origin_url = url
         self.visit_date = visit_date
+        self.directory = directory
 
-    def prepare_origin_visit(self, origin_url, directory, visit_date):
-        self._prepare_origin_visit(origin_url, visit_date)
+    def prepare_origin_visit(self, *args, **kwargs):
+        self.origin = converters.origin_url_to_origin(self.origin_url)
 
-    def prepare(self, origin_url, directory, visit_date):
-        self.repo = dulwich.repo.Repo(directory)
+    def prepare(self, *args, **kwargs):
+        self.repo = dulwich.repo.Repo(self.directory)
 
     def iter_objects(self):
         object_store = self.repo.object_store
@@ -228,6 +226,12 @@ class GitLoaderFromDisk(UnbufferedLoader):
             else:
                 branches[ref] = None
 
+        for ref, target in self.repo.refs.get_symrefs().items():
+            branches[ref] = {
+                'target': target,
+                'target_type': 'alias',
+            }
+
         self.snapshot = converters.branches_to_snapshot(branches)
         return self.snapshot
 
@@ -299,9 +303,10 @@ class GitLoaderFromArchive(GitLoaderFromDisk):
         ...
 
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, archive_path, **kwargs):
         super().__init__(*args, **kwargs)
         self.temp_dir = self.repo_path = None
+        self.archive_path = archive_path
 
     def project_name_from_archive(self, archive_path):
         """Compute the project name from the archive's path.
@@ -314,22 +319,21 @@ class GitLoaderFromArchive(GitLoaderFromDisk):
                 break
         return archive_name
 
-    def prepare_origin_visit(self, origin_url, archive_path, visit_date):
-        self._prepare_origin_visit(origin_url, visit_date)
-
-    def prepare(self, origin_url, archive_path, visit_date):
+    def prepare(self, *args, **kwargs):
         """1. Uncompress the archive in temporary location.
            2. Prepare as the GitLoaderFromDisk does
            3. Load as GitLoaderFromDisk does
 
         """
-        project_name = self.project_name_from_archive(archive_path)
+        project_name = self.project_name_from_archive(self.archive_path)
         self.temp_dir, self.repo_path = utils.init_git_repo_from_archive(
-            project_name, archive_path)
+            project_name, self.archive_path)
 
-        self.log.info('Project %s - Uncompressing archive %s at %s' % (
-            origin_url, os.path.basename(archive_path), self.repo_path))
-        super().prepare(origin_url, self.repo_path, visit_date)
+        self.log.info('Project %s - Uncompressing archive %s at %s',
+                      self.origin_url, os.path.basename(self.archive_path),
+                      self.repo_path)
+        self.directory = self.repo_path
+        super().prepare(*args, **kwargs)
 
     def cleanup(self):
         """Cleanup the temporary location (if it exists).
