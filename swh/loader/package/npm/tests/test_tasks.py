@@ -10,7 +10,7 @@ def test_npm_loader(mocker, swh_app, celery_session_worker, swh_config):
 
     res = swh_app.send_task(
         'swh.loader.package.npm.tasks.LoadNpm',
-        (), dict(url='https://www.npmjs.com/package/some-package'))
+        kwargs=dict(url='https://www.npmjs.com/package/some-package'))
     assert res
     res.wait()
     assert res.successful()

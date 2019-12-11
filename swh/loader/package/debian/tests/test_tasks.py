@@ -11,7 +11,11 @@ def test_debian_loader(mocker, swh_app, celery_session_worker, swh_config):
 
     res = swh_app.send_task(
         'swh.loader.package.debian.tasks.LoadDebian',
-        (), dict(url='some-url', date='some-date', packages={}))
+        kwargs={
+            'url': 'some-url',
+            'date': 'some-date',
+            'packages': {}
+        })
     assert res
     res.wait()
     assert res.successful()

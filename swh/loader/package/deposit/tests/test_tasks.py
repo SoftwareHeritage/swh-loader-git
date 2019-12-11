@@ -11,7 +11,10 @@ def test_deposit_loader(mocker, swh_app, celery_session_worker, swh_config):
 
     res = swh_app.send_task(
         'swh.loader.package.deposit.tasks.LoadDeposit',
-        (), dict(url='some-url', deposit_id='some-d-id'))
+        kwargs={
+            'url': 'some-url',
+            'deposit_id': 'some-d-id',
+        })
     assert res
     res.wait()
     assert res.successful()

@@ -11,7 +11,10 @@ def test_archive_loader(mocker, swh_app, celery_session_worker, swh_config):
 
     res = swh_app.send_task(
         'swh.loader.package.archive.tasks.LoadArchive',
-        (), dict(url='some-url', artifacts=[]))
+        kwargs={
+            'url': 'some-url',
+            'artifacts': []
+        })
     assert res
     res.wait()
     assert res.successful()

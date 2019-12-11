@@ -11,7 +11,7 @@ def test_pypi_loader(mocker, swh_app, celery_session_worker, swh_config):
 
     res = swh_app.send_task(
         'swh.loader.package.pypi.tasks.LoadPyPI',
-        (), dict(url='some-url'))
+        kwargs=dict(url='some-url'))
     assert res
     res.wait()
     assert res.successful()
