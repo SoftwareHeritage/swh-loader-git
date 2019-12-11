@@ -3,6 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import inspect
 import logging
 
 import click
@@ -48,21 +49,42 @@ def get_loader(name: str, **kwargs) -> Any:
     return loader_cls(**kwargs)
 
 
-@click.command(name='run', context_settings=CONTEXT_SETTINGS)
-@click.option('--type', '-t', help='Loader to run',
-              type=click.Choice(SUPPORTED_LOADERS))
-@click.option('--url', '-u', default=None,
-              help="Origin url to load")
+@click.group(name='loader', context_settings=CONTEXT_SETTINGS)
+@click.pass_context
+def loader(ctx):
+    """Loader cli tools
+
+    """
+    pass
+
+
+@loader.command(name='run', context_settings=CONTEXT_SETTINGS)
+@click.argument('type',
+                type=click.Choice(SUPPORTED_LOADERS))
+@click.argument('url')
 @click.argument('options', nargs=-1)
 @click.pass_context
 def run(ctx, type, url, options):
-    """Loader cli tools
-
-    Load an origin from its url with loader <name>
-
-    """
+    """Ingest with loader <type> the origin located at <url>"""
     (_, kw) = parse_options(options)
     logger.debug(f'kw: {kw}')
     loader = get_loader(type, url=url, **kw)
     result = loader.load()
     click.echo(result)
+
+
+@loader.command(name='list', context_settings=CONTEXT_SETTINGS)
+@click.argument('type', default='all',
+                type=click.Choice(['all'] + SUPPORTED_LOADERS))
+@click.pass_context
+def list(ctx, type):
+    """List supported loaders and optionally their arguments"""
+    if type == 'all':
+        loaders = ', '.join(SUPPORTED_LOADERS)
+        click.echo(f'Supported loaders: {loaders}')
+    else:
+        registry_entry = LOADERS[type].load()()
+        loader_cls = registry_entry['loader']
+        doc = inspect.getdoc(loader_cls).strip()
+        signature = inspect.signature(loader_cls)
+        click.echo(f"Loader: {doc}\nsignature: {signature}")

@@ -58,7 +58,7 @@ setup(
         loader.npm=swh.loader.package.npm:register
         loader.pypi=swh.loader.package.pypi:register
         [swh.cli.subcommands]
-        loader=swh.loader.cli:run
+        loader=swh.loader.cli:loader
     ''',
     classifiers=[
         "Programming Language :: Python :: 3",
