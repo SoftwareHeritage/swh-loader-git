@@ -3,16 +3,17 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-
 from swh.loader.git.loader import GitLoader
 from swh.loader.git.tests.test_from_disk import DirGitLoaderTest
+
+from . import TEST_LOADER_CONFIG
 
 
 class GitLoaderTest(GitLoader):
     def parse_config_file(self, *args, **kwargs):
         return {
             **super().parse_config_file(*args, **kwargs),
-            'storage': {'cls': 'memory', 'args': {}}
+            **TEST_LOADER_CONFIG
         }
 
 
