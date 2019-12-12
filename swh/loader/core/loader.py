@@ -350,11 +350,13 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                            })
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
-    def send_directories(self, directory_list):
+    def send_directories(self,
+                         directories: Iterable[Mapping[str, Any]]) -> None:
         """Actually send properly formatted directories to the database.
 
         """
-        num_directories = len(directory_list)
+        directories = list(directories)
+        num_directories = len(directories)
         if num_directories > 0:
             log_id = str(uuid.uuid4())
             self.log.debug("Sending %d directories" % num_directories,
@@ -364,7 +366,7 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                                'swh_num': num_directories,
                                'swh_id': log_id,
                            })
-            result = self.storage.directory_add(directory_list)
+            result = self.storage.directory_add(directories)
             self.counters['directories'] += result.get('directory:add', 0)
             self.log.debug("Done sending %d directories" % num_directories,
                            extra={
@@ -375,11 +377,12 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                            })
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
-    def send_revisions(self, revision_list):
+    def send_revisions(self, revisions: Iterable[Mapping[str, Any]]) -> None:
         """Actually send properly formatted revisions to the database.
 
         """
-        num_revisions = len(revision_list)
+        revisions = list(revisions)
+        num_revisions = len(revisions)
         if num_revisions > 0:
             log_id = str(uuid.uuid4())
             self.log.debug("Sending %d revisions" % num_revisions,
@@ -389,7 +392,7 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                                'swh_num': num_revisions,
                                'swh_id': log_id,
                            })
-            result = self.storage.revision_add(revision_list)
+            result = self.storage.revision_add(revisions)
             self.counters['revisions'] += result.get('revision:add', 0)
             self.log.debug("Done sending %d revisions" % num_revisions,
                            extra={
@@ -400,11 +403,12 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                            })
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
-    def send_releases(self, release_list):
+    def send_releases(self, releases: Iterable[Mapping[str, Any]]) -> None:
         """Actually send properly formatted releases to the database.
 
         """
-        num_releases = len(release_list)
+        releases = list(releases)
+        num_releases = len(releases)
         if num_releases > 0:
             log_id = str(uuid.uuid4())
             self.log.debug("Sending %d releases" % num_releases,
@@ -414,7 +418,7 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                                'swh_num': num_releases,
                                'swh_id': log_id,
                            })
-            result = self.storage.release_add(release_list)
+            result = self.storage.release_add(releases)
             self.counters['releases'] += result.get('release:add', 0)
             self.log.debug("Done sending %d releases" % num_releases,
                            extra={
