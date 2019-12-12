@@ -129,8 +129,12 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
 
         # possibly overridden in self.prepare method
         self.visit_date: Optional[Union[str, datetime.datetime]] = None
+
         self.origin: Dict[str, Any] = {}
-        self.visit_type: Optional[str] = None
+
+        if not hasattr(str, 'visit_type'):
+            self.visit_type: Optional[str] = None
+
         self.origin_metadata: Dict[str, Any] = {}
 
         # Make sure the config is sane
