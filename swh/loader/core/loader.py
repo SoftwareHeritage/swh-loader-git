@@ -14,7 +14,7 @@ import uuid
 
 from abc import ABCMeta, abstractmethod
 from retrying import retry
-from typing import Any, Dict, Iterable, Mapping, Optional, Tuple
+from typing import Any, Dict, Iterable, Mapping, Optional, Tuple, Union
 
 from swh.core import config
 from swh.storage import get_storage, HashCollision
@@ -101,7 +101,8 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
 
     ADDITIONAL_CONFIG = {}  # type: Dict[str, Tuple[str, Any]]
 
-    def __init__(self, logging_class=None, config=None):
+    def __init__(self, logging_class: Optional[str] = None,
+                 config: Dict[str, Any] = {}):
         if config:
             self.config = config
         else:
@@ -126,7 +127,12 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
         }
         self.max_content_size = self.config['max_content_size']
 
+        # possibly overridden in self.prepare method
+        self.visit_date: Optional[Union[str, datetime.datetime]] = None
         self.origin: Dict[str, Any] = {}
+        self.visit_type: Optional[str] = None
+        self.origin_metadata: Dict[str, Any] = {}
+
         # Make sure the config is sane
         save_data = self.config.get('save_data')
         if save_data:
@@ -135,14 +141,14 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
             if not os.access(path, os.R_OK | os.W_OK):
                 raise PermissionError("Permission denied: %r" % path)
 
-    def save_data(self):
+    def save_data(self) -> None:
         """Save the data associated to the current load"""
         raise NotImplementedError
 
-    def get_save_data_path(self):
+    def get_save_data_path(self) -> str:
         """The path to which we archive the loader's raw data"""
         if not hasattr(self, '__save_data_path'):
-            year = str(self.visit_date.year)
+            year = str(self.visit_date.year)  # type: ignore
 
             url = self.origin['url'].encode('utf-8')
             origin_url_hash = hashlib.sha1(url).hexdigest()
@@ -160,7 +166,7 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
         return self.__save_data_path
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
-    def send_origin(self, origin):
+    def send_origin(self, origin: Dict[str, Any]) -> None:
         log_id = str(uuid.uuid4())
         self.log.debug('Creating origin for %s' % origin['url'],
                        extra={
@@ -179,7 +185,8 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                        })
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
-    def send_origin_visit(self, visit_date, visit_type):
+    def send_origin_visit(self, visit_date: Union[str, datetime.datetime],
+                          visit_type: str) -> Dict[str, Any]:
         log_id = str(uuid.uuid4())
         self.log.debug(
             'Creating origin_visit for origin %s at time %s' % (
@@ -205,7 +212,7 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
         return origin_visit
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
-    def send_tool(self, tool):
+    def send_tool(self, tool: Dict[str, Any]) -> None:
         log_id = str(uuid.uuid4())
         self.log.debug(
             'Creating tool with name %s version %s configuration %s' % (
@@ -232,7 +239,7 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
         return tool_id
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
-    def send_provider(self, provider):
+    def send_provider(self, provider: Dict[str, Any]) -> None:
         log_id = str(uuid.uuid4())
         self.log.debug(
             'Creating metadata_provider with name %s type %s url %s' % (
@@ -294,7 +301,7 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
             })
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
-    def update_origin_visit(self, status):
+    def update_origin_visit(self, status: str) -> None:
         log_id = str(uuid.uuid4())
         self.log.debug(
             'Updating origin_visit for origin %s with status %s' % (
@@ -429,13 +436,13 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                            })
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
-    def send_snapshot(self, snapshot):
+    def send_snapshot(self, snapshot: Mapping[str, Any]) -> None:
         self.flush()  # to ensure the snapshot targets existing objects
         self.storage.snapshot_add([snapshot])
         self.storage.origin_visit_update(
             self.origin['url'], self.visit, snapshot=snapshot['id'])
 
-    def flush(self):
+    def flush(self) -> None:
         """Flush any potential dangling data not sent to swh-storage.
 
         Bypass the maybe_load_* methods which awaits threshold reached
@@ -446,7 +453,7 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
         if hasattr(self.storage, 'flush'):
             self.storage.flush()
 
-    def prepare_metadata(self):
+    def prepare_metadata(self) -> None:
         """First step for origin_metadata insertion, resolving the
         provider_id and the tool_id by fetching data from the storage
         or creating tool and provider on the fly if the data isn't available
@@ -471,14 +478,14 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
             raise
 
     @abstractmethod
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Last step executed by the loader.
 
         """
         pass
 
     @abstractmethod
-    def prepare_origin_visit(self, *args, **kwargs):
+    def prepare_origin_visit(self, *args, **kwargs) -> None:
         """First step executed by the loader to prepare origin and visit
            references. Set/update self.origin, and
            optionally self.origin_url, self.visit_date.
@@ -486,7 +493,7 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
         """
         pass
 
-    def _store_origin_visit(self):
+    def _store_origin_visit(self) -> None:
         """Store origin and visit references. Sets the self.origin_visit and
            self.visit references.
 
@@ -501,14 +508,14 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
         self.visit = self.origin_visit['visit']
 
     @abstractmethod
-    def prepare(self, *args, **kwargs):
+    def prepare(self, *args, **kwargs) -> None:
         """Second step executed by the loader to prepare some state needed by
            the loader.
 
         """
         pass
 
-    def get_origin(self):
+    def get_origin(self) -> Dict[str, Any]:
         """Get the origin that is currently being loaded.
         self.origin should be set in :func:`prepare_origin`
 
@@ -519,7 +526,7 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
         return self.origin
 
     @abstractmethod
-    def fetch_data(self):
+    def fetch_data(self) -> bool:
         """Fetch the data from the source the loader is currently loading
            (ex: git/hg/svn/... repository).
 
@@ -539,14 +546,14 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
         """
         pass
 
-    def store_metadata(self):
+    def store_metadata(self) -> None:
         """Store fetched metadata in the database.
 
         For more information, see implementation in :class:`DepositLoader`.
         """
         pass
 
-    def load_status(self):
+    def load_status(self) -> Dict[str, str]:
         """Detailed loading status.
 
         Defaults to logging an eventful load.
@@ -559,7 +566,7 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
             'status': 'eventful',
         }
 
-    def post_load(self, success=True):
+    def post_load(self, success: bool = True) -> None:
         """Permit the loader to do some additional actions according to status
         after the loading is done. The flag success indicates the
         loading's status.
@@ -575,21 +582,21 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
         """
         pass
 
-    def visit_status(self):
+    def visit_status(self) -> str:
         """Detailed visit status.
 
         Defaults to logging a full visit.
         """
         return 'full'
 
-    def pre_cleanup(self):
+    def pre_cleanup(self) -> None:
         """As a first step, will try and check for dangling data to cleanup.
         This should do its best to avoid raising issues.
 
         """
         pass
 
-    def load(self, *args, **kwargs):
+    def load(self, *args, **kwargs) -> Dict[str, str]:
         r"""Loading logic for the loader to follow:
 
         - 1. Call :meth:`prepare_origin_visit` to prepare the
@@ -657,59 +664,51 @@ class UnbufferedLoader(BufferedLoader):
     """
     ADDITIONAL_CONFIG = {}  # type: Dict[str, Tuple[str, Any]]
 
-    def __init__(self, logging_class=None, config=None):
-        super().__init__(logging_class=logging_class, config=config)
-        self.visit_date = None  # possibly overridden in self.prepare method
-
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Clean up an eventual state installed for computations."""
         pass
 
-    def has_contents(self):
+    def has_contents(self) -> bool:
         """Checks whether we need to load contents"""
         return True
 
-    def get_contents(self):
+    def get_contents(self) -> Iterable[Dict[str, Any]]:
         """Get the contents that need to be loaded"""
         raise NotImplementedError
 
-    def has_directories(self):
+    def has_directories(self) -> bool:
         """Checks whether we need to load directories"""
         return True
 
-    def get_directories(self):
+    def get_directories(self) -> Iterable[Dict[str, Any]]:
         """Get the directories that need to be loaded"""
         raise NotImplementedError
 
-    def has_revisions(self):
+    def has_revisions(self) -> bool:
         """Checks whether we need to load revisions"""
         return True
 
-    def get_revisions(self):
+    def get_revisions(self) -> Iterable[Dict[str, Any]]:
         """Get the revisions that need to be loaded"""
         raise NotImplementedError
 
-    def has_releases(self):
+    def has_releases(self) -> bool:
         """Checks whether we need to load releases"""
         return True
 
-    def get_releases(self):
+    def get_releases(self) -> Iterable[Dict[str, Any]]:
         """Get the releases that need to be loaded"""
         raise NotImplementedError
 
-    def get_snapshot(self):
+    def get_snapshot(self) -> Dict[str, Any]:
         """Get the snapshot that needs to be loaded"""
         raise NotImplementedError
 
-    def eventful(self):
+    def eventful(self) -> bool:
         """Whether the load was eventful"""
         raise NotImplementedError
 
-    def save_data(self):
-        """Save the data associated to the current load"""
-        raise NotImplementedError
-
-    def store_data(self):
+    def store_data(self) -> None:
         if self.config['save_data']:
             self.save_data()
 
@@ -722,3 +721,4 @@ class UnbufferedLoader(BufferedLoader):
         if self.has_releases():
             self.send_releases(self.get_releases())
         self.send_snapshot(self.get_snapshot())
+        self.flush()
