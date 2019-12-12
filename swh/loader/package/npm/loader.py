@@ -30,6 +30,9 @@ _author_regexp = r'([^<(]+?)?[ \t]*(?:<([^>(]+?)>)?[ \t]*(?:\(([^)]+?)\)|$)'
 
 
 class NpmLoader(PackageLoader):
+    """Load npm origin's artifact releases into swh archive.
+
+    """
     visit_type = 'npm'
 
     def __init__(self, url: str):

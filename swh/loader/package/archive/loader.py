@@ -24,6 +24,9 @@ REVISION_MESSAGE = b'swh-loader-package: synthetic revision message'
 
 
 class ArchiveLoader(PackageLoader):
+    """Load archive origin's artifact files into swh archive
+
+    """
     visit_type = 'tar'
 
     def __init__(self, url: str, artifacts: Sequence[Mapping[str, Any]],
