@@ -132,7 +132,7 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
 
         self.origin: Dict[str, Any] = {}
 
-        if not hasattr(str, 'visit_type'):
+        if not hasattr(self, 'visit_type'):
             self.visit_type: Optional[str] = None
 
         self.origin_metadata: Dict[str, Any] = {}
