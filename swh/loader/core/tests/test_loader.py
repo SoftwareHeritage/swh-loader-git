@@ -45,6 +45,7 @@ class DummyUnbufferedLoader(DummyLoader, UnbufferedLoader):
     """
     def parse_config_file(self, *args, **kwargs):
         return {
+            'max_content_size': 100 * 1024 * 1024,
             'storage': {
                 'cls': 'pipeline',
                 'steps': [
@@ -65,6 +66,7 @@ class DummyBufferedLoader(DummyLoader, BufferedLoader):
     """
     def parse_config_file(self, *args, **kwargs):
         return {
+            'max_content_size': 100 * 1024 * 1024,
             'storage': {
                 'cls': 'pipeline',
                 'steps': [

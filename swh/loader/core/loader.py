@@ -14,10 +14,11 @@ import uuid
 
 from abc import ABCMeta, abstractmethod
 from retrying import retry
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Iterable, Mapping, Optional, Tuple
 
 from swh.core import config
 from swh.storage import get_storage, HashCollision
+from swh.loader.core.converters import content_for_storage
 
 
 def retry_loading(error):
@@ -92,6 +93,7 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
             }
         }),
 
+        'max_content_size': ('int', 100 * 1024 * 1024),
         'save_data': ('bool', False),
         'save_data_path': ('str', ''),
 
@@ -122,7 +124,9 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
             'revisions': 0,
             'releases': 0,
         }
+        self.max_content_size = self.config['max_content_size']
 
+        self.origin: Dict[str, Any] = {}
         # Make sure the config is sane
         save_data = self.config.get('save_data')
         if save_data:
@@ -314,11 +318,12 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
             })
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
-    def send_contents(self, content_list):
+    def send_contents(self, contents: Iterable[Mapping[str, Any]]) -> None:
         """Actually send properly formatted contents to the database.
 
         """
-        num_contents = len(content_list)
+        contents = list(contents)
+        num_contents = len(contents)
         if num_contents > 0:
             log_id = str(uuid.uuid4())
             self.log.debug("Sending %d contents" % num_contents,
@@ -328,7 +333,13 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                                'swh_num': num_contents,
                                'swh_id': log_id,
                            })
-            result = self.storage.content_add(content_list)
+            # FIXME: deal with this in model at some point
+            result = self.storage.content_add([
+                content_for_storage(
+                    c, max_content_size=self.max_content_size,
+                    origin_url=self.origin['url'])
+                for c in contents
+            ])
             self.counters['contents'] += result.get('content:add', 0)
             self.log.debug("Done sending %d contents" % num_contents,
                            extra={
