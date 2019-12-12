@@ -3,7 +3,7 @@ retrying
 vcversioner
 click
 swh.core>=0.0.7
-swh.loader.core>=0.0.37
+swh.loader.core>=0.0.67
 swh.model>=0.0.27
 swh.scheduler>=0.0.39
 swh.storage>=0.0.108

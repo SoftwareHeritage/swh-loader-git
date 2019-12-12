@@ -379,7 +379,7 @@ class GitLoader(UnbufferedLoader):
 
     def get_contents(self):
         """Format the blobs from the git repository as swh contents"""
-        max_content_size = self.config['content_size_limit']
+        max_content_size = self.config['max_content_size']
 
         missing_contents = set(self.storage.content_missing(
             self.get_content_ids(), 'sha1_git'))
