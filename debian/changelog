@@ -1,8 +1,12 @@
-swh-loader-git (0.0.54-1~swh1~bpo10+1) buster-swh; urgency=medium
+swh-loader-git (0.0.55-1~swh1) unstable-swh; urgency=medium
 
-  * Rebuild for buster-swh
+  * New upstream release 0.0.55     - (tagged by Antoine R. Dumont
+    (@ardumont) <antoine.romain.dumont@gmail.com> on 2019-12-12 14:41:10
+    +0100)
+  * Upstream changes:     - v0.0.55     - loader: Bump dependency on
+    loader-core
 
- -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Thu, 12 Dec 2019 10:48:00 +0000
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Thu, 12 Dec 2019 13:44:22 +0000
 
 swh-loader-git (0.0.54-1~swh1) unstable-swh; urgency=medium
 

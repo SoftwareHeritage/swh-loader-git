@@ -147,7 +147,7 @@ class GitLoaderFromDisk(UnbufferedLoader):
 
     def get_contents(self):
         """Get the contents that need to be loaded"""
-        max_content_size = self.config['content_size_limit']
+        max_content_size = self.config['max_content_size']
 
         missing_contents = set(self.storage.content_missing(
             self.get_content_ids(), 'sha1_git'))
