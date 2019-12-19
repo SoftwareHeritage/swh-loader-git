@@ -14,6 +14,7 @@ from swh.loader.package.debian.loader import (
     prepare_person, get_package_metadata, extract_package
 )
 from swh.loader.package.tests.common import check_snapshot, get_stats
+from swh.loader.package.debian.loader import resolve_revision_from
 
 
 logger = logging.getLogger(__name__)
@@ -386,3 +387,68 @@ def test_debian_multiple_packages(swh_config, requests_mock_datadir):
     }
 
     check_snapshot(expected_snapshot, loader.storage)
+
+
+def test_resolve_revision_from_edge_cases():
+    """Solving revision with empty data will result in unknown revision
+
+    """
+    for package_artifacts in [{}, PACKAGE_FILES]:
+        actual_revision = resolve_revision_from(
+            package_artifacts, {})
+        assert actual_revision is None
+
+    for known_artifacts in [{}, PACKAGE_FILES]:
+        actual_revision = resolve_revision_from(
+            {}, known_artifacts)
+        assert actual_revision is None
+
+    expected_revision_id = b"(\x07\xf5\xb3\xf8Ch\xb4\x88\x9a\x9a\xe8'\xfe\x85\x85O\xfe\xcf\x07"  # noqa
+
+
+def test_resolve_revision_from_edge_cases_hit_and_miss():
+    """Solving revision with inconsistent data will result in unknown revision
+
+    """
+    artifact_metadata = PACKAGE_FILES2
+    expected_revision_id = b"(\x07\xf5\xb3\xf8Ch\xb4\x88\x9a\x9a\xe8'\xfe\x85\x85O\xfe\xcf\x07"  # noqa
+    known_package_artifacts = {
+        expected_revision_id: {
+            'extrinsic': {
+                'provider': 'http://deb.debian.org/debian/pool/contrib/c/cicero/cicero_0.7.2-3.dsc',  # noqa
+                'raw': PACKAGE_FILES,
+                'when': '2019-12-19T17:04:32.161965+00:00'
+            },
+            # ... removed the unnecessary intermediary data
+        }
+    }
+
+    actual_revision = resolve_revision_from(
+        known_package_artifacts, artifact_metadata
+    )
+
+    assert actual_revision is None
+
+
+def test_resolve_revision_from():
+    """Solving revision with consistent data will solve the revision
+
+    """
+    artifact_metadata = PACKAGE_FILES
+    expected_revision_id = b"(\x07\xf5\xb3\xf8Ch\xb4\x88\x9a\x9a\xe8'\xfe\x85\x85O\xfe\xcf\x07"  # noqa
+    known_package_artifacts = {
+        expected_revision_id: {
+            'extrinsic': {
+                'provider': 'http://deb.debian.org/debian/pool/contrib/c/cicero/cicero_0.7.2-3.dsc',  # noqa
+                'raw': PACKAGE_FILES,
+                'when': '2019-12-19T17:04:32.161965+00:00'
+            },
+            # ... removed the unnecessary intermediary data
+        }
+    }
+
+    actual_revision = resolve_revision_from(
+        known_package_artifacts, artifact_metadata
+    )
+
+    assert actual_revision == expected_revision_id
