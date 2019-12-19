@@ -6,6 +6,7 @@
 import copy
 import logging
 import pytest
+import random
 
 from os import path
 
@@ -403,7 +404,15 @@ def test_resolve_revision_from_edge_cases():
             {}, known_artifacts)
         assert actual_revision is None
 
-    expected_revision_id = b"(\x07\xf5\xb3\xf8Ch\xb4\x88\x9a\x9a\xe8'\xfe\x85\x85O\xfe\xcf\x07"  # noqa
+    known_package_artifacts = {
+        b"(\x07\xf5\xb3\xf8Ch\xb4\x88\x9a\x9a\xe8'\xfe\x85\x85O\xfe\xcf\x07": {
+            'extrinsic': {
+                # empty
+            },
+            # ... removed the unnecessary intermediary data
+        }
+    }
+    assert not resolve_revision_from(known_package_artifacts, PACKAGE_FILES)
 
 
 def test_resolve_revision_from_edge_cases_hit_and_miss():
@@ -411,13 +420,11 @@ def test_resolve_revision_from_edge_cases_hit_and_miss():
 
     """
     artifact_metadata = PACKAGE_FILES2
-    expected_revision_id = b"(\x07\xf5\xb3\xf8Ch\xb4\x88\x9a\x9a\xe8'\xfe\x85\x85O\xfe\xcf\x07"  # noqa
+    expected_revision_id = b"(\x08\xf5\xb3\xf8Ch\xb4\x88\x9a\x9a\xe8'\xff\x85\x85O\xfe\xcf\x07"  # noqa
     known_package_artifacts = {
         expected_revision_id: {
             'extrinsic': {
-                'provider': 'http://deb.debian.org/debian/pool/contrib/c/cicero/cicero_0.7.2-3.dsc',  # noqa
                 'raw': PACKAGE_FILES,
-                'when': '2019-12-19T17:04:32.161965+00:00'
             },
             # ... removed the unnecessary intermediary data
         }
@@ -436,12 +443,19 @@ def test_resolve_revision_from():
     """
     artifact_metadata = PACKAGE_FILES
     expected_revision_id = b"(\x07\xf5\xb3\xf8Ch\xb4\x88\x9a\x9a\xe8'\xfe\x85\x85O\xfe\xcf\x07"  # noqa
+
+    files = artifact_metadata['files']
+    # shuffling dict's keys
+    keys = list(files.keys())
+    random.shuffle(keys)
+    package_files = {
+        'files': {k: files[k] for k in keys}
+    }
+
     known_package_artifacts = {
         expected_revision_id: {
             'extrinsic': {
-                'provider': 'http://deb.debian.org/debian/pool/contrib/c/cicero/cicero_0.7.2-3.dsc',  # noqa
-                'raw': PACKAGE_FILES,
-                'when': '2019-12-19T17:04:32.161965+00:00'
+                'raw': package_files,
             },
             # ... removed the unnecessary intermediary data
         }

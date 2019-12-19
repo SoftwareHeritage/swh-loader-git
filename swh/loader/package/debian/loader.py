@@ -171,30 +171,26 @@ def resolve_revision_from(known_package_artifacts: Mapping,
     artifacts_to_fetch = artifact_metadata.get('files')
     if not artifacts_to_fetch:
         return None
-    logger.debug('k_p_artifacts: %s', known_package_artifacts)
-    logger.debug('artifacts_to_fetch: %s', artifacts_to_fetch)
+
+    def to_set(data):
+        return frozenset([
+            (name, meta['sha256'], meta['size'])
+            for name, meta in data['files'].items()
+        ])
+
+    # what we want to avoid downloading back if we have them already
+    set_new_artifacts = to_set(artifact_metadata)
+
+    known_artifacts_revision_id = {}
     for rev_id, known_artifacts in known_package_artifacts.items():
-        logger.debug('Revision: %s', rev_id)
-        logger.debug('Associated known_artifacts: %s', known_artifacts)
-        known_artifacts = known_artifacts['extrinsic']['raw']['files']
-        rev_found = True
-        for a_name, k_artifact in known_artifacts.items():
-            artifact_to_fetch = artifacts_to_fetch.get(a_name)
-            logger.debug('artifact_to_fetch: %s', artifact_to_fetch)
-            if artifact_to_fetch is None:
-                # as soon as we do not see an artifact, we consider we need
-                # to check the other revision
-                rev_found = False
-            if k_artifact['sha256'] != artifact_to_fetch['sha256']:
-                # Hash is different, we consider we need to check the other
-                # revisions
-                rev_found = False
-        if rev_found:
-            logger.debug('Existing revision %s found for new artifacts.',
-                         rev_id)
-            return rev_id
-    logger.debug('No existing revision found for the new artifacts.')
-    return None
+        extrinsic = known_artifacts.get('extrinsic')
+        if not extrinsic:
+            continue
+
+        s = to_set(extrinsic['raw'])
+        known_artifacts_revision_id[s] = rev_id
+
+    return known_artifacts_revision_id.get(set_new_artifacts)
 
 
 def uid_to_person(uid: str) -> Mapping[str, str]:
