@@ -16,7 +16,9 @@ from typing import Any, Generator, Dict, List, Mapping, Optional, Tuple
 from debian.deb822 import Deb822
 
 from swh.loader.package.loader import PackageLoader
-from swh.loader.package.utils import release_name, parse_author, swh_author
+from swh.loader.package.utils import (
+    release_name, parse_author, swh_author, artifact_identity
+)
 from swh.model.identifiers import normalize_timestamp
 
 
@@ -39,7 +41,9 @@ class CRANLoader(PackageLoader):
         """
         super().__init__(url=url)
         self.version = version
-        self.provider_url = url
+        # explicit what we consider the artifact identity
+        self.id_keys = ['url', 'version']
+        self.artifact = {'url': url, 'version': version}
 
     def get_versions(self) -> List[str]:
         # only 1 artifact
@@ -53,9 +57,26 @@ class CRANLoader(PackageLoader):
         p_info = {
             'url': self.url,
             'filename': path.split(self.url)[-1],
-            'raw': {}
+            'raw': self.artifact,
         }
         yield release_name(version), p_info
+
+    def resolve_revision_from(
+            self, known_artifacts: Mapping[bytes, Mapping],
+            artifact_metadata: Mapping[str, Any]) \
+            -> Optional[bytes]:
+        """Given known_artifacts per revision, try to determine the revision for
+           artifact_metadata
+
+        """
+        new_identity = artifact_identity(artifact_metadata, self.id_keys)
+        for rev_id, known_artifact_meta in known_artifacts.items():
+            logging.debug('known_artifact_meta: %s', known_artifact_meta)
+            known_artifact = known_artifact_meta['extrinsic']['raw']
+            known_identity = artifact_identity(known_artifact, self.id_keys)
+            if new_identity == known_identity:
+                return rev_id
+        return None
 
     def build_revision(
             self, a_metadata: Mapping[str, Any],
@@ -79,7 +100,7 @@ class CRANLoader(PackageLoader):
                     'raw': metadata,
                 },
                 'extrinsic': {
-                    'provider': self.provider_url,
+                    'provider': self.url,
                     'when': self.visit_date.isoformat(),
                     'raw': a_metadata,
                 },

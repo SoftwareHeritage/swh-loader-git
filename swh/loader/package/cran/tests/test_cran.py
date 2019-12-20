@@ -196,3 +196,72 @@ def test_cran_one_visit(swh_config, requests_mock_datadir):
     ]
     # visited each artifact once across 2 visits
     assert len(urls) == 1
+
+
+def test_cran_2_visits_same_origin(
+        swh_config, requests_mock_datadir):
+    """Multiple visits on the same origin, only 1 archive fetch"""
+    version = '2.22-6'
+    base_url = 'https://cran.r-project.org'
+    url = f'{base_url}/src_contrib_1.4.0_Recommended_KernSmooth_{version}.tar.gz'  # noqa
+    loader = CRANLoader(url, version=version)
+
+    # first visit
+    actual_load_status = loader.load()
+
+    expected_snapshot_id = '920adcccc78aaeedd3cfa4459dd900d8c3431a21'
+    assert actual_load_status == {
+        'status': 'eventful',
+        'snapshot_id': expected_snapshot_id
+    }
+
+    expected_snapshot = {
+        'id': expected_snapshot_id,
+        'branches': {
+            'HEAD': {'target': f'releases/{version}', 'target_type': 'alias'},
+            f'releases/{version}': {
+                'target': '42bdb16facd5140424359c8ce89a28ecfa1ce603',
+                'target_type': 'revision'
+            }
+        }
+    }
+    check_snapshot(expected_snapshot, loader.storage)
+
+    origin_visit = next(loader.storage.origin_visit_get(url))
+    assert origin_visit['status'] == 'full'
+    assert origin_visit['type'] == 'cran'
+
+    visit_stats = get_stats(loader.storage)
+    assert {
+        'content': 33,
+        'directory': 7,
+        'origin': 1,
+        'origin_visit': 1,
+        'person': 1,
+        'release': 0,
+        'revision': 1,
+        'skipped_content': 0,
+        'snapshot': 1
+    } == visit_stats
+
+    # second visit
+    actual_load_status2 = loader.load()
+
+    assert actual_load_status2 == {
+        'status': 'uneventful',
+        'snapshot_id': expected_snapshot_id
+    }
+
+    origin_visit2 = next(loader.storage.origin_visit_get(url))
+    assert origin_visit2['status'] == 'full'
+    assert origin_visit2['type'] == 'cran'
+
+    visit_stats2 = get_stats(loader.storage)
+    visit_stats['origin_visit'] += 1
+    assert visit_stats2 == visit_stats, 'same stats as 1st visit, +1 visit'
+
+    urls = [
+        m.url for m in requests_mock_datadir.request_history
+        if m.url.startswith(base_url)
+    ]
+    assert len(urls) == 1, 'visited one time artifact url (across 2 visits)'
