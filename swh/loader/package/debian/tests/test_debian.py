@@ -237,27 +237,21 @@ def test_download_package(datadir, tmpdir, requests_mock_datadir):
     assert all_hashes == {
         'cicero_0.7.2-3.diff.gz': {
             'checksums': {
-                'blake2s256': '08b1c438e70d2474bab843d826515147fa4a817f8c4baaf3ddfbeb5132183f21',  # noqa
                 'sha1': '0815282053f21601b0ec4adf7a8fe47eace3c0bc',
-                'sha1_git': '834ac91da3a9da8f23f47004bb456dd5bd16fe49',
                 'sha256': 'f039c9642fe15c75bed5254315e2a29f9f2700da0e29d9b0729b3ffc46c8971c'  # noqa
             },
             'filename': 'cicero_0.7.2-3.diff.gz',
             'length': 3964},
         'cicero_0.7.2-3.dsc': {
             'checksums': {
-                'blake2s256': '8c002bead3e35818eaa9d00826f3d141345707c58fb073beaa8abecf4bde45d2',  # noqa
                 'sha1': 'abbec4e8efbbc80278236e1dd136831eac08accd',
-                'sha1_git': '1f94b2086fa1142c2df6b94092f5c5fa11093a8e',
                 'sha256': '35b7f1048010c67adfd8d70e4961aefd8800eb9a83a4d1cc68088da0009d9a03'  # noqa
             },
             'filename': 'cicero_0.7.2-3.dsc',
             'length': 1864},
         'cicero_0.7.2.orig.tar.gz': {
             'checksums': {
-                'blake2s256': '9809aa8d2e2dad7f34cef72883db42b0456ab7c8f1418a636eebd30ab71a15a6',  # noqa
                 'sha1': 'a286efd63fe2c9c9f7bb30255c3d6fcdcf390b43',
-                'sha1_git': 'aa0a38978dce86d531b5b0299b4a616b95c64c74',
                 'sha256': '63f40f2436ea9f67b44e2d4bd669dbabe90e2635a204526c20e0b3c8ee957786'  # noqa
             },
             'filename': 'cicero_0.7.2.orig.tar.gz',

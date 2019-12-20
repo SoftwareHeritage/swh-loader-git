@@ -31,27 +31,6 @@ def test_download_fail_to_download(tmp_path, requests_mock):
 
 
 @pytest.mark.fs
-def test_download_fail_length_mismatch(tmp_path, requests_mock):
-    """Mismatch length after download should raise
-
-    """
-    filename = 'requests-0.0.1.tar.gz'
-    url = 'https://pypi.org/pypi/requests/%s' % filename
-    data = 'this is something'
-    wrong_size = len(data) - 3
-    requests_mock.get(url, text=data, headers={
-        'content-length': str(wrong_size)  # wrong size!
-    })
-
-    with pytest.raises(ValueError) as e:
-        download(url, dest=str(tmp_path))
-
-    assert e.value.args[0] == "Error when checking size: %s != %s" % (
-        wrong_size, len(data)
-    )
-
-
-@pytest.mark.fs
 def test_download_ok(tmp_path, requests_mock):
     """Download without issue should provide filename and hashes"""
     filename = 'requests-0.0.1.tar.gz'
@@ -72,23 +51,21 @@ def test_download_ok(tmp_path, requests_mock):
 
 
 @pytest.mark.fs
-def test_download_headers(tmp_path, requests_mock):
-    """Check that we send proper headers when downloading files"""
+def test_download_ok_no_header(tmp_path, requests_mock):
+    """Download without issue should provide filename and hashes"""
     filename = 'requests-0.0.1.tar.gz'
     url = 'https://pypi.org/pypi/requests/%s' % filename
     data = 'this is something'
-    requests_mock.get(url, text=data, headers={
-        'content-length': str(len(data))
-    })
+    requests_mock.get(url, text=data)  # no header information
 
     actual_filepath, actual_hashes = download(url, dest=str(tmp_path))
 
-    assert len(requests_mock.request_history) == 1
-    req = requests_mock.request_history[0]
-    assert 'User-Agent' in req.headers
-    user_agent = req.headers['User-Agent']
-    assert 'Software Heritage Loader' in user_agent
-    assert swh.loader.package.__version__ in user_agent
+    actual_filename = os.path.basename(actual_filepath)
+    assert actual_filename == filename
+    assert actual_hashes['length'] == len(data)
+    assert actual_hashes['checksums']['sha1'] == 'fdd1ce606a904b08c816ba84f3125f2af44d92b2'  # noqa
+    assert (actual_hashes['checksums']['sha256'] ==
+            '1d9224378d77925d612c9f926eb9fb92850e6551def8328011b6a972323298d5')
 
 
 @pytest.mark.fs
