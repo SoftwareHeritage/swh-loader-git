@@ -9,7 +9,7 @@ import os
 import requests
 import re
 
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from swh.model.hashutil import MultiHash, HASH_BLOCK_SIZE
 from swh.loader.package import DEFAULT_PARAMS
@@ -195,3 +195,19 @@ def swh_author(author: Dict[str, str]) -> Dict[str, Optional[bytes]]:
             'email': email.encode('utf-8') if email else None
         }
     return r
+
+
+def artifact_identity(d: Mapping[str, Any],
+                      id_keys: Sequence[str]) -> List[Any]:
+    """Compute the primary key for a dict using the id_keys as primary key
+       composite.
+
+    Args:
+        d: A dict entry to compute the primary key on
+        id_keys: Sequence of keys to use as primary key
+
+    Returns:
+        The identity for that dict entry
+
+    """
+    return [d.get(k) for k in id_keys]

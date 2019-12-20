@@ -5,7 +5,7 @@
 
 from swh.model.hashutil import hash_to_bytes
 
-from swh.loader.package.archive.loader import ArchiveLoader, artifact_identity
+from swh.loader.package.archive.loader import ArchiveLoader
 from swh.loader.package.tests.common import (
     check_snapshot, check_metadata_paths, get_stats
 )
@@ -298,27 +298,6 @@ def test_2_visits_with_new_artifact(swh_config, requests_mock_datadir):
     ]
     # 1 artifact (2nd time no modification) + 1 new artifact
     assert len(urls) == 2
-
-
-def test_artifact_identity():
-    """Compute primary key should return the right identity
-
-    """
-    data = {
-        'a': 1,
-        'b': 2,
-        'length': 221837,
-        'filename': '8sync-0.1.0.tar.gz',
-        'version': '0.1.0',
-    }
-
-    for id_keys, expected_id in [
-            (['a', 'b'], [1, 2]),
-            ([], []),
-            (['a', 'key-that-does-not-exist'], [1, None])
-    ]:
-        actual_id = artifact_identity(data, id_keys=id_keys)
-        assert actual_id == expected_id
 
 
 def test_2_visits_without_change_not_gnu(swh_config, requests_mock_datadir):

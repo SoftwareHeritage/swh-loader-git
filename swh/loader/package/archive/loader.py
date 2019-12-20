@@ -10,7 +10,7 @@ from os import path
 from typing import Any, Dict, Generator, Mapping, Optional, Sequence, Tuple
 
 from swh.loader.package.loader import PackageLoader
-from swh.loader.package.utils import release_name
+from swh.loader.package.utils import release_name, artifact_identity
 from swh.model.identifiers import normalize_timestamp
 
 
@@ -121,19 +121,3 @@ class ArchiveLoader(PackageLoader):
                 },
             },
         }
-
-
-def artifact_identity(d: Mapping[str, Any],
-                      id_keys: Sequence[str]) -> Sequence[Any]:
-    """Compute the primary key for a dict using the id_keys as primary key
-       composite.
-
-    Args:
-        d: A dict entry to compute the primary key on
-        id_keys: Sequence of keys to use as primary key
-
-    Returns:
-        The identity for that dict entry
-
-    """
-    return [d.get(k) for k in id_keys]
