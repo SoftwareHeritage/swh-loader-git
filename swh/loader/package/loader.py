@@ -259,14 +259,20 @@ class PackageLoader:
         tmp_revisions = {}  # type: Dict[str, List]
         snapshot = None
 
+        # Prepare origin and origin_visit
+        origin = {'url': self.url}
         try:
-            # Prepare origin and origin_visit
-            origin = {'url': self.url}
             self.storage.origin_add_one(origin)
             visit_id = self.storage.origin_visit_add(
                 origin=self.url,
                 date=self.visit_date,
                 type=self.visit_type)['visit']
+        except Exception as e:
+            logger.error(
+                'Failed to create origin/origin_visit. Reason: %s', e)
+            return {'status': 'failed'}
+
+        try:
             last_snapshot = self.last_snapshot()
             logger.debug('last snapshot: %s', last_snapshot)
             known_artifacts = self.known_artifacts(last_snapshot)
