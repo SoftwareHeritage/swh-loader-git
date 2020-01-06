@@ -56,7 +56,7 @@ class CRANLoader(PackageLoader):
             Tuple[str, Dict[str, Any]], None, None]:
         p_info = {
             'url': self.url,
-            'filename': path.split(self.url)[-1],
+            'filename': path.basename(self.url),
             'raw': self.artifact,
         }
         yield release_name(version), p_info
