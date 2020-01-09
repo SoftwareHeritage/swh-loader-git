@@ -8,7 +8,7 @@ from celery import shared_task
 from swh.loader.package.cran.loader import CRANLoader
 
 
-@shared_task(name=__name__ + '.LoadCran')
+@shared_task(name=__name__ + '.LoadCRAN')
 def load_cran(url=None, version=None):
     """Load archive's artifacts (e.g gnu, etc...)"""
     return CRANLoader(url, version).load()
