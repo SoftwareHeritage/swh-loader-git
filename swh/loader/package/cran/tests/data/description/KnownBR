@@ -1,0 +1,15 @@
+Package: KnowBR
+Version: 2.0
+Title: Discriminating Well Surveyed Spatial Units from Exhaustive
+        Biodiversity Databases
+Author: Cástor Guisande González and Jorge M. Lobo
+Maintainer: Cástor Guisande González <castor@email.es>
+Description: It uses species accumulation curves and diverse estimators...
+License: GPL (>= 2)
+Encoding: latin1
+Depends: R (>= 3.0), fossil, mgcv, plotrix, sp, vegan
+Suggests: raster, rgbif
+NeedsCompilation: no
+Packaged: 2019-01-30 13:27:29 UTC; castor
+Repository: CRAN
+Date/Publication: 2019-01-31 20:53:50 UTC

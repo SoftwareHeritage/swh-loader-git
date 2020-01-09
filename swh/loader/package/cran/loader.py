@@ -112,7 +112,7 @@ def parse_debian_control(filepath: str) -> Dict[str, Any]:
     """Parse debian control at filepath"""
     metadata: Dict = {}
     logger.debug('Debian control file %s', filepath)
-    for paragraph in Deb822.iter_paragraphs(open(filepath)):
+    for paragraph in Deb822.iter_paragraphs(open(filepath, 'rb')):
         logger.debug('paragraph: %s', paragraph)
         metadata.update(**paragraph)
 

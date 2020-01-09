@@ -12,7 +12,8 @@ from dateutil.tz import tzlocal
 from os import path
 
 from swh.loader.package.cran.loader import (
-    extract_intrinsic_metadata, CRANLoader, parse_date
+    extract_intrinsic_metadata, CRANLoader, parse_date,
+    parse_debian_control
 )
 from swh.core.tarball import uncompress
 
@@ -265,3 +266,52 @@ def test_cran_2_visits_same_origin(
         if m.url.startswith(base_url)
     ]
     assert len(urls) == 1, 'visited one time artifact url (across 2 visits)'
+
+
+def test_parse_debian_control(datadir):
+    description_file = os.path.join(datadir, 'description', 'acepack')
+
+    actual_metadata = parse_debian_control(description_file)
+
+    assert actual_metadata == {
+        'Package': 'acepack',
+        'Maintainer': 'Shawn Garbett',
+        'Version': '1.4.1',
+        'Author': 'Phil Spector, Jerome Friedman, Robert Tibshirani...',
+        'Description': 'Two nonparametric methods for multiple regression...',
+        'Title': 'ACE & AVAS 4 Selecting Multiple Regression Transformations',
+        'License': 'MIT + file LICENSE',
+        'Suggests': 'testthat',
+        'Packaged': '2016-10-28 15:38:59 UTC; garbetsp',
+        'Repository': 'CRAN',
+        'Date/Publication': '2016-10-29 00:11:52',
+        'NeedsCompilation': 'yes'
+    }
+
+
+def test_parse_debian_control_unicode_issue(datadir):
+    # iso-8859-1 caused failure, now fixed
+    description_file = os.path.join(
+        datadir, 'description', 'KnownBR'
+    )
+
+    actual_metadata = parse_debian_control(description_file)
+
+    assert actual_metadata == {
+        'Package': 'KnowBR',
+        'Version': '2.0',
+        'Title': '''Discriminating Well Surveyed Spatial Units from Exhaustive
+        Biodiversity Databases''',
+        'Author': 'Cástor Guisande González and Jorge M. Lobo',
+        'Maintainer': 'Cástor Guisande González <castor@email.es>',
+        'Description':
+        'It uses species accumulation curves and diverse estimators...',
+        'License': 'GPL (>= 2)',
+        'Encoding': 'latin1',
+        'Depends': 'R (>= 3.0), fossil, mgcv, plotrix, sp, vegan',
+        'Suggests': 'raster, rgbif',
+        'NeedsCompilation': 'no',
+        'Packaged': '2019-01-30 13:27:29 UTC; castor',
+        'Repository': 'CRAN',
+        'Date/Publication': '2019-01-31 20:53:50 UTC'
+    }

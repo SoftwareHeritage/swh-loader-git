@@ -1,0 +1,12 @@
+Package: acepack
+Maintainer: Shawn Garbett
+Version: 1.4.1
+Author: Phil Spector, Jerome Friedman, Robert Tibshirani...
+Description: Two nonparametric methods for multiple regression...
+Title: ACE & AVAS 4 Selecting Multiple Regression Transformations
+License: MIT + file LICENSE
+Suggests: testthat
+Packaged: 2016-10-28 15:38:59 UTC; garbetsp
+Repository: CRAN
+Date/Publication: 2016-10-29 00:11:52
+NeedsCompilation: yes
