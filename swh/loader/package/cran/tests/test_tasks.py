@@ -1,4 +1,4 @@
-# Copyright (C) 2019  The Software Heritage developers
+# Copyright (C) 2019-2020  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -10,8 +10,9 @@ def test_cran_loader(mocker, swh_app, celery_session_worker, swh_config):
     mock_loader.return_value = {'status': 'eventful'}
 
     res = swh_app.send_task(
-        'swh.loader.package.cran.tasks.LoadCran',
-        (), dict(url='some-url', version='1.2.3'))
+        'swh.loader.package.cran.tasks.LoadCRAN',
+        kwargs={'url': 'some-url', 'version': '1.2.3'}
+    )
     assert res
     res.wait()
     assert res.successful()
