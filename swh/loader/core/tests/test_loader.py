@@ -327,27 +327,6 @@ class CoreBufferedLoaderTest(DummyBaseLoaderTest):
         self.assertCountReleases(1)
         self.assertCountSnapshots(1)
 
-    def test_origin_metadata(self):
-        self.loader.load()
-
-        provider_id = self.loader.send_provider(self.in_provider)
-        tool_id = self.loader.send_tool(self.in_tool)
-
-        self.loader.send_origin_metadata(
-            self.loader.visit_date, provider_id,
-            tool_id, {'test_metadata': 'foobar'})
-
-        self.assertOriginMetadataContains(self.in_origin['url'],
-                                          {'test_metadata': 'foobar'})
-
-        with self.assertRaises(AssertionError):
-            self.assertOriginMetadataContains(self.in_origin['url'],
-                                              {'test_metadata': 'foobarbaz'})
-
-        with self.assertRaises(Exception):
-            self.assertOriginMetadataContains(self.in_origin['url'] + 'blah',
-                                              {'test_metadata': 'foobar'})
-
 
 def test_loader_logger_default_name():
     loader = DummyBufferedLoader()
