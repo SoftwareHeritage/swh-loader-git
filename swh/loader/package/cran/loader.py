@@ -1,4 +1,4 @@
-# Copyright (C) 2019  The Software Heritage developers
+# Copyright (C) 2019-2020  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -31,35 +31,40 @@ DATE_PATTERN = re.compile(r'^(?P<year>\d{4})-(?P<month>\d{2})$')
 class CRANLoader(PackageLoader):
     visit_type = 'cran'
 
-    def __init__(self, url: str, version: str):
+    def __init__(self, url: str, artifacts: List[Dict]):
         """Loader constructor.
 
         Args:
-            url: Origin url to retrieve cran artifact from
-            version: version of the cran artifact
+            url: Origin url to retrieve cran artifact(s) from
+            artifacts: List of associated artifact for the origin url
 
         """
         super().__init__(url=url)
-        self.version = version
         # explicit what we consider the artifact identity
         self.id_keys = ['url', 'version']
-        self.artifact = {'url': url, 'version': version}
+        self.artifacts = artifacts
 
     def get_versions(self) -> List[str]:
-        # only 1 artifact
-        return [self.version]
+        versions = []
+        for artifact in self.artifacts:
+            versions.append(artifact['version'])
+        return versions
 
     def get_default_version(self) -> str:
-        return self.version
+        return self.artifacts[-1]['version']
 
     def get_package_info(self, version: str) -> Generator[
             Tuple[str, Dict[str, Any]], None, None]:
-        p_info = {
-            'url': self.url,
-            'filename': path.basename(self.url),
-            'raw': self.artifact,
-        }
-        yield release_name(version), p_info
+        for a_metadata in self.artifacts:
+            url = a_metadata['url']
+            package_version = a_metadata['version']
+            if version == package_version:
+                p_info = {
+                    'url': url,
+                    'filename': path.basename(url),
+                    'raw': a_metadata,
+                }
+                yield release_name(version), p_info
 
     def resolve_revision_from(
             self, known_artifacts: Mapping[bytes, Mapping],
@@ -85,7 +90,7 @@ class CRANLoader(PackageLoader):
         metadata = extract_intrinsic_metadata(uncompressed_path)
         normalized_date = normalize_timestamp(parse_date(metadata.get('Date')))
         author = swh_author(parse_author(metadata.get('Maintainer', {})))
-        version = metadata.get('Version', self.version)
+        version = metadata.get('Version', a_metadata['version'])
         return {
             'message': version.encode('utf-8'),
             'type': 'tar',

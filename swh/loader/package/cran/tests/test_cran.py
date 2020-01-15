@@ -1,4 +1,4 @@
-# Copyright (C) 2019 The Software Heritage developers
+# Copyright (C) 2019-2020 The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -151,8 +151,12 @@ def test_extract_intrinsic_metadata_failures(tmp_path):
 def test_cran_one_visit(swh_config, requests_mock_datadir):
     version = '2.22-6'
     base_url = 'https://cran.r-project.org'
-    url = f'{base_url}/src_contrib_1.4.0_Recommended_KernSmooth_{version}.tar.gz'  # noqa
-    loader = CRANLoader(url, version=version)
+    origin_url = f'{base_url}/Packages/Recommended_KernSmooth/index.html'
+    artifact_url = f'{base_url}/src_contrib_1.4.0_Recommended_KernSmooth_{version}.tar.gz'  # noqa
+    loader = CRANLoader(origin_url, artifacts=[{
+        'url': artifact_url,
+        'version': version,
+    }])
 
     actual_load_status = loader.load()
 
@@ -174,7 +178,7 @@ def test_cran_one_visit(swh_config, requests_mock_datadir):
     }
     check_snapshot(expected_snapshot, loader.storage)
 
-    origin_visit = next(loader.storage.origin_visit_get(url))
+    origin_visit = next(loader.storage.origin_visit_get(origin_url))
     assert origin_visit['status'] == 'full'
     assert origin_visit['type'] == 'cran'
 
@@ -204,8 +208,12 @@ def test_cran_2_visits_same_origin(
     """Multiple visits on the same origin, only 1 archive fetch"""
     version = '2.22-6'
     base_url = 'https://cran.r-project.org'
-    url = f'{base_url}/src_contrib_1.4.0_Recommended_KernSmooth_{version}.tar.gz'  # noqa
-    loader = CRANLoader(url, version=version)
+    origin_url = f'{base_url}/Packages/Recommended_KernSmooth/index.html'
+    artifact_url = f'{base_url}/src_contrib_1.4.0_Recommended_KernSmooth_{version}.tar.gz'  # noqa
+    loader = CRANLoader(origin_url, artifacts=[{
+        'url': artifact_url,
+        'version': version
+    }])
 
     # first visit
     actual_load_status = loader.load()
@@ -228,7 +236,7 @@ def test_cran_2_visits_same_origin(
     }
     check_snapshot(expected_snapshot, loader.storage)
 
-    origin_visit = next(loader.storage.origin_visit_get(url))
+    origin_visit = next(loader.storage.origin_visit_get(origin_url))
     assert origin_visit['status'] == 'full'
     assert origin_visit['type'] == 'cran'
 
@@ -253,7 +261,7 @@ def test_cran_2_visits_same_origin(
         'snapshot_id': expected_snapshot_id
     }
 
-    origin_visit2 = next(loader.storage.origin_visit_get(url))
+    origin_visit2 = next(loader.storage.origin_visit_get(origin_url))
     assert origin_visit2['status'] == 'full'
     assert origin_visit2['type'] == 'cran'
 

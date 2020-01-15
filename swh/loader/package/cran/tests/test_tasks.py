@@ -11,7 +11,13 @@ def test_cran_loader(mocker, swh_app, celery_session_worker, swh_config):
 
     res = swh_app.send_task(
         'swh.loader.package.cran.tasks.LoadCRAN',
-        kwargs={'url': 'some-url', 'version': '1.2.3'}
+        kwargs={
+            'url': 'some-url',
+            'artifacts': {
+                'version': '1.2.3',
+                'url': 'artifact-url'
+            }
+        }
     )
     assert res
     res.wait()
