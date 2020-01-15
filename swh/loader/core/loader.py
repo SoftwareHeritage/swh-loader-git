@@ -119,12 +119,6 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
         _log = logging.getLogger('requests.packages.urllib3.connectionpool')
         _log.setLevel(logging.WARN)
 
-        self.counters = {
-            'contents': 0,
-            'directories': 0,
-            'revisions': 0,
-            'releases': 0,
-        }
         self.max_content_size = self.config['max_content_size']
 
         # possibly overridden in self.prepare method
@@ -186,13 +180,12 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                                'swh_id': log_id,
                            })
             # FIXME: deal with this in model at some point
-            result = self.storage.content_add([
+            self.storage.content_add([
                 content_for_storage(
                     c, max_content_size=self.max_content_size,
                     origin_url=self.origin['url'])
                 for c in contents
             ])
-            self.counters['contents'] += result.get('content:add', 0)
             self.log.debug("Done sending %d contents" % num_contents,
                            extra={
                                'swh_type': 'storage_send_end',
@@ -218,8 +211,7 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                                'swh_num': num_directories,
                                'swh_id': log_id,
                            })
-            result = self.storage.directory_add(directories)
-            self.counters['directories'] += result.get('directory:add', 0)
+            self.storage.directory_add(directories)
             self.log.debug("Done sending %d directories" % num_directories,
                            extra={
                                'swh_type': 'storage_send_end',
@@ -244,8 +236,7 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                                'swh_num': num_revisions,
                                'swh_id': log_id,
                            })
-            result = self.storage.revision_add(revisions)
-            self.counters['revisions'] += result.get('revision:add', 0)
+            self.storage.revision_add(revisions)
             self.log.debug("Done sending %d revisions" % num_revisions,
                            extra={
                                'swh_type': 'storage_send_end',
@@ -270,8 +261,7 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                                'swh_num': num_releases,
                                'swh_id': log_id,
                            })
-            result = self.storage.release_add(releases)
-            self.counters['releases'] += result.get('release:add', 0)
+            self.storage.release_add(releases)
             self.log.debug("Done sending %d releases" % num_releases,
                            extra={
                                'swh_type': 'storage_send_end',
