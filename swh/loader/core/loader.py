@@ -170,76 +170,6 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
         return self.__save_data_path
 
     @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
-    def send_origin(self, origin: Dict[str, Any]) -> None:
-        log_id = str(uuid.uuid4())
-        self.log.debug('Creating origin for %s' % origin['url'],
-                       extra={
-                           'swh_type': 'storage_send_start',
-                           'swh_content_type': 'origin',
-                           'swh_num': 1,
-                           'swh_id': log_id
-                       })
-        self.storage.origin_add_one(origin)
-        self.log.debug('Done creating origin for %s' % origin['url'],
-                       extra={
-                           'swh_type': 'storage_send_end',
-                           'swh_content_type': 'origin',
-                           'swh_num': 1,
-                           'swh_id': log_id
-                       })
-
-    @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
-    def send_origin_visit(self, visit_date: Union[str, datetime.datetime],
-                          visit_type: str) -> Dict[str, Any]:
-        log_id = str(uuid.uuid4())
-        self.log.debug(
-            'Creating origin_visit for origin %s at time %s' % (
-                self.origin['url'], visit_date),
-            extra={
-                'swh_type': 'storage_send_start',
-                'swh_content_type': 'origin_visit',
-                'swh_num': 1,
-                'swh_id': log_id
-            })
-        origin_visit = self.storage.origin_visit_add(
-            self.origin['url'], visit_date, visit_type)
-        self.log.debug(
-            'Done Creating %s origin_visit for origin %s at time %s' % (
-                visit_type, self.origin['url'], visit_date),
-            extra={
-                'swh_type': 'storage_send_end',
-                'swh_content_type': 'origin_visit',
-                'swh_num': 1,
-                'swh_id': log_id
-            })
-
-        return origin_visit
-
-    @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
-    def update_origin_visit(self, status: str) -> None:
-        log_id = str(uuid.uuid4())
-        self.log.debug(
-            'Updating origin_visit for origin %s with status %s' % (
-                self.origin['url'], status),
-            extra={
-                'swh_type': 'storage_send_start',
-                'swh_content_type': 'origin_visit',
-                'swh_num': 1,
-                'swh_id': log_id
-            })
-        self.storage.origin_visit_update(
-            self.origin['url'], self.visit, status)
-        self.log.debug(
-            'Done updating origin_visit for origin %s with status %s' % (
-                self.origin['url'], status),
-            extra={
-                'swh_type': 'storage_send_end',
-                'swh_content_type': 'origin_visit',
-                'swh_num': 1,
-                'swh_id': log_id
-            })
-
-    @retry(retry_on_exception=retry_loading, stop_max_attempt_number=3)
     def send_contents(self, contents: Iterable[Mapping[str, Any]]) -> None:
         """Actually send properly formatted contents to the database.
 
@@ -390,12 +320,12 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
 
         """
         origin = self.origin.copy()
-        self.send_origin(origin)
+        self.storage.origin_add_one(origin)
 
         if not self.visit_date:  # now as default visit_date if not provided
             self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
-        self.origin_visit = self.send_origin_visit(
-            self.visit_date, self.visit_type)
+        self.origin_visit = self.storage.origin_visit_add(
+            origin['url'], self.visit_date, self.visit_type)
         self.visit = self.origin_visit['visit']
 
     @abstractmethod
@@ -524,7 +454,9 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                     break
 
             self.store_metadata()
-            self.update_origin_visit(status=self.visit_status())
+            self.storage.origin_visit_update(
+                self.origin['url'], self.visit, self.visit_status()
+            )
             self.post_load()
         except Exception:
             self.log.exception('Loading failure, updating to `partial` status',
@@ -532,7 +464,9 @@ class BufferedLoader(config.SWHConfig, metaclass=ABCMeta):
                                    'swh_task_args': args,
                                    'swh_task_kwargs': kwargs,
                                })
-            self.update_origin_visit(status='partial')
+            self.storage.origin_visit_update(
+                self.origin['url'], self.visit, 'partial'
+            )
             self.post_load(success=False)
             return {'status': 'failed'}
         finally:
