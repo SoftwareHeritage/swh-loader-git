@@ -50,10 +50,13 @@ class DummyUnbufferedLoader(DummyLoader, UnbufferedLoader):
                 'cls': 'pipeline',
                 'steps': [
                     {
-                        'cls': 'filter'
+                        'cls': 'retry',
                     },
                     {
-                        'cls': 'memory'
+                        'cls': 'filter',
+                    },
+                    {
+                        'cls': 'memory',
                     },
                 ]
             },
@@ -71,7 +74,10 @@ class DummyBufferedLoader(DummyLoader, BufferedLoader):
                 'cls': 'pipeline',
                 'steps': [
                     {
-                        'cls': 'filter'
+                        'cls': 'retry',
+                    },
+                    {
+                        'cls': 'filter',
                     },
                     {
                         'cls': 'buffer',
@@ -84,7 +90,7 @@ class DummyBufferedLoader(DummyLoader, BufferedLoader):
                         },
                     },
                     {
-                        'cls': 'memory'
+                        'cls': 'memory',
                     },
                 ]
             },
