@@ -20,6 +20,8 @@ def swh_loader_config(swh_storage_postgresql) -> Dict[str, Any]:
             'cls': 'pipeline',
             'steps': [
                 {'cls': 'retry'},
+                {'cls': 'filter'},
+                {'cls': 'buffer'},
                 {
                     'cls': 'local',
                     'args': {
