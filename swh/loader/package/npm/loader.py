@@ -119,7 +119,7 @@ def artifact_to_revision_id(
 
     The following code allows to deal with 2 metadata formats:
 
-    - old format sample:
+    - old format sample::
 
         {
             'package_source': {
@@ -127,12 +127,12 @@ def artifact_to_revision_id(
             }
         }
 
-    - new format sample:
+    - new format sample::
 
         {
             'original_artifact': [{
                 'checksums': {
-                    'sha256': "6975816f2c5ad4046acc676ba112f2fff945b01522d63948531f11f11e0892ec",  # noqa
+                    'sha256': '6975816f2c5ad4046acc676ba112f2fff945b01522d63948531f11f11e0892ec', # noqa
                     ...
                 },
             }],

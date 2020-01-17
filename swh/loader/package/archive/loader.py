@@ -39,11 +39,14 @@ class ArchiveLoader(PackageLoader):
             url: Origin url
             artifacts: List of artifact information with keys:
 
-               **time**: last modification time as either isoformat date string
-                   or timestamp
-               **url**: the artifact url to retrieve filename
-               **artifact's filename version**: artifact's version length
-               **length**: artifact's length
+               - **time**: last modification time as either isoformat date
+                 string or timestamp
+
+               - **url**: the artifact url to retrieve filename
+
+               - **artifact's filename version**: artifact's version length
+
+               - **length**: artifact's length
 
             identity_artifact_keys: Optional List of keys forming the
                 "identity" of an artifact
