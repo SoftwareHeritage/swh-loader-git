@@ -318,10 +318,6 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
         return self.load_status()
 
 
-# retro-compatibility
-BufferedLoader = BaseLoader
-
-
 class DVCSLoader(BaseLoader):
     """This base class is a pattern for dvcs loaders (e.g. git, mercurial).
 
@@ -401,7 +397,3 @@ class DVCSLoader(BaseLoader):
         self.storage.origin_visit_update(
             self.origin['url'], self.visit, snapshot=snapshot['id'])
         self.flush()
-
-
-# Deprecated name
-UnbufferedLoader = DVCSLoader
