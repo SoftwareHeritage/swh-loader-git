@@ -74,6 +74,8 @@ class PyPILoader(PackageLoader):
     def build_revision(
             self, a_metadata: Dict, uncompressed_path: str) -> Dict:
         i_metadata = extract_intrinsic_metadata(uncompressed_path)
+        if not i_metadata:
+            return {}
 
         # from intrinsic metadata
         name = i_metadata['version']

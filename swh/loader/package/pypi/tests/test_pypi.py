@@ -801,3 +801,30 @@ def test_pypi_artifact_to_revision_id_failures():
             'something': 'wrong',
         }
         assert artifact_to_revision_id({}, artifact_metadata)
+
+
+def test_pypi_artifact_with_no_intrinsic_metadata(
+        swh_config, requests_mock_datadir):
+    """Skip artifact with no intrinsic metadata during ingestion
+
+    """
+    url = 'https://pypi.org/project/upymenu'
+    loader = PyPILoader(url)
+
+    actual_load_status = loader.load()
+    expected_snapshot_id = '1a8893e6a86f444e8be8e7bda6cb34fb1735a00e'
+    assert actual_load_status == {
+        'status': 'eventful',
+        'snapshot_id': expected_snapshot_id,
+    }
+
+    # no branch as one artifact without any intrinsic metadata
+    expected_snapshot = {
+        'id': expected_snapshot_id,
+        'branches': {}
+    }
+    check_snapshot(expected_snapshot, loader.storage)
+
+    origin_visit = next(loader.storage.origin_visit_get(url))
+    assert origin_visit['status'] == 'full'
+    assert origin_visit['type'] == 'pypi'
