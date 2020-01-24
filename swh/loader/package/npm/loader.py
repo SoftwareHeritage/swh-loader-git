@@ -77,6 +77,8 @@ class NpmLoader(PackageLoader):
     def build_revision(
             self, a_metadata: Dict, uncompressed_path: str) -> Dict:
         i_metadata = extract_intrinsic_metadata(uncompressed_path)
+        if not i_metadata:
+            return {}
         # from intrinsic metadata
         author = extract_npm_package_author(i_metadata)
         message = i_metadata['version'].encode('ascii')

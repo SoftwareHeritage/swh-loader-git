@@ -1,0 +1,87 @@
+{
+  "_id": "nativescript-telerik-analytics",
+  "_rev": "1-f9b1d737db8a1828db1da3d2deb8cd07",
+  "name": "nativescript-telerik-analytics",
+  "description": "Telerik Analytics NativeScript SDK",
+  "dist-tags": {
+    "latest": "1.0.8"
+  },
+  "versions": {
+    "1.0.0": {
+      "name": "nativescript-telerik-analytics",
+      "version": "1.0.0",
+      "description": "Telerik Analytics NativeScript SDK",
+      "main": "./nativescript/index.js",
+      "keywords": [
+        "analytics",
+        "telerik",
+        "nativescript",
+        "plugin",
+        "sdk"
+      ],
+      "author": {
+        "name": "Telerik"
+      },
+      "license": "See LICENSE file",
+      "nativescript": {
+        "platforms": {
+          "ios": "1.0.0",
+          "android": "1.1.0"
+        }
+      },
+      "files": [
+        "common",
+        "nativescript",
+        "platforms"
+      ],
+      "_id": "nativescript-telerik-analytics@1.0.0",
+      "_shasum": "7589d5254a84aee46c33f56f21845a983139f801",
+      "_resolved": "file:upload\\nativescript-telerik-analytics-1.0.0.tgz",
+      "_from": "upload\\nativescript-telerik-analytics-1.0.0.tgz",
+      "scripts": null,
+      "_npmVersion": "2.14.9",
+      "_nodeVersion": "0.12.9",
+      "_npmUser": {
+        "name": "telerik.analytics",
+        "email": "analytics@telerik.com"
+      },
+      "dist": {
+        "shasum": "7589d5254a84aee46c33f56f21845a983139f801",
+        "tarball": "https://registry.npmjs.org/nativescript-telerik-analytics/-/nativescript-telerik-analytics-1.0.0.tgz"
+      },
+      "maintainers": [
+        {
+          "name": "telerik.analytics",
+          "email": "analytics@telerik.com"
+        }
+      ]
+    }
+  },
+  "readme": "# Telerik Analytics Plugin for NativeScript\n\n- [Getting started](#getting-started)\n- [API Reference](#api)\n- [Troubleshooting](#troubleshooting)\n\n## Getting started\n\n1. Obtain an AppId\n\n    [Create a new application](http://docs.telerik.com/platform/help/workspaces/workspace-management/create-workspace) in Telerik Platform by choosing the *Native* application type.\n\n2. Enable Analytics\n\n    Select Analytics from the left navigation menu and click *Enable Analytics*.\n\n3. Create a new NativeScript application\n\n        tns create MyApp\n\n    or use an existing one.\n\n4. Add the Analytics plugin (from npm). This will install the nativescript-telerik-analytics plugin in node_modules in the root of the project. When adding a new platform (or using an existing one) the plugin will be added there as well. Go to the application folder and add the Analytics plugin:\n\n        tns plugin add nativescript-telerik-analytics\n\n5. Go to the application folder and add the Android (or iOS) platform to the application:\n\n        tns platform add android\n\n6. Initialize the plugin and start a new session in the `onLaunch` event (app.js):\n\n    ```javascript\n    var application = require('application');\n    application.mainModule = 'main-page';\n    application.cssFile = './app.css';\n\n    application.on(application.launchEvent, function(context) {\n        var Analytics = require('nativescript-telerik-analytics');\n        Analytics.init({ appId: 'oamq6lixk0rak4dl' });\n        Analytics.start();\n    });\n\n    application.start();\n    ```\n\n7. Track some events in your application:\n\n    ```javascript\n    var Analytics = require('nativescript-telerik-analytics'),\n        timer = require('timer');\n\n    Analytics.trackEvent('MyCategory.MyEvent');\n\n    Analytics.trackValue('myvalue', 245);\n\n    var timingScope = Analytics.trackTimingStart('mytiming');\n    timer.setTimeout(function() {\n        timingScope.stop(); // or timingScope.cancel(); if you want to ignore the timing\n    }, 3500);\n\n    Analytics.trackTimingRaw('myrawtiming', 1300); // track timing of 1300 ms\n\n    try {\n        throw new Error('error message');\n    } catch (e) {\n        Analytics.trackException(e, 'some error context');\n    }\n    ```\n\n8. Attach your phone to the PC, ensure `adb devices` command lists it and run the app on the phone:\n\n        tns run android\n\n## API\n\nTo use the Analytics plugin you need to require the `nativescript-telerik-analytics` module:\n\n```javascript\nvar Analytics = require('nativescript-telerik-analytics');\n```\n\nAnd then call any of the available methods on it:\n\n- ***init(settings)*** - used to initialize the plugin with different configuration options. This method must be called before starting a new session or tracking events. It is the first method that needs to be called.\n\n    ```javascript\n    var settings = {\n        appId: 'oamq6lixk0rak4dl', // Required identifier of the application obtained in Telerik Platform\n        productVersion: '1.2.3.4', // Optional - the version of the monitored application\n        location: { // optionally associate some geo location coordinates with the user \n            latitude: 40.719618,\n            longitude: -74.010282\n        },\n        clientIP: '193.42.34.123', // optionally override the IP of the user\n        isInternalData: false, // Optional flag allowing to enable test mode for this session. This will mark all events tracked in this particular session as \"Internal\"\n        autoTrackUnhandledExceptions: false, // Optionally turn off automatic exception handling. The default value is true. The plugin subscribes to the \"application.uncaughtErrorEvent\" and automatically tracks the exception\n        logger: new MyLogger() // Optionally specify a custom logger. This should be an instance of a class with info(message, obj) and error(message, obj) functions.\n    };\n    Analytics.init(settings);\n    ```\n\n- ***start()*** - starts a new Analytics session. The SDK needs to be initialized with the init method prior to calling this method.  \n\n    ```javascript\n    Analytics.start();\n    ```\n\n- ***trackEvent(name)*** - registers a feature usage. It is recommended that related features are grouped by using simple dot-notation in the name such as e.g. relating print to pdf and print to file by naming the features \"print.pdf\" and \"print.file\" respectively \n\n    ```javascript\n    Analytics.trackEvent('Printing.PDF');\n    ```\n\n- ***trackValue(name, value)*** - register a value on a specific feature. While calls to `trackEvent` increments the use of a feature in the session a call to this methods will associate a given value with a named feature. Use this method to e.g. track the distribution of file sizes imported or the number of results registered. Tracking this distribution across all your application usage will give insights to what scenarios your applications are handling. The value parameter must be a valid integer. \n\n    ```javascript\n    Analytics.trackValue('FilesProcessed', 152);\n    ```\n\n- ***trackException(e, context)*** - Call to track an exception that occurred in the application. An optional context string can be associated with the exception. \n\n    ```javascript\n    try {\n        throw new Error('error message');\n    } catch (e) {\n        Analytics.trackException(e, 'some optional context');\n    }\n    ```\n\n- ***trackTimingStart(name)*** - Starts a named timer for measuring elapsed time on operation and returns a scope that can be used to stop or cancel the timing operation.  \n\n    ```javascript\n    var timer = require('timer'),\n        timingScope = Analytics.trackTimingStart('MyTiming');\n    timer.setTimeout(function() {\n        timingScope.stop(); // at this stage the timer will be stopped and the elapsed time submitted to Analytics in milliseconds. You can abort the timing operation by calling timingScope.cancel();  \n    }, 1450);\n    ```\n\n- ***trackTimingRaw(name, durationInMilliseconds)*** - Registers elapsed time measured by some other means.  \n\n    ```javascript\n    Analytics.trackTimingRaw('MyTiming', 563);\n    ```\n\n\n## Troubleshooting\n\nIn case the application doesn't work as expected, here are some things you can verify:\n\n- For Android ensure that the AndroindManifest.xml located at `platforms\\android` contains the following permission:\n\n    ```xml\n    <uses-permission android:name=\"android.permission.INTERNET\"/>\n    ```\n\n- Enable logging to see if there are some information or error messages logged. You could enable logging by writing the following module (`mylogger.js`):\n\n    ```javascript\n    (function(global) {\n        var MyLogger = function() {\n        };\n\n        exports = module.exports = MyLogger;\n\n        MyLogger.prototype.info = function(message, obj) {\n            console.log('INFO: ' + message + (obj ? ' : ' + JSON.stringify(obj) : ''));\n        };\n\n        MyLogger.prototype.error = function(message, obj) {\n            if (obj instanceof Error) {\n                console.log('ERROR: ' + message + (obj ? ' : ' + obj.message : ''));\n            } else {\n                console.log('ERROR: ' + message + (obj ? ' : ' + JSON.stringify(obj) : ''));\n            }\n        };\n    }(this || global));\n    ```\n\n    and then set this logger when initializing the plugin:\n\n    ```javascript\n    var Analytics = require('nativescript-telerik-analytics'),\n        MyLogger  = require('./mylogger');\n\n    Analytics.init({\n        appId : 'oamq6lixk0rak4dl',\n        logger: new MyLogger()\n    });\n    ```",
+  "maintainers": [
+    {
+      "name": "telerik.analytics",
+      "email": "analytics@telerik.com"
+    }
+  ],
+  "time": {
+    "modified": "2017-10-11T03:57:58.291Z",
+    "created": "2016-01-21T13:22:05.605Z",
+    "1.0.0": "2016-01-21T13:22:05.605Z"
+  },
+  "keywords": [
+    "analytics",
+    "telerik",
+    "nativescript",
+    "plugin",
+    "sdk"
+  ],
+  "author": {
+    "name": "Telerik"
+  },
+  "license": "See LICENSE file",
+  "readmeFilename": "README.md",
+  "users": {
+    "wenhsiaoyi": true
+  }
+}

@@ -509,3 +509,27 @@ def test_npm_artifact_to_revision_id_current_loader_version():
 
     assert artifact_to_revision_id(known_artifacts, artifact_metadata) \
         == hash_to_bytes('b11ebac8c9d0c9e5063a2df693a18e3aba4b2f92')
+
+
+def test_npm_artifact_with_no_intrinsic_metadata(
+        swh_config, requests_mock_datadir):
+    """Skip artifact with no intrinsic metadata during ingestion
+
+    """
+    package = 'nativescript-telerik-analytics'
+    url = package_url(package)
+    loader = NpmLoader(url)
+
+    actual_load_status = loader.load()
+    assert actual_load_status['status'] == 'eventful'
+
+    # no branch as one artifact without any intrinsic metadata
+    expected_snapshot = {
+        'id': '1a8893e6a86f444e8be8e7bda6cb34fb1735a00e',
+        'branches': {},
+    }
+    check_snapshot(expected_snapshot, loader.storage)
+
+    origin_visit = list(loader.storage.origin_visit_get(url))[-1]
+    assert origin_visit['status'] == 'full'
+    assert origin_visit['type'] == 'npm'
