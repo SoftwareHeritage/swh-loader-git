@@ -1,3 +1,13 @@
+swh-loader-git (0.0.56-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 0.0.56     - (tagged by Antoine R. Dumont
+    (@ardumont) <antoine.romain.dumont@gmail.com> on 2020-01-28 13:24:24
+    +0100)
+  * Upstream changes:     - v0.0.56     - git.loader: Migrate from
+    UnbufferedLoader to DVCSLoader
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Tue, 28 Jan 2020 12:27:02 +0000
+
 swh-loader-git (0.0.55-1~swh1) unstable-swh; urgency=medium
 
   * New upstream release 0.0.55     - (tagged by Antoine R. Dumont
