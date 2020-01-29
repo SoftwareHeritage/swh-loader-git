@@ -89,7 +89,16 @@ class NpmLoader(PackageLoader):
         # metadata, using the version number that the API claims this package
         # has.
         extrinsic_version = a_metadata['version']
-        date = self.info['time'][extrinsic_version]
+
+        if 'time' in self.info:
+            date = self.info['time'][extrinsic_version]
+        else:
+            artifact_name = os.path.basename(a_metadata['dist']['tarball'])
+            raise ValueError(
+                'Origin %s: Cannot determine upload time for artifact %s.' %
+                (self.url, artifact_name)
+            )
+
         date = iso8601.parse_date(date)
         date = normalize_timestamp(int(date.timestamp()))
 

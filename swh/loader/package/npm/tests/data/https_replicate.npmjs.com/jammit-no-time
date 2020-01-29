@@ -1,0 +1,76 @@
+{
+  "_id": "jammit-express",
+  "_rev": "1-ffa3f96992e5e31dd29df779dc771e84",
+  "name": "jammit-express",
+  "description": "Jammit Helpers for Express.js",
+  "dist-tags": {
+    "latest": "0.0.1"
+  },
+  "versions": {
+    "0.0.1": {
+      "name": "jammit-express",
+      "version": "0.0.1",
+      "description": "Jammit Helpers for Express.js",
+      "author": {
+        "name": "Eric Abouaf",
+        "email": "eric.abouaf@mail.com"
+      },
+      "bugs": {
+        "web": "http://github.com/neyric/jammit-express/issues"
+      },
+      "os": [
+        "darwin",
+        "linux"
+      ],
+      "contributors": [
+        {
+          "name": "Eric Abouaf",
+          "email": "eric.abouaf@mail.com",
+          "url": "http://neyric.com"
+        }
+      ],
+      "engines": {
+        "node": ">=0.2.0"
+      },
+      "directories": {
+        "lib": "lib"
+      },
+      "main": "./init",
+      "bin": null,
+      "dependencies": null,
+      "licenses": [
+        {
+          "type": "BSD"
+        }
+      ],
+      "repository": {
+        "type": "git",
+        "url": "http://github.com/neyric/jammit-express.git"
+      },
+      "_id": "jammit-express@0.0.1",
+      "_nodeSupported": true,
+      "_npmVersion": "0.2.7-2",
+      "_nodeVersion": "v0.3.1-pre",
+      "dist": {
+        "tarball": "https://registry.npmjs.org/jammit-express/-/jammit-express-0.0.1.tgz",
+        "shasum": "10927257f0512af082200a91e24d9ec9cccedbba"
+      }
+    }
+  },
+  "maintainers": [
+    {
+      "name": "neyric",
+      "email": "eric.abouaf@mail.com"
+    }
+  ],
+  "author": {
+    "name": "Eric Abouaf",
+    "email": "eric.abouaf@mail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/neyric/jammit-express.git"
+  },
+  "readme": "",
+  "readmeFilename": ""
+}

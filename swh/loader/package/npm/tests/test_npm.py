@@ -533,3 +533,26 @@ def test_npm_artifact_with_no_intrinsic_metadata(
     origin_visit = list(loader.storage.origin_visit_get(url))[-1]
     assert origin_visit['status'] == 'full'
     assert origin_visit['type'] == 'npm'
+
+
+def test_npm_artifact_with_no_upload_time(swh_config, requests_mock_datadir):
+    """With no time upload, artifact is skipped
+
+    """
+    package = 'jammit-no-time'
+    url = package_url(package)
+    loader = NpmLoader(url)
+
+    actual_load_status = loader.load()
+    assert actual_load_status['status'] == 'failed'
+
+    # no branch as one artifact without any intrinsic metadata
+    expected_snapshot = {
+        'id': '1a8893e6a86f444e8be8e7bda6cb34fb1735a00e',
+        'branches': {},
+    }
+    check_snapshot(expected_snapshot, loader.storage)
+
+    origin_visit = list(loader.storage.origin_visit_get(url))[-1]
+    assert origin_visit['status'] == 'partial'
+    assert origin_visit['type'] == 'npm'
