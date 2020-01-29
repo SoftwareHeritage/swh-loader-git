@@ -556,3 +556,35 @@ def test_npm_artifact_with_no_upload_time(swh_config, requests_mock_datadir):
     origin_visit = list(loader.storage.origin_visit_get(url))[-1]
     assert origin_visit['status'] == 'partial'
     assert origin_visit['type'] == 'npm'
+
+
+def test_npm_artifact_use_mtime_if_no_time(swh_config, requests_mock_datadir):
+    """With no time upload, artifact is skipped
+
+    """
+    package = 'jammit-express'
+    url = package_url(package)
+    loader = NpmLoader(url)
+
+    actual_load_status = loader.load()
+    assert actual_load_status['status'] == 'eventful'
+
+    # artifact is used
+    expected_snapshot = {
+        'id': 'd6e08e19159f77983242877c373c75222d5ae9dd',
+        'branches': {
+            'HEAD': {
+                'target_type': 'alias',
+                'target': 'releases/0.0.1'
+            },
+            'releases/0.0.1': {
+                'target_type': 'revision',
+                'target': '9e4dd2b40d1b46b70917c0949aa2195c823a648e',
+            }
+        }
+    }
+    check_snapshot(expected_snapshot, loader.storage)
+
+    origin_visit = list(loader.storage.origin_visit_get(url))[-1]
+    assert origin_visit['status'] == 'full'
+    assert origin_visit['type'] == 'npm'

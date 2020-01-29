@@ -92,6 +92,8 @@ class NpmLoader(PackageLoader):
 
         if 'time' in self.info:
             date = self.info['time'][extrinsic_version]
+        elif 'mtime' in a_metadata:
+            date = a_metadata['mtime']
         else:
             artifact_name = os.path.basename(a_metadata['dist']['tarball'])
             raise ValueError(
