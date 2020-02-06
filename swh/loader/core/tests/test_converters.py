@@ -5,7 +5,6 @@
 
 import os
 import tempfile
-import unittest
 
 from swh.loader.core import converters
 from swh.model import from_disk
@@ -19,7 +18,7 @@ def tmpfile_with_content(fromdir, contentfile):
     tmpfilepath = tempfile.mktemp(
         suffix='.swh',
         prefix='tmp-file-for-test',
-        dir=fromdir)
+        dir=str(fromdir))
 
     with open(tmpfilepath, 'wb') as f:
         f.write(contentfile)
@@ -27,75 +26,63 @@ def tmpfile_with_content(fromdir, contentfile):
     return tmpfilepath
 
 
-class TestContentForStorage(unittest.TestCase):
-    maxDiff = None
+def test_content_for_storage_path(tmpdir):
+    # given
+    data = b'temp file for testing content storage conversion'
+    tmpfile = tmpfile_with_content(tmpdir, data)
 
-    def setUp(self):
-        super().setUpClass()
-        self.tmpdir = tempfile.TemporaryDirectory(
-            prefix='test-swh-loader-core.'
-        )
+    obj = from_disk.Content.from_file(path=os.fsdecode(tmpfile),
+                                      save_path=True).get_data()
 
-    def tearDown(self):
-        self.tmpdir.cleanup()
+    expected_content = obj.copy()
+    expected_content['data'] = data
+    expected_content['status'] = 'visible'
+    del expected_content['path']
+    del expected_content['perms']
+    expected_content = Content.from_dict(expected_content)
 
-    def test_content_for_storage_path(self):
-        # given
-        data = b'temp file for testing content storage conversion'
-        tmpfile = tmpfile_with_content(self.tmpdir.name, data)
+    # when
+    content = converters.content_for_storage(obj)
 
-        obj = from_disk.Content.from_file(path=os.fsdecode(tmpfile),
-                                          save_path=True).get_data()
+    # then
+    assert content == expected_content
 
-        expected_content = obj.copy()
-        expected_content['data'] = data
-        expected_content['status'] = 'visible'
-        del expected_content['path']
-        del expected_content['perms']
-        expected_content = Content.from_dict(expected_content)
 
-        # when
-        content = converters.content_for_storage(obj)
+def test_content_for_storage_data(tmpdir):
+    # given
+    data = b'temp file for testing content storage conversion'
+    obj = from_disk.Content.from_bytes(data=data, mode=0o100644).get_data()
+    del obj['perms']
 
-        # then
-        self.assertEqual(content, expected_content)
+    expected_content = obj.copy()
+    expected_content['status'] = 'visible'
+    expected_content = Content.from_dict(expected_content)
 
-    def test_content_for_storage_data(self):
-        # given
-        data = b'temp file for testing content storage conversion'
+    # when
+    content = converters.content_for_storage(obj)
 
-        obj = from_disk.Content.from_bytes(data=data, mode=0o100644).get_data()
+    # then
+    assert content == expected_content
 
-        expected_content = obj.copy()
-        expected_content['status'] = 'visible'
-        del expected_content['perms']
-        expected_content = Content.from_dict(expected_content)
 
-        # when
-        content = converters.content_for_storage(obj)
+def test_content_for_storage_too_long(tmpdir):
+    # given
+    data = b'temp file for testing content storage conversion'
+    obj = from_disk.Content.from_bytes(data=data, mode=0o100644).get_data()
+    del obj['perms']
 
-        # then
-        self.assertEqual(content, expected_content)
+    expected_content = obj.copy()
+    expected_content.pop('data')
+    expected_content['status'] = 'absent'
+    expected_content['origin'] = 'http://example.org/'
+    expected_content['reason'] = 'Content too large'
+    expected_content = SkippedContent.from_dict(expected_content)
 
-    def test_content_for_storage_too_long(self):
-        # given
-        data = b'temp file for testing content storage conversion'
+    # when
+    content = converters.content_for_storage(
+        obj, max_content_size=len(data) - 1,
+        origin_url=expected_content.origin,
+    )
 
-        obj = from_disk.Content.from_bytes(data=data, mode=0o100644).get_data()
-        del obj['perms']
-
-        expected_content = obj.copy()
-        expected_content.pop('data')
-        expected_content['status'] = 'absent'
-        expected_content['origin'] = 'http://example.org/'
-        expected_content['reason'] = 'Content too large'
-        expected_content = SkippedContent.from_dict(expected_content)
-
-        # when
-        content = converters.content_for_storage(
-            obj, max_content_size=len(data) - 1,
-            origin_url=expected_content.origin,
-        )
-
-        # then
-        self.assertEqual(content, expected_content)
+    # then
+    assert content == expected_content
