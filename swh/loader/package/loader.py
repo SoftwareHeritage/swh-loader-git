@@ -1,4 +1,4 @@
-# Copyright (C) 2019  The Software Heritage developers
+# Copyright (C) 2019-2020  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -21,7 +21,7 @@ from swh.model.identifiers import (
 )
 from swh.storage import get_storage
 from swh.storage.algos.snapshot import snapshot_get_all_branches
-from swh.loader.core.converters import content_for_storage
+from swh.loader.core.converters import prepare_contents
 from swh.loader.package.utils import download
 
 
@@ -57,6 +57,7 @@ class PackageLoader:
         self.storage = get_storage(**self.config['storage'])
         self.url = url
         self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
+        self.max_content_size = self.config['max_content_size']
 
     def _check_configuration(self):
         """Checks the minimal configuration required is set for the loader.
@@ -313,12 +314,16 @@ class PackageLoader:
                             # memory
                             objects = directory.collect()
 
-                            contents = list(
-                                objects.get('content', {}).values())
+                            contents, skipped_contents = prepare_contents(
+                                objects.get('content', {}).values(),
+                                max_content_size=self.max_content_size,
+                                origin_url=origin['url'])
+                            self.storage.skipped_content_add(skipped_contents)
+                            logger.debug('Number of skipped contents: %s',
+                                         len(skipped_contents))
+                            self.storage.content_add(contents)
                             logger.debug('Number of contents: %s',
                                          len(contents))
-                            self.storage.content_add(
-                                [content_for_storage(x) for x in contents])
 
                             status_load = 'eventful'
 

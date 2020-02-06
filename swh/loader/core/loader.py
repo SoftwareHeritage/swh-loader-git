@@ -13,7 +13,7 @@ from typing import Any, Dict, Iterable, Optional, Tuple, Union
 
 from swh.core import config
 from swh.storage import get_storage
-from swh.loader.core.converters import content_for_storage
+from swh.loader.core.converters import prepare_contents
 
 
 class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
@@ -379,12 +379,11 @@ class DVCSLoader(BaseLoader):
             self.save_data()
 
         if self.has_contents():
-            self.storage.content_add([
-                content_for_storage(
-                    c, max_content_size=self.max_content_size,
-                    origin_url=self.origin['url'])
-                for c in self.get_contents()
-            ])
+            contents, skipped_contents = prepare_contents(
+                self.get_contents(), max_content_size=self.max_content_size,
+                origin_url=self.origin['url'])
+            self.storage.skipped_content_add(skipped_contents)
+            self.storage.content_add(contents)
         if self.has_directories():
             self.storage.directory_add(self.get_directories())
         if self.has_revisions():
