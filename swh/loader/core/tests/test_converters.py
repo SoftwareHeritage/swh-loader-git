@@ -86,3 +86,28 @@ def test_content_for_storage_too_long(tmpdir):
 
     # then
     assert content == expected_content
+
+
+def test_prepare_contents(tmpdir):
+    contents = []
+    data_fine = b'tmp file fine'
+    max_size = len(data_fine)
+    for data in [b'tmp file with too much data', data_fine]:
+        obj = from_disk.Content.from_bytes(data=data, mode=0o100644).get_data()
+        del obj['perms']
+        contents.append(obj)
+
+    actual_contents, actual_skipped_contents = converters.prepare_contents(
+        contents, max_content_size=max_size, origin_url='some-origin')
+
+    assert len(actual_contents) == 1
+    assert len(actual_skipped_contents) == 1
+
+    actual_content = actual_contents[0]
+    assert 'reason' not in actual_content
+    assert actual_content['status'] == 'visible'
+
+    actual_skipped_content = actual_skipped_contents[0]
+    assert actual_skipped_content['reason'] == 'Content too large'
+    assert actual_skipped_content['status'] == 'absent'
+    assert actual_skipped_content['origin'] == 'some-origin'
