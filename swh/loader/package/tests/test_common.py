@@ -41,7 +41,7 @@ def test_decode_target():
 
 
 def test_check_snapshot():
-    storage = get_storage(cls='memory', args={})
+    storage = get_storage(cls='memory')
 
     snap_id = '2498dbf535f882bc7f9a18fb16c9ad27fda7bab7'
     snapshot = {
@@ -72,7 +72,7 @@ def test_check_snapshot():
 
 
 def test_check_snapshot_failure():
-    storage = get_storage(cls='memory', args={})
+    storage = get_storage(cls='memory')
 
     snapshot = {
         'id': hash_to_bytes('2498dbf535f882bc7f9a18fb16c9ad27fda7bab7'),
