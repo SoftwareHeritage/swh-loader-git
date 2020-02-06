@@ -65,7 +65,8 @@ def content_for_storage(
         return SkippedContent.from_dict(ret)
 
     if 'data' not in ret:
-        ret['data'] = open(ret['path'], 'rb').read()
+        with open(ret['path'], 'rb') as f:
+            ret['data'] = f.read()
 
     # Extra keys added by swh.model.from_disk, that are not accepted
     # by swh-storage
