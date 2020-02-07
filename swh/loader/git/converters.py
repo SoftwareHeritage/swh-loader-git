@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2019  The Software Heritage developers
+# Copyright (C) 2015-2020  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -7,7 +7,7 @@
 
 from swh.model import identifiers
 from swh.model.hashutil import (
-    DEFAULT_ALGORITHMS, hash_to_hex, hash_to_bytes, MultiHash
+    DEFAULT_ALGORITHMS, hash_to_bytes, MultiHash
 )
 
 
@@ -34,36 +34,16 @@ def dulwich_blob_to_content_id(blob):
     return hashes
 
 
-def dulwich_blob_to_content(blob, log=None, max_content_size=None,
-                            origin_url=None):
-    """Convert a dulwich blob to a Software Heritage content"""
+def dulwich_blob_to_content(blob):
+    """Convert a dulwich blob to a Software Heritage content
 
+    """
     if blob.type_name != b'blob':
         return
-
     ret = dulwich_blob_to_content_id(blob)
-
-    size = ret['length']
-
-    if max_content_size:
-        if size > max_content_size:
-            id = hash_to_hex(ret['sha1_git'])
-            if log:
-                log.info('Skipping content %s, too large (%s > %s)' %
-                         (id, size, max_content_size), extra={
-                             'swh_type': 'loader_git_content_skip',
-                             'swh_id': id,
-                             'swh_size': size,
-                         })
-            ret['status'] = 'absent'
-            ret['reason'] = 'Content too large'
-            ret['origin'] = origin_url
-            return ret
-
     data = blob.as_raw_string()
     ret['data'] = data
     ret['status'] = 'visible'
-
     return ret
 
 
