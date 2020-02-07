@@ -379,8 +379,6 @@ class GitLoader(DVCSLoader):
 
     def get_contents(self):
         """Format the blobs from the git repository as swh contents"""
-        max_content_size = self.config['max_content_size']
-
         missing_contents = set(self.storage.content_missing(
             self.get_content_ids(), 'sha1_git'))
 
@@ -391,9 +389,7 @@ class GitLoader(DVCSLoader):
             if raw_obj.sha().digest() not in missing_contents:
                 continue
 
-            yield converters.dulwich_blob_to_content(
-                raw_obj, log=self.log, max_content_size=max_content_size,
-                origin_url=self.origin['url'])
+            yield converters.dulwich_blob_to_content(raw_obj)
 
     def has_directories(self):
         return bool(self.type_to_ids[b'tree'])

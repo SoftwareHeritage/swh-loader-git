@@ -98,28 +98,9 @@ class TestConverters(unittest.TestCase):
             'status': 'visible',
         }
 
-        self.blob_hidden = {
-            'sha1_git': bytehex_to_hash(self.blob_id),
-            'sha1': hash_to_bytes('4850a3420a2262ff061cb296fb915430fa92301c'),
-            'sha256': hash_to_bytes('fee7c8a485a10321ad94b64135073cb5'
-                                    '5f22cb9f57fa2417d2adfb09d310adef'),
-            'blake2s256': hash_to_bytes('5d71873f42a137f6d89286e43677721e574'
-                                        '1fa05ce4cd5e3c7ea7c44d4c2d10b'),
-            'length': 124,
-            'status': 'absent',
-            'reason': 'Content too large',
-            'origin': None,
-        }
-
     def test_blob_to_content(self):
         content = converters.dulwich_blob_to_content(self.repo[self.blob_id])
         self.assertEqual(self.blob, content)
-
-    def test_blob_to_content_absent(self):
-        max_length = self.blob['length'] - 1
-        content = converters.dulwich_blob_to_content(
-            self.repo[self.blob_id], max_content_size=max_length)
-        self.assertEqual(self.blob_hidden, content)
 
     def test_convertion_wrong_input(self):
         class Something:
