@@ -147,16 +147,12 @@ class GitLoaderFromDisk(DVCSLoader):
 
     def get_contents(self):
         """Get the contents that need to be loaded"""
-        max_content_size = self.config['max_content_size']
-
         missing_contents = set(self.storage.content_missing(
             self.get_content_ids(), 'sha1_git'))
 
         for oid in missing_contents:
             yield converters.dulwich_blob_to_content(
-                self.repo[hashutil.hash_to_bytehex(oid)], log=self.log,
-                max_content_size=max_content_size,
-                origin_url=self.origin['url'])
+                self.repo[hashutil.hash_to_bytehex(oid)])
 
     def has_directories(self):
         """Checks whether we need to load directories"""
