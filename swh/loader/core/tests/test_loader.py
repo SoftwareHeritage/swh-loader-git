@@ -51,6 +51,9 @@ class DummyDVCSLoader(DummyLoader, DVCSLoader):
                         'cls': 'filter',
                     },
                     {
+                        'cls': 'validate',
+                    },
+                    {
                         'cls': 'memory',
                     },
                 ]
@@ -83,6 +86,9 @@ class DummyBaseLoader(DummyLoader, BaseLoader):
                             'revision': 2,
                             'release': 2,
                         },
+                    },
+                    {
+                        'cls': 'validate',
                     },
                     {
                         'cls': 'memory',

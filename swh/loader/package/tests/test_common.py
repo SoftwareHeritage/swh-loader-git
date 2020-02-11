@@ -14,6 +14,19 @@ from swh.storage import get_storage
 hash_hex = '43e45d56f88993aae6a0198013efa80716fd8920'
 
 
+storage_config = {
+    'cls': 'pipeline',
+    'steps': [
+        {
+            'cls': 'validate',
+        },
+        {
+            'cls': 'memory',
+        }
+    ]
+}
+
+
 def test_decode_target_edge():
     assert not decode_target(None)
 
@@ -41,7 +54,7 @@ def test_decode_target():
 
 
 def test_check_snapshot():
-    storage = get_storage(cls='memory')
+    storage = get_storage(**storage_config)
 
     snap_id = '2498dbf535f882bc7f9a18fb16c9ad27fda7bab7'
     snapshot = {
@@ -72,7 +85,7 @@ def test_check_snapshot():
 
 
 def test_check_snapshot_failure():
-    storage = get_storage(cls='memory')
+    storage = get_storage(**storage_config)
 
     snapshot = {
         'id': hash_to_bytes('2498dbf535f882bc7f9a18fb16c9ad27fda7bab7'),

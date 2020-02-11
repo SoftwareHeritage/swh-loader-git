@@ -12,7 +12,15 @@ from typing import Any, Dict
 def swh_loader_config() -> Dict[str, Any]:
     return {
         'storage': {
-            'cls': 'memory',
+            'cls': 'pipeline',
+            'steps': [
+                {
+                    'cls': 'validate',
+                },
+                {
+                    'cls': 'memory',
+                },
+            ],
         },
         'deposit': {
             'url': 'https://deposit.softwareheritage.org/1/private',
