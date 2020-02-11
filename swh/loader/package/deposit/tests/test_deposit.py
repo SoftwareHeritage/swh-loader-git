@@ -105,9 +105,8 @@ def test_revision_metadata_structure(swh_config, requests_mock_datadir):
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
     assert actual_load_status['snapshot_id'] is not None
-
     expected_revision_id = hash_to_bytes(
-        '9471c606239bccb1f269564c9ea114e1eeab9eb4')
+        '637318680351f5d78856d13264faebbd91efe9bb')
     revision = list(loader.storage.revision_get([expected_revision_id]))[0]
 
     assert revision is not None
@@ -135,7 +134,7 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
     loader = DepositLoader(url, deposit_id)
 
     actual_load_status = loader.load()
-    expected_snapshot_id = '453f455d0efb69586143cd6b6e5897f9906b53a7'
+    expected_snapshot_id = 'b2b327b33dc85818bd23c3ccda8b7e675a66ecbd'
     assert actual_load_status == {
         'status': 'eventful',
         'snapshot_id': expected_snapshot_id,
@@ -160,7 +159,7 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
 
     expected_branches = {
         'HEAD': {
-            'target': '9471c606239bccb1f269564c9ea114e1eeab9eb4',
+            'target': '637318680351f5d78856d13264faebbd91efe9bb',
             'target_type': 'revision',
         },
     }
