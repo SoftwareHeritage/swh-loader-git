@@ -21,6 +21,9 @@ TEST_LOADER_CONFIG = {
                 },
             },
             {
+                'cls': 'validate',
+            },
+            {
                 'cls': 'memory'
             },
         ]
