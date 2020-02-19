@@ -45,13 +45,13 @@ class DummyDVCSLoader(DummyLoader, DVCSLoader):
                 'cls': 'pipeline',
                 'steps': [
                     {
+                        'cls': 'validate',
+                    },
+                    {
                         'cls': 'retry',
                     },
                     {
                         'cls': 'filter',
-                    },
-                    {
-                        'cls': 'validate',
                     },
                     {
                         'cls': 'memory',
@@ -72,6 +72,9 @@ class DummyBaseLoader(DummyLoader, BaseLoader):
                 'cls': 'pipeline',
                 'steps': [
                     {
+                        'cls': 'validate',
+                    },
+                    {
                         'cls': 'retry',
                     },
                     {
@@ -86,9 +89,6 @@ class DummyBaseLoader(DummyLoader, BaseLoader):
                             'revision': 2,
                             'release': 2,
                         },
-                    },
-                    {
-                        'cls': 'validate',
                     },
                     {
                         'cls': 'memory',
