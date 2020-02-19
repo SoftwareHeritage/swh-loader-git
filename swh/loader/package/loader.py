@@ -19,8 +19,10 @@ from swh.model.hashutil import hash_to_hex
 from swh.model.identifiers import (
     revision_identifier, snapshot_identifier, identifier_to_bytes
 )
+from swh.model.model import Sha1Git
 from swh.storage import get_storage
 from swh.storage.algos.snapshot import snapshot_get_all_branches
+
 from swh.loader.core.converters import prepare_contents
 from swh.loader.package.utils import download
 
@@ -292,72 +294,14 @@ class PackageLoader:
                     revision_id = self.resolve_revision_from(
                         known_artifacts, p_info['raw'])
                     if revision_id is None:
-                        with tempfile.TemporaryDirectory() as tmpdir:
-                            try:
-                                dl_artifacts = self.download_package(
-                                    p_info, tmpdir)
-                            except Exception:
-                                logger.exception('Unable to retrieve %s',
-                                                 p_info)
-                                status_visit = 'partial'
-                                continue
-
-                            uncompressed_path = self.uncompress(
-                                dl_artifacts, dest=tmpdir)
-                            logger.debug('uncompressed_path: %s',
-                                         uncompressed_path)
-
-                            directory = Directory.from_disk(
-                                path=uncompressed_path.encode('utf-8'),
-                                data=True)  # noqa
-                            # FIXME: Try not to load the full raw content in
-                            # memory
-                            objects = directory.collect()
-
-                            contents, skipped_contents = prepare_contents(
-                                objects.get('content', {}).values(),
-                                max_content_size=self.max_content_size,
-                                origin_url=origin['url'])
-                            self.storage.skipped_content_add(skipped_contents)
-                            logger.debug('Number of skipped contents: %s',
-                                         len(skipped_contents))
-                            self.storage.content_add(contents)
-                            logger.debug('Number of contents: %s',
-                                         len(contents))
-
+                        (revision_id, loaded) = \
+                            self._load_revision(p_info, origin)
+                        if loaded:
                             status_load = 'eventful'
-
-                            directories = list(
-                                objects.get('directory', {}).values())
-                            logger.debug('Number of directories: %s',
-                                         len(directories))
-                            self.storage.directory_add(directories)
-
-                            # FIXME: This should be release. cf. D409
-                            revision = self.build_revision(
-                                p_info['raw'], uncompressed_path)
-                            if not revision:
-                                # Some artifacts are missing intrinsic metadata
-                                # skipping those
-                                continue
-
-                            revision.update({
-                                'synthetic': True,
-                                'directory': directory.hash,
-                            })
-
-                        revision['metadata'].update({
-                            'original_artifact': [
-                                hashes for _, hashes in dl_artifacts
-                            ],
-                        })
-
-                        revision['id'] = revision_id = identifier_to_bytes(
-                            revision_identifier(revision))
-
-                        logger.debug('Revision: %s', revision)
-
-                        self.storage.revision_add([revision])
+                        else:
+                            status_visit = 'partial'
+                        if revision_id is None:
+                            continue
 
                     tmp_revisions[version].append((branch_name, revision_id))
 
@@ -409,3 +353,71 @@ class PackageLoader:
         if snapshot:
             result['snapshot_id'] = hash_to_hex(snapshot['id'])
         return result
+
+    def _load_revision(self, p_info, origin) -> Tuple[Optional[Sha1Git], bool]:
+        """Does all the loading of a revision itself:
+
+        * downloads a package and uncompresses it
+        * loads it from disk
+        * adds contents, directories, and revision to self.storage
+        * returns (revision_id, loaded)
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            try:
+                dl_artifacts = self.download_package(p_info, tmpdir)
+            except Exception:
+                logger.exception('Unable to retrieve %s',
+                                 p_info)
+                return (None, False)
+
+            uncompressed_path = self.uncompress(dl_artifacts, dest=tmpdir)
+            logger.debug('uncompressed_path: %s', uncompressed_path)
+
+            directory = Directory.from_disk(
+                path=uncompressed_path.encode('utf-8'),
+                data=True)  # noqa
+            # FIXME: Try not to load the full raw content in
+            # memory
+            objects = directory.collect()
+
+            contents, skipped_contents = prepare_contents(
+                objects.get('content', {}).values(),
+                max_content_size=self.max_content_size,
+                origin_url=origin['url'])
+            self.storage.skipped_content_add(skipped_contents)
+            logger.debug('Number of skipped contents: %s',
+                         len(skipped_contents))
+            self.storage.content_add(contents)
+            logger.debug('Number of contents: %s', len(contents))
+
+            directories = list(
+                objects.get('directory', {}).values())
+            logger.debug('Number of directories: %s', len(directories))
+            self.storage.directory_add(directories)
+
+            # FIXME: This should be release. cf. D409
+            revision = self.build_revision(p_info['raw'], uncompressed_path)
+            if not revision:
+                # Some artifacts are missing intrinsic metadata
+                # skipping those
+                return (None, True)
+
+            revision.update({
+                'synthetic': True,
+                'directory': directory.hash,
+            })
+
+        revision['metadata'].update({
+            'original_artifact': [
+                hashes for _, hashes in dl_artifacts
+            ],
+        })
+
+        revision['id'] = identifier_to_bytes(
+            revision_identifier(revision))
+
+        logger.debug('Revision: %s', revision)
+
+        self.storage.revision_add([revision])
+
+        return (revision['id'], True)
