@@ -14,6 +14,7 @@ from unittest.mock import patch
 from swh.core.tarball import uncompress
 from swh.core.pytest_plugin import requests_mock_datadir_factory
 from swh.model.hashutil import hash_to_bytes
+from swh.model.model import Person
 
 from swh.loader.package.pypi.loader import (
     PyPILoader, pypi_api_url, author, extract_intrinsic_metadata,
@@ -31,11 +32,11 @@ def test_author_basic():
     }
     actual_author = author(data)
 
-    expected_author = {
-        'fullname': b'i-am-groot <iam@groot.org>',
-        'name': b'i-am-groot',
-        'email': b'iam@groot.org',
-    }
+    expected_author = Person(
+        fullname=b'i-am-groot <iam@groot.org>',
+        name=b'i-am-groot',
+        email=b'iam@groot.org',
+    )
 
     assert actual_author == expected_author
 
@@ -47,11 +48,11 @@ def test_author_empty_email():
     }
     actual_author = author(data)
 
-    expected_author = {
-        'fullname': b'i-am-groot',
-        'name': b'i-am-groot',
-        'email': b'',
-    }
+    expected_author = Person(
+        fullname=b'i-am-groot',
+        name=b'i-am-groot',
+        email=b'',
+    )
 
     assert actual_author == expected_author
 
@@ -63,11 +64,11 @@ def test_author_empty_name():
     }
     actual_author = author(data)
 
-    expected_author = {
-        'fullname': b' <iam@groot.org>',
-        'name': b'',
-        'email': b'iam@groot.org',
-    }
+    expected_author = Person(
+        fullname=b' <iam@groot.org>',
+        name=b'',
+        email=b'iam@groot.org',
+    )
 
     assert actual_author == expected_author
 
@@ -80,11 +81,11 @@ def test_author_malformed():
 
     actual_author = author(data)
 
-    expected_author = {
-        'fullname': b"['pierre', 'paul', 'jacques']",
-        'name': b"['pierre', 'paul', 'jacques']",
-        'email': None,
-    }
+    expected_author = Person(
+        fullname=b"['pierre', 'paul', 'jacques']",
+        name=b"['pierre', 'paul', 'jacques']",
+        email=None,
+    )
 
     assert actual_author == expected_author
 
@@ -97,11 +98,11 @@ def test_author_malformed_2():
 
     actual_author = author(data)
 
-    expected_author = {
-        'fullname': b'[marie, jeanne] <[marie@some, jeanne@thing]>',
-        'name': b'[marie, jeanne]',
-        'email': b'[marie@some, jeanne@thing]',
-    }
+    expected_author = Person(
+        fullname=b'[marie, jeanne] <[marie@some, jeanne@thing]>',
+        name=b'[marie, jeanne]',
+        email=b'[marie@some, jeanne@thing]',
+    )
 
     assert actual_author == expected_author
 
@@ -114,11 +115,14 @@ def test_author_malformed_3():
 
     actual_author = author(data)
 
-    expected_author = {
-        'fullname': b'[marie, jeanne, pierre] <[marie@somewhere.org, jeanne@somewhere.org]>',  # noqa
-        'name': b'[marie, jeanne, pierre]',
-        'email': b'[marie@somewhere.org, jeanne@somewhere.org]',
-    }
+    expected_author = Person(
+        fullname=(
+            b'[marie, jeanne, pierre] '
+            b'<[marie@somewhere.org, jeanne@somewhere.org]>'
+        ),
+        name=b'[marie, jeanne, pierre]',
+        email=b'[marie@somewhere.org, jeanne@somewhere.org]',
+    )
 
     actual_author == expected_author
 

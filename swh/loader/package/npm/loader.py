@@ -10,11 +10,14 @@ import os
 from codecs import BOM_UTF8
 from typing import Any, Dict, Generator, Mapping, Sequence, Tuple, Optional
 
+import attr
 import chardet
-import iso8601
 
 from urllib.parse import quote
-from swh.model.identifiers import normalize_timestamp
+from swh.model.model import (
+    Person, RevisionType, Revision, TimestampWithTimezone, Sha1Git,
+)
+
 from swh.loader.package.loader import PackageLoader
 from swh.loader.package.utils import (
     api_info, release_name, parse_author, swh_author
@@ -75,10 +78,11 @@ class NpmLoader(PackageLoader):
         return artifact_to_revision_id(known_artifacts, artifact_metadata)
 
     def build_revision(
-            self, a_metadata: Dict, uncompressed_path: str) -> Dict:
+            self, a_metadata: Dict, uncompressed_path: str,
+            directory: Sha1Git) -> Optional[Revision]:
         i_metadata = extract_intrinsic_metadata(uncompressed_path)
         if not i_metadata:
-            return {}
+            return None
         # from intrinsic metadata
         author = extract_npm_package_author(i_metadata)
         message = i_metadata['version'].encode('ascii')
@@ -101,18 +105,23 @@ class NpmLoader(PackageLoader):
                 (self.url, artifact_name)
             )
 
-        date = iso8601.parse_date(date)
-        date = normalize_timestamp(int(date.timestamp()))
+        date = TimestampWithTimezone.from_iso8601(date)
 
-        return {
-            'type': 'tar',
-            'message': message,
-            'author': author,
-            'date': date,
-            'committer': author,
-            'committer_date': date,
-            'parents': [],
-            'metadata': {
+        # FIXME: this is to remain bug-compatible with earlier versions:
+        date = attr.evolve(date, timestamp=attr.evolve(
+            date.timestamp, microseconds=0))
+
+        r = Revision(
+            type=RevisionType.TAR,
+            message=message,
+            author=author,
+            date=date,
+            committer=author,
+            committer_date=date,
+            parents=[],
+            directory=directory,
+            synthetic=True,
+            metadata={
                 'intrinsic': {
                     'tool': 'package.json',
                     'raw': i_metadata,
@@ -123,7 +132,8 @@ class NpmLoader(PackageLoader):
                     'raw': a_metadata,
                 },
             },
-        }
+        )
+        return r
 
 
 def artifact_to_revision_id(
@@ -170,7 +180,7 @@ def artifact_to_revision_id(
     return None
 
 
-def extract_npm_package_author(package_json):
+def extract_npm_package_author(package_json) -> Person:
     """
     Extract package author from a ``package.json`` file content and
     return it in swh format.
@@ -180,10 +190,7 @@ def extract_npm_package_author(package_json):
             ``package.json`` file
 
     Returns:
-        dict: A dict with the following keys:
-            * fullname
-            * name
-            * email
+        Person
 
     """
 

@@ -19,7 +19,9 @@ from swh.loader.package.loader import PackageLoader
 from swh.loader.package.utils import (
     release_name, parse_author, swh_author, artifact_identity
 )
-from swh.model.identifiers import normalize_timestamp
+from swh.model.model import (
+    TimestampWithTimezone, Sha1Git, Revision, RevisionType,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -85,21 +87,24 @@ class CRANLoader(PackageLoader):
 
     def build_revision(
             self, a_metadata: Mapping[str, Any],
-            uncompressed_path: str) -> Dict[str, Any]:
+            uncompressed_path: str,
+            directory: Sha1Git) -> Optional[Revision]:
         # a_metadata is empty
         metadata = extract_intrinsic_metadata(uncompressed_path)
-        normalized_date = normalize_timestamp(parse_date(metadata.get('Date')))
+        date = parse_date(metadata.get('Date'))
         author = swh_author(parse_author(metadata.get('Maintainer', {})))
         version = metadata.get('Version', a_metadata['version'])
-        return {
-            'message': version.encode('utf-8'),
-            'type': 'tar',
-            'date': normalized_date,
-            'author': author,
-            'committer': author,
-            'committer_date': normalized_date,
-            'parents': [],
-            'metadata': {
+        return Revision(
+            message=version.encode('utf-8'),
+            type=RevisionType.TAR,
+            date=date,
+            author=author,
+            committer=author,
+            committer_date=date,
+            parents=[],
+            directory=directory,
+            synthetic=True,
+            metadata={
                 'intrinsic': {
                     'tool': 'DESCRIPTION',
                     'raw': metadata,
@@ -110,7 +115,7 @@ class CRANLoader(PackageLoader):
                     'raw': a_metadata,
                 },
             },
-        }
+        )
 
 
 def parse_debian_control(filepath: str) -> Dict[str, Any]:
@@ -159,14 +164,14 @@ def extract_intrinsic_metadata(dir_path: str) -> Dict[str, Any]:
     return parse_debian_control(description_path)
 
 
-def parse_date(date: Optional[str]) -> Optional[datetime.datetime]:
+def parse_date(date: Optional[str]) -> Optional[TimestampWithTimezone]:
     """Parse a date into a datetime
 
     """
     assert not date or isinstance(date, str)
     dt: Optional[datetime.datetime] = None
     if not date:
-        return dt
+        return None
     try:
         specific_date = DATE_PATTERN.match(date)
         if specific_date:
@@ -183,4 +188,7 @@ def parse_date(date: Optional[str]) -> Optional[datetime.datetime]:
             dt = dt.replace(tzinfo=timezone.utc)
     except Exception as e:
         logger.warning('Fail to parse date %s. Reason: %s', (date, e))
-    return dt
+    if dt:
+        return TimestampWithTimezone.from_datetime(dt)
+    else:
+        return None

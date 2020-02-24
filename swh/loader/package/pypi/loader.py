@@ -10,11 +10,12 @@ from typing import Any, Dict, Generator, Mapping, Optional, Sequence, Tuple
 from urllib.parse import urlparse
 from pkginfo import UnpackedSDist
 
-import iso8601
+from swh.model.model import (
+    Person, Sha1Git, TimestampWithTimezone, Revision, RevisionType
+)
 
-from swh.model.identifiers import normalize_timestamp
 from swh.loader.package.loader import PackageLoader
-from swh.loader.package.utils import api_info, release_name
+from swh.loader.package.utils import api_info, release_name, EMPTY_AUTHOR
 
 logger = logging.getLogger(__name__)
 
@@ -72,10 +73,11 @@ class PyPILoader(PackageLoader):
         return artifact_to_revision_id(known_artifacts, artifact_metadata)
 
     def build_revision(
-            self, a_metadata: Dict, uncompressed_path: str) -> Dict:
+            self, a_metadata: Dict, uncompressed_path: str,
+            directory: Sha1Git) -> Optional[Revision]:
         i_metadata = extract_intrinsic_metadata(uncompressed_path)
         if not i_metadata:
-            return {}
+            return None
 
         # from intrinsic metadata
         name = i_metadata['version']
@@ -84,18 +86,19 @@ class PyPILoader(PackageLoader):
         # from extrinsic metadata
         message = a_metadata.get('comment_text', '')
         message = '%s: %s' % (name, message) if message else name
-        date = normalize_timestamp(
-            int(iso8601.parse_date(a_metadata['upload_time']).timestamp()))
+        date = TimestampWithTimezone.from_iso8601(a_metadata['upload_time'])
 
-        return {
-            'type': 'tar',
-            'message': message.encode('utf-8'),
-            'author': _author,
-            'date': date,
-            'committer': _author,
-            'committer_date': date,
-            'parents': [],
-            'metadata': {
+        return Revision(
+            type=RevisionType.TAR,
+            message=message.encode('utf-8'),
+            author=_author,
+            date=date,
+            committer=_author,
+            committer_date=date,
+            parents=[],
+            directory=directory,
+            synthetic=True,
+            metadata={
                 'intrinsic': {
                     'tool': 'PKG-INFO',
                     'raw': i_metadata,
@@ -106,7 +109,7 @@ class PyPILoader(PackageLoader):
                     'raw': a_metadata,
                 },
             }
-        }
+        )
 
 
 def artifact_to_revision_id(
@@ -210,7 +213,7 @@ def extract_intrinsic_metadata(dir_path: str) -> Dict:
     return raw
 
 
-def author(data: Dict) -> Dict:
+def author(data: Dict) -> Person:
     """Given a dict of project/release artifact information (coming from
        PyPI), returns an author subset.
 
@@ -232,7 +235,7 @@ def author(data: Dict) -> Dict:
         fullname = name
 
     if not fullname:
-        return {'fullname': b'', 'name': None, 'email': None}
+        return EMPTY_AUTHOR
 
     if name is not None:
         name = name.encode('utf-8')
@@ -240,8 +243,8 @@ def author(data: Dict) -> Dict:
     if email is not None:
         email = email.encode('utf-8')
 
-    return {
-        'fullname': fullname.encode('utf-8'),
-        'name': name,
-        'email': email
-    }
+    return Person(
+        fullname=fullname.encode('utf-8'),
+        name=name,
+        email=email
+    )

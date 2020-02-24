@@ -4,21 +4,23 @@
 # See top-level LICENSE file for more information
 
 import email.utils
-import iso8601
 import logging
+from os import path
 import re
 import subprocess
 
 from dateutil.parser import parse as parse_date
 from debian.changelog import Changelog
 from debian.deb822 import Dsc
-from os import path
 from typing import (
-    Any, Dict, Generator, List, Mapping, Optional, Sequence, Tuple
+    Any, Generator, List, Mapping, Optional, Sequence, Tuple
 )
 
 from swh.loader.package.loader import PackageLoader
 from swh.loader.package.utils import download, release_name
+from swh.model.model import (
+    Sha1Git, Person, Revision, RevisionType, TimestampWithTimezone
+)
 
 
 logger = logging.getLogger(__name__)
@@ -119,8 +121,9 @@ class DebianLoader(PackageLoader):
         logger.debug('dl_artifacts: %s', dl_artifacts)
         return extract_package(dl_artifacts, dest=dest)
 
-    def build_revision(self, a_metadata: Mapping[str, Any],
-                       uncompressed_path: str) -> Dict:
+    def build_revision(
+            self, a_metadata: Mapping[str, Any], uncompressed_path: str,
+            directory: Sha1Git) -> Optional[Revision]:
         dsc_url, dsc_name = dsc_information(a_metadata)
         if not dsc_name:
             raise ValueError(
@@ -135,19 +138,22 @@ class DebianLoader(PackageLoader):
         msg = 'Synthetic revision for Debian source package %s version %s' % (
             a_metadata['name'], a_metadata['version'])
 
-        date = iso8601.parse_date(i_metadata['changelog']['date'])
+        date = TimestampWithTimezone.from_iso8601(
+            i_metadata['changelog']['date'])
         author = prepare_person(i_metadata['changelog']['person'])
 
         # inspired from swh.loader.debian.converters.package_metadata_to_revision  # noqa
-        return {
-            'type': 'dsc',
-            'message': msg.encode('utf-8'),
-            'author': author,
-            'date': date,
-            'committer': author,
-            'committer_date': date,
-            'parents': [],
-            'metadata': {
+        return Revision(
+            type=RevisionType.DSC,
+            message=msg.encode('utf-8'),
+            author=author,
+            date=date,
+            committer=author,
+            committer_date=date,
+            parents=[],
+            directory=directory,
+            synthetic=True,
+            metadata={
                 'intrinsic': {
                     'tool': 'dsc',
                     'raw': i_metadata,
@@ -157,8 +163,8 @@ class DebianLoader(PackageLoader):
                     'when': self.visit_date.isoformat(),
                     'raw': a_metadata,
                 },
-            }
-        }
+            },
+        )
 
 
 def resolve_revision_from(known_package_artifacts: Mapping,
@@ -223,20 +229,20 @@ def uid_to_person(uid: str) -> Mapping[str, str]:
     return ret
 
 
-def prepare_person(person: Mapping[str, str]) -> Mapping[str, bytes]:
+def prepare_person(person: Mapping[str, str]) -> Person:
     """Prepare person for swh serialization...
 
     Args:
         A person dict
 
     Returns:
-        A person dict ready for storage
+        A person ready for storage
 
     """
-    ret = {}
-    for key, value in person.items():
-        ret[key] = value.encode('utf-8')
-    return ret
+    return Person.from_dict({
+        key: value.encode('utf-8')
+        for (key, value) in person.items()
+    })
 
 
 def download_package(

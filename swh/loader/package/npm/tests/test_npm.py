@@ -8,6 +8,7 @@ import os
 import pytest
 
 from swh.model.hashutil import hash_to_bytes
+from swh.model.model import Person
 
 from swh.loader.package.npm.loader import (
     NpmLoader, extract_npm_package_author,
@@ -26,19 +27,19 @@ def test_extract_npm_package_author(datadir):
         package_metadata = json.load(json_file)
 
     extract_npm_package_author(package_metadata['versions']['0.0.2']) == \
-        {
-            'fullname': b'mooz <stillpedant@gmail.com>',
-            'name': b'mooz',
-            'email': b'stillpedant@gmail.com'
-        }
+        Person(
+            fullname=b'mooz <stillpedant@gmail.com>',
+            name=b'mooz',
+            email=b'stillpedant@gmail.com'
+        )
 
     assert (
         extract_npm_package_author(package_metadata['versions']['0.0.3']) ==
-        {
-            'fullname': b'Masafumi Oyamada <stillpedant@gmail.com>',
-            'name': b'Masafumi Oyamada',
-            'email': b'stillpedant@gmail.com'
-        }
+        Person(
+            fullname=b'Masafumi Oyamada <stillpedant@gmail.com>',
+            name=b'Masafumi Oyamada',
+            email=b'stillpedant@gmail.com'
+        )
     )
 
     package_json = json.loads('''
@@ -67,11 +68,11 @@ def test_extract_npm_package_author(datadir):
     }''') # noqa
 
     assert extract_npm_package_author(package_json) == \
-        {
-            'fullname': b'Yauheni Pakala <evgeniy.pakalo@gmail.com>',
-            'name': b'Yauheni Pakala',
-            'email': b'evgeniy.pakalo@gmail.com'
-        }
+        Person(
+            fullname=b'Yauheni Pakala <evgeniy.pakalo@gmail.com>',
+            name=b'Yauheni Pakala',
+            email=b'evgeniy.pakalo@gmail.com'
+        )
 
     package_json = json.loads('''
     {
@@ -106,11 +107,11 @@ def test_extract_npm_package_author(datadir):
     }''')
 
     assert extract_npm_package_author(package_json) == \
-        {
-            'fullname': b'Shawn Walsh',
-            'name': b'Shawn Walsh',
-            'email': None
-        }
+        Person(
+            fullname=b'Shawn Walsh',
+            name=b'Shawn Walsh',
+            email=None
+        )
 
     package_json = json.loads('''
     {
@@ -129,11 +130,11 @@ def test_extract_npm_package_author(datadir):
     }''')
 
     assert extract_npm_package_author(package_json) == \
-        {
-            'fullname': b'fengmk2 <fengmk2@gmail.com>',
-            'name': b'fengmk2',
-            'email': b'fengmk2@gmail.com'
-        }
+        Person(
+            fullname=b'fengmk2 <fengmk2@gmail.com>',
+            name=b'fengmk2',
+            email=b'fengmk2@gmail.com'
+        )
 
     package_json = json.loads('''
     {
@@ -153,11 +154,11 @@ def test_extract_npm_package_author(datadir):
     }''')
 
     assert extract_npm_package_author(package_json) == \
-        {
-            'fullname': b'xiaohuoni <448627663@qq.com>',
-            'name': b'xiaohuoni',
-            'email': b'448627663@qq.com'
-        }
+        Person(
+            fullname=b'xiaohuoni <448627663@qq.com>',
+            name=b'xiaohuoni',
+            email=b'448627663@qq.com'
+        )
 
 
 def normalize_hashes(hashes):

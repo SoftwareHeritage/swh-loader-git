@@ -11,15 +11,17 @@ from typing import Any, Dict, Generator, Mapping, Optional, Sequence, Tuple
 
 from swh.loader.package.loader import PackageLoader
 from swh.loader.package.utils import release_name, artifact_identity
-from swh.model.identifiers import normalize_timestamp
+from swh.model.model import (
+    Sha1Git, Person, TimestampWithTimezone, Revision, RevisionType,
+)
 
 
 logger = logging.getLogger(__name__)
-SWH_PERSON = {
-    'name': b'Software Heritage',
-    'fullname': b'Software Heritage',
-    'email': b'robot@softwareheritage.org'
-}
+SWH_PERSON = Person(
+    name=b'Software Heritage',
+    fullname=b'Software Heritage',
+    email=b'robot@softwareheritage.org'
+)
 REVISION_MESSAGE = b'swh-loader-package: synthetic revision message'
 
 
@@ -101,21 +103,24 @@ class ArchiveLoader(PackageLoader):
                 return rev_id
         return None
 
-    def build_revision(self, a_metadata: Mapping[str, Any],
-                       uncompressed_path: str) -> Dict:
+    def build_revision(
+            self, a_metadata: Mapping[str, Any], uncompressed_path: str,
+            directory: Sha1Git) -> Optional[Revision]:
         time = a_metadata['time']  # assume it's a timestamp
         if isinstance(time, str):  # otherwise, assume it's a parsable date
             time = iso8601.parse_date(time)
-        normalized_time = normalize_timestamp(time)
-        return {
-            'type': 'tar',
-            'message': REVISION_MESSAGE,
-            'date': normalized_time,
-            'author': SWH_PERSON,
-            'committer': SWH_PERSON,
-            'committer_date': normalized_time,
-            'parents': [],
-            'metadata': {
+        normalized_time = TimestampWithTimezone.from_datetime(time)
+        return Revision(
+            type=RevisionType.TAR,
+            message=REVISION_MESSAGE,
+            date=normalized_time,
+            author=SWH_PERSON,
+            committer=SWH_PERSON,
+            committer_date=normalized_time,
+            parents=[],
+            directory=directory,
+            synthetic=True,
+            metadata={
                 'intrinsic': {},
                 'extrinsic': {
                     'provider': self.url,
@@ -123,4 +128,4 @@ class ArchiveLoader(PackageLoader):
                     'raw': a_metadata,
                 },
             },
-        }
+        )

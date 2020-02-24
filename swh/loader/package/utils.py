@@ -12,6 +12,8 @@ import re
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from swh.model.hashutil import MultiHash, HASH_BLOCK_SIZE
+from swh.model.model import Person
+
 from swh.loader.package import DEFAULT_PARAMS
 
 
@@ -25,7 +27,11 @@ DOWNLOAD_HASHES = set(['sha1', 'sha256', 'length'])
 _author_regexp = r'([^<(]+?)?[ \t]*(?:<([^>(]+?)>)?[ \t]*(?:\(([^)]+?)\)|$)'
 
 
-_EMPTY_AUTHOR = {'fullname': b'', 'name': None, 'email': None}
+EMPTY_AUTHOR = Person(
+    fullname=b'',
+    name=None,
+    email=None,
+)
 
 
 def api_info(url: str) -> Dict:
@@ -171,7 +177,7 @@ def parse_author(author_str: str) -> Dict[str, str]:
     return author
 
 
-def swh_author(author: Dict[str, str]) -> Dict[str, Optional[bytes]]:
+def swh_author(author: Dict[str, str]) -> Person:
     """Transform an author like dict to an expected swh like dict (values are
     bytes)
 
@@ -187,13 +193,13 @@ def swh_author(author: Dict[str, str]) -> Dict[str, Optional[bytes]]:
         fullname = name
 
     if not fullname:
-        r = _EMPTY_AUTHOR
+        r = EMPTY_AUTHOR
     else:
-        r = {
-            'fullname': fullname.encode('utf-8') if fullname else None,
-            'name': name.encode('utf-8') if name else None,
-            'email': email.encode('utf-8') if email else None
-        }
+        r = Person(
+            fullname=fullname.encode('utf-8') if fullname else b'',
+            name=name.encode('utf-8') if name else None,
+            email=email.encode('utf-8') if email else None
+        )
     return r
 
 

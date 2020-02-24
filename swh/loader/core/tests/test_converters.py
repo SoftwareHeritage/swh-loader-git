@@ -31,8 +31,7 @@ def test_content_for_storage_path(tmpdir):
     data = b'temp file for testing content storage conversion'
     tmpfile = tmpfile_with_content(tmpdir, data)
 
-    obj = from_disk.Content.from_file(path=os.fsdecode(tmpfile),
-                                      save_path=True).get_data()
+    obj = from_disk.Content.from_file(path=os.fsdecode(tmpfile)).get_data()
 
     expected_content = obj.copy()
     expected_content['data'] = data

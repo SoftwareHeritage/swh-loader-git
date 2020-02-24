@@ -12,18 +12,22 @@ from typing import (
     Any, Dict, Generator, List, Mapping, Optional, Sequence, Tuple
 )
 
+import attr
+
 from swh.core.tarball import uncompress
 from swh.core.config import SWHConfig
-from swh.model.from_disk import Directory
+from swh.model import from_disk
 from swh.model.hashutil import hash_to_hex
-from swh.model.identifiers import (
-    revision_identifier, snapshot_identifier, identifier_to_bytes
+from swh.model.model import (
+    BaseModel, Sha1Git,
+    Content, SkippedContent, Directory,
+    Revision,
+    TargetType, Snapshot,
+    Origin
 )
-from swh.model.model import Sha1Git
 from swh.storage import get_storage
 from swh.storage.algos.snapshot import snapshot_get_all_branches
 
-from swh.loader.core.converters import prepare_contents
 from swh.loader.package.utils import download
 
 
@@ -96,8 +100,9 @@ class PackageLoader:
         yield from {}
 
     def build_revision(
-            self, a_metadata: Dict, uncompressed_path: str) -> Dict:
-        """Build the revision dict from the archive metadata (extrinsic
+            self, a_metadata: Dict, uncompressed_path: str,
+            directory: Sha1Git) -> Optional[Revision]:
+        """Build the revision from the archive metadata (extrinsic
         artifact metadata) and the intrinsic metadata.
 
         Args:
@@ -108,7 +113,7 @@ class PackageLoader:
             SWH data dict
 
         """
-        return {}
+        raise NotImplementedError('build_revision')
 
     def get_default_version(self) -> str:
         """Retrieve the latest release version if any.
@@ -119,19 +124,20 @@ class PackageLoader:
         """
         return ''
 
-    def last_snapshot(self) -> Optional[Dict]:
+    def last_snapshot(self) -> Optional[Snapshot]:
         """Retrieve the last snapshot
 
         """
         snapshot = None
         visit = self.storage.origin_visit_get_latest(
             self.url, require_snapshot=True)
-        if visit:
-            snapshot = snapshot_get_all_branches(
-                self.storage, visit['snapshot'])
+        if visit and visit.get('snapshot'):
+            snapshot = Snapshot.from_dict(snapshot_get_all_branches(
+                    self.storage, visit['snapshot']))
         return snapshot
 
-    def known_artifacts(self, snapshot: Optional[Dict]) -> Dict:
+    def known_artifacts(
+            self, snapshot: Optional[Snapshot]) -> Dict[Sha1Git, BaseModel]:
         """Retrieve the known releases/artifact for the origin.
 
         Args
@@ -141,13 +147,13 @@ class PackageLoader:
             Dict of keys revision id (bytes), values a metadata Dict.
 
         """
-        if not snapshot or 'branches' not in snapshot:
+        if not snapshot:
             return {}
 
         # retrieve only revisions (e.g the alias we do not want here)
-        revs = [rev['target']
-                for rev in snapshot['branches'].values()
-                if rev and rev['target_type'] == 'revision']
+        revs = [rev.target
+                for rev in snapshot.branches.values()
+                if rev and rev.target_type == TargetType.REVISION]
         known_revisions = self.storage.revision_get(revs)
 
         ret = {}
@@ -263,16 +269,15 @@ class PackageLoader:
         snapshot = None
 
         # Prepare origin and origin_visit
-        origin = {'url': self.url}
+        origin = Origin(url=self.url)
         try:
             self.storage.origin_add_one(origin)
             visit_id = self.storage.origin_visit_add(
                 origin=self.url,
                 date=self.visit_date,
                 type=self.visit_type)['visit']
-        except Exception as e:
-            logger.error(
-                'Failed to create origin/origin_visit. Reason: %s', e)
+        except Exception:
+            logger.exception('Failed to create origin/origin_visit:')
             return {'status': 'failed'}
 
         try:
@@ -327,13 +332,12 @@ class PackageLoader:
                         'target': target,
                     }
 
-            snapshot = {
+            snapshot_data = {
                 'branches': branches
             }
-            logger.debug('snapshot: %s', snapshot)
+            logger.debug('snapshot: %s', snapshot_data)
 
-            snapshot['id'] = identifier_to_bytes(
-                snapshot_identifier(snapshot))
+            snapshot = Snapshot.from_dict(snapshot_data)
 
             logger.debug('snapshot: %s', snapshot)
             self.storage.snapshot_add([snapshot])
@@ -346,12 +350,12 @@ class PackageLoader:
         finally:
             self.storage.origin_visit_update(
                 origin=self.url, visit_id=visit_id, status=status_visit,
-                snapshot=snapshot and snapshot['id'])
+                snapshot=snapshot and snapshot.id)
         result = {
             'status': status_load,
         }  # type: Dict[str, Any]
         if snapshot:
-            result['snapshot_id'] = hash_to_hex(snapshot['id'])
+            result['snapshot_id'] = hash_to_hex(snapshot.id)
         return result
 
     def _load_revision(self, p_info, origin) -> Tuple[Optional[Sha1Git], bool]:
@@ -373,51 +377,56 @@ class PackageLoader:
             uncompressed_path = self.uncompress(dl_artifacts, dest=tmpdir)
             logger.debug('uncompressed_path: %s', uncompressed_path)
 
-            directory = Directory.from_disk(
+            directory = from_disk.Directory.from_disk(
                 path=uncompressed_path.encode('utf-8'),
-                data=True)  # noqa
-            # FIXME: Try not to load the full raw content in
-            # memory
-            objects = directory.collect()
+                max_content_length=self.max_content_size)
 
-            contents, skipped_contents = prepare_contents(
-                objects.get('content', {}).values(),
-                max_content_size=self.max_content_size,
-                origin_url=origin['url'])
-            self.storage.skipped_content_add(skipped_contents)
+            contents: List[Content] = []
+            skipped_contents: List[SkippedContent] = []
+            directories: List[Directory] = []
+
+            for obj in directory.iter_tree():
+                obj = obj.to_model()
+                if isinstance(obj, Content):
+                    # FIXME: read the data from disk later (when the
+                    # storage buffer is flushed).
+                    obj = obj.with_data()
+                    contents.append(obj)
+                elif isinstance(obj, SkippedContent):
+                    skipped_contents.append(obj)
+                elif isinstance(obj, Directory):
+                    directories.append(obj)
+                else:
+                    raise TypeError(
+                        f'Unexpected content type from disk: {obj}')
+
             logger.debug('Number of skipped contents: %s',
                          len(skipped_contents))
-            self.storage.content_add(contents)
+            self.storage.skipped_content_add(skipped_contents)
             logger.debug('Number of contents: %s', len(contents))
+            self.storage.content_add(contents)
 
-            directories = list(
-                objects.get('directory', {}).values())
             logger.debug('Number of directories: %s', len(directories))
             self.storage.directory_add(directories)
 
             # FIXME: This should be release. cf. D409
-            revision = self.build_revision(p_info['raw'], uncompressed_path)
+            revision = self.build_revision(
+                p_info['raw'], uncompressed_path, directory=directory.hash)
             if not revision:
                 # Some artifacts are missing intrinsic metadata
                 # skipping those
                 return (None, True)
 
-            revision.update({
-                'synthetic': True,
-                'directory': directory.hash,
-            })
-
-        revision['metadata'].update({
+        metadata = revision.metadata or {}
+        metadata.update({
             'original_artifact': [
                 hashes for _, hashes in dl_artifacts
             ],
         })
-
-        revision['id'] = identifier_to_bytes(
-            revision_identifier(revision))
+        revision = attr.evolve(revision, metadata=metadata)
 
         logger.debug('Revision: %s', revision)
 
         self.storage.revision_add([revision])
 
-        return (revision['id'], True)
+        return (revision.id, True)

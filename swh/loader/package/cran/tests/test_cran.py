@@ -16,6 +16,7 @@ from swh.loader.package.cran.loader import (
     parse_debian_control
 )
 from swh.core.tarball import uncompress
+from swh.model.model import TimestampWithTimezone
 
 from swh.loader.package.tests.common import (
     check_snapshot, get_stats
@@ -102,8 +103,12 @@ def test_cran_parse_date():
         ("Check NEWS file for changes: news(package='simSummary')", None)
     ]
     for date, expected_date in data:
-        actual_date = parse_date(date)
-        assert actual_date == expected_date, f'input date to parse {date}'
+        actual_tstz = parse_date(date)
+        if expected_date is None:
+            assert actual_tstz is None, date
+        else:
+            expected_tstz = TimestampWithTimezone.from_datetime(expected_date)
+            assert actual_tstz == expected_tstz, date
 
 
 @pytest.mark.fs

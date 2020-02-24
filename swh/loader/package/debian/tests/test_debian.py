@@ -17,6 +17,8 @@ from swh.loader.package.debian.loader import (
 from swh.loader.package.tests.common import check_snapshot, get_stats
 from swh.loader.package.debian.loader import resolve_revision_from
 
+from swh.model.model import Person
+
 
 logger = logging.getLogger(__name__)
 
@@ -224,11 +226,11 @@ def test_prepare_person():
         'fullname': 'Someone Name <someone@orga.org>',
     })
 
-    assert actual_author == {
-        'name': b'Someone Name',
-        'email': b'someone@orga.org',
-        'fullname': b'Someone Name <someone@orga.org>',
-    }
+    assert actual_author == Person(
+        name=b'Someone Name',
+        email=b'someone@orga.org',
+        fullname=b'Someone Name <someone@orga.org>',
+    )
 
 
 def test_download_package(datadir, tmpdir, requests_mock_datadir):

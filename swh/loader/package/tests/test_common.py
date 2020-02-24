@@ -6,6 +6,7 @@
 import pytest
 
 from swh.model.hashutil import hash_to_bytes
+from swh.model.model import Snapshot, SnapshotBranch, TargetType
 from swh.loader.package.tests.common import (
     decode_target, check_snapshot, check_metadata, check_metadata_paths
 )
@@ -17,9 +18,6 @@ hash_hex = '43e45d56f88993aae6a0198013efa80716fd8920'
 storage_config = {
     'cls': 'pipeline',
     'steps': [
-        {
-            'cls': 'validate',
-        },
         {
             'cls': 'memory',
         }
@@ -57,15 +55,15 @@ def test_check_snapshot():
     storage = get_storage(**storage_config)
 
     snap_id = '2498dbf535f882bc7f9a18fb16c9ad27fda7bab7'
-    snapshot = {
-        'id': hash_to_bytes(snap_id),
-        'branches': {
-            b'master': {
-                'target': hash_to_bytes(hash_hex),
-                'target_type': 'revision',
-            },
+    snapshot = Snapshot(
+        id=hash_to_bytes(snap_id),
+        branches={
+            b'master': SnapshotBranch(
+                target=hash_to_bytes(hash_hex),
+                target_type=TargetType.REVISION,
+            ),
         },
-    }
+    )
 
     s = storage.snapshot_add([snapshot])
     assert s == {
@@ -87,15 +85,15 @@ def test_check_snapshot():
 def test_check_snapshot_failure():
     storage = get_storage(**storage_config)
 
-    snapshot = {
-        'id': hash_to_bytes('2498dbf535f882bc7f9a18fb16c9ad27fda7bab7'),
-        'branches': {
-            b'master': {
-                'target': hash_to_bytes(hash_hex),
-                'target_type': 'revision',
-            },
+    snapshot = Snapshot(
+        id=hash_to_bytes('2498dbf535f882bc7f9a18fb16c9ad27fda7bab7'),
+        branches={
+            b'master': SnapshotBranch(
+                target=hash_to_bytes(hash_hex),
+                target_type=TargetType.REVISION,
+            ),
         },
-    }
+    )
 
     s = storage.snapshot_add([snapshot])
     assert s == {

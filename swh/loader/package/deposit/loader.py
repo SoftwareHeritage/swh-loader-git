@@ -12,6 +12,9 @@ from typing import (
 )
 
 from swh.model.hashutil import hash_to_hex, hash_to_bytes
+from swh.model.model import (
+    Person, Revision, RevisionType, TimestampWithTimezone, Sha1Git,
+)
 from swh.loader.package.loader import PackageLoader
 from swh.loader.package.utils import download
 
@@ -69,26 +72,35 @@ class DepositLoader(PackageLoader):
             self.deposit_id, tmpdir, p_info['filename'])]
 
     def build_revision(
-            self, a_metadata: Dict, uncompressed_path: str) -> Dict:
-        revision = a_metadata.pop('revision')
-        metadata = {
+            self, a_metadata: Dict, uncompressed_path: str,
+            directory: Sha1Git) -> Optional[Revision]:
+        revision_data = a_metadata.pop('revision')
+
+        # FIXME: the deposit no longer needs to build the revision
+
+        date = TimestampWithTimezone.from_dict(revision_data['date'])
+        metadata = revision_data['metadata']
+        metadata.update({
             'extrinsic': {
                 'provider': self.client.metadata_url(self.deposit_id),
                 'when': self.visit_date.isoformat(),
                 'raw': a_metadata,
             },
-        }
+        })
 
-        # FIXME: the deposit no longer needs to build the revision
-        revision['metadata'].update(metadata)
-        revision['author'] = parse_author(revision['author'])
-        revision['committer'] = parse_author(revision['committer'])
-        revision['message'] = revision['message'].encode('utf-8')
-        revision['type'] = 'tar'
-        parents = revision.get('parents', [])
-        revision['parents'] = [hash_to_bytes(p) for p in parents]
-
-        return revision
+        return Revision(
+            type=RevisionType.TAR,
+            message=revision_data['message'].encode('utf-8'),
+            author=parse_author(revision_data['author']),
+            date=date,
+            committer=parse_author(revision_data['committer']),
+            committer_date=date,
+            parents=[hash_to_bytes(p)
+                     for p in revision_data.get('parents', [])],
+            directory=directory,
+            synthetic=True,
+            metadata=metadata,
+        )
 
     def load(self) -> Dict:
         # Usual loading
@@ -153,15 +165,15 @@ class DepositLoader(PackageLoader):
         return r
 
 
-def parse_author(author):
+def parse_author(author) -> Person:
     """See prior fixme
 
     """
-    return {
-        'fullname': author['fullname'].encode('utf-8'),
-        'name': author['name'].encode('utf-8'),
-        'email': author['email'].encode('utf-8'),
-    }
+    return Person(
+        fullname=author['fullname'].encode('utf-8'),
+        name=author['name'].encode('utf-8'),
+        email=author['email'].encode('utf-8'),
+    )
 
 
 class ApiClient:
