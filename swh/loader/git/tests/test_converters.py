@@ -12,14 +12,19 @@ import unittest
 
 import dulwich.repo
 
-import swh.loader.git.converters as converters
 from swh.model.hashutil import bytehex_to_hash, hash_to_bytes
+from swh.model.model import (
+    Content, Person, Release, Revision, RevisionType, ObjectType,
+    Timestamp, TimestampWithTimezone,
+)
+
+import swh.loader.git.converters as converters
 
 TEST_DATA = os.path.join(os.path.dirname(__file__), 'data')
 
 
-class SWHTargetType:
-    """Dulwich lookalike TargetType class
+class SWHObjectType:
+    """Dulwich lookalike ObjectType class
 
     """
     def __init__(self, type_name):
@@ -34,7 +39,7 @@ class SWHTag:
                  tag_timezone, message):
         self.name = name
         self.type_name = type_name
-        self.object = SWHTargetType(target_type), target
+        self.object = SWHObjectType(target_type), target
         self.tagger = tagger
         self._message = message
         self.tag_time = tag_time
@@ -79,28 +84,24 @@ class TestConverters(unittest.TestCase):
 
         shutil.rmtree(cls.repo_path)
 
-    def setUp(self):
-        super().setUp()
-
-        self.blob_id = b'28c6f4023d65f74e3b59a2dea3c4277ed9ee07b0'
-        self.blob = {
-            'sha1_git': bytehex_to_hash(self.blob_id),
-            'sha1': hash_to_bytes('4850a3420a2262ff061cb296fb915430fa92301c'),
-            'sha256': hash_to_bytes('fee7c8a485a10321ad94b64135073cb5'
-                                    '5f22cb9f57fa2417d2adfb09d310adef'),
-            'blake2s256': hash_to_bytes('5d71873f42a137f6d89286e43677721e574'
-                                        '1fa05ce4cd5e3c7ea7c44d4c2d10b'),
-            'data': (b'[submodule "example-dependency"]\n'
-                     b'\tpath = example-dependency\n'
-                     b'\turl = https://github.com/githubtraining/'
-                     b'example-dependency.git\n'),
-            'length': 124,
-            'status': 'visible',
-        }
-
     def test_blob_to_content(self):
-        content = converters.dulwich_blob_to_content(self.repo[self.blob_id])
-        self.assertEqual(self.blob, content)
+        content_id = b'28c6f4023d65f74e3b59a2dea3c4277ed9ee07b0'
+        content = converters.dulwich_blob_to_content(self.repo[content_id])
+        expected_content = Content(
+            sha1_git=bytehex_to_hash(content_id),
+            sha1=hash_to_bytes('4850a3420a2262ff061cb296fb915430fa92301c'),
+            sha256=hash_to_bytes('fee7c8a485a10321ad94b64135073cb5'
+                                 '5f22cb9f57fa2417d2adfb09d310adef'),
+            blake2s256=hash_to_bytes('5d71873f42a137f6d89286e43677721e574'
+                                     '1fa05ce4cd5e3c7ea7c44d4c2d10b'),
+            data=(b'[submodule "example-dependency"]\n'
+                  b'\tpath = example-dependency\n'
+                  b'\turl = https://github.com/githubtraining/'
+                  b'example-dependency.git\n'),
+            length=124,
+            status='visible',
+        )
+        self.assertEqual(content, expected_content)
 
     def test_convertion_wrong_input(self):
         class Something:
@@ -115,87 +116,95 @@ class TestConverters(unittest.TestCase):
         }
 
         for _callable in m.values():
-            self.assertIsNone(_callable(Something()))
+            with self.assertRaises(ValueError):
+                _callable(Something())
 
     def test_commit_to_revision(self):
         sha1 = b'9768d0b576dbaaecd80abedad6dfd0d72f1476da'
 
         revision = converters.dulwich_commit_to_revision(self.repo[sha1])
 
-        expected_revision = {
-            'id': hash_to_bytes('9768d0b576dbaaecd80abedad6dfd0d72f1476da'),
-            'directory': b'\xf0i\\./\xa7\xce\x9dW@#\xc3A7a\xa4s\xe5\x00\xca',
-            'type': 'git',
-            'committer': {
-                'name': b'Stefano Zacchiroli',
-                'fullname': b'Stefano Zacchiroli <zack@upsilon.cc>',
-                'email': b'zack@upsilon.cc',
-            },
-            'author': {
-                'name': b'Stefano Zacchiroli',
-                'fullname': b'Stefano Zacchiroli <zack@upsilon.cc>',
-                'email': b'zack@upsilon.cc',
-            },
-            'committer_date': {
-                'negative_utc': None,
-                'timestamp': 1443083765,
-                'offset': 120,
-            },
-            'message': b'add submodule dependency\n',
-            'metadata': None,
-            'date': {
-                'negative_utc': None,
-                'timestamp': 1443083765,
-                'offset': 120,
-            },
-            'parents': [
+        expected_revision = Revision(
+            id=hash_to_bytes('9768d0b576dbaaecd80abedad6dfd0d72f1476da'),
+            directory=b'\xf0i\\./\xa7\xce\x9dW@#\xc3A7a\xa4s\xe5\x00\xca',
+            type=RevisionType.GIT,
+            committer=Person(
+                name=b'Stefano Zacchiroli',
+                fullname=b'Stefano Zacchiroli <zack@upsilon.cc>',
+                email=b'zack@upsilon.cc',
+            ),
+            author=Person(
+                name=b'Stefano Zacchiroli',
+                fullname=b'Stefano Zacchiroli <zack@upsilon.cc>',
+                email=b'zack@upsilon.cc',
+            ),
+            committer_date=TimestampWithTimezone(
+                timestamp=Timestamp(
+                    seconds=1443083765,
+                    microseconds=0,
+                ),
+                negative_utc=None,
+                offset=120,
+            ),
+            message=b'add submodule dependency\n',
+            metadata=None,
+            date=TimestampWithTimezone(
+                timestamp=Timestamp(
+                    seconds=1443083765,
+                    microseconds=0,
+                ),
+                negative_utc=None,
+                offset=120,
+            ),
+            parents=[
                 b'\xc3\xc5\x88q23`\x9f[\xbb\xb2\xd9\xe7\xf3\xfbJf\x0f?r'
             ],
-            'synthetic': False,
-        }
+            synthetic=False,
+        )
 
         self.assertEqual(revision, expected_revision)
 
     def test_author_line_to_author(self):
         # edge case out of the way
-        self.assertIsNone(converters.parse_author(None))
+        with self.assertRaises(ValueError):
+            converters.parse_author(None)
 
         tests = {
-            b'a <b@c.com>': {
-                'name': b'a',
-                'email': b'b@c.com',
-                'fullname': b'a <b@c.com>',
-            },
-            b'<foo@bar.com>': {
-                'name': None,
-                'email': b'foo@bar.com',
-                'fullname': b'<foo@bar.com>',
-            },
-            b'malformed <email': {
-                'name': b'malformed',
-                'email': None,
-                'fullname': b'malformed <email'
-            },
-            b'trailing <sp@c.e> ': {
-                'name': b'trailing',
-                'email': b'sp@c.e',
-                'fullname': b'trailing <sp@c.e> ',
-            },
-            b'no<sp@c.e>': {
-                'name': b'no',
-                'email': b'sp@c.e',
-                'fullname': b'no<sp@c.e>',
-            },
-            b' <>': {
-                'name': b'',
-                'email': b'',
-                'fullname': b' <>',
-            },
-            b'something': {
-                'name': None,
-                'email': None,
-                'fullname': b'something'
-            }
+            b'a <b@c.com>': Person(
+                name=b'a',
+                email=b'b@c.com',
+                fullname=b'a <b@c.com>',
+            ),
+            b'<foo@bar.com>': Person(
+                name=None,
+                email=b'foo@bar.com',
+                fullname=b'<foo@bar.com>',
+            ),
+            b'malformed <email': Person(
+                name=b'malformed',
+                email=None,
+                fullname=b'malformed <email'
+            ),
+            b'trailing <sp@c.e> ': Person(
+                name=b'trailing',
+                email=b'sp@c.e',
+                fullname=b'trailing <sp@c.e> ',
+            ),
+            b'no<sp@c.e>': Person(
+                name=b'no',
+                email=b'sp@c.e',
+                fullname=b'no<sp@c.e>',
+            ),
+            b' <>': Person(
+                name=b'',
+                email=b'',
+                fullname=b' <>',
+            ),
+            b'something': Person(
+                name=None,
+                email=None,
+                fullname=b'something'
+            )
         }
 
         for author in sorted(tests):
@@ -218,17 +227,17 @@ class TestConverters(unittest.TestCase):
         actual_release = converters.dulwich_tag_to_release(tag)
 
         # then
-        expected_release = {
-            'author': None,
-            'date': None,
-            'id': b'\xda9\xa3\xee^kK\r2U\xbf\xef\x95`\x18\x90\xaf\xd8\x07\t',
-            'message': message,
-            'metadata': None,
-            'name': 'blah',
-            'synthetic': False,
-            'target': hash_to_bytes(target.decode()),
-            'target_type': 'revision'
-        }
+        expected_release = Release(
+            author=None,
+            date=None,
+            id=b'\xda9\xa3\xee^kK\r2U\xbf\xef\x95`\x18\x90\xaf\xd8\x07\t',
+            message=message,
+            metadata=None,
+            name='blah',
+            synthetic=False,
+            target=hash_to_bytes(target.decode()),
+            target_type=ObjectType.REVISION,
+        )
 
         self.assertEqual(actual_release, expected_release)
 
@@ -255,25 +264,28 @@ class TestConverters(unittest.TestCase):
         actual_release = converters.dulwich_tag_to_release(tag)
 
         # then
-        expected_release = {
-            'author': {
-                'email': b'hello@mail.org',
-                'fullname': b'hey dude <hello@mail.org>',
-                'name': b'hey dude'
-            },
-            'date': {
-                'negative_utc': False,
-                'offset': 0,
-                'timestamp': 1196812800.0
-            },
-            'id': b'\xda9\xa3\xee^kK\r2U\xbf\xef\x95`\x18\x90\xaf\xd8\x07\t',
-            'message': message,
-            'metadata': None,
-            'name': 'blah',
-            'synthetic': False,
-            'target': hash_to_bytes(target.decode()),
-            'target_type': 'revision'
-        }
+        expected_release = Release(
+            author=Person(
+                email=b'hello@mail.org',
+                fullname=b'hey dude <hello@mail.org>',
+                name=b'hey dude'
+            ),
+            date=TimestampWithTimezone(
+                negative_utc=False,
+                offset=0,
+                timestamp=Timestamp(
+                    seconds=1196812800,
+                    microseconds=0,
+                )
+            ),
+            id=b'\xda9\xa3\xee^kK\r2U\xbf\xef\x95`\x18\x90\xaf\xd8\x07\t',
+            message=message,
+            metadata=None,
+            name='blah',
+            synthetic=False,
+            target=hash_to_bytes(target.decode()),
+            target_type=ObjectType.REVISION,
+        )
 
         self.assertEqual(actual_release, expected_release)
 
@@ -294,20 +306,20 @@ class TestConverters(unittest.TestCase):
         actual_release = converters.dulwich_tag_to_release(tag)
 
         # then
-        expected_release = {
-            'author': {
-                'email': b'hello@mail.org',
-                'fullname': b'hey dude <hello@mail.org>',
-                'name': b'hey dude'
-            },
-            'date': None,
-            'id': b'\xda9\xa3\xee^kK\r2U\xbf\xef\x95`\x18\x90\xaf\xd8\x07\t',
-            'message': message,
-            'metadata': None,
-            'name': 'blah',
-            'synthetic': False,
-            'target': hash_to_bytes(target.decode()),
-            'target_type': 'revision'
-        }
+        expected_release = Release(
+            author=Person(
+                email=b'hello@mail.org',
+                fullname=b'hey dude <hello@mail.org>',
+                name=b'hey dude'
+            ),
+            date=None,
+            id=b'\xda9\xa3\xee^kK\r2U\xbf\xef\x95`\x18\x90\xaf\xd8\x07\t',
+            message=message,
+            metadata=None,
+            name='blah',
+            synthetic=False,
+            target=hash_to_bytes(target.decode()),
+            target_type=ObjectType.REVISION,
+        )
 
         self.assertEqual(actual_release, expected_release)

@@ -3,21 +3,26 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+from collections import defaultdict
 import datetime
-import dulwich.client
+from io import BytesIO
 import logging
 import os
 import pickle
 import sys
+from typing import Any, Dict, Iterable, Optional
 
-from collections import defaultdict
-from io import BytesIO
+import dulwich.client
 from dulwich.object_store import ObjectStoreGraphWalker
 from dulwich.pack import PackData, PackInflater
 
 from swh.model import hashutil
+from swh.model.model import (
+    BaseContent, Directory, Origin, Revision,
+    Release, Snapshot, SnapshotBranch, TargetType, Sha1Git)
 from swh.loader.core.loader import DVCSLoader
 from swh.storage.algos.snapshot import snapshot_get_all_branches
+
 from . import converters
 
 
@@ -53,15 +58,15 @@ class RepoRepresentation:
 
     def _cache_heads(self, base_snapshot):
         """Return all the known head commits for the given snapshot"""
-        _git_types = ['content', 'directory', 'revision', 'release']
+        _git_types = list(converters.DULWICH_TARGET_TYPES.values())
 
         if not base_snapshot:
             return []
 
         snapshot_targets = set()
-        for target in base_snapshot['branches'].values():
-            if target and target['target_type'] in _git_types:
-                snapshot_targets.add(target['target'])
+        for branch in base_snapshot.branches.values():
+            if branch and branch.target_type in _git_types:
+                snapshot_targets.add(branch.target)
 
         decoded_targets = self._decode_from_storage(snapshot_targets)
 
@@ -160,9 +165,14 @@ class RepoRepresentation:
             )
         return ret
 
-    def find_remote_ref_types_in_swh(self, remote_refs):
+    def find_remote_ref_types_in_swh(
+            self, remote_refs) -> Dict[bytes, Dict[str, Any]]:
         """Parse the remote refs information and list the objects that exist in
         Software Heritage.
+
+        Returns:
+            dict whose keys are branch names, and values are tuples
+            `(target, target_type)`.
         """
 
         all_objs = set(remote_refs.values()) - set(self._type_cache)
@@ -279,19 +289,22 @@ class GitLoader(DVCSLoader):
 
     def prepare_origin_visit(self, *args, **kwargs):
         self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
-        self.origin = converters.origin_url_to_origin(self.origin_url)
+        self.origin = Origin(url=self.origin_url)
 
-    def get_full_snapshot(self, origin_url):
+    def get_full_snapshot(self, origin_url) -> Optional[Snapshot]:
         visit = self.storage.origin_visit_get_latest(
             origin_url, require_snapshot=True)
         if visit and visit['snapshot']:
-            return snapshot_get_all_branches(
+            snapshot = snapshot_get_all_branches(
                 self.storage, visit['snapshot'])
         else:
+            snapshot = None
+        if snapshot is None:
             return None
+        return Snapshot.from_dict(snapshot)
 
     def prepare(self, *args, **kwargs):
-        base_origin_url = origin_url = self.origin['url']
+        base_origin_url = origin_url = self.origin.url
 
         prev_snapshot = None
 
@@ -299,7 +312,7 @@ class GitLoader(DVCSLoader):
             prev_snapshot = self.get_full_snapshot(origin_url)
 
         if self.base_url and not prev_snapshot:
-            base_origin = converters.origin_url_to_origin(self.base_url)
+            base_origin = Origin(url=self.base_url)
             base_origin = self.storage.origin_get(base_origin)
             if base_origin:
                 base_origin_url = base_origin['url']
@@ -314,7 +327,7 @@ class GitLoader(DVCSLoader):
             sys.stderr.flush()
 
         fetch_info = self.fetch_pack_from_origin(
-            self.origin['url'], self.base_snapshot,
+            self.origin.url, self.base_snapshot,
             do_progress)
 
         self.pack_buffer = fetch_info['pack_buffer']
@@ -324,7 +337,7 @@ class GitLoader(DVCSLoader):
         self.local_refs = fetch_info['local_refs']
         self.symbolic_refs = fetch_info['symbolic_refs']
 
-        origin_url = self.origin['url']
+        origin_url = self.origin.url
 
         self.log.info('Listed %d refs for repo %s' % (
             len(self.remote_refs), origin_url), extra={
@@ -371,7 +384,7 @@ class GitLoader(DVCSLoader):
     def has_contents(self):
         return bool(self.type_to_ids[b'blob'])
 
-    def get_content_ids(self):
+    def get_content_ids(self) -> Iterable[Dict[str, Any]]:
         """Get the content identifiers from the git repository"""
         for raw_obj in self.get_inflater():
             if raw_obj.type_name != b'blob':
@@ -379,7 +392,7 @@ class GitLoader(DVCSLoader):
 
             yield converters.dulwich_blob_to_content_id(raw_obj)
 
-    def get_contents(self):
+    def get_contents(self) -> Iterable[BaseContent]:
         """Format the blobs from the git repository as swh contents"""
         missing_contents = set(self.storage.content_missing(
             self.get_content_ids(), 'sha1_git'))
@@ -391,17 +404,18 @@ class GitLoader(DVCSLoader):
             if raw_obj.sha().digest() not in missing_contents:
                 continue
 
-            yield converters.dulwich_blob_to_content(raw_obj)
+            yield converters.dulwich_blob_to_content(
+                raw_obj, max_content_size=self.max_content_size)
 
-    def has_directories(self):
+    def has_directories(self) -> bool:
         return bool(self.type_to_ids[b'tree'])
 
-    def get_directory_ids(self):
+    def get_directory_ids(self) -> Iterable[Sha1Git]:
         """Get the directory identifiers from the git repository"""
         return (hashutil.hash_to_bytes(id.decode())
                 for id in self.type_to_ids[b'tree'])
 
-    def get_directories(self):
+    def get_directories(self) -> Iterable[Directory]:
         """Format the trees as swh directories"""
         missing_dirs = set(self.storage.directory_missing(
             sorted(self.get_directory_ids())))
@@ -415,15 +429,15 @@ class GitLoader(DVCSLoader):
 
             yield converters.dulwich_tree_to_directory(raw_obj, log=self.log)
 
-    def has_revisions(self):
+    def has_revisions(self) -> bool:
         return bool(self.type_to_ids[b'commit'])
 
-    def get_revision_ids(self):
+    def get_revision_ids(self) -> Iterable[Sha1Git]:
         """Get the revision identifiers from the git repository"""
         return (hashutil.hash_to_bytes(id.decode())
                 for id in self.type_to_ids[b'commit'])
 
-    def get_revisions(self):
+    def get_revisions(self) -> Iterable[Revision]:
         """Format commits as swh revisions"""
         missing_revs = set(self.storage.revision_missing(
             sorted(self.get_revision_ids())))
@@ -437,15 +451,15 @@ class GitLoader(DVCSLoader):
 
             yield converters.dulwich_commit_to_revision(raw_obj, log=self.log)
 
-    def has_releases(self):
+    def has_releases(self) -> bool:
         return bool(self.type_to_ids[b'tag'])
 
-    def get_release_ids(self):
+    def get_release_ids(self) -> Iterable[Sha1Git]:
         """Get the release identifiers from the git repository"""
         return (hashutil.hash_to_bytes(id.decode())
                 for id in self.type_to_ids[b'tag'])
 
-    def get_releases(self):
+    def get_releases(self) -> Iterable[Release]:
         """Retrieve all the release objects from the git repository"""
         missing_rels = set(self.storage.release_missing(
             sorted(self.get_release_ids())))
@@ -459,26 +473,33 @@ class GitLoader(DVCSLoader):
 
             yield converters.dulwich_tag_to_release(raw_obj, log=self.log)
 
-    def get_snapshot(self):
-        branches = {}
+    def get_snapshot(self) -> Snapshot:
+        branches: Dict[bytes, Optional[SnapshotBranch]] = {}
 
         for ref in self.remote_refs:
             ret_ref = self.local_refs[ref].copy()
             if not ret_ref['target_type']:
                 target_type = self.id_to_type[ret_ref['target']]
-                ret_ref['target_type'] = converters.DULWICH_TYPES[target_type]
+                ret_ref['target_type'] = \
+                    converters.DULWICH_TARGET_TYPES[target_type]
 
             ret_ref['target'] = hashutil.bytehex_to_hash(ret_ref['target'])
 
-            branches[ref] = ret_ref
+            branches[ref] = SnapshotBranch(
+                target_type=ret_ref['target_type'],
+                target=ret_ref['target'],
+            )
 
         for ref, target in self.symbolic_refs.items():
-            branches[ref] = {'target_type': 'alias', 'target': target}
+            branches[ref] = SnapshotBranch(
+                target_type=TargetType.ALIAS,
+                target=target,
+            )
 
-        self.snapshot = converters.branches_to_snapshot(branches)
+        self.snapshot = Snapshot(branches=branches)
         return self.snapshot
 
-    def get_fetch_history_result(self):
+    def get_fetch_history_result(self) -> Dict[str, int]:
         return {
             'contents': len(self.type_to_ids[b'blob']),
             'directories': len(self.type_to_ids[b'tree']),
@@ -486,15 +507,15 @@ class GitLoader(DVCSLoader):
             'releases': len(self.type_to_ids[b'tag']),
         }
 
-    def load_status(self):
+    def load_status(self) -> Dict[str, Any]:
         """The load was eventful if the current snapshot is different to
            the one we retrieved at the beginning of the run"""
         eventful = False
 
         if self.base_snapshot:
-            eventful = self.snapshot['id'] != self.base_snapshot['id']
+            eventful = self.snapshot.id != self.base_snapshot.id
         else:
-            eventful = bool(self.snapshot['branches'])
+            eventful = bool(self.snapshot.branches)
 
         return {'status': ('eventful' if eventful else 'uneventful')}
 

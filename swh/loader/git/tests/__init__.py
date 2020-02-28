@@ -8,9 +8,6 @@ TEST_LOADER_CONFIG = {
         'cls': 'pipeline',
         'steps': [
             {
-                'cls': 'validate',
-            },
-            {
                 'cls': 'filter'
             },
             {
