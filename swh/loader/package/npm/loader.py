@@ -207,7 +207,7 @@ def extract_npm_package_author(package_json) -> Person:
         else:
             return author_data
 
-    author_data = {}
+    author_data: Dict = {}
     for author_key in ('author', 'authors'):
         if author_key in package_json:
             author_str = _author_str(package_json[author_key])
