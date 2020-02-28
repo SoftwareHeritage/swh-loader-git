@@ -122,9 +122,12 @@ class GitLoaderFromDisk(DVCSLoader):
 
     def fetch_data(self):
         """Fetch the data from the data source"""
-        self.previous_snapshot = self.storage.snapshot_get_latest(
-            self.origin['url']
-        )
+        previous_visit = self.storage.origin_visit_get_latest(
+            self.origin['url'], require_snapshot=True)
+        if previous_visit:
+            self.previous_snapshot_id = previous_visit['snapshot']
+        else:
+            self.previous_snapshot_id = None
 
         type_to_ids = defaultdict(list)
         for oid in self.iter_objects():
@@ -249,8 +252,8 @@ class GitLoaderFromDisk(DVCSLoader):
            the ones we retrieved at the beginning of the run"""
         eventful = False
 
-        if self.previous_snapshot:
-            eventful = self.snapshot['id'] != self.previous_snapshot['id']
+        if self.previous_snapshot_id:
+            eventful = self.snapshot['id'] != self.previous_snapshot_id
         else:
             eventful = bool(self.snapshot['branches'])
 

@@ -282,11 +282,13 @@ class GitLoader(DVCSLoader):
         self.origin = converters.origin_url_to_origin(self.origin_url)
 
     def get_full_snapshot(self, origin_url):
-        prev_snapshot = self.storage.snapshot_get_latest(origin_url)
-        if prev_snapshot and prev_snapshot.pop('next_branch', None):
-            return snapshot_get_all_branches(self.storage, prev_snapshot['id'])
-
-        return prev_snapshot
+        visit = self.storage.origin_visit_get_latest(
+            origin_url, require_snapshot=True)
+        if visit and visit['snapshot']:
+            return snapshot_get_all_branches(
+                self.storage, visit['snapshot'])
+        else:
+            return None
 
     def prepare(self, *args, **kwargs):
         base_origin_url = origin_url = self.origin['url']
