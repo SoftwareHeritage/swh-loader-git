@@ -34,17 +34,6 @@ from swh.loader.package.utils import download
 logger = logging.getLogger(__name__)
 
 
-# Not implemented yet:
-# - clean up disk routines from previous killed workers (when OOMkilled)
-# -> separation of concern would like this to be abstracted from the code
-# -> experience tells us it's complicated to do as such (T903, T964, T982,
-#    etc...)
-#
-# - model: swh.model.merkle.from_disk should output swh.model.model.* objects
-#          to avoid this layer's conversion routine call
-# -> Take this up within swh.model's current implementation
-
-
 class PackageLoader:
     # Origin visit type (str) set by the loader
     visit_type = ''
