@@ -8,6 +8,8 @@ import hashlib
 import logging
 import pytest
 
+from swh.model.model import Origin
+
 from swh.loader.core.loader import BaseLoader, DVCSLoader
 
 
@@ -25,9 +27,9 @@ class DummyLoader:
         pass
 
     def prepare_origin_visit(self, *args, **kwargs):
-        origin = {'url': 'some-url'}
+        origin = Origin(url='some-url')
         self.origin = origin
-        self.origin_url = origin['url']
+        self.origin_url = origin.url
         self.visit_date = datetime.datetime.utcnow()
         self.visit_type = 'git'
         self.storage.origin_visit_add(self.origin_url, self.visit_date,
@@ -44,9 +46,6 @@ class DummyDVCSLoader(DummyLoader, DVCSLoader):
             'storage': {
                 'cls': 'pipeline',
                 'steps': [
-                    {
-                        'cls': 'validate',
-                    },
                     {
                         'cls': 'retry',
                     },
@@ -71,9 +70,6 @@ class DummyBaseLoader(DummyLoader, BaseLoader):
             'storage': {
                 'cls': 'pipeline',
                 'steps': [
-                    {
-                        'cls': 'validate',
-                    },
                     {
                         'cls': 'retry',
                     },
@@ -134,9 +130,7 @@ def test_loader_logger_with_name():
 def test_loader_save_data_path(tmp_path):
     loader = DummyBaseLoader('some.logger.name.1')
     url = 'http://bitbucket.org/something'
-    loader.origin = {
-        'url': url,
-    }
+    loader.origin = Origin(url=url)
     loader.visit_date = datetime.datetime(year=2019, month=10, day=1)
     loader.config = {
         'save_data_path': tmp_path,
