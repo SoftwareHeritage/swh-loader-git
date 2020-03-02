@@ -5,26 +5,25 @@
 
 """Convert dulwich objects to dictionaries suitable for swh.storage"""
 
-from swh.model import identifiers
+from typing import Any, Dict, Optional
+
 from swh.model.hashutil import (
     DEFAULT_ALGORITHMS, hash_to_bytes, MultiHash
+)
+from swh.model.model import (
+    BaseContent, Content, Directory, DirectoryEntry,
+    ObjectType, Person, Release, Revision, RevisionType,
+    SkippedContent, TargetType, Timestamp, TimestampWithTimezone,
 )
 
 
 HASH_ALGORITHMS = DEFAULT_ALGORITHMS - {'sha1_git'}
 
 
-def origin_url_to_origin(origin_url):
-    """Format a pygit2.Repository as an origin suitable for swh.storage"""
-    return {
-        'url': origin_url,
-    }
-
-
-def dulwich_blob_to_content_id(blob):
+def dulwich_blob_to_content_id(blob) -> Dict[str, Any]:
     """Convert a dulwich blob to a Software Heritage content id"""
     if blob.type_name != b'blob':
-        return
+        raise ValueError('Argument is not a blob.')
 
     size = blob.raw_length()
     data = blob.as_raw_string()
@@ -34,29 +33,33 @@ def dulwich_blob_to_content_id(blob):
     return hashes
 
 
-def dulwich_blob_to_content(blob):
+def dulwich_blob_to_content(blob, max_content_size=None) -> BaseContent:
     """Convert a dulwich blob to a Software Heritage content
 
     """
     if blob.type_name != b'blob':
-        return
-    ret = dulwich_blob_to_content_id(blob)
-    data = blob.as_raw_string()
-    ret['data'] = data
-    ret['status'] = 'visible'
-    return ret
+        raise ValueError('Argument is not a blob.')
+    hashes = dulwich_blob_to_content_id(blob)
+    if max_content_size is not None and hashes['length'] >= max_content_size:
+        return SkippedContent(
+            status='absent',
+            reason='Content too large',
+            **hashes,
+        )
+    else:
+        return Content(
+            data=blob.as_raw_string(),
+            status='visible',
+            **hashes,
+        )
 
 
-def dulwich_tree_to_directory(tree, log=None):
+def dulwich_tree_to_directory(tree, log=None) -> Directory:
     """Format a tree as a directory"""
     if tree.type_name != b'tree':
-        return
+        raise ValueError('Argument is not a tree.')
 
-    ret = {
-        'id': tree.sha().digest(),
-    }
     entries = []
-    ret['entries'] = entries
 
     entry_mode_map = {
         0o040000: 'dir',
@@ -67,21 +70,23 @@ def dulwich_tree_to_directory(tree, log=None):
     }
 
     for entry in tree.iteritems():
-        entries.append({
-            'type': entry_mode_map.get(entry.mode, 'file'),
-            'perms': entry.mode,
-            'name': entry.path,
-            'target': hash_to_bytes(entry.sha.decode('ascii')),
-        })
+        entries.append(DirectoryEntry(
+            type=entry_mode_map.get(entry.mode, 'file'),
+            perms=entry.mode,
+            name=entry.path,
+            target=hash_to_bytes(entry.sha.decode('ascii')),
+        ))
 
-    return ret
+    return Directory(
+        id=tree.sha().digest(),
+        entries=entries,
+    )
 
 
-def parse_author(name_email):
+def parse_author(name_email: bytes) -> Person:
     """Parse an author line"""
-
     if name_email is None:
-        return None
+        raise ValueError('fullname is None')
 
     try:
         open_bracket = name_email.index(b'<')
@@ -105,48 +110,30 @@ def parse_author(name_email):
         else:
             email = raw_email[:close_bracket]
 
-    return {
-        'name': name,
-        'email': email,
-        'fullname': name_email,
-    }
+    return Person(
+        name=name,
+        email=email,
+        fullname=name_email,
+    )
 
 
-def dulwich_tsinfo_to_timestamp(timestamp, timezone, timezone_neg_utc):
+def dulwich_tsinfo_to_timestamp(
+        timestamp, timezone, timezone_neg_utc) -> TimestampWithTimezone:
     """Convert the dulwich timestamp information to a structure compatible with
     Software Heritage"""
-    return {
-        'timestamp': timestamp,
-        'offset': timezone // 60,
-        'negative_utc': timezone_neg_utc if timezone == 0 else None,
-    }
+    return TimestampWithTimezone(
+        timestamp=Timestamp(
+            seconds=timestamp,
+            microseconds=0,
+        ),
+        offset=timezone // 60,
+        negative_utc=timezone_neg_utc if timezone == 0 else None,
+    )
 
 
-def dulwich_commit_to_revision(commit, log=None):
+def dulwich_commit_to_revision(commit, log=None) -> Revision:
     if commit.type_name != b'commit':
-        return
-
-    ret = {
-        'id': commit.sha().digest(),
-        'author': parse_author(commit.author),
-        'date': dulwich_tsinfo_to_timestamp(
-            commit.author_time,
-            commit.author_timezone,
-            commit._author_timezone_neg_utc,
-        ),
-        'committer': parse_author(commit.committer),
-        'committer_date': dulwich_tsinfo_to_timestamp(
-            commit.commit_time,
-            commit.commit_timezone,
-            commit._commit_timezone_neg_utc,
-        ),
-        'type': 'git',
-        'directory': bytes.fromhex(commit.tree.decode()),
-        'message': commit.message,
-        'metadata': None,
-        'synthetic': False,
-        'parents': [bytes.fromhex(p.decode()) for p in commit.parents],
-    }
+        raise ValueError('Argument is not a commit.')
 
     git_metadata = []
     if commit.encoding is not None:
@@ -164,54 +151,77 @@ def dulwich_commit_to_revision(commit, log=None):
         git_metadata.append(['gpgsig', commit.gpgsig])
 
     if git_metadata:
-        ret['metadata'] = {
+        metadata: Optional[Dict[str, Any]] = {
             'extra_headers': git_metadata,
         }
+    else:
+        metadata = None
 
-    return ret
+    return Revision(
+        id=commit.sha().digest(),
+        author=parse_author(commit.author),
+        date=dulwich_tsinfo_to_timestamp(
+            commit.author_time,
+            commit.author_timezone,
+            commit._author_timezone_neg_utc,
+        ),
+        committer=parse_author(commit.committer),
+        committer_date=dulwich_tsinfo_to_timestamp(
+            commit.commit_time,
+            commit.commit_timezone,
+            commit._commit_timezone_neg_utc,
+        ),
+        type=RevisionType.GIT,
+        directory=bytes.fromhex(commit.tree.decode()),
+        message=commit.message,
+        metadata=metadata,
+        synthetic=False,
+        parents=[bytes.fromhex(p.decode()) for p in commit.parents],
+    )
 
 
-DULWICH_TYPES = {
-    b'blob': 'content',
-    b'tree': 'directory',
-    b'commit': 'revision',
-    b'tag': 'release',
+DULWICH_TARGET_TYPES = {
+    b'blob': TargetType.CONTENT,
+    b'tree': TargetType.DIRECTORY,
+    b'commit': TargetType.REVISION,
+    b'tag': TargetType.RELEASE,
 }
 
 
-def dulwich_tag_to_release(tag, log=None):
+DULWICH_OBJECT_TYPES = {
+    b'blob': ObjectType.CONTENT,
+    b'tree': ObjectType.DIRECTORY,
+    b'commit': ObjectType.REVISION,
+    b'tag': ObjectType.RELEASE,
+}
+
+
+def dulwich_tag_to_release(tag, log=None) -> Release:
     if tag.type_name != b'tag':
-        return
+        raise ValueError('Argument is not a tag.')
 
     target_type, target = tag.object
-    ret = {
-        'id': tag.sha().digest(),
-        'name': tag.name,
-        'target': bytes.fromhex(target.decode()),
-        'target_type': DULWICH_TYPES[target_type.type_name],
-        'message': tag._message,
-        'metadata': None,
-        'synthetic': False,
-    }
     if tag.tagger:
-        ret['author'] = parse_author(tag.tagger)
+        author: Optional[Person] = parse_author(tag.tagger)
         if not tag.tag_time:
-            ret['date'] = None
+            date = None
         else:
-            ret['date'] = dulwich_tsinfo_to_timestamp(
+            date = dulwich_tsinfo_to_timestamp(
                 tag.tag_time,
                 tag.tag_timezone,
                 tag._tag_timezone_neg_utc,
             )
     else:
-        ret['author'] = ret['date'] = None
+        author = date = None
 
-    return ret
-
-
-def branches_to_snapshot(branches):
-    snapshot = {'branches': branches}
-    snapshot_id = identifiers.snapshot_identifier(snapshot)
-    snapshot['id'] = identifiers.identifier_to_bytes(snapshot_id)
-
-    return snapshot
+    return Release(
+        id=tag.sha().digest(),
+        author=author,
+        date=date,
+        name=tag.name,
+        target=bytes.fromhex(target.decode()),
+        target_type=DULWICH_OBJECT_TYPES[target_type.type_name],
+        message=tag._message,
+        metadata=None,
+        synthetic=False,
+    )

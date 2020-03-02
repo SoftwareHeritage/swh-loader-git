@@ -7,12 +7,16 @@ import datetime
 import dulwich.repo
 import os
 import shutil
+from typing import Dict, Optional
 
 from dulwich.errors import ObjectFormatException, EmptyFileException
 from collections import defaultdict
 
 from swh.model import hashutil
+from swh.model.model import (
+    Origin, Snapshot, SnapshotBranch, TargetType)
 from swh.loader.core.loader import DVCSLoader
+
 from . import converters, utils
 
 
@@ -32,7 +36,7 @@ class GitLoaderFromDisk(DVCSLoader):
         self.directory = directory
 
     def prepare_origin_visit(self, *args, **kwargs):
-        self.origin = converters.origin_url_to_origin(self.origin_url)
+        self.origin = Origin(url=self.origin_url)
 
     def prepare(self, *args, **kwargs):
         self.repo = dulwich.repo.Repo(self.directory)
@@ -97,7 +101,7 @@ class GitLoaderFromDisk(DVCSLoader):
                           extra={
                               'swh_type': 'swh_loader_git_missing_object',
                               'swh_object_id': _id,
-                              'origin_url': self.origin['url'],
+                              'origin_url': self.origin.url,
                           })
             return None
         except ObjectFormatException:
@@ -106,7 +110,7 @@ class GitLoaderFromDisk(DVCSLoader):
                           extra={
                               'swh_type': 'swh_loader_git_missing_object',
                               'swh_object_id': _id,
-                              'origin_url': self.origin['url'],
+                              'origin_url': self.origin.url,
                           })
             return None
         except EmptyFileException:
@@ -115,16 +119,19 @@ class GitLoaderFromDisk(DVCSLoader):
                           extra={
                               'swh_type': 'swh_loader_git_missing_object',
                               'swh_object_id': _id,
-                              'origin_url': self.origin['url'],
+                              'origin_url': self.origin.url,
                           })
         else:
             return obj
 
     def fetch_data(self):
         """Fetch the data from the data source"""
-        self.previous_snapshot = self.storage.snapshot_get_latest(
-            self.origin['url']
-        )
+        previous_visit = self.storage.origin_visit_get_latest(
+            self.origin.url, require_snapshot=True)
+        if previous_visit:
+            self.previous_snapshot_id = previous_visit['snapshot']
+        else:
+            self.previous_snapshot_id = None
 
         type_to_ids = defaultdict(list)
         for oid in self.iter_objects():
@@ -210,25 +217,26 @@ class GitLoaderFromDisk(DVCSLoader):
 
     def get_snapshot(self):
         """Turn the list of branches into a snapshot to load"""
-        branches = {}
+        branches: Dict[bytes, Optional[SnapshotBranch]] = {}
 
         for ref, target in self.repo.refs.as_dict().items():
             obj = self.get_object(target)
             if obj:
-                branches[ref] = {
-                    'target': hashutil.bytehex_to_hash(target),
-                    'target_type': converters.DULWICH_TYPES[obj.type_name],
-                }
+                target_type = converters.DULWICH_TARGET_TYPES[obj.type_name]
+                branches[ref] = SnapshotBranch(
+                    target=hashutil.bytehex_to_hash(target),
+                    target_type=target_type,
+                )
             else:
                 branches[ref] = None
 
         for ref, target in self.repo.refs.get_symrefs().items():
-            branches[ref] = {
-                'target': target,
-                'target_type': 'alias',
-            }
+            branches[ref] = SnapshotBranch(
+                target=target,
+                target_type=TargetType.ALIAS,
+            )
 
-        self.snapshot = converters.branches_to_snapshot(branches)
+        self.snapshot = Snapshot(branches=branches)
         return self.snapshot
 
     def get_fetch_history_result(self):
@@ -249,10 +257,10 @@ class GitLoaderFromDisk(DVCSLoader):
            the ones we retrieved at the beginning of the run"""
         eventful = False
 
-        if self.previous_snapshot:
-            eventful = self.snapshot['id'] != self.previous_snapshot['id']
+        if self.previous_snapshot_id:
+            eventful = self.snapshot.id != self.previous_snapshot_id
         else:
-            eventful = bool(self.snapshot['branches'])
+            eventful = bool(self.snapshot.branches)
 
         return {'status': ('eventful' if eventful else 'uneventful')}
 
