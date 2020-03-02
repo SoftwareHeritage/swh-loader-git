@@ -131,9 +131,9 @@ def test_extract_npm_package_author(datadir):
 
     assert extract_npm_package_author(package_json) == \
         Person(
-            fullname=b'fengmk2 <fengmk2@gmail.com>',
+            fullname=b'fengmk2 <fengmk2@gmail.com> (https://fengmk2.com)',
             name=b'fengmk2',
-            email=b'fengmk2@gmail.com'
+            email=b'fengmk2@gmail.com',
         )
 
     package_json = json.loads('''

@@ -17,10 +17,10 @@ from debian.deb822 import Deb822
 
 from swh.loader.package.loader import PackageLoader
 from swh.loader.package.utils import (
-    release_name, parse_author, swh_author, artifact_identity
+    release_name, artifact_identity
 )
 from swh.model.model import (
-    TimestampWithTimezone, Sha1Git, Revision, RevisionType,
+    Person, TimestampWithTimezone, Sha1Git, Revision, RevisionType,
 )
 
 
@@ -92,7 +92,7 @@ class CRANLoader(PackageLoader):
         # a_metadata is empty
         metadata = extract_intrinsic_metadata(uncompressed_path)
         date = parse_date(metadata.get('Date'))
-        author = swh_author(parse_author(metadata.get('Maintainer', {})))
+        author = Person.from_fullname(metadata.get('Maintainer', '').encode())
         version = metadata.get('Version', a_metadata['version'])
         return Revision(
             message=version.encode('utf-8'),

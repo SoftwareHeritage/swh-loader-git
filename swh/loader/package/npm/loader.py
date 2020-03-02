@@ -20,7 +20,7 @@ from swh.model.model import (
 
 from swh.loader.package.loader import PackageLoader
 from swh.loader.package.utils import (
-    api_info, release_name, parse_author, swh_author
+    api_info, release_name
 )
 
 
@@ -207,13 +207,12 @@ def extract_npm_package_author(package_json) -> Person:
         else:
             return author_data
 
-    author_data: Dict = {}
     for author_key in ('author', 'authors'):
         if author_key in package_json:
             author_str = _author_str(package_json[author_key])
-            author_data = parse_author(author_str)
+            return Person.from_fullname(author_str.encode())
 
-    return swh_author(author_data)
+    return Person(fullname=b'', name=None, email=None)
 
 
 def _lstrip_bom(s, bom=BOM_UTF8):
