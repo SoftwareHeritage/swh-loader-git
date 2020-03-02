@@ -166,7 +166,7 @@ class TestConverters(unittest.TestCase):
 
     def test_author_line_to_author(self):
         # edge case out of the way
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             converters.parse_author(None)
 
         tests = {
@@ -182,7 +182,7 @@ class TestConverters(unittest.TestCase):
             ),
             b'malformed <email': Person(
                 name=b'malformed',
-                email=None,
+                email=b'email',
                 fullname=b'malformed <email'
             ),
             b'trailing <sp@c.e> ': Person(
@@ -196,12 +196,12 @@ class TestConverters(unittest.TestCase):
                 fullname=b'no<sp@c.e>',
             ),
             b' <>': Person(
-                name=b'',
-                email=b'',
+                name=None,
+                email=None,
                 fullname=b' <>',
             ),
             b'something': Person(
-                name=None,
+                name=b'something',
                 email=None,
                 fullname=b'something'
             )
