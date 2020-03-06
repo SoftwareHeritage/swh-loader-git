@@ -361,8 +361,13 @@ class PackageLoader:
                                  p_info)
                 return (None, False)
 
-            uncompressed_path = self.uncompress(dl_artifacts, dest=tmpdir)
-            logger.debug('uncompressed_path: %s', uncompressed_path)
+            try:
+                uncompressed_path = self.uncompress(dl_artifacts, dest=tmpdir)
+                logger.debug('uncompressed_path: %s', uncompressed_path)
+            except ValueError:
+                logger.exception('Fail to uncompress %s',
+                                 p_info['url'])
+                return (None, False)
 
             directory = from_disk.Directory.from_disk(
                 path=uncompressed_path.encode('utf-8'),
