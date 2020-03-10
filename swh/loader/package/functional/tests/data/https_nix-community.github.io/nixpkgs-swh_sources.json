@@ -9,5 +9,6 @@
       "url": [ "https://example.com/file.txt" ]
     }
  ],
-  "version": 1
+    "version": 1,
+    "revision": "cc4e04c26672dd74e5fd0fecb78b435fb55368f7"
 }

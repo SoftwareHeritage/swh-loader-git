@@ -90,12 +90,16 @@ def test_loader_incremental(swh_config, requests_mock_datadir):
 
     loader = FunctionalLoader(sources_url)
     loader.load()
-    expected_snapshot_id = '2c7f01ef3115f7999a013979fa27bfa12dcb63eb'
+    expected_snapshot_id = '0c5881c74283793ebe9a09a105a9381e41380383'
     assert load_status == {
         'status': 'eventful',
         'snapshot_id': expected_snapshot_id
     }
     expected_branches = {
+        'evaluation': {
+            'target': 'cc4e04c26672dd74e5fd0fecb78b435fb55368f7',
+            'target_type': 'revision'
+        },
         'https://github.com/owner-1/repository-1/revision-1.tgz': {
             'target': '488ad4e7b8e2511258725063cf43a2b897c503b4',
             'target_type': 'revision'
@@ -128,13 +132,17 @@ def test_loader_two_visits(swh_config, requests_mock_datadir_visits):
     """
     loader = FunctionalLoader(sources_url)
     load_status = loader.load()
-    expected_snapshot_id = '2c7f01ef3115f7999a013979fa27bfa12dcb63eb'
+    expected_snapshot_id = '0c5881c74283793ebe9a09a105a9381e41380383'
     assert load_status == {
         'status': 'eventful',
         'snapshot_id': expected_snapshot_id
     }
 
     expected_branches = {
+        'evaluation': {
+            'target': 'cc4e04c26672dd74e5fd0fecb78b435fb55368f7',
+            'target_type': 'revision'
+        },
         'https://github.com/owner-1/repository-1/revision-1.tgz': {
             'target': '488ad4e7b8e2511258725063cf43a2b897c503b4',
             'target_type': 'revision'
@@ -162,7 +170,7 @@ def test_loader_two_visits(swh_config, requests_mock_datadir_visits):
 
     loader = FunctionalLoader(sources_url)
     load_status = loader.load()
-    expected_snapshot_id = '9c4fbfd991b35c7de876cd66bcda2967a8f476ac'
+    expected_snapshot_id = 'b0bfa75cbd0cc90aac3b9e95fb0f59c731176d97'
     assert load_status == {
         'status': 'eventful',
         'snapshot_id': expected_snapshot_id
@@ -172,6 +180,10 @@ def test_loader_two_visits(swh_config, requests_mock_datadir_visits):
     # second time an url, because of the requests_mock_datadir_visits
     # fixture, the file has to end with `_visit1`.
     expected_branches = {
+        'evaluation': {
+            'target': '602140776b2ce6c9159bcf52ada73a297c063d5e',
+            'target_type': 'revision'
+        },
         'https://github.com/owner-1/repository-1/revision-1.tgz': {
             'target': '488ad4e7b8e2511258725063cf43a2b897c503b4',
             'target_type': 'revision'
@@ -214,3 +226,27 @@ def test_resolve_revision_from(swh_config, requests_mock_datadir):
     assert loader.resolve_revision_from(known_artifacts, metadata) == 'id1'
     metadata = {'url': 'url3'}
     assert loader.resolve_revision_from(known_artifacts, metadata) == None # noqa
+
+
+def test_evaluation_branch(swh_config, requests_mock_datadir):
+    loader = FunctionalLoader(sources_url)
+    res = loader.load()
+    assert res['status'] == 'eventful'
+
+    expected_branches = {
+        'https://github.com/owner-1/repository-1/revision-1.tgz': {
+            'target': '488ad4e7b8e2511258725063cf43a2b897c503b4',
+            'target_type': 'revision',
+        },
+        'evaluation': {
+            'target': 'cc4e04c26672dd74e5fd0fecb78b435fb55368f7',
+            'target_type': 'revision',
+        },
+    }
+
+    expected_snapshot = {
+        'id': '0c5881c74283793ebe9a09a105a9381e41380383',
+        'branches': expected_branches,
+    }
+
+    check_snapshot(expected_snapshot, storage=loader.storage)

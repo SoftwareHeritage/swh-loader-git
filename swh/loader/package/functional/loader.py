@@ -6,7 +6,9 @@
 import json
 import requests
 
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, Mapping
+
+from swh.model import hashutil
 
 from swh.model.model import (
     Sha1Git, Revision, RevisionType
@@ -36,8 +38,13 @@ class FunctionalLoader(PackageLoader):
 
     def __init__(self, url):
         super().__init__(url=url)
-        self.sources = retrieve_sources(url)['sources']
+        s = retrieve_sources(url)
+        self.sources = s['sources']
         self.provider_url = url
+        # The revision used to create the sources.json file. For Nix,
+        # this revision belongs to the github.com/nixos/nixpkgs
+        # repository
+        self.revision = s['revision']
 
     # Note: this could be renamed get_artifacts in the PackageLoader
     # base class.
@@ -62,6 +69,29 @@ class FunctionalLoader(PackageLoader):
             if artifact_metadata['url'] == known_url:
                 return rev_id
         return None
+
+    def extra_branches(self) -> Dict[bytes, Mapping[str, Any]]:
+        """We add a branch to the snapshot called 'evaluation' pointing to the
+        revision used to generate the sources.json file. This revision
+        is specified in the sources.json file itself. For the nixpkgs
+        origin, this revision is coming from the
+        github.com/nixos/nixpkgs repository.
+
+        Note this repository is not loaded explicitly. So, this
+        pointer can target a nonexistent revision for a time. However,
+        the github and gnu loaders are supposed to load this revision
+        and should create the revision pointed by this branch.
+
+        This branch can be used to identify the snapshot associated to
+        a Nix/Guix evaluation.
+
+        """
+        return {
+            b'evaluation': {
+                'target_type': 'revision',
+                'target': hashutil.hash_to_bytes(self.revision)
+            }
+        }
 
     def build_revision(self, a_metadata: Dict, uncompressed_path: str,
                        directory: Sha1Git) -> Optional[Revision]:
