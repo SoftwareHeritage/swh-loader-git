@@ -210,6 +210,13 @@ class PackageLoader:
             uncompress(a_path, dest=uncompressed_path)
         return uncompressed_path
 
+    def extra_branches(self) -> Dict[bytes, Mapping[str, Any]]:
+        """Return an extra dict of branches that are used to update the set of
+        branches.
+
+        """
+        return {}
+
     def load(self) -> Dict:
         """Load for a specific origin the associated contents.
 
@@ -318,6 +325,13 @@ class PackageLoader:
                         'target_type': 'revision',
                         'target': target,
                     }
+
+            for name, target in self.extra_branches().items():
+                if name in branches:
+                    logger.error("Extra branch '%s' has been ignored",
+                                 name)
+                else:
+                    branches[name] = target
 
             snapshot_data = {
                 'branches': branches
