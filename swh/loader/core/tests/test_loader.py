@@ -32,8 +32,9 @@ class DummyLoader:
         self.origin_url = origin.url
         self.visit_date = datetime.datetime.utcnow()
         self.visit_type = 'git'
-        self.storage.origin_visit_add(self.origin_url, self.visit_date,
-                                      self.visit_type)
+        origin_url = self.storage.origin_add_one(origin)
+        self.visit = self.storage.origin_visit_add(
+            origin_url, self.visit_date, self.visit_type)
 
 
 class DummyDVCSLoader(DummyLoader, DVCSLoader):

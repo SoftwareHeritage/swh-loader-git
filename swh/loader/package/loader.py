@@ -261,10 +261,8 @@ class PackageLoader:
         origin = Origin(url=self.url)
         try:
             self.storage.origin_add_one(origin)
-            visit_id = self.storage.origin_visit_add(
-                origin=self.url,
-                date=self.visit_date,
-                type=self.visit_type)['visit']
+            visit = self.storage.origin_visit_add(
+                self.url, date=self.visit_date, type=self.visit_type)
         except Exception:
             logger.exception('Failed to create origin/origin_visit:')
             return {'status': 'failed'}
@@ -338,7 +336,7 @@ class PackageLoader:
             status_load = 'failed'
         finally:
             self.storage.origin_visit_update(
-                origin=self.url, visit_id=visit_id, status=status_visit,
+                origin=self.url, visit_id=visit.visit, status=status_visit,
                 snapshot=snapshot and snapshot.id)
         result = {
             'status': status_load,

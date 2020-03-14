@@ -160,8 +160,7 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
         pass
 
     def _store_origin_visit(self) -> None:
-        """Store origin and visit references. Sets the self.origin_visit and
-           self.visit references.
+        """Store origin and visit references. Sets the self.visit references.
 
         """
         assert self.origin
@@ -169,9 +168,8 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
 
         if not self.visit_date:  # now as default visit_date if not provided
             self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
-        self.origin_visit = self.storage.origin_visit_add(
+        self.visit = self.storage.origin_visit_add(
             self.origin.url, self.visit_date, self.visit_type)
-        self.visit = self.origin_visit['visit']
 
     @abstractmethod
     def prepare(self, *args, **kwargs) -> None:
@@ -303,7 +301,7 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
 
             self.store_metadata()
             self.storage.origin_visit_update(
-                self.origin.url, self.visit, self.visit_status()
+                self.origin.url, self.visit.visit, self.visit_status()
             )
             self.post_load()
         except Exception:
@@ -313,7 +311,7 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
                                    'swh_task_kwargs': kwargs,
                                })
             self.storage.origin_visit_update(
-                self.origin.url, self.visit, 'partial'
+                self.origin.url, self.visit.visit, 'partial'
             )
             self.post_load(success=False)
             return {'status': 'failed'}
@@ -407,5 +405,5 @@ class DVCSLoader(BaseLoader):
         snapshot = self.get_snapshot()
         self.storage.snapshot_add([snapshot])
         self.storage.origin_visit_update(
-            self.origin.url, self.visit, snapshot=snapshot.id)
+            self.origin.url, self.visit.visit, snapshot=snapshot.id)
         self.flush()
