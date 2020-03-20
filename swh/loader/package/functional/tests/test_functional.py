@@ -250,3 +250,27 @@ def test_evaluation_branch(swh_config, requests_mock_datadir):
     }
 
     check_snapshot(expected_snapshot, storage=loader.storage)
+
+
+def test_eoferror(swh_config, requests_mock_datadir):
+    """Load a truncated archive which is invalid to make the uncompress
+    function raising the exception EOFError. We then check if a
+    snapshot is created, meaning this error is well managed.
+
+    """
+    sources = "https://nix-community.github.io/nixpkgs-swh/sources-EOFError.json" # noqa
+    loader = FunctionalLoader(sources)
+    loader.load()
+
+    expected_branches = {
+        'evaluation': {
+            'target': 'cc4e04c26672dd74e5fd0fecb78b435fb55368f7',
+            'target_type': 'revision',
+        },
+    }
+    expected_snapshot = {
+        'id': '4257fa2350168c6bfec726a06452ea27a2c0cb33',
+        'branches': expected_branches,
+    }
+
+    check_snapshot(expected_snapshot, storage=loader.storage)
