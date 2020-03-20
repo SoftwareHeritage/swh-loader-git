@@ -1,4 +1,4 @@
-# Copyright (C) 2019  The Software Heritage developers
+# Copyright (C) 2019-2020  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -26,13 +26,15 @@ def test_deposit_init_ok(swh_config, swh_loader_config):
     assert loader.client.base_url == swh_loader_config['deposit']['url']
 
 
-def test_deposit_loading_failure_to_fetch_metadata(swh_config):
-    """Error during fetching artifact ends us with failed/partial visit
+def test_deposit_loading_unknown_deposit(
+        swh_config, requests_mock_datadir):
+    """Loading an unknown deposit should fail
 
+    no origin, no visit, no snapshot
     """
     # private api url form: 'https://deposit.s.o/1/private/hal/666/raw/'
     url = 'some-url'
-    unknown_deposit_id = 666
+    unknown_deposit_id = 667
     loader = DepositLoader(url, unknown_deposit_id)  # does not exist
 
     actual_load_status = loader.load()
@@ -43,18 +45,14 @@ def test_deposit_loading_failure_to_fetch_metadata(swh_config):
     assert {
         'content': 0,
         'directory': 0,
-        'origin': 1,
-        'origin_visit': 1,
+        'origin': 0,
+        'origin_visit': 0,
         'person': 0,
         'release': 0,
         'revision': 0,
         'skipped_content': 0,
         'snapshot': 0,
     } == stats
-
-    origin_visit = next(loader.storage.origin_visit_get(url))
-    assert origin_visit['status'] == 'partial'
-    assert origin_visit['type'] == 'deposit'
 
 
 requests_mock_datadir_missing_one = requests_mock_datadir_factory(ignore_urls=[

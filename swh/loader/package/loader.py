@@ -280,10 +280,6 @@ class PackageLoader:
             known_artifacts = self.known_artifacts(last_snapshot)
             logger.debug('known artifacts: %s', known_artifacts)
 
-            # Retrieve the default release version (the "latest" one)
-            default_version = self.get_default_version()
-            logger.debug('default version: %s', default_version)
-
             for version in self.get_versions():  # for each
                 logger.debug('version: %s', version)
                 tmp_revisions[version] = []
@@ -304,20 +300,26 @@ class PackageLoader:
 
                     tmp_revisions[version].append((branch_name, revision_id))
 
-            snapshot = self._load_snapshot(default_version, tmp_revisions)
-            if hasattr(self.storage, 'flush'):
-                self.storage.flush()
         except Exception:
             logger.exception('Fail to load %s' % self.url)
             status_visit = 'partial'
             status_load = 'failed'
         finally:
+            # Retrieve the default release version (the "latest" one)
+            default_version = self.get_default_version()
+            logger.debug('default version: %s', default_version)
+            extra_branches = self.extra_branches()
+            logger.debug('extra branches: %s', extra_branches)
+            snapshot = self._load_snapshot(
+                default_version, tmp_revisions, extra_branches)
+            if hasattr(self.storage, 'flush'):
+                self.storage.flush()
             self.storage.origin_visit_update(
                 origin=self.url, visit_id=visit.visit, status=status_visit,
                 snapshot=snapshot and snapshot.id)
-        result = {
+        result: Dict[str, Any] = {
             'status': status_load,
-        }  # type: Dict[str, Any]
+        }
         if snapshot:
             result['snapshot_id'] = hash_to_hex(snapshot.id)
         return result
@@ -402,9 +404,11 @@ class PackageLoader:
 
     def _load_snapshot(
             self, default_version: str,
-            revisions: Dict[str, List[Tuple[str, bytes]]]) -> Snapshot:
-        """Build snapshot out of the current revisions stored. Then load it in
-           the storage.
+            revisions: Dict[str, List[Tuple[str, bytes]]],
+            extra_branches: Dict[bytes, Mapping[str, Any]]
+    ) -> Optional[Snapshot]:
+        """Build snapshot out of the current revisions stored and extra branches.
+           Then load it in the storage.
 
         """
         logger.debug('revisions: %s', revisions)
@@ -430,7 +434,7 @@ class PackageLoader:
                 }
 
         # Deal with extra-branches
-        for name, branch_target in self.extra_branches().items():
+        for name, branch_target in extra_branches.items():
             if name in branches:
                 logger.error("Extra branch '%s' has been ignored",
                              name)

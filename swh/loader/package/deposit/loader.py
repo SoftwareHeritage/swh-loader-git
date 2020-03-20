@@ -1,4 +1,4 @@
-# Copyright (C) 2019  The Software Heritage developers
+# Copyright (C) 2019-2020  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -42,13 +42,7 @@ class DepositLoader(PackageLoader):
         self.deposit_id = deposit_id
         self.client = ApiClient(url=config_deposit['url'],
                                 auth=config_deposit['auth'])
-        self._metadata = None
-
-    @property
-    def metadata(self):
-        if self._metadata is None:
-            self._metadata = self.client.metadata_get(self.deposit_id)
-        return self._metadata
+        self.metadata: Dict[str, Any] = {}
 
     def get_versions(self) -> Sequence[str]:
         # only 1 branch 'HEAD' with no alias since we only have 1 snapshot
@@ -103,7 +97,13 @@ class DepositLoader(PackageLoader):
         )
 
     def load(self) -> Dict:
-        # Usual loading
+        # First making sure the deposit is known prior to trigger a loading
+        try:
+            self.metadata = self.client.metadata_get(self.deposit_id)
+        except ValueError:
+            logger.error(f'Unknown deposit {self.deposit_id}, ignoring')
+            return {'status': 'failed'}
+        # Then usual loading
         r = super().load()
         success = r['status'] != 'failed'
 
