@@ -304,44 +304,7 @@ class PackageLoader:
 
                     tmp_revisions[version].append((branch_name, revision_id))
 
-            logger.debug('tmp_revisions: %s', tmp_revisions)
-            # Build and load the snapshot
-            branches = {}  # type: Dict[bytes, Mapping[str, Any]]
-            for version, branch_name_revisions in tmp_revisions.items():
-                if version == default_version and \
-                   len(branch_name_revisions) == 1:
-                    # only 1 branch (no ambiguity), we can create an alias
-                    # branch 'HEAD'
-                    branch_name, _ = branch_name_revisions[0]
-                    # except for some corner case (deposit)
-                    if branch_name != 'HEAD':
-                        branches[b'HEAD'] = {
-                            'target_type': 'alias',
-                            'target': branch_name.encode('utf-8'),
-                        }
-
-                for branch_name, target in branch_name_revisions:
-                    branches[branch_name.encode('utf-8')] = {
-                        'target_type': 'revision',
-                        'target': target,
-                    }
-
-            for name, target in self.extra_branches().items():
-                if name in branches:
-                    logger.error("Extra branch '%s' has been ignored",
-                                 name)
-                else:
-                    branches[name] = target
-
-            snapshot_data = {
-                'branches': branches
-            }
-            logger.debug('snapshot: %s', snapshot_data)
-
-            snapshot = Snapshot.from_dict(snapshot_data)
-
-            logger.debug('snapshot: %s', snapshot)
-            self.storage.snapshot_add([snapshot])
+            snapshot = self._load_snapshot(default_version, tmp_revisions)
             if hasattr(self.storage, 'flush'):
                 self.storage.flush()
         except Exception:
@@ -436,3 +399,50 @@ class PackageLoader:
         self.storage.revision_add([revision])
 
         return (revision.id, True)
+
+    def _load_snapshot(
+            self, default_version: str,
+            revisions: Dict[str, List[Tuple[str, bytes]]]) -> Snapshot:
+        """Build snapshot out of the current revisions stored. Then load it in
+           the storage.
+
+        """
+        logger.debug('revisions: %s', revisions)
+        # Build and load the snapshot
+        branches = {}  # type: Dict[bytes, Mapping[str, Any]]
+        for version, branch_name_revisions in revisions.items():
+            if version == default_version and \
+               len(branch_name_revisions) == 1:
+                # only 1 branch (no ambiguity), we can create an alias
+                # branch 'HEAD'
+                branch_name, _ = branch_name_revisions[0]
+                # except for some corner case (deposit)
+                if branch_name != 'HEAD':
+                    branches[b'HEAD'] = {
+                        'target_type': 'alias',
+                        'target': branch_name.encode('utf-8'),
+                    }
+
+            for branch_name, target in branch_name_revisions:
+                branches[branch_name.encode('utf-8')] = {
+                    'target_type': 'revision',
+                    'target': target,
+                }
+
+        # Deal with extra-branches
+        for name, branch_target in self.extra_branches().items():
+            if name in branches:
+                logger.error("Extra branch '%s' has been ignored",
+                             name)
+            else:
+                branches[name] = branch_target
+
+        snapshot_data = {
+            'branches': branches
+        }
+        logger.debug('snapshot: %s', snapshot_data)
+        snapshot = Snapshot.from_dict(snapshot_data)
+        logger.debug('snapshot: %s', snapshot)
+        self.storage.snapshot_add([snapshot])
+
+        return snapshot
