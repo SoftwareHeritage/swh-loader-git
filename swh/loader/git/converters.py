@@ -94,11 +94,11 @@ def dulwich_tsinfo_to_timestamp(
     Software Heritage"""
     return TimestampWithTimezone(
         timestamp=Timestamp(
-            seconds=timestamp,
+            seconds=int(timestamp),
             microseconds=0,
         ),
         offset=timezone // 60,
-        negative_utc=timezone_neg_utc if timezone == 0 else None,
+        negative_utc=timezone_neg_utc if timezone == 0 else False,
     )
 
 
