@@ -545,7 +545,7 @@ def test_npm_artifact_with_no_upload_time(swh_config, requests_mock_datadir):
     loader = NpmLoader(url)
 
     actual_load_status = loader.load()
-    assert actual_load_status['status'] == 'failed'
+    assert actual_load_status['status'] == 'uneventful'
 
     # no branch as one artifact without any intrinsic metadata
     expected_snapshot = {

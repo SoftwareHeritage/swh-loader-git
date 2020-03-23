@@ -240,9 +240,7 @@ def test_release_with_traceback(swh_config, requests_mock_datadir):
         loader = PyPILoader(url)
 
         actual_load_status = loader.load()
-        assert actual_load_status['status'] == 'failed'
-        assert actual_load_status[
-            'snapshot_id'] == '1a8893e6a86f444e8be8e7bda6cb34fb1735a00e'
+        assert actual_load_status == {'status': 'failed'}
 
         stats = get_stats(loader.storage)
 
@@ -255,7 +253,7 @@ def test_release_with_traceback(swh_config, requests_mock_datadir):
             'release': 0,
             'revision': 0,
             'skipped_content': 0,
-            'snapshot': 1,
+            'snapshot': 0,
         } == stats
 
     origin_visit = next(loader.storage.origin_visit_get(url))
