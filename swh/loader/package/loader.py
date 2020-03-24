@@ -341,7 +341,7 @@ class PackageLoader:
 
         if not tmp_revisions:
             # We could not load any revisions; fail completely
-            status_visit = 'failed'
+            status_visit = 'partial'
             status_load = 'failed'
             return finalize_visit()
 

@@ -1,0 +1,20 @@
+{
+  "_id": "catify",
+  "_rev": "1-67058d22a9c3398032ee164ad49cd3db",
+  "name": "catify",
+  "time": {
+    "modified": "2017-08-23T00:06:59.080Z",
+    "created": "2014-04-03T23:11:33.508Z"
+  },
+  "maintainers": [
+    {
+      "email": "shawn@andgoodwork.com",
+      "name": "shawnhilgart"
+    }
+  ],
+  "description": "Middleware that redirects users at random to a cat gif.",
+  "readme": "catify\n======\n\nMiddleware that redirects users at random to a cat gif.\n\n## Usage\n\n```javascript\n\nvar catify = require('catify');\nvar express = require('express');\nvar app = new express();\n\napp.use(catify(50)); // catify accepts one argument for probability\n\n```\n\n",
+  "versions": {},
+  "dist-tags": {},
+  "readmeFilename": ""
+}
