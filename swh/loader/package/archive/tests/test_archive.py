@@ -1,4 +1,4 @@
-# Copyright (C) 2019 The Software Heritage developers
+# Copyright (C) 2019-2020 The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -114,7 +114,7 @@ def visit_with_no_artifact_found(swh_config, requests_mock_datadir):
         'snapshot': 1,
     } == stats
 
-    origin_visit = next(loader.storage.origin_visit_get(url))
+    origin_visit = loader.storage.origin_visit_get_latest(url)
     assert origin_visit['status'] == 'partial'
     assert origin_visit['type'] == 'tar'
 
@@ -200,7 +200,7 @@ def test_2_visits_without_change(swh_config, requests_mock_datadir):
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
     assert actual_load_status['snapshot_id'] is not None
-    origin_visit = list(loader.storage.origin_visit_get(url))[-1]
+    origin_visit = loader.storage.origin_visit_get_latest(url)
     assert origin_visit['status'] == 'full'
     assert origin_visit['type'] == 'tar'
 
@@ -211,7 +211,7 @@ def test_2_visits_without_change(swh_config, requests_mock_datadir):
     assert actual_load_status['snapshot_id'] == actual_load_status2[
         'snapshot_id']
 
-    origin_visit2 = list(loader.storage.origin_visit_get(url))[-1]
+    origin_visit2 = loader.storage.origin_visit_get_latest(url)
     assert origin_visit2['status'] == 'full'
     assert origin_visit2['type'] == 'tar'
 
@@ -234,7 +234,7 @@ def test_2_visits_with_new_artifact(swh_config, requests_mock_datadir):
     assert actual_load_status['status'] == 'eventful'
     assert actual_load_status['snapshot_id'] is not None
 
-    origin_visit = list(loader.storage.origin_visit_get(url))[-1]
+    origin_visit = loader.storage.origin_visit_get_latest(url)
     assert origin_visit['status'] == 'full'
     assert origin_visit['type'] == 'tar'
 
@@ -288,7 +288,7 @@ def test_2_visits_with_new_artifact(swh_config, requests_mock_datadir):
         'snapshot': 1 + 1,
     } == stats2
 
-    origin_visit2 = list(loader.storage.origin_visit_get(url))[-1]
+    origin_visit2 = loader.storage.origin_visit_get_latest(url)
     assert origin_visit2['status'] == 'full'
     assert origin_visit2['type'] == 'tar'
 
@@ -326,7 +326,7 @@ def test_2_visits_without_change_not_gnu(swh_config, requests_mock_datadir):
     actual_load_status = loader.load()
     assert actual_load_status['status'] == 'eventful'
     assert actual_load_status['snapshot_id'] is not None
-    origin_visit = list(loader.storage.origin_visit_get(url))[-1]
+    origin_visit = loader.storage.origin_visit_get_latest(url)
     assert origin_visit['status'] == 'full'
     assert origin_visit['type'] == 'tar'
 
@@ -334,7 +334,7 @@ def test_2_visits_without_change_not_gnu(swh_config, requests_mock_datadir):
     assert actual_load_status2['status'] == 'uneventful'
     assert actual_load_status2['snapshot_id'] == actual_load_status[
         'snapshot_id']
-    origin_visit2 = list(loader.storage.origin_visit_get(url))[-1]
+    origin_visit2 = loader.storage.origin_visit_get_latest(url)
     assert origin_visit2['status'] == 'full'
     assert origin_visit2['type'] == 'tar'
 

@@ -224,7 +224,7 @@ def test_no_release_artifact(swh_config, requests_mock_datadir_missing_all):
         'snapshot': 1,
     } == stats
 
-    origin_visit = next(loader.storage.origin_visit_get(url))
+    origin_visit = loader.storage.origin_visit_get_latest(url)
     assert origin_visit['status'] == 'partial'
     assert origin_visit['type'] == 'pypi'
 
@@ -256,7 +256,7 @@ def test_release_with_traceback(swh_config, requests_mock_datadir):
             'snapshot': 0,
         } == stats
 
-    origin_visit = next(loader.storage.origin_visit_get(url))
+    origin_visit = loader.storage.origin_visit_get_latest(url)
     assert origin_visit['status'] == 'partial'
     assert origin_visit['type'] == 'pypi'
 
@@ -379,7 +379,7 @@ def test_visit_with_missing_artifact(
     }
     check_snapshot(expected_snapshot, storage=loader.storage)
 
-    origin_visit = next(loader.storage.origin_visit_get(url))
+    origin_visit = loader.storage.origin_visit_get_latest(url)
     assert origin_visit['status'] == 'partial'
     assert origin_visit['type'] == 'pypi'
 
@@ -460,7 +460,7 @@ def test_visit_with_1_release_artifact(swh_config, requests_mock_datadir):
     }
     check_snapshot(expected_snapshot, loader.storage)
 
-    origin_visit = next(loader.storage.origin_visit_get(url))
+    origin_visit = loader.storage.origin_visit_get_latest(url)
     assert origin_visit['status'] == 'full'
     assert origin_visit['type'] == 'pypi'
 
@@ -514,7 +514,7 @@ def test_multiple_visits_with_no_change(swh_config, requests_mock_datadir):
     }
     check_snapshot(expected_snapshot, loader.storage)
 
-    origin_visit = next(loader.storage.origin_visit_get(url))
+    origin_visit = loader.storage.origin_visit_get_latest(url)
     assert origin_visit['status'] == 'full'
     assert origin_visit['type'] == 'pypi'
 
@@ -549,7 +549,7 @@ def test_incremental_visit(swh_config, requests_mock_datadir_visits):
         'snapshot_id': expected_snapshot_id
     }
 
-    origin_visit1 = next(loader.storage.origin_visit_get(url))
+    origin_visit1 = loader.storage.origin_visit_get_latest(url)
     assert origin_visit1['status'] == 'full'
     assert origin_visit1['type'] == 'pypi'
 
@@ -654,7 +654,7 @@ def test_incremental_visit(swh_config, requests_mock_datadir_visits):
 
     check_snapshot(expected_snapshot, loader.storage)
 
-    origin_visit = list(loader.storage.origin_visit_get(url))[-1]
+    origin_visit = loader.storage.origin_visit_get_latest(url)
     assert origin_visit['status'] == 'full'
     assert origin_visit['type'] == 'pypi'
 
@@ -707,7 +707,7 @@ def test_visit_1_release_with_2_artifacts(swh_config, requests_mock_datadir):
     }
     check_snapshot(expected_snapshot, loader.storage)
 
-    origin_visit = next(loader.storage.origin_visit_get(url))
+    origin_visit = loader.storage.origin_visit_get_latest(url)
     assert origin_visit['status'] == 'full'
     assert origin_visit['type'] == 'pypi'
 
@@ -829,6 +829,6 @@ def test_pypi_artifact_with_no_intrinsic_metadata(
     }
     check_snapshot(expected_snapshot, loader.storage)
 
-    origin_visit = next(loader.storage.origin_visit_get(url))
+    origin_visit = loader.storage.origin_visit_get_latest(url)
     assert origin_visit['status'] == 'full'
     assert origin_visit['type'] == 'pypi'

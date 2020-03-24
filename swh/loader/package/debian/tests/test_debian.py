@@ -1,4 +1,4 @@
-# Copyright (C) 2019  The Software Heritage developers
+# Copyright (C) 2019-2020  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -151,7 +151,7 @@ def test_debian_first_visit_then_another_visit(
         'snapshot_id': expected_snapshot_id
     }
 
-    origin_visit = next(loader.storage.origin_visit_get(url))
+    origin_visit = loader.storage.origin_visit_get_latest(url)
     assert origin_visit['status'] == 'full'
     assert origin_visit['type'] == 'deb'
 
@@ -183,9 +183,9 @@ def test_debian_first_visit_then_another_visit(
     # No change in between load
     actual_load_status2 = loader.load()
     assert actual_load_status2['status'] == 'uneventful'
-    origin_visit2 = list(loader.storage.origin_visit_get(url))
-    assert origin_visit2[-1]['status'] == 'full'
-    assert origin_visit2[-1]['type'] == 'deb'
+    origin_visit2 = loader.storage.origin_visit_get_latest(url)
+    assert origin_visit2['status'] == 'full'
+    assert origin_visit2['type'] == 'deb'
 
     stats2 = get_stats(loader.storage)
     assert {
@@ -365,7 +365,7 @@ def test_debian_multiple_packages(swh_config, requests_mock_datadir):
         'snapshot_id': expected_snapshot_id
     }
 
-    origin_visit = next(loader.storage.origin_visit_get(url))
+    origin_visit = loader.storage.origin_visit_get_latest(url)
     assert origin_visit['status'] == 'full'
     assert origin_visit['type'] == 'deb'
 

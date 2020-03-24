@@ -183,7 +183,7 @@ def test_cran_one_visit(swh_config, requests_mock_datadir):
     }
     check_snapshot(expected_snapshot, loader.storage)
 
-    origin_visit = next(loader.storage.origin_visit_get(origin_url))
+    origin_visit = loader.storage.origin_visit_get_latest(origin_url)
     assert origin_visit['status'] == 'full'
     assert origin_visit['type'] == 'cran'
 
@@ -241,7 +241,7 @@ def test_cran_2_visits_same_origin(
     }
     check_snapshot(expected_snapshot, loader.storage)
 
-    origin_visit = next(loader.storage.origin_visit_get(origin_url))
+    origin_visit = loader.storage.origin_visit_get_latest(origin_url)
     assert origin_visit['status'] == 'full'
     assert origin_visit['type'] == 'cran'
 
@@ -266,7 +266,7 @@ def test_cran_2_visits_same_origin(
         'snapshot_id': expected_snapshot_id
     }
 
-    origin_visit2 = next(loader.storage.origin_visit_get(origin_url))
+    origin_visit2 = loader.storage.origin_visit_get_latest(origin_url)
     assert origin_visit2['status'] == 'full'
     assert origin_visit2['type'] == 'cran'
 

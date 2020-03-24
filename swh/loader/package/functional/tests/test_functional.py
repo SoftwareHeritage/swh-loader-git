@@ -51,7 +51,7 @@ def test_loader_one_visit(swh_config, requests_mock_datadir):
         'snapshot': 1
     } == stats
 
-    origin_visit = next(loader.storage.origin_visit_get(sources_url))
+    origin_visit = loader.storage.origin_visit_get_latest(sources_url)
     # The visit is partial because urls pointing to non tarball file
     # are not handled yet
     assert origin_visit['status'] == 'partial'
@@ -74,7 +74,7 @@ def test_uncompress_failure(swh_config, requests_mock_datadir):
     assert "https://example.com/file.txt" in urls
     assert loader_status['status'] == 'eventful'
 
-    origin_visit = next(loader.storage.origin_visit_get(sources_url))
+    origin_visit = loader.storage.origin_visit_get_latest(sources_url)
     # The visit is partial because urls pointing to non tarball files
     # are not handled yet
     assert origin_visit['status'] == 'partial'

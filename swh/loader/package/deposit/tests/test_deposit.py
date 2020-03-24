@@ -87,7 +87,7 @@ def test_deposit_loading_failure_to_retrieve_1_artifact(
         'snapshot': 1,
     } == stats
 
-    origin_visit = next(loader.storage.origin_visit_get(url))
+    origin_visit = loader.storage.origin_visit_get_latest(url)
     assert origin_visit['status'] == 'partial'
     assert origin_visit['type'] == 'deposit'
 
@@ -151,7 +151,7 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
         'snapshot': 1,
     } == stats
 
-    origin_visit = next(loader.storage.origin_visit_get(url))
+    origin_visit = loader.storage.origin_visit_get_latest(url)
     assert origin_visit['status'] == 'full'
     assert origin_visit['type'] == 'deposit'
 
