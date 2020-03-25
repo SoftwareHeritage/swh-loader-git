@@ -60,7 +60,7 @@ def test_run_help(swh_config):
     result = runner.invoke(run, ['-h'])
 
     assert result.exit_code == 0
-    expected_help_msg = """Usage: run [OPTIONS] [archive|cran|debian|deposit|functional|npm|pypi] URL
+    expected_help_msg = """Usage: run [OPTIONS] [archive|cran|debian|deposit|nixguix|npm|pypi] URL
            [OPTIONS]...
 
   Ingest with loader <type> the origin located at <url>
@@ -90,7 +90,7 @@ def test_list_help(mocker, swh_config):
     runner = CliRunner()
     result = runner.invoke(list, ['--help'])
     assert result.exit_code == 0
-    expected_help_msg = """Usage: list [OPTIONS] [[all|archive|cran|debian|deposit|functional|npm|pypi]]
+    expected_help_msg = """Usage: list [OPTIONS] [[all|archive|cran|debian|deposit|nixguix|npm|pypi]]
 
   List supported loaders and optionally their arguments
 

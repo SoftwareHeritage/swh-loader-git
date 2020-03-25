@@ -4,20 +4,20 @@
 # See top-level LICENSE file for more information
 
 
-def test_functional_loader(mocker, swh_app, celery_session_worker, swh_config):
+def test_nixguix_loader(mocker, swh_app, celery_session_worker, swh_config):
     mock_loader = mocker.patch(
-        'swh.loader.package.functional.loader.FunctionalLoader.load')
+        'swh.loader.package.nixguix.loader.NixGuixLoader.load')
     mock_loader.return_value = {'status': 'eventful'}
 
     mock_retrieve_sources = mocker.patch(
-        'swh.loader.package.functional.loader.retrieve_sources')
+        'swh.loader.package.nixguix.loader.retrieve_sources')
     mock_retrieve_sources.return_value = {
         'sources': [],
         'revision': 'some-revision'
     }
 
     res = swh_app.send_task(
-        'swh.loader.package.functional.tasks.LoadFunctional',
+        'swh.loader.package.nixguix.tasks.LoadNixguix',
         kwargs=dict(url='some-url'))
     assert res
     res.wait()

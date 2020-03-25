@@ -29,12 +29,12 @@ def retrieve_sources(url: str) -> Dict[str, Any]:
     return json.loads(response.content.decode('utf-8'))
 
 
-class FunctionalLoader(PackageLoader):
+class NixGuixLoader(PackageLoader):
     """Load sources from a sources.json file. This loader is used to load
     sources used by functional package manager (eg. Nix and Guix).
 
     """
-    visit_type = 'functional'
+    visit_type = 'nixguix'
 
     def __init__(self, url):
         super().__init__(url=url)

@@ -5,12 +5,12 @@
 
 from celery import shared_task
 
-from swh.loader.package.functional.loader import (
-    FunctionalLoader
+from swh.loader.package.nixguix.loader import (
+    NixGuixLoader
 )
 
 
-@shared_task(name=__name__ + '.LoadFunctional')
-def load_functional(*, url=None):
+@shared_task(name=__name__ + '.LoadNixguix')
+def load_nixguix(*, url=None):
     """Load functional (e.g. guix/nix) package"""
-    return FunctionalLoader(url).load()
+    return NixGuixLoader(url).load()

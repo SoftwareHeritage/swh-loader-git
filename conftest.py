@@ -72,5 +72,5 @@ def celery_includes():
         'swh.loader.package.deposit.tasks',
         'swh.loader.package.npm.tasks',
         'swh.loader.package.pypi.tasks',
-        'swh.loader.package.functional.tasks',
+        'swh.loader.package.nixguix.tasks',
     ]

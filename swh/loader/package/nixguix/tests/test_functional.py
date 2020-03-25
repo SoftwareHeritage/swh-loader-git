@@ -6,8 +6,8 @@
 import pytest
 from json.decoder import JSONDecodeError
 
-from swh.loader.package.functional.loader import (
-    FunctionalLoader, retrieve_sources
+from swh.loader.package.nixguix.loader import (
+    NixGuixLoader, retrieve_sources
 )
 
 from swh.loader.package.tests.common import (
@@ -25,16 +25,16 @@ def test_retrieve_sources(swh_config, requests_mock_datadir):
 
 def test_retrieve_non_existing(swh_config, requests_mock_datadir):
     with pytest.raises(ValueError):
-        FunctionalLoader('https://non-existing-url')
+        NixGuixLoader('https://non-existing-url')
 
 
 def test_retrieve_non_json(swh_config, requests_mock_datadir):
     with pytest.raises(JSONDecodeError):
-        FunctionalLoader('https://example.com/file.txt')
+        NixGuixLoader('https://example.com/file.txt')
 
 
 def test_loader_one_visit(swh_config, requests_mock_datadir):
-    loader = FunctionalLoader(sources_url)
+    loader = NixGuixLoader(sources_url)
     res = loader.load()
     assert res['status'] == 'eventful'
 
@@ -55,7 +55,7 @@ def test_loader_one_visit(swh_config, requests_mock_datadir):
     # The visit is partial because urls pointing to non tarball file
     # are not handled yet
     assert origin_visit['status'] == 'partial'
-    assert origin_visit['type'] == 'functional'
+    assert origin_visit['type'] == 'nixguix'
 
 
 def test_uncompress_failure(swh_config, requests_mock_datadir):
@@ -67,7 +67,7 @@ def test_uncompress_failure(swh_config, requests_mock_datadir):
     created (with a status partial since all files are not archived).
 
     """
-    loader = FunctionalLoader(sources_url)
+    loader = NixGuixLoader(sources_url)
     loader_status = loader.load()
 
     urls = [s['url'][0] for s in loader.sources]
@@ -85,10 +85,10 @@ def test_loader_incremental(swh_config, requests_mock_datadir):
     downloaded by the previous visit.
 
     """
-    loader = FunctionalLoader(sources_url)
+    loader = NixGuixLoader(sources_url)
     load_status = loader.load()
 
-    loader = FunctionalLoader(sources_url)
+    loader = NixGuixLoader(sources_url)
     loader.load()
     expected_snapshot_id = '0c5881c74283793ebe9a09a105a9381e41380383'
     assert load_status == {
@@ -130,7 +130,7 @@ def test_loader_two_visits(swh_config, requests_mock_datadir_visits):
     another tarball.
 
     """
-    loader = FunctionalLoader(sources_url)
+    loader = NixGuixLoader(sources_url)
     load_status = loader.load()
     expected_snapshot_id = '0c5881c74283793ebe9a09a105a9381e41380383'
     assert load_status == {
@@ -168,7 +168,7 @@ def test_loader_two_visits(swh_config, requests_mock_datadir_visits):
         'snapshot': 1
     } == stats
 
-    loader = FunctionalLoader(sources_url)
+    loader = NixGuixLoader(sources_url)
     load_status = loader.load()
     expected_snapshot_id = 'b0bfa75cbd0cc90aac3b9e95fb0f59c731176d97'
     assert load_status == {
@@ -215,7 +215,7 @@ def test_loader_two_visits(swh_config, requests_mock_datadir_visits):
 
 
 def test_resolve_revision_from(swh_config, requests_mock_datadir):
-    loader = FunctionalLoader(sources_url)
+    loader = NixGuixLoader(sources_url)
 
     known_artifacts = {
         'id1': {'extrinsic': {'raw': {'url': "url1"}}},
@@ -229,7 +229,7 @@ def test_resolve_revision_from(swh_config, requests_mock_datadir):
 
 
 def test_evaluation_branch(swh_config, requests_mock_datadir):
-    loader = FunctionalLoader(sources_url)
+    loader = NixGuixLoader(sources_url)
     res = loader.load()
     assert res['status'] == 'eventful'
 
@@ -259,7 +259,7 @@ def test_eoferror(swh_config, requests_mock_datadir):
 
     """
     sources = "https://nix-community.github.io/nixpkgs-swh/sources-EOFError.json" # noqa
-    loader = FunctionalLoader(sources)
+    loader = NixGuixLoader(sources)
     loader.load()
 
     expected_branches = {

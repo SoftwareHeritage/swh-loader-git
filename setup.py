@@ -56,7 +56,7 @@ setup(
         loader.cran=swh.loader.package.cran:register
         loader.debian=swh.loader.package.debian:register
         loader.deposit=swh.loader.package.deposit:register
-        loader.functional=swh.loader.package.functional:register
+        loader.nixguix=swh.loader.package.nixguix:register
         loader.npm=swh.loader.package.npm:register
         loader.pypi=swh.loader.package.pypi:register
         [swh.cli.subcommands]
