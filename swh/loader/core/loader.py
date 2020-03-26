@@ -415,6 +415,4 @@ class DVCSLoader(BaseLoader):
         self.flush()  # to ensure the snapshot targets existing objects
         snapshot = self.get_snapshot()
         self.storage.snapshot_add([snapshot])
-        self.storage.origin_visit_update(
-            self.origin.url, self.visit.visit, snapshot=snapshot.id)
         self.flush()
