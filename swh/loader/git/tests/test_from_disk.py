@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2019  The Software Heritage developers
+# Copyright (C) 2018-2020  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -12,6 +12,7 @@ from swh.loader.git.from_disk import GitLoaderFromDisk \
 from swh.loader.git.from_disk import GitLoaderFromArchive \
     as OrigGitLoaderFromArchive
 from swh.loader.core.tests import BaseLoaderTest
+from swh.model.hashutil import hash_to_bytes
 
 from . import TEST_LOADER_CONFIG
 
@@ -171,15 +172,27 @@ class GitLoaderFromDiskTests:
         self.assertEqual(self.loader.load_status(), {'status': 'eventful'})
         self.assertEqual(self.loader.visit_status(), 'full')
 
+        visit = self.storage.origin_visit_get_latest(self.repo_url)
+        self.assertEqual(visit['snapshot'], hash_to_bytes(SNAPSHOT1['id']))
+        self.assertEqual(visit['status'], 'full')
+
     def test_load_unchanged(self):
         """Checks loading a repository a second time does not add
         any extra data."""
         res = self.load()
         self.assertEqual(res['status'], 'eventful')
 
+        visit = self.storage.origin_visit_get_latest(self.repo_url)
+        self.assertEqual(visit['snapshot'], hash_to_bytes(SNAPSHOT1['id']))
+        self.assertEqual(visit['status'], 'full')
+
         res = self.load()
         self.assertEqual(res['status'], 'uneventful')
         self.assertCountSnapshots(1)
+
+        visit = self.storage.origin_visit_get_latest(self.repo_url)
+        self.assertEqual(visit['snapshot'], hash_to_bytes(SNAPSHOT1['id']))
+        self.assertEqual(visit['status'], 'full')
 
 
 class DirGitLoaderTest(BaseDirGitLoaderFromDiskTest, GitLoaderFromDiskTests):
@@ -236,6 +249,10 @@ class DirGitLoaderTest(BaseDirGitLoaderFromDiskTest, GitLoaderFromDiskTests):
         self.assertEqual(self.loader.load_status(), {'status': 'eventful'})
         self.assertEqual(self.loader.visit_status(), 'full')
 
+        visit = self.storage.origin_visit_get_latest(self.repo_url)
+        self.assertIsNotNone(visit['snapshot'])
+        self.assertEqual(visit['status'], 'full')
+
         # Load with a new merge
         self._git('merge', 'branch1', '-m', 'merge')
         new_revision = self._git('rev-parse', 'master').decode().strip()
@@ -259,6 +276,10 @@ class DirGitLoaderTest(BaseDirGitLoaderFromDiskTest, GitLoaderFromDiskTests):
 
         self.assertEqual(self.loader.load_status(), {'status': 'eventful'})
         self.assertEqual(self.loader.visit_status(), 'full')
+
+        visit = self.storage.origin_visit_get_latest(self.repo_url)
+        self.assertIsNotNone(visit['snapshot'])
+        self.assertEqual(visit['status'], 'full')
 
 
 class GitLoaderFromArchiveTest(BaseGitLoaderFromArchiveTest,
