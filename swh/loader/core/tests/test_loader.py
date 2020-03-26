@@ -26,6 +26,9 @@ class DummyLoader:
     def store_data(self):
         pass
 
+    def get_snapshot_id(self):
+        return None
+
     def prepare_origin_visit(self, *args, **kwargs):
         origin = Origin(url='some-url')
         self.origin = origin

@@ -14,7 +14,8 @@ from typing import Any, Dict, Iterable, Optional, Tuple, Union
 from swh.core import config
 from swh.model.model import (
     BaseContent, Content, SkippedContent, Directory, Origin, Revision,
-    Release, Snapshot)
+    Release, Sha1Git, Snapshot
+)
 from swh.storage import get_storage
 
 
@@ -254,6 +255,10 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
         """
         return 'full'
 
+    def get_snapshot_id(self) -> Optional[Sha1Git]:
+        """Get the snapshot id that needs to be loaded"""
+        raise NotImplementedError
+
     def pre_cleanup(self) -> None:
         """As a first step, will try and check for dangling data to cleanup.
         This should do its best to avoid raising issues.
@@ -301,7 +306,8 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
 
             self.store_metadata()
             self.storage.origin_visit_update(
-                self.origin.url, self.visit.visit, self.visit_status()
+                self.origin.url, self.visit.visit, self.visit_status(),
+                snapshot=self.get_snapshot_id()
             )
             self.post_load()
         except Exception:
@@ -311,7 +317,8 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
                                    'swh_task_kwargs': kwargs,
                                })
             self.storage.origin_visit_update(
-                self.origin.url, self.visit.visit, 'partial'
+                self.origin.url, self.visit.visit, 'partial',
+                snapshot=self.get_snapshot_id()
             )
             self.post_load(success=False)
             return {'status': 'failed'}
@@ -373,6 +380,10 @@ class DVCSLoader(BaseLoader):
     def get_snapshot(self) -> Snapshot:
         """Get the snapshot that needs to be loaded"""
         raise NotImplementedError
+
+    def get_snapshot_id(self) -> Optional[Sha1Git]:
+        snapshot = self.get_snapshot()
+        return snapshot.id if snapshot else None
 
     def eventful(self) -> bool:
         """Whether the load was eventful"""
