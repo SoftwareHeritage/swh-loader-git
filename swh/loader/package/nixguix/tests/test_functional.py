@@ -88,7 +88,6 @@ def test_loader_incremental(swh_config, requests_mock_datadir):
     loader = NixGuixLoader(sources_url)
     load_status = loader.load()
 
-    loader = NixGuixLoader(sources_url)
     loader.load()
     expected_snapshot_id = '0c5881c74283793ebe9a09a105a9381e41380383'
     assert load_status == {
@@ -218,13 +217,17 @@ def test_resolve_revision_from(swh_config, requests_mock_datadir):
     loader = NixGuixLoader(sources_url)
 
     known_artifacts = {
-        'id1': {'extrinsic': {'raw': {'url': "url1"}}},
-        'id2': {'extrinsic': {'raw': {'url': "url2"}}}
+        'id1': {'extrinsic': {'raw': {
+            'url': "url1",
+            'integrity': 'integrity1'}}},
+        'id2': {'extrinsic': {'raw': {
+            'url': "url2",
+            'integrity': 'integrity2'}}},
         }
 
-    metadata = {'url': 'url1'}
+    metadata = {'url': 'url1', 'integrity': 'integrity1'}
     assert loader.resolve_revision_from(known_artifacts, metadata) == 'id1'
-    metadata = {'url': 'url3'}
+    metadata = {'url': 'url3', 'integrity': 'integrity3'}
     assert loader.resolve_revision_from(known_artifacts, metadata) == None # noqa
 
 

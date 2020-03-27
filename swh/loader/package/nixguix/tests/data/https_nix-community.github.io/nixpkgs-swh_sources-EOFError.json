@@ -2,7 +2,8 @@
   "sources": [
     {
       "type": "url",
-      "url": [ "https://fail.com/truncated-archive.tgz" ]
+      "url": [ "https://fail.com/truncated-archive.tgz" ],
+      "integrity": "sha256-UB+RzIn63O0WxzqohYeWZRRzYCxyK7Kfhqi6WI0P8bE="
     }
  ],
     "version": 1,

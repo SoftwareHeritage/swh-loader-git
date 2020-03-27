@@ -41,6 +41,10 @@ class NixGuixLoader(PackageLoader):
         s = retrieve_sources(url)
         self.sources = s['sources']
         self.provider_url = url
+
+        self._integrityByUrl = {s['url'][0]: s['integrity']
+                                for s in self.sources}
+
         # The revision used to create the sources.json file. For Nix,
         # this revision belongs to the github.com/nixos/nixpkgs
         # repository
@@ -49,24 +53,32 @@ class NixGuixLoader(PackageLoader):
     # Note: this could be renamed get_artifacts in the PackageLoader
     # base class.
     def get_versions(self):
+        """The first mirror of the mirror list is used as branch name in the
+        snapshot.
+
+        """
+        return self._integrityByUrl.keys()
+
+    # Note: this could be renamed get_artifact_info in the PackageLoader
+    # base class.
+    def get_package_info(self, url):
         # TODO: try all mirrors and not only the first one. A source
         # can be fetched from several urls, called mirrors. We
         # currently only use the first one, but if the first one
         # fails, we should try the second one and so on.
-        return [s['url'][0] for s in self.sources]
-
-    # Note: this could be renamed get_artifact_info in the PackageLoader
-    # base class.
-    def get_package_info(self, source):
-        # TODO: we need to provide the sha256 of the source also
-        yield source, {'url': source, 'raw': {'url': source}}
+        integrity = self._integrityByUrl[url]
+        yield url, {'url': url,
+                    'raw': {
+                        'url': url,
+                        'integrity': integrity}}
 
     def resolve_revision_from(
             self, known_artifacts: Dict, artifact_metadata: Dict) \
             -> Optional[bytes]:
+
         for rev_id, known_artifact in known_artifacts.items():
-            known_url = known_artifact['extrinsic']['raw']['url']
-            if artifact_metadata['url'] == known_url:
+            known_integrity = known_artifact['extrinsic']['raw']['integrity']
+            if artifact_metadata['integrity'] == known_integrity:
                 return rev_id
         return None
 
