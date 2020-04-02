@@ -70,7 +70,7 @@ def test_uncompress_failure(swh_config, requests_mock_datadir):
     loader = NixGuixLoader(sources_url)
     loader_status = loader.load()
 
-    urls = [s['url'][0] for s in loader.sources]
+    urls = [s['urls'][0] for s in loader.sources]
     assert "https://example.com/file.txt" in urls
     assert loader_status['status'] == 'eventful'
 

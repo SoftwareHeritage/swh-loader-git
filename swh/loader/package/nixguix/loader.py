@@ -42,7 +42,7 @@ class NixGuixLoader(PackageLoader):
         self.sources = s['sources']
         self.provider_url = url
 
-        self._integrityByUrl = {s['url'][0]: s['integrity']
+        self._integrityByUrl = {s['urls'][0]: s['integrity']
                                 for s in self.sources}
 
         # The revision used to create the sources.json file. For Nix,
