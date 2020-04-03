@@ -12,6 +12,7 @@ def test_nixguix_loader(mocker, swh_app, celery_session_worker, swh_config):
     mock_retrieve_sources = mocker.patch(
         'swh.loader.package.nixguix.loader.retrieve_sources')
     mock_retrieve_sources.return_value = {
+        'version': 1,
         'sources': [],
         'revision': 'some-revision'
     }

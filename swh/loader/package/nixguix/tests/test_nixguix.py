@@ -7,7 +7,7 @@ import pytest
 from json.decoder import JSONDecodeError
 
 from swh.loader.package.nixguix.loader import (
-    NixGuixLoader, retrieve_sources
+    NixGuixLoader, retrieve_sources, clean_sources
 )
 
 from swh.loader.package.tests.common import (
@@ -31,6 +31,60 @@ def test_retrieve_non_existing(swh_config, requests_mock_datadir):
 def test_retrieve_non_json(swh_config, requests_mock_datadir):
     with pytest.raises(JSONDecodeError):
         NixGuixLoader('https://example.com/file.txt')
+
+
+def test_clean_sources_invalid_schema(swh_config, requests_mock_datadir):
+    sources = {}
+    with pytest.raises(ValueError,
+                       match="sources structure invalid, missing: .*"):
+        clean_sources(sources)
+
+
+def test_clean_sources_invalid_version(swh_config, requests_mock_datadir):
+    sources = {
+        'version': 2,
+        'sources': [],
+        'revision': 'my-revision'
+    }
+
+    with pytest.raises(ValueError,
+                       match="sources structure version .* is not supported"):
+        clean_sources(sources)
+
+
+def test_clean_sources_invalid_sources(swh_config, requests_mock_datadir):
+    sources = {
+        'version': 1,
+        'sources': [
+            # Valid source
+            {
+                'type': 'url',
+                'urls': ['my-url'],
+                'integrity': 'my-integrity'
+            },
+            # integrity is missing
+            {
+                'type': 'url',
+                'urls': ['my-url'],
+            },
+            # urls is not a list
+            {
+                'type': 'url',
+                'urls': 'my-url',
+                'integrity': 'my-integrity'
+            },
+            # type is not url
+            {
+                'type': 'git',
+                'urls': ['my-url'],
+                'integrity': 'my-integrity'
+            }
+        ],
+        'revision': 'my-revision'
+    }
+    clean = clean_sources(sources)
+
+    assert len(clean['sources']) == 1
 
 
 def test_loader_one_visit(swh_config, requests_mock_datadir):
