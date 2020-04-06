@@ -85,36 +85,7 @@ def dulwich_tree_to_directory(tree, log=None) -> Directory:
 
 def parse_author(name_email: bytes) -> Person:
     """Parse an author line"""
-    if name_email is None:
-        raise ValueError('fullname is None')
-
-    try:
-        open_bracket = name_email.index(b'<')
-    except ValueError:
-        name = email = None
-    else:
-        raw_name = name_email[:open_bracket]
-        raw_email = name_email[open_bracket+1:]
-
-        if not raw_name:
-            name = None
-        elif raw_name.endswith(b' '):
-            name = raw_name[:-1]
-        else:
-            name = raw_name
-
-        try:
-            close_bracket = raw_email.index(b'>')
-        except ValueError:
-            email = None
-        else:
-            email = raw_email[:close_bracket]
-
-    return Person(
-        name=name,
-        email=email,
-        fullname=name_email,
-    )
+    return Person.from_fullname(name_email)
 
 
 def dulwich_tsinfo_to_timestamp(
@@ -123,11 +94,11 @@ def dulwich_tsinfo_to_timestamp(
     Software Heritage"""
     return TimestampWithTimezone(
         timestamp=Timestamp(
-            seconds=timestamp,
+            seconds=int(timestamp),
             microseconds=0,
         ),
         offset=timezone // 60,
-        negative_utc=timezone_neg_utc if timezone == 0 else None,
+        negative_utc=timezone_neg_utc if timezone == 0 else False,
     )
 
 

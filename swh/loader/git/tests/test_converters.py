@@ -143,7 +143,7 @@ class TestConverters(unittest.TestCase):
                     seconds=1443083765,
                     microseconds=0,
                 ),
-                negative_utc=None,
+                negative_utc=False,
                 offset=120,
             ),
             message=b'add submodule dependency\n',
@@ -153,7 +153,7 @@ class TestConverters(unittest.TestCase):
                     seconds=1443083765,
                     microseconds=0,
                 ),
-                negative_utc=None,
+                negative_utc=False,
                 offset=120,
             ),
             parents=[
@@ -166,7 +166,7 @@ class TestConverters(unittest.TestCase):
 
     def test_author_line_to_author(self):
         # edge case out of the way
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             converters.parse_author(None)
 
         tests = {
@@ -182,7 +182,7 @@ class TestConverters(unittest.TestCase):
             ),
             b'malformed <email': Person(
                 name=b'malformed',
-                email=None,
+                email=b'email',
                 fullname=b'malformed <email'
             ),
             b'trailing <sp@c.e> ': Person(
@@ -196,12 +196,12 @@ class TestConverters(unittest.TestCase):
                 fullname=b'no<sp@c.e>',
             ),
             b' <>': Person(
-                name=b'',
-                email=b'',
+                name=None,
+                email=None,
                 fullname=b' <>',
             ),
             b'something': Person(
-                name=None,
+                name=b'something',
                 email=None,
                 fullname=b'something'
             )
@@ -215,7 +215,7 @@ class TestConverters(unittest.TestCase):
     def test_dulwich_tag_to_release_no_author_no_date(self):
         target = b'641fb6e08ddb2e4fd096dcf18e80b894bf'
         message = b'some release message'
-        tag = SWHTag(name='blah',
+        tag = SWHTag(name=b'blah',
                      type_name=b'tag',
                      target=target,
                      target_type=b'commit',
@@ -233,7 +233,7 @@ class TestConverters(unittest.TestCase):
             id=b'\xda9\xa3\xee^kK\r2U\xbf\xef\x95`\x18\x90\xaf\xd8\x07\t',
             message=message,
             metadata=None,
-            name='blah',
+            name=b'blah',
             synthetic=False,
             target=hash_to_bytes(target.decode()),
             target_type=ObjectType.REVISION,
@@ -251,7 +251,7 @@ class TestConverters(unittest.TestCase):
             2007, 12, 5, tzinfo=datetime.timezone.utc
         ).timestamp()
 
-        tag = SWHTag(name='blah',
+        tag = SWHTag(name=b'blah',
                      type_name=b'tag',
                      target=target,
                      target_type=b'commit',
@@ -281,7 +281,7 @@ class TestConverters(unittest.TestCase):
             id=b'\xda9\xa3\xee^kK\r2U\xbf\xef\x95`\x18\x90\xaf\xd8\x07\t',
             message=message,
             metadata=None,
-            name='blah',
+            name=b'blah',
             synthetic=False,
             target=hash_to_bytes(target.decode()),
             target_type=ObjectType.REVISION,
@@ -294,7 +294,7 @@ class TestConverters(unittest.TestCase):
         tagger = b'hey dude <hello@mail.org>'
         target = b'641fb6e08ddb2e4fd096dcf18e80b894bf'
         message = b'some release message'
-        tag = SWHTag(name='blah',
+        tag = SWHTag(name=b'blah',
                      type_name=b'tag',
                      target=target,
                      target_type=b'commit',
@@ -316,7 +316,7 @@ class TestConverters(unittest.TestCase):
             id=b'\xda9\xa3\xee^kK\r2U\xbf\xef\x95`\x18\x90\xaf\xd8\x07\t',
             message=message,
             metadata=None,
-            name='blah',
+            name=b'blah',
             synthetic=False,
             target=hash_to_bytes(target.decode()),
             target_type=ObjectType.REVISION,
