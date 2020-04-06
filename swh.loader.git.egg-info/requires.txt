@@ -4,7 +4,7 @@ vcversioner
 click
 swh.core>=0.0.7
 swh.loader.core>=0.0.78
-swh.model>=0.0.27
+swh.model>=0.0.60
 swh.scheduler>=0.0.39
 swh.storage>=0.0.108
 
