@@ -4,6 +4,9 @@
 # See top-level LICENSE file for more information
 
 import pytest
+
+from typing import Dict, Optional, Tuple
+
 from json.decoder import JSONDecodeError
 
 from swh.loader.package.nixguix.loader import (
@@ -13,6 +16,8 @@ from swh.loader.package.nixguix.loader import (
 )
 
 from swh.loader.package.tests.common import get_stats, check_snapshot
+from swh.loader.package.utils import download
+from swh.storage.exc import HashCollision
 
 sources_url = "https://nix-community.github.io/nixpkgs-swh/sources.json"
 
@@ -302,3 +307,62 @@ def test_eoferror(swh_config, requests_mock_datadir):
     }
 
     check_snapshot(expected_snapshot, storage=loader.storage)
+
+
+def fake_download(
+    url: str,
+    dest: str,
+    hashes: Dict = {},
+    filename: Optional[str] = None,
+    auth: Optional[Tuple[str, str]] = None,
+) -> Tuple[str, Dict]:
+    """Fake download which raises HashCollision (for the sake of test simpliciy,
+    let's accept that makes sense)
+
+    For tests purpose only.
+
+    """
+    if url == "https://example.com/file.txt":
+        # instead of failing because it's a file not dealt with by the nix guix
+        # loader, make it raise a hash collision
+        raise HashCollision("sha1", "f92d74e3874587aaf443d1db961d4e26dde13e9c", [])
+    return download(url, dest, hashes, filename, auth)
+
+
+def test_raise_exception(swh_config, requests_mock_datadir, mocker):
+    mock_download = mocker.patch("swh.loader.package.loader.download")
+    mock_download.side_effect = fake_download
+
+    loader = NixGuixLoader(sources_url)
+    res = loader.load()
+
+    expected_snapshot_id = "0c5881c74283793ebe9a09a105a9381e41380383"
+    assert res == {
+        "status": "eventful",
+        "snapshot_id": expected_snapshot_id,
+    }
+
+    expected_branches = {
+        "https://github.com/owner-1/repository-1/revision-1.tgz": {
+            "target": "488ad4e7b8e2511258725063cf43a2b897c503b4",
+            "target_type": "revision",
+        },
+        "evaluation": {
+            "target": "cc4e04c26672dd74e5fd0fecb78b435fb55368f7",
+            "target_type": "revision",
+        },
+    }
+    expected_snapshot = {
+        "id": expected_snapshot_id,
+        "branches": expected_branches,
+    }
+
+    check_snapshot(expected_snapshot, storage=loader.storage)
+
+    assert len(mock_download.mock_calls) == 2
+
+    origin_visit = loader.storage.origin_visit_get_latest(sources_url)
+
+    # The visit is partial because some hash collision were detected
+    assert origin_visit["status"] == "partial"
+    assert origin_visit["type"] == "nixguix"

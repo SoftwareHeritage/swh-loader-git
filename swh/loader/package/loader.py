@@ -317,7 +317,7 @@ class PackageLoader:
             status_load = "failed"
             return finalize_visit()
 
-        load_exceptions = []
+        load_exceptions: List[Exception] = []
 
         for version in self.get_versions():  # for each
             logger.debug("version: %s", version)
@@ -329,14 +329,18 @@ class PackageLoader:
                 if revision_id is None:
                     try:
                         revision_id = self._load_revision(p_info, origin)
-                        status_load = "eventful"
                     except Exception as e:
+                        self.storage.clear_buffers()
                         load_exceptions.append(e)
                         sentry_sdk.capture_exception(e)
                         logger.exception(
                             "Failed loading branch %s for %s", branch_name, self.url
                         )
                         continue
+                    else:
+                        # Flush loaded artifacts objects to storage
+                        self.storage.flush()
+                        status_load = "eventful"
 
                     if revision_id is None:
                         continue
@@ -439,7 +443,6 @@ class PackageLoader:
         logger.debug("Revision: %s", revision)
 
         self.storage.revision_add([revision])
-
         return revision.id
 
     def _load_snapshot(
