@@ -4,28 +4,24 @@
 # See top-level LICENSE file for more information
 
 TEST_LOADER_CONFIG = {
-    'storage': {
-        'cls': 'pipeline',
-        'steps': [
+    "storage": {
+        "cls": "pipeline",
+        "steps": [
+            {"cls": "filter"},
             {
-                'cls': 'filter'
-            },
-            {
-                'cls': 'buffer',
-                'min_batch_size': {
-                    'content': 10,
-                    'content_bytes': 100 * 1024 * 1024,
-                    'directory': 10,
-                    'revision': 10,
-                    'release': 10,
+                "cls": "buffer",
+                "min_batch_size": {
+                    "content": 10,
+                    "content_bytes": 100 * 1024 * 1024,
+                    "directory": 10,
+                    "revision": 10,
+                    "release": 10,
                 },
             },
-            {
-                'cls': 'memory'
-            },
-        ]
+            {"cls": "memory"},
+        ],
     },
-    'max_content_size': 100 * 1024 * 1024,
-    'pack_size_bytes': 4 * 1024 * 1024 * 1024,
-    'save_data': False,
+    "max_content_size": 100 * 1024 * 1024,
+    "pack_size_bytes": 4 * 1024 * 1024 * 1024,
+    "save_data": False,
 }

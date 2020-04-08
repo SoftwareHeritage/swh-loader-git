@@ -13,8 +13,7 @@ from dulwich.errors import ObjectFormatException, EmptyFileException
 from collections import defaultdict
 
 from swh.model import hashutil
-from swh.model.model import (
-    Origin, Snapshot, SnapshotBranch, TargetType)
+from swh.model.model import Origin, Snapshot, SnapshotBranch, TargetType
 from swh.loader.core.loader import DVCSLoader
 
 from . import converters, utils
@@ -25,12 +24,12 @@ class GitLoaderFromDisk(DVCSLoader):
 
     """
 
-    CONFIG_BASE_FILENAME = 'loader/git-disk'
+    CONFIG_BASE_FILENAME = "loader/git-disk"
 
-    visit_type = 'git'
+    visit_type = "git"
 
     def __init__(self, url, visit_date=None, directory=None, config=None):
-        super().__init__(logging_class='swh.loader.git.Loader', config=config)
+        super().__init__(logging_class="swh.loader.git.Loader", config=config)
         self.origin_url = url
         self.visit_date = visit_date
         self.directory = directory
@@ -65,6 +64,7 @@ class GitLoaderFromDisk(DVCSLoader):
         """
         obj.check()
         from dulwich.objects import Commit, Tag
+
         try:
             # For additional checks on dulwich objects with date
             # for now, only checks on *time
@@ -96,40 +96,47 @@ class GitLoaderFromDisk(DVCSLoader):
             # some we need to check ourselves
             self._check(obj)
         except KeyError:
-            _id = oid.decode('utf-8')
-            self.log.warn('object %s not found, skipping' % _id,
-                          extra={
-                              'swh_type': 'swh_loader_git_missing_object',
-                              'swh_object_id': _id,
-                              'origin_url': self.origin.url,
-                          })
+            _id = oid.decode("utf-8")
+            self.log.warn(
+                "object %s not found, skipping" % _id,
+                extra={
+                    "swh_type": "swh_loader_git_missing_object",
+                    "swh_object_id": _id,
+                    "origin_url": self.origin.url,
+                },
+            )
             return None
         except ObjectFormatException:
-            _id = oid.decode('utf-8')
-            self.log.warn('object %s malformed, skipping' % _id,
-                          extra={
-                              'swh_type': 'swh_loader_git_missing_object',
-                              'swh_object_id': _id,
-                              'origin_url': self.origin.url,
-                          })
+            _id = oid.decode("utf-8")
+            self.log.warn(
+                "object %s malformed, skipping" % _id,
+                extra={
+                    "swh_type": "swh_loader_git_missing_object",
+                    "swh_object_id": _id,
+                    "origin_url": self.origin.url,
+                },
+            )
             return None
         except EmptyFileException:
-            _id = oid.decode('utf-8')
-            self.log.warn('object %s corrupted (empty file), skipping' % _id,
-                          extra={
-                              'swh_type': 'swh_loader_git_missing_object',
-                              'swh_object_id': _id,
-                              'origin_url': self.origin.url,
-                          })
+            _id = oid.decode("utf-8")
+            self.log.warn(
+                "object %s corrupted (empty file), skipping" % _id,
+                extra={
+                    "swh_type": "swh_loader_git_missing_object",
+                    "swh_object_id": _id,
+                    "origin_url": self.origin.url,
+                },
+            )
         else:
             return obj
 
     def fetch_data(self):
         """Fetch the data from the data source"""
         previous_visit = self.storage.origin_visit_get_latest(
-            self.origin.url, require_snapshot=True)
+            self.origin.url, require_snapshot=True
+        )
         if previous_visit:
-            self.previous_snapshot_id = previous_visit['snapshot']
+            self.previous_snapshot_id = previous_visit["snapshot"]
         else:
             self.previous_snapshot_id = None
 
@@ -145,75 +152,80 @@ class GitLoaderFromDisk(DVCSLoader):
 
     def has_contents(self):
         """Checks whether we need to load contents"""
-        return bool(self.type_to_ids[b'blob'])
+        return bool(self.type_to_ids[b"blob"])
 
     def get_content_ids(self):
         """Get the content identifiers from the git repository"""
-        for oid in self.type_to_ids[b'blob']:
+        for oid in self.type_to_ids[b"blob"]:
             yield converters.dulwich_blob_to_content_id(self.repo[oid])
 
     def get_contents(self):
         """Get the contents that need to be loaded"""
-        missing_contents = set(self.storage.content_missing(
-            self.get_content_ids(), 'sha1_git'))
+        missing_contents = set(
+            self.storage.content_missing(self.get_content_ids(), "sha1_git")
+        )
 
         for oid in missing_contents:
             yield converters.dulwich_blob_to_content(
-                self.repo[hashutil.hash_to_bytehex(oid)])
+                self.repo[hashutil.hash_to_bytehex(oid)]
+            )
 
     def has_directories(self):
         """Checks whether we need to load directories"""
-        return bool(self.type_to_ids[b'tree'])
+        return bool(self.type_to_ids[b"tree"])
 
     def get_directory_ids(self):
         """Get the directory identifiers from the git repository"""
-        return (hashutil.hash_to_bytes(id.decode())
-                for id in self.type_to_ids[b'tree'])
+        return (hashutil.hash_to_bytes(id.decode()) for id in self.type_to_ids[b"tree"])
 
     def get_directories(self):
         """Get the directories that need to be loaded"""
-        missing_dirs = set(self.storage.directory_missing(
-            sorted(self.get_directory_ids())))
+        missing_dirs = set(
+            self.storage.directory_missing(sorted(self.get_directory_ids()))
+        )
 
         for oid in missing_dirs:
             yield converters.dulwich_tree_to_directory(
-                self.repo[hashutil.hash_to_bytehex(oid)], log=self.log)
+                self.repo[hashutil.hash_to_bytehex(oid)], log=self.log
+            )
 
     def has_revisions(self):
         """Checks whether we need to load revisions"""
-        return bool(self.type_to_ids[b'commit'])
+        return bool(self.type_to_ids[b"commit"])
 
     def get_revision_ids(self):
         """Get the revision identifiers from the git repository"""
-        return (hashutil.hash_to_bytes(id.decode())
-                for id in self.type_to_ids[b'commit'])
+        return (
+            hashutil.hash_to_bytes(id.decode()) for id in self.type_to_ids[b"commit"]
+        )
 
     def get_revisions(self):
         """Get the revisions that need to be loaded"""
-        missing_revs = set(self.storage.revision_missing(
-            sorted(self.get_revision_ids())))
+        missing_revs = set(
+            self.storage.revision_missing(sorted(self.get_revision_ids()))
+        )
 
         for oid in missing_revs:
             yield converters.dulwich_commit_to_revision(
-                self.repo[hashutil.hash_to_bytehex(oid)], log=self.log)
+                self.repo[hashutil.hash_to_bytehex(oid)], log=self.log
+            )
 
     def has_releases(self):
         """Checks whether we need to load releases"""
-        return bool(self.type_to_ids[b'tag'])
+        return bool(self.type_to_ids[b"tag"])
 
     def get_release_ids(self):
         """Get the release identifiers from the git repository"""
-        return (hashutil.hash_to_bytes(id.decode())
-                for id in self.type_to_ids[b'tag'])
+        return (hashutil.hash_to_bytes(id.decode()) for id in self.type_to_ids[b"tag"])
 
     def get_releases(self):
         """Get the releases that need to be loaded"""
-        missing_rels = set(self.storage.release_missing(
-            sorted(self.get_release_ids())))
+        missing_rels = set(self.storage.release_missing(sorted(self.get_release_ids())))
 
         for oid in missing_rels:
             yield converters.dulwich_tag_to_release(
-                self.repo[hashutil.hash_to_bytehex(oid)], log=self.log)
+                self.repo[hashutil.hash_to_bytehex(oid)], log=self.log
+            )
 
     def get_snapshot(self):
         """Turn the list of branches into a snapshot to load"""
@@ -224,17 +236,13 @@ class GitLoaderFromDisk(DVCSLoader):
             if obj:
                 target_type = converters.DULWICH_TARGET_TYPES[obj.type_name]
                 branches[ref] = SnapshotBranch(
-                    target=hashutil.bytehex_to_hash(target),
-                    target_type=target_type,
+                    target=hashutil.bytehex_to_hash(target), target_type=target_type,
                 )
             else:
                 branches[ref] = None
 
         for ref, target in self.repo.refs.get_symrefs().items():
-            branches[ref] = SnapshotBranch(
-                target=target,
-                target_type=TargetType.ALIAS,
-            )
+            branches[ref] = SnapshotBranch(target=target, target_type=TargetType.ALIAS,)
 
         self.snapshot = Snapshot(branches=branches)
         return self.snapshot
@@ -242,10 +250,10 @@ class GitLoaderFromDisk(DVCSLoader):
     def get_fetch_history_result(self):
         """Return the data to store in fetch_history for the current loader"""
         return {
-            'contents': len(self.type_to_ids[b'blob']),
-            'directories': len(self.type_to_ids[b'tree']),
-            'revisions': len(self.type_to_ids[b'commit']),
-            'releases': len(self.type_to_ids[b'tag']),
+            "contents": len(self.type_to_ids[b"blob"]),
+            "directories": len(self.type_to_ids[b"tree"]),
+            "revisions": len(self.type_to_ids[b"commit"]),
+            "releases": len(self.type_to_ids[b"tag"]),
         }
 
     def save_data(self):
@@ -262,7 +270,7 @@ class GitLoaderFromDisk(DVCSLoader):
         else:
             eventful = bool(self.snapshot.branches)
 
-        return {'status': ('eventful' if eventful else 'uneventful')}
+        return {"status": ("eventful" if eventful else "uneventful")}
 
 
 class GitLoaderFromArchive(GitLoaderFromDisk):
@@ -307,6 +315,7 @@ class GitLoaderFromArchive(GitLoaderFromDisk):
         ...
 
     """
+
     def __init__(self, *args, archive_path, **kwargs):
         super().__init__(*args, **kwargs)
         self.temp_dir = self.repo_path = None
@@ -317,9 +326,9 @@ class GitLoaderFromArchive(GitLoaderFromDisk):
 
         """
         archive_name = os.path.basename(archive_path)
-        for ext in ('.zip', '.tar.gz', '.tgz'):
+        for ext in (".zip", ".tar.gz", ".tgz"):
             if archive_name.lower().endswith(ext):
-                archive_name = archive_name[:-len(ext)]
+                archive_name = archive_name[: -len(ext)]
                 break
         return archive_name
 
@@ -331,11 +340,15 @@ class GitLoaderFromArchive(GitLoaderFromDisk):
         """
         project_name = self.project_name_from_archive(self.archive_path)
         self.temp_dir, self.repo_path = utils.init_git_repo_from_archive(
-            project_name, self.archive_path)
+            project_name, self.archive_path
+        )
 
-        self.log.info('Project %s - Uncompressing archive %s at %s',
-                      self.origin_url, os.path.basename(self.archive_path),
-                      self.repo_path)
+        self.log.info(
+            "Project %s - Uncompressing archive %s at %s",
+            self.origin_url,
+            os.path.basename(self.archive_path),
+            self.repo_path,
+        )
         self.directory = self.repo_path
         super().prepare(*args, **kwargs)
 
@@ -345,23 +358,23 @@ class GitLoaderFromArchive(GitLoaderFromDisk):
         """
         if self.temp_dir and os.path.exists(self.temp_dir):
             shutil.rmtree(self.temp_dir)
-        self.log.info('Project %s - Done injecting %s' % (
-            self.origin_url, self.repo_path))
+        self.log.info(
+            "Project %s - Done injecting %s" % (self.origin_url, self.repo_path)
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import click
     import logging
 
     logging.basicConfig(
-        level=logging.DEBUG,
-        format='%(asctime)s %(process)d %(message)s'
+        level=logging.DEBUG, format="%(asctime)s %(process)d %(message)s"
     )
 
     @click.command()
-    @click.option('--origin-url', help='origin url')
-    @click.option('--git-directory', help='Path to git repository to load')
-    @click.option('--visit-date', default=None, help='Visit date')
+    @click.option("--origin-url", help="origin url")
+    @click.option("--git-directory", help="Path to git repository to load")
+    @click.option("--visit-date", default=None, help="Visit date")
     def main(origin_url, git_directory, visit_date):
         if not visit_date:
             visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
