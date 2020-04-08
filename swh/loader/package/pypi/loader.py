@@ -11,7 +11,11 @@ from urllib.parse import urlparse
 from pkginfo import UnpackedSDist
 
 from swh.model.model import (
-    Person, Sha1Git, TimestampWithTimezone, Revision, RevisionType
+    Person,
+    Sha1Git,
+    TimestampWithTimezone,
+    Revision,
+    RevisionType,
 )
 
 from swh.loader.package.loader import PackageLoader
@@ -24,7 +28,8 @@ class PyPILoader(PackageLoader):
     """Load pypi origin's artifact releases into swh archive.
 
     """
-    visit_type = 'pypi'
+
+    visit_type = "pypi"
 
     def __init__(self, url):
         super().__init__(url=url)
@@ -41,22 +46,23 @@ class PyPILoader(PackageLoader):
         return self._info
 
     def get_versions(self) -> Sequence[str]:
-        return self.info['releases'].keys()
+        return self.info["releases"].keys()
 
     def get_default_version(self) -> str:
-        return self.info['info']['version']
+        return self.info["info"]["version"]
 
-    def get_package_info(self, version: str) -> Generator[
-            Tuple[str, Mapping[str, Any]], None, None]:
+    def get_package_info(
+        self, version: str
+    ) -> Generator[Tuple[str, Mapping[str, Any]], None, None]:
         res = []
-        for meta in self.info['releases'][version]:
-            if meta['packagetype'] != 'sdist':
+        for meta in self.info["releases"][version]:
+            if meta["packagetype"] != "sdist":
                 continue
-            filename = meta['filename']
+            filename = meta["filename"]
             p_info = {
-                'url': meta['url'],
-                'filename': filename,
-                'raw': meta,
+                "url": meta["url"],
+                "filename": filename,
+                "raw": meta,
             }
             res.append((version, p_info))
 
@@ -65,32 +71,32 @@ class PyPILoader(PackageLoader):
             yield release_name(version), p_info
         else:
             for version, p_info in res:
-                yield release_name(version, p_info['filename']), p_info
+                yield release_name(version, p_info["filename"]), p_info
 
     def resolve_revision_from(
-            self, known_artifacts: Dict, artifact_metadata: Dict) \
-            -> Optional[bytes]:
+        self, known_artifacts: Dict, artifact_metadata: Dict
+    ) -> Optional[bytes]:
         return artifact_to_revision_id(known_artifacts, artifact_metadata)
 
     def build_revision(
-            self, a_metadata: Dict, uncompressed_path: str,
-            directory: Sha1Git) -> Optional[Revision]:
+        self, a_metadata: Dict, uncompressed_path: str, directory: Sha1Git
+    ) -> Optional[Revision]:
         i_metadata = extract_intrinsic_metadata(uncompressed_path)
         if not i_metadata:
             return None
 
         # from intrinsic metadata
-        name = i_metadata['version']
+        name = i_metadata["version"]
         _author = author(i_metadata)
 
         # from extrinsic metadata
-        message = a_metadata.get('comment_text', '')
-        message = '%s: %s' % (name, message) if message else name
-        date = TimestampWithTimezone.from_iso8601(a_metadata['upload_time'])
+        message = a_metadata.get("comment_text", "")
+        message = "%s: %s" % (name, message) if message else name
+        date = TimestampWithTimezone.from_iso8601(a_metadata["upload_time"])
 
         return Revision(
             type=RevisionType.TAR,
-            message=message.encode('utf-8'),
+            message=message.encode("utf-8"),
             author=_author,
             date=date,
             committer=_author,
@@ -99,21 +105,19 @@ class PyPILoader(PackageLoader):
             directory=directory,
             synthetic=True,
             metadata={
-                'intrinsic': {
-                    'tool': 'PKG-INFO',
-                    'raw': i_metadata,
+                "intrinsic": {"tool": "PKG-INFO", "raw": i_metadata,},
+                "extrinsic": {
+                    "provider": self.provider_url,
+                    "when": self.visit_date.isoformat(),
+                    "raw": a_metadata,
                 },
-                'extrinsic': {
-                    'provider': self.provider_url,
-                    'when': self.visit_date.isoformat(),
-                    'raw': a_metadata,
-                },
-            }
+            },
         )
 
 
 def artifact_to_revision_id(
-        known_artifacts: Dict, artifact_metadata: Dict) -> Optional[bytes]:
+    known_artifacts: Dict, artifact_metadata: Dict
+) -> Optional[bytes]:
     """Given metadata artifact, solves the associated revision id.
 
     The following code allows to deal with 2 metadata formats (column metadata
@@ -142,20 +146,20 @@ def artifact_to_revision_id(
         }
 
     """
-    sha256 = artifact_metadata['digests']['sha256']
+    sha256 = artifact_metadata["digests"]["sha256"]
     for rev_id, known_artifact in known_artifacts.items():
-        original_artifact = known_artifact['original_artifact']
+        original_artifact = known_artifact["original_artifact"]
         if isinstance(original_artifact, dict):
             # previous loader-pypi version stored metadata as dict
-            original_sha256 = original_artifact['sha256']
+            original_sha256 = original_artifact["sha256"]
             if sha256 == original_sha256:
                 return rev_id
             continue
         # new pypi loader actually store metadata dict differently...
         assert isinstance(original_artifact, list)
         # current loader-pypi stores metadata as list of dict
-        for original_artifact in known_artifact['original_artifact']:
-            if sha256 == original_artifact['checksums']['sha256']:
+        for original_artifact in known_artifact["original_artifact"]:
+            if sha256 == original_artifact["checksums"]["sha256"]:
                 return rev_id
     return None
 
@@ -173,8 +177,8 @@ def pypi_api_url(url: str) -> str:
 
     """
     p_url = urlparse(url)
-    project_name = p_url.path.rstrip('/').split('/')[-1]
-    url = '%s://%s/pypi/%s/json' % (p_url.scheme, p_url.netloc, project_name)
+    project_name = p_url.path.rstrip("/").split("/")[-1]
+    url = "%s://%s/pypi/%s/json" % (p_url.scheme, p_url.netloc, project_name)
     return url
 
 
@@ -204,12 +208,12 @@ def extract_intrinsic_metadata(dir_path: str) -> Dict:
     if len(lst) != 1:
         return {}
     project_dirname = lst[0]
-    pkginfo_path = os.path.join(dir_path, project_dirname, 'PKG-INFO')
+    pkginfo_path = os.path.join(dir_path, project_dirname, "PKG-INFO")
     if not os.path.exists(pkginfo_path):
         return {}
     pkginfo = UnpackedSDist(pkginfo_path)
     raw = pkginfo.__dict__
-    raw.pop('filename')  # this gets added with the ondisk location
+    raw.pop("filename")  # this gets added with the ondisk location
     return raw
 
 
@@ -225,12 +229,12 @@ def author(data: Dict) -> Person:
         swh-model dict representing a person.
 
     """
-    name = data.get('author')
-    email = data.get('author_email')
+    name = data.get("author")
+    email = data.get("author_email")
     fullname = None  # type: Optional[str]
 
     if email:
-        fullname = '%s <%s>' % (name, email)
+        fullname = "%s <%s>" % (name, email)
     else:
         fullname = name
 
@@ -238,13 +242,9 @@ def author(data: Dict) -> Person:
         return EMPTY_AUTHOR
 
     if name is not None:
-        name = name.encode('utf-8')
+        name = name.encode("utf-8")
 
     if email is not None:
-        email = email.encode('utf-8')
+        email = email.encode("utf-8")
 
-    return Person(
-        fullname=fullname.encode('utf-8'),
-        name=name,
-        email=email
-    )
+    return Person(fullname=fullname.encode("utf-8"), name=name, email=email)

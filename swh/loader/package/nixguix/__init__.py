@@ -10,7 +10,8 @@ from typing import Any, Mapping
 def register() -> Mapping[str, Any]:
     """Register the current worker module's definition"""
     from .loader import NixGuixLoader
+
     return {
-        'task_modules': [f'{__name__}.tasks'],
-        'loader': NixGuixLoader,
+        "task_modules": [f"{__name__}.tasks"],
+        "loader": NixGuixLoader,
     }

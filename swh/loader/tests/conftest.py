@@ -11,19 +11,9 @@ from typing import Any, Dict
 @pytest.fixture
 def swh_loader_config() -> Dict[str, Any]:
     return {
-        'storage': {
-            'cls': 'pipeline',
-            'steps': [
-                {
-                    'cls': 'memory',
-                },
-            ],
-        },
-        'deposit': {
-            'url': 'https://deposit.softwareheritage.org/1/private',
-            'auth': {
-                'username': 'user',
-                'password': 'pass',
-            }
+        "storage": {"cls": "pipeline", "steps": [{"cls": "memory",},],},
+        "deposit": {
+            "url": "https://deposit.softwareheritage.org/1/private",
+            "auth": {"username": "user", "password": "pass",},
         },
     }

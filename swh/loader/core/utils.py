@@ -27,14 +27,15 @@ def clean_dangling_folders(dirpath, pattern_check, log=None):
     for filename in os.listdir(dirpath):
         try:
             # pattern: `swh.loader.svn-pid.{noise}`
-            if pattern_check not in filename or \
-               '-' not in filename:  # silently ignore unknown patterns
+            if (
+                pattern_check not in filename or "-" not in filename
+            ):  # silently ignore unknown patterns
                 continue
-            _, pid = filename.split('-')
-            pid = int(pid.split('.')[0])
+            _, pid = filename.split("-")
+            pid = int(pid.split(".")[0])
             if psutil.pid_exists(pid):
                 if log:
-                    log.debug('PID %s is live, skipping' % pid)
+                    log.debug("PID %s is live, skipping" % pid)
                 continue
             path_to_cleanup = os.path.join(dirpath, filename)
             # could be removed concurrently, so check before removal
@@ -42,6 +43,5 @@ def clean_dangling_folders(dirpath, pattern_check, log=None):
                 shutil.rmtree(path_to_cleanup)
         except Exception as e:
             if log:
-                msg = 'Fail to clean dangling path %s: %s' % (
-                    path_to_cleanup, e)
+                msg = "Fail to clean dangling path %s: %s" % (path_to_cleanup, e)
                 log.warn(msg)

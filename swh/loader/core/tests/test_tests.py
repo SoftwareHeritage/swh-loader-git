@@ -20,16 +20,16 @@ class TestsTest(BaseLoaderStorageTest, TestCase):
     """Test the helpers provided to other loaders' tests."""
 
     def _build_archive(self, fd):
-        with tarfile.open(mode='w', fileobj=fd) as tf:
+        with tarfile.open(mode="w", fileobj=fd) as tf:
             with tempfile.TemporaryDirectory() as src_dir:
-                with open(join(src_dir, 'hello.txt'), 'a') as src_file:
-                    src_file.write('world\n')
-                tf.add(src_dir, arcname='test_dir')
+                with open(join(src_dir, "hello.txt"), "a") as src_file:
+                    src_file.write("world\n")
+                tf.add(src_dir, arcname="test_dir")
 
     def _build_workdir(self, workdir):
-        os.mkdir(join(workdir, 'resources'))
-        tarball_path = join(workdir, 'resources', 'test_archive.tar')
-        with open(tarball_path, 'a+b') as tar_fd:
+        os.mkdir(join(workdir, "resources"))
+        tarball_path = join(workdir, "resources", "test_archive.tar")
+        with open(tarball_path, "a+b") as tar_fd:
             self._build_archive(tar_fd)
 
     @pytest.mark.fs
@@ -38,17 +38,17 @@ class TestsTest(BaseLoaderStorageTest, TestCase):
         with tempfile.TemporaryDirectory() as workdir:
             self._build_workdir(workdir)
 
-            loader_test.setUp('test_archive.tar', start_path=workdir)
+            loader_test.setUp("test_archive.tar", start_path=workdir)
 
-        self.assertTrue(re.match('^file://.*-tests/test_archive.tar$',
-                                 loader_test.repo_url),
-                        msg=loader_test.repo_url)
+        self.assertTrue(
+            re.match("^file://.*-tests/test_archive.tar$", loader_test.repo_url),
+            msg=loader_test.repo_url,
+        )
         self.assertTrue(os.path.isdir(loader_test.destination_path))
-        self.assertTrue(os.path.isdir(join(loader_test.destination_path,
-                                           'test_dir')))
-        self.assertTrue(os.path.isfile(join(loader_test.destination_path,
-                                            'test_dir',
-                                            'hello.txt')))
+        self.assertTrue(os.path.isdir(join(loader_test.destination_path, "test_dir")))
+        self.assertTrue(
+            os.path.isfile(join(loader_test.destination_path, "test_dir", "hello.txt"))
+        )
 
         loader_test.tearDown()
         self.assertFalse(os.path.isdir(loader_test.destination_path))
@@ -59,15 +59,16 @@ class TestsTest(BaseLoaderStorageTest, TestCase):
         with tempfile.TemporaryDirectory() as workdir:
             self._build_workdir(workdir)
 
-            loader_test.setUp('test_archive.tar', start_path=workdir,
-                              filename='test_dir')
+            loader_test.setUp(
+                "test_archive.tar", start_path=workdir, filename="test_dir"
+            )
 
-        self.assertTrue(re.match('^file://.*-tests/test_dir$',
-                                 loader_test.repo_url),
-                        msg=loader_test.repo_url)
+        self.assertTrue(
+            re.match("^file://.*-tests/test_dir$", loader_test.repo_url),
+            msg=loader_test.repo_url,
+        )
         self.assertTrue(os.path.isdir(loader_test.destination_path))
-        self.assertTrue(os.path.isfile(join(loader_test.destination_path,
-                                            'hello.txt')))
+        self.assertTrue(os.path.isfile(join(loader_test.destination_path, "hello.txt")))
 
         loader_test.tearDown()
         self.assertFalse(os.path.isdir(loader_test.destination_path))
@@ -78,10 +79,13 @@ class TestsTest(BaseLoaderStorageTest, TestCase):
         with tempfile.TemporaryDirectory() as workdir:
             self._build_workdir(workdir)
 
-            loader_test.setUp('test_archive.tar', start_path=workdir,
-                              uncompress_archive=False)
+            loader_test.setUp(
+                "test_archive.tar", start_path=workdir, uncompress_archive=False
+            )
 
-        self.assertEqual('file://' + workdir + '/resources/test_archive.tar',
-                         loader_test.repo_url)
-        self.assertEqual(workdir + '/resources/test_archive.tar',
-                         loader_test.destination_path)
+        self.assertEqual(
+            "file://" + workdir + "/resources/test_archive.tar", loader_test.repo_url
+        )
+        self.assertEqual(
+            workdir + "/resources/test_archive.tar", loader_test.destination_path
+        )

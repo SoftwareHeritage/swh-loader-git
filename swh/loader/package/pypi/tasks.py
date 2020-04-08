@@ -8,7 +8,7 @@ from celery import shared_task
 from swh.loader.package.pypi.loader import PyPILoader
 
 
-@shared_task(name=__name__ + '.LoadPyPI')
+@shared_task(name=__name__ + ".LoadPyPI")
 def load_pypi(*, url=None):
     """Load PyPI package"""
     return PyPILoader(url).load()

@@ -5,22 +5,18 @@
 
 
 def test_cran_loader(mocker, swh_app, celery_session_worker, swh_config):
-    mock_loader = mocker.patch(
-        'swh.loader.package.cran.loader.CRANLoader.load')
-    mock_loader.return_value = {'status': 'eventful'}
+    mock_loader = mocker.patch("swh.loader.package.cran.loader.CRANLoader.load")
+    mock_loader.return_value = {"status": "eventful"}
 
     res = swh_app.send_task(
-        'swh.loader.package.cran.tasks.LoadCRAN',
+        "swh.loader.package.cran.tasks.LoadCRAN",
         kwargs={
-            'url': 'some-url',
-            'artifacts': {
-                'version': '1.2.3',
-                'url': 'artifact-url'
-            }
-        }
+            "url": "some-url",
+            "artifacts": {"version": "1.2.3", "url": "artifact-url"},
+        },
     )
     assert res
     res.wait()
     assert res.successful()
 
-    assert res.result == {'status': 'eventful'}
+    assert res.result == {"status": "eventful"}

@@ -8,7 +8,7 @@ from celery import shared_task
 from swh.loader.package.cran.loader import CRANLoader
 
 
-@shared_task(name=__name__ + '.LoadCRAN')
+@shared_task(name=__name__ + ".LoadCRAN")
 def load_cran(url=None, artifacts=[]):
     """Load CRAN's artifacts"""
     return CRANLoader(url, artifacts).load()

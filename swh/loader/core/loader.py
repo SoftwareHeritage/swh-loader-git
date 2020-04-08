@@ -13,8 +13,15 @@ from typing import Any, Dict, Iterable, Optional, Tuple, Union
 
 from swh.core import config
 from swh.model.model import (
-    BaseContent, Content, SkippedContent, Directory, Origin, Revision,
-    Release, Sha1Git, Snapshot
+    BaseContent,
+    Content,
+    SkippedContent,
+    Directory,
+    Origin,
+    Revision,
+    Release,
+    Sha1Git,
+    Snapshot,
 )
 from swh.storage import get_storage
 
@@ -52,58 +59,59 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
     - :class:`BaseSvnLoader`
 
     """
+
     CONFIG_BASE_FILENAME = None  # type: Optional[str]
 
     DEFAULT_CONFIG = {
-        'storage': ('dict', {
-            'cls': 'remote',
-            'args': {
-                'url': 'http://localhost:5002/',
-            }
-        }),
-
-        'max_content_size': ('int', 100 * 1024 * 1024),
-        'save_data': ('bool', False),
-        'save_data_path': ('str', ''),
-
+        "storage": (
+            "dict",
+            {"cls": "remote", "args": {"url": "http://localhost:5002/",}},
+        ),
+        "max_content_size": ("int", 100 * 1024 * 1024),
+        "save_data": ("bool", False),
+        "save_data_path": ("str", ""),
     }  # type: Dict[str, Tuple[str, Any]]
 
     ADDITIONAL_CONFIG = {}  # type: Dict[str, Tuple[str, Any]]
 
-    def __init__(self, logging_class: Optional[str] = None,
-                 config: Dict[str, Any] = {}):
+    def __init__(
+        self, logging_class: Optional[str] = None, config: Dict[str, Any] = {}
+    ):
         if config:
             self.config = config
         else:
             self.config = self.parse_config_file(
-                additional_configs=[self.ADDITIONAL_CONFIG])
+                additional_configs=[self.ADDITIONAL_CONFIG]
+            )
 
-        self.storage = get_storage(**self.config['storage'])
+        self.storage = get_storage(**self.config["storage"])
 
         if logging_class is None:
-            logging_class = '%s.%s' % (self.__class__.__module__,
-                                       self.__class__.__name__)
+            logging_class = "%s.%s" % (
+                self.__class__.__module__,
+                self.__class__.__name__,
+            )
         self.log = logging.getLogger(logging_class)
 
-        _log = logging.getLogger('requests.packages.urllib3.connectionpool')
+        _log = logging.getLogger("requests.packages.urllib3.connectionpool")
         _log.setLevel(logging.WARN)
 
-        self.max_content_size = self.config['max_content_size']
+        self.max_content_size = self.config["max_content_size"]
 
         # possibly overridden in self.prepare method
         self.visit_date: Optional[Union[str, datetime.datetime]] = None
 
         self.origin: Optional[Origin] = None
 
-        if not hasattr(self, 'visit_type'):
+        if not hasattr(self, "visit_type"):
             self.visit_type: Optional[str] = None
 
         self.origin_metadata: Dict[str, Any] = {}
 
         # Make sure the config is sane
-        save_data = self.config.get('save_data')
+        save_data = self.config.get("save_data")
         if save_data:
-            path = self.config['save_data_path']
+            path = self.config["save_data_path"]
             os.stat(path)
             if not os.access(path, os.R_OK | os.W_OK):
                 raise PermissionError("Permission denied: %r" % path)
@@ -114,15 +122,15 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
 
     def get_save_data_path(self) -> str:
         """The path to which we archive the loader's raw data"""
-        if not hasattr(self, '__save_data_path'):
+        if not hasattr(self, "__save_data_path"):
             year = str(self.visit_date.year)  # type: ignore
 
             assert self.origin
-            url = self.origin.url.encode('utf-8')
+            url = self.origin.url.encode("utf-8")
             origin_url_hash = hashlib.sha1(url).hexdigest()
 
-            path = '%s/sha1:%s/%s/%s' % (
-                self.config['save_data_path'],
+            path = "%s/sha1:%s/%s/%s" % (
+                self.config["save_data_path"],
                 origin_url_hash[0:2],
                 origin_url_hash,
                 year,
@@ -141,7 +149,7 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
         loading.
 
         """
-        if hasattr(self.storage, 'flush'):
+        if hasattr(self.storage, "flush"):
             self.storage.flush()
 
     @abstractmethod
@@ -170,7 +178,8 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
         if not self.visit_date:  # now as default visit_date if not provided
             self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
         self.visit = self.storage.origin_visit_add(
-            self.origin.url, self.visit_date, self.visit_type)
+            self.origin.url, self.visit_date, self.visit_type
+        )
 
     @abstractmethod
     def prepare(self, *args, **kwargs) -> None:
@@ -229,7 +238,7 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
           mechanism.
         """
         return {
-            'status': 'eventful',
+            "status": "eventful",
         }
 
     def post_load(self, success: bool = True) -> None:
@@ -253,7 +262,7 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
 
         Defaults to logging a full visit.
         """
-        return 'full'
+        return "full"
 
     def get_snapshot_id(self) -> Optional[Sha1Git]:
         """Get the snapshot id that needs to be loaded"""
@@ -287,7 +296,7 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
         try:
             self.pre_cleanup()
         except Exception:
-            msg = 'Cleaning up dangling data failed! Continue loading.'
+            msg = "Cleaning up dangling data failed! Continue loading."
             self.log.warning(msg)
 
         self.prepare_origin_visit(*args, **kwargs)
@@ -306,22 +315,25 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
 
             self.store_metadata()
             self.storage.origin_visit_update(
-                self.origin.url, self.visit.visit, self.visit_status(),
-                snapshot=self.get_snapshot_id()
+                self.origin.url,
+                self.visit.visit,
+                self.visit_status(),
+                snapshot=self.get_snapshot_id(),
             )
             self.post_load()
         except Exception:
-            self.log.exception('Loading failure, updating to `partial` status',
-                               extra={
-                                   'swh_task_args': args,
-                                   'swh_task_kwargs': kwargs,
-                               })
+            self.log.exception(
+                "Loading failure, updating to `partial` status",
+                extra={"swh_task_args": args, "swh_task_kwargs": kwargs,},
+            )
             self.storage.origin_visit_update(
-                self.origin.url, self.visit.visit, 'partial',
-                snapshot=self.get_snapshot_id()
+                self.origin.url,
+                self.visit.visit,
+                "partial",
+                snapshot=self.get_snapshot_id(),
             )
             self.post_load(success=False)
-            return {'status': 'failed'}
+            return {"status": "failed"}
         finally:
             self.flush()
             self.cleanup()
@@ -339,6 +351,7 @@ class DVCSLoader(BaseLoader):
     inherit directly from :class:`BaseLoader`.
 
     """
+
     ADDITIONAL_CONFIG = {}  # type: Dict[str, Tuple[str, Any]]
 
     def cleanup(self) -> None:
@@ -391,7 +404,7 @@ class DVCSLoader(BaseLoader):
 
     def store_data(self) -> None:
         assert self.origin
-        if self.config['save_data']:
+        if self.config["save_data"]:
             self.save_data()
 
         if self.has_contents():
@@ -403,7 +416,7 @@ class DVCSLoader(BaseLoader):
                 elif isinstance(obj, SkippedContent):
                     skipped_contents.append(obj)
                 else:
-                    raise TypeError(f'Unexpected content type: {obj}')
+                    raise TypeError(f"Unexpected content type: {obj}")
             self.storage.skipped_content_add(skipped_contents)
             self.storage.content_add(contents)
         if self.has_directories():

@@ -11,9 +11,7 @@ from typing import Dict, Optional, Any, Mapping
 
 from swh.model import hashutil
 
-from swh.model.model import (
-    Sha1Git, Revision, RevisionType
-)
+from swh.model.model import Sha1Git, Revision, RevisionType
 
 from swh.loader.package.utils import EMPTY_AUTHOR
 
@@ -24,13 +22,11 @@ logger = logging.getLogger(__name__)
 
 
 def retrieve_sources(url: str) -> Dict[str, Any]:
-    response = requests.get(url,
-                            allow_redirects=True)
+    response = requests.get(url, allow_redirects=True)
     if response.status_code != 200:
-        raise ValueError("Got %d HTTP code on %s",
-                         response.status_code, url)
+        raise ValueError("Got %d HTTP code on %s", response.status_code, url)
 
-    return json.loads(response.content.decode('utf-8'))
+    return json.loads(response.content.decode("utf-8"))
 
 
 def clean_sources(sources: Dict[str, Any]) -> Dict[str, Any]:
@@ -43,46 +39,51 @@ def clean_sources(sources: Dict[str, Any]) -> Dict[str, Any]:
 
     """
     # Required top level keys
-    required_keys = ['version', 'revision', 'sources']
+    required_keys = ["version", "revision", "sources"]
     missing_keys = []
     for required_key in required_keys:
         if required_key not in sources:
             missing_keys.append(required_key)
 
     if missing_keys != []:
-        raise ValueError("sources structure invalid, missing: %s",
-                         ",".join(missing_keys))
+        raise ValueError(
+            "sources structure invalid, missing: %s", ",".join(missing_keys)
+        )
 
     # Only the version 1 is currently supported
-    if sources['version'] != 1:
-        raise ValueError("The sources structure version '%d' is not supported",
-                         sources['version'])
+    if sources["version"] != 1:
+        raise ValueError(
+            "The sources structure version '%d' is not supported", sources["version"]
+        )
 
     # If a source doesn't contain required attributes, this source is
     # skipped but others could still be archived.
     verified_sources = []
-    for source in sources['sources']:
+    for source in sources["sources"]:
         valid = True
-        required_keys = ['urls', 'integrity', 'type']
+        required_keys = ["urls", "integrity", "type"]
         for required_key in required_keys:
             if required_key not in source:
-                logger.info("Skip source '%s' because key '%s' is missing",
-                            source, required_key)
+                logger.info(
+                    "Skip source '%s' because key '%s' is missing", source, required_key
+                )
                 valid = False
-        if source['type'] != 'url':
+        if source["type"] != "url":
             logger.info(
                 "Skip source '%s' because the type %s is not supported",
-                source, source['type'])
+                source,
+                source["type"],
+            )
             valid = False
-        if not isinstance(source['urls'], list):
+        if not isinstance(source["urls"], list):
             logger.info(
-                "Skip source '%s' because the urls attribute is not a list",
-                source)
+                "Skip source '%s' because the urls attribute is not a list", source
+            )
             valid = False
         if valid:
             verified_sources.append(source)
 
-    sources['sources'] = verified_sources
+    sources["sources"] = verified_sources
     return sources
 
 
@@ -91,22 +92,22 @@ class NixGuixLoader(PackageLoader):
     sources used by functional package manager (eg. Nix and Guix).
 
     """
-    visit_type = 'nixguix'
+
+    visit_type = "nixguix"
 
     def __init__(self, url):
         super().__init__(url=url)
         raw = retrieve_sources(url)
         clean = clean_sources(raw)
-        self.sources = clean['sources']
+        self.sources = clean["sources"]
         self.provider_url = url
 
-        self._integrityByUrl = {s['urls'][0]: s['integrity']
-                                for s in self.sources}
+        self._integrityByUrl = {s["urls"][0]: s["integrity"] for s in self.sources}
 
         # The revision used to create the sources.json file. For Nix,
         # this revision belongs to the github.com/nixos/nixpkgs
         # repository
-        self.revision = clean['revision']
+        self.revision = clean["revision"]
 
     # Note: this could be renamed get_artifacts in the PackageLoader
     # base class.
@@ -125,18 +126,15 @@ class NixGuixLoader(PackageLoader):
         # currently only use the first one, but if the first one
         # fails, we should try the second one and so on.
         integrity = self._integrityByUrl[url]
-        yield url, {'url': url,
-                    'raw': {
-                        'url': url,
-                        'integrity': integrity}}
+        yield url, {"url": url, "raw": {"url": url, "integrity": integrity}}
 
     def resolve_revision_from(
-            self, known_artifacts: Dict, artifact_metadata: Dict) \
-            -> Optional[bytes]:
+        self, known_artifacts: Dict, artifact_metadata: Dict
+    ) -> Optional[bytes]:
 
         for rev_id, known_artifact in known_artifacts.items():
-            known_integrity = known_artifact['extrinsic']['raw']['integrity']
-            if artifact_metadata['integrity'] == known_integrity:
+            known_integrity = known_artifact["extrinsic"]["raw"]["integrity"]
+            if artifact_metadata["integrity"] == known_integrity:
                 return rev_id
         return None
 
@@ -157,17 +155,18 @@ class NixGuixLoader(PackageLoader):
 
         """
         return {
-            b'evaluation': {
-                'target_type': 'revision',
-                'target': hashutil.hash_to_bytes(self.revision)
+            b"evaluation": {
+                "target_type": "revision",
+                "target": hashutil.hash_to_bytes(self.revision),
             }
         }
 
-    def build_revision(self, a_metadata: Dict, uncompressed_path: str,
-                       directory: Sha1Git) -> Optional[Revision]:
+    def build_revision(
+        self, a_metadata: Dict, uncompressed_path: str, directory: Sha1Git
+    ) -> Optional[Revision]:
         return Revision(
             type=RevisionType.TAR,
-            message=b'',
+            message=b"",
             author=EMPTY_AUTHOR,
             date=None,
             committer=EMPTY_AUTHOR,
@@ -176,10 +175,10 @@ class NixGuixLoader(PackageLoader):
             directory=directory,
             synthetic=True,
             metadata={
-                'extrinsic': {
-                    'provider': self.provider_url,
-                    'when': self.visit_date.isoformat(),
-                    'raw': a_metadata,
+                "extrinsic": {
+                    "provider": self.provider_url,
+                    "when": self.visit_date.isoformat(),
+                    "raw": a_metadata,
                 },
-            }
+            },
         )

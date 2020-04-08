@@ -9,4 +9,4 @@ import requests
 
 def test_swh_proxy():
     with pytest.raises(requests.exceptions.ProxyError):
-        requests.get('https://www.softwareheritage.org')
+        requests.get("https://www.softwareheritage.org")

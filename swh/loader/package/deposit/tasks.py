@@ -8,7 +8,7 @@ from celery import shared_task
 from swh.loader.package.deposit.loader import DepositLoader
 
 
-@shared_task(name=__name__ + '.LoadDeposit')
+@shared_task(name=__name__ + ".LoadDeposit")
 def load_deposit(*, url, deposit_id):
     """Load Deposit artifacts"""
     return DepositLoader(url, deposit_id).load()

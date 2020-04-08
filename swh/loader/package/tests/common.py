@@ -15,7 +15,7 @@ from swh.model.hashutil import hash_to_bytes, hash_to_hex
 logger = logging.getLogger(__file__)
 
 
-DATADIR = path.join(path.abspath(path.dirname(__file__)), 'resources')
+DATADIR = path.join(path.abspath(path.dirname(__file__)), "resources")
 
 
 def decode_target(target):
@@ -24,17 +24,14 @@ def decode_target(target):
     """
     if not target:
         return target
-    target_type = target['target_type']
+    target_type = target["target_type"]
 
-    if target_type == 'alias':
-        decoded_target = target['target'].decode('utf-8')
+    if target_type == "alias":
+        decoded_target = target["target"].decode("utf-8")
     else:
-        decoded_target = hash_to_hex(target['target'])
+        decoded_target = hash_to_hex(target["target"])
 
-    return {
-        'target': decoded_target,
-        'target_type': target_type
-    }
+    return {"target": decoded_target, "target_type": target_type}
 
 
 def check_snapshot(expected_snapshot, storage):
@@ -48,27 +45,28 @@ def check_snapshot(expected_snapshot, storage):
         storage (Storage): expected storage
 
     """
-    expected_snapshot_id = expected_snapshot['id']
-    expected_branches = expected_snapshot['branches']
+    expected_snapshot_id = expected_snapshot["id"]
+    expected_branches = expected_snapshot["branches"]
     snap = storage.snapshot_get(hash_to_bytes(expected_snapshot_id))
     if snap is None:
         # display known snapshots instead if possible
-        if hasattr(storage, '_snapshots'):  # in-mem storage
+        if hasattr(storage, "_snapshots"):  # in-mem storage
             from pprint import pprint
+
             for snap_id, (_snap, _) in storage._snapshots.items():
                 snapd = _snap.to_dict()
-                snapd['id'] = hash_to_hex(snapd['id'])
+                snapd["id"] = hash_to_hex(snapd["id"])
                 branches = {
-                    branch.decode('utf-8'): decode_target(target)
-                    for branch, target in snapd['branches'].items()
+                    branch.decode("utf-8"): decode_target(target)
+                    for branch, target in snapd["branches"].items()
                 }
-                snapd['branches'] = branches
+                snapd["branches"] = branches
                 pprint(snapd)
-        raise AssertionError('Snapshot is not found')
+        raise AssertionError("Snapshot is not found")
 
     branches = {
-        branch.decode('utf-8'): decode_target(target)
-        for branch, target in snap['branches'].items()
+        branch.decode("utf-8"): decode_target(target)
+        for branch, target in snap["branches"].items()
     }
     assert expected_branches == branches
 
@@ -87,7 +85,7 @@ def check_metadata(metadata: Dict, key_path: str, raw_type: str):
 
     """
     data = metadata
-    keys = key_path.split('.')
+    keys = key_path.split(".")
     for k in keys:
         try:
             data = data[k]
@@ -122,6 +120,15 @@ def get_stats(storage) -> Dict:
     storage.refresh_stat_counters()
     stats = storage.stat_counters()
 
-    keys = ['content', 'directory', 'origin', 'origin_visit', 'person',
-            'release', 'revision', 'skipped_content', 'snapshot']
+    keys = [
+        "content",
+        "directory",
+        "origin",
+        "origin_visit",
+        "person",
+        "release",
+        "revision",
+        "skipped_content",
+        "snapshot",
+    ]
     return {k: stats.get(k) for k in keys}

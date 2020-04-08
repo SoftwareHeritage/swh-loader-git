@@ -10,7 +10,8 @@ from typing import Any, Mapping
 def register() -> Mapping[str, Any]:
     """Register the current worker module's definition"""
     from .loader import NpmLoader
+
     return {
-        'task_modules': [f'{__name__}.tasks'],
-        'loader': NpmLoader,
+        "task_modules": [f"{__name__}.tasks"],
+        "loader": NpmLoader,
     }

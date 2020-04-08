@@ -9,15 +9,11 @@ import pkg_resources
 
 
 try:
-    __version__ = pkg_resources.get_distribution('swh.loader.core').version
+    __version__ = pkg_resources.get_distribution("swh.loader.core").version
 except pkg_resources.DistributionNotFound:
-    __version__ = 'devel'
+    __version__ = "devel"
 
 
 DEFAULT_PARAMS: Dict[str, Any] = {
-    'headers': {
-        'User-Agent': 'Software Heritage Loader (%s)' % (
-            __version__
-        )
-    }
+    "headers": {"User-Agent": "Software Heritage Loader (%s)" % (__version__)}
 }

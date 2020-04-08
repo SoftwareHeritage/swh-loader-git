@@ -39,62 +39,56 @@ def assert_dirs(actual_dirs, expected_dirs):
 
 def test_clean_dangling_folders_0(tmpdir):
     """Folder does not exist, do nothing"""
-    r = clean_dangling_folders('/path/does/not/exist', 'unused-pattern')
+    r = clean_dangling_folders("/path/does/not/exist", "unused-pattern")
     assert r is None
 
 
-@patch('swh.loader.core.utils.psutil.pid_exists', return_value=False)
+@patch("swh.loader.core.utils.psutil.pid_exists", return_value=False)
 def test_clean_dangling_folders_1(mock_pid_exists, tmpdir):
     """Folder which matches pattern with dead pid are cleaned up
 
     """
-    rootpath, dangling = prepare_arborescence_from(tmpdir, [
-        'something',
-        'swh.loader.svn-4321.noisynoise',
-    ])
+    rootpath, dangling = prepare_arborescence_from(
+        tmpdir, ["something", "swh.loader.svn-4321.noisynoise",]
+    )
 
-    clean_dangling_folders(rootpath, 'swh.loader.svn')
+    clean_dangling_folders(rootpath, "swh.loader.svn")
 
     actual_dirs = os.listdir(rootpath)
     mock_pid_exists.assert_called_once_with(4321)
-    assert_dirs(actual_dirs, ['something'])
+    assert_dirs(actual_dirs, ["something"])
 
 
-@patch('swh.loader.core.utils.psutil.pid_exists', return_value=True)
+@patch("swh.loader.core.utils.psutil.pid_exists", return_value=True)
 def test_clean_dangling_folders_2(mock_pid_exists, tmpdir):
     """Folder which matches pattern with live pid are skipped
 
     """
-    rootpath, dangling = prepare_arborescence_from(tmpdir, [
-        'something',
-        'swh.loader.hg-1234.noisynoise',
-    ])
+    rootpath, dangling = prepare_arborescence_from(
+        tmpdir, ["something", "swh.loader.hg-1234.noisynoise",]
+    )
 
-    clean_dangling_folders(rootpath, 'swh.loader.hg')
+    clean_dangling_folders(rootpath, "swh.loader.hg")
 
     actual_dirs = os.listdir(rootpath)
     mock_pid_exists.assert_called_once_with(1234)
-    assert_dirs(actual_dirs, [
-        'something', 'swh.loader.hg-1234.noisynoise',
-    ])
+    assert_dirs(actual_dirs, ["something", "swh.loader.hg-1234.noisynoise",])
 
 
-@patch('swh.loader.core.utils.psutil.pid_exists',
-       return_value=False)
-@patch('swh.loader.core.utils.shutil.rmtree',
-       side_effect=ValueError('Could not remove for reasons'))
+@patch("swh.loader.core.utils.psutil.pid_exists", return_value=False)
+@patch(
+    "swh.loader.core.utils.shutil.rmtree",
+    side_effect=ValueError("Could not remove for reasons"),
+)
 def test_clean_dangling_folders_3(mock_rmtree, mock_pid_exists, tmpdir):
     """Error in trying to clean dangling folders are skipped
 
     """
-    path1 = 'thingy'
-    path2 = 'swh.loader.git-1468.noisy'
-    rootpath, dangling = prepare_arborescence_from(tmpdir, [
-        path1,
-        path2,
-    ])
+    path1 = "thingy"
+    path2 = "swh.loader.git-1468.noisy"
+    rootpath, dangling = prepare_arborescence_from(tmpdir, [path1, path2,])
 
-    clean_dangling_folders(rootpath, 'swh.loader.git')
+    clean_dangling_folders(rootpath, "swh.loader.git")
 
     actual_dirs = os.listdir(rootpath)
     mock_pid_exists.assert_called_once_with(1468)

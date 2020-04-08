@@ -7,14 +7,14 @@ import pytest
 from json.decoder import JSONDecodeError
 
 from swh.loader.package.nixguix.loader import (
-    NixGuixLoader, retrieve_sources, clean_sources
+    NixGuixLoader,
+    retrieve_sources,
+    clean_sources,
 )
 
-from swh.loader.package.tests.common import (
-    get_stats, check_snapshot
-)
+from swh.loader.package.tests.common import get_stats, check_snapshot
 
-sources_url = 'https://nix-community.github.io/nixpkgs-swh/sources.json'
+sources_url = "https://nix-community.github.io/nixpkgs-swh/sources.json"
 
 
 def test_retrieve_sources(swh_config, requests_mock_datadir):
@@ -25,91 +25,72 @@ def test_retrieve_sources(swh_config, requests_mock_datadir):
 
 def test_retrieve_non_existing(swh_config, requests_mock_datadir):
     with pytest.raises(ValueError):
-        NixGuixLoader('https://non-existing-url')
+        NixGuixLoader("https://non-existing-url")
 
 
 def test_retrieve_non_json(swh_config, requests_mock_datadir):
     with pytest.raises(JSONDecodeError):
-        NixGuixLoader('https://example.com/file.txt')
+        NixGuixLoader("https://example.com/file.txt")
 
 
 def test_clean_sources_invalid_schema(swh_config, requests_mock_datadir):
     sources = {}
-    with pytest.raises(ValueError,
-                       match="sources structure invalid, missing: .*"):
+    with pytest.raises(ValueError, match="sources structure invalid, missing: .*"):
         clean_sources(sources)
 
 
 def test_clean_sources_invalid_version(swh_config, requests_mock_datadir):
-    sources = {
-        'version': 2,
-        'sources': [],
-        'revision': 'my-revision'
-    }
+    sources = {"version": 2, "sources": [], "revision": "my-revision"}
 
-    with pytest.raises(ValueError,
-                       match="sources structure version .* is not supported"):
+    with pytest.raises(
+        ValueError, match="sources structure version .* is not supported"
+    ):
         clean_sources(sources)
 
 
 def test_clean_sources_invalid_sources(swh_config, requests_mock_datadir):
     sources = {
-        'version': 1,
-        'sources': [
+        "version": 1,
+        "sources": [
             # Valid source
-            {
-                'type': 'url',
-                'urls': ['my-url'],
-                'integrity': 'my-integrity'
-            },
+            {"type": "url", "urls": ["my-url"], "integrity": "my-integrity"},
             # integrity is missing
-            {
-                'type': 'url',
-                'urls': ['my-url'],
-            },
+            {"type": "url", "urls": ["my-url"],},
             # urls is not a list
-            {
-                'type': 'url',
-                'urls': 'my-url',
-                'integrity': 'my-integrity'
-            },
+            {"type": "url", "urls": "my-url", "integrity": "my-integrity"},
             # type is not url
-            {
-                'type': 'git',
-                'urls': ['my-url'],
-                'integrity': 'my-integrity'
-            }
+            {"type": "git", "urls": ["my-url"], "integrity": "my-integrity"},
         ],
-        'revision': 'my-revision'
+        "revision": "my-revision",
     }
     clean = clean_sources(sources)
 
-    assert len(clean['sources']) == 1
+    assert len(clean["sources"]) == 1
 
 
 def test_loader_one_visit(swh_config, requests_mock_datadir):
     loader = NixGuixLoader(sources_url)
     res = loader.load()
-    assert res['status'] == 'eventful'
+    assert res["status"] == "eventful"
 
     stats = get_stats(loader.storage)
     assert {
-        'content': 1,
-        'directory': 3,
-        'origin': 1,
-        'origin_visit': 1,
-        'person': 1,
-        'release': 0,
-        'revision': 1,
-        'skipped_content': 0,
-        'snapshot': 1
+        "content": 1,
+        "directory": 3,
+        "origin": 1,
+        "origin_visit": 1,
+        "person": 1,
+        "release": 0,
+        "revision": 1,
+        "skipped_content": 0,
+        "snapshot": 1,
     } == stats
 
     origin_visit = loader.storage.origin_visit_get_latest(sources_url)
     # The visit is partial because urls pointing to non tarball file
     # are not handled yet
-    assert origin_visit['status'] == 'partial'
-    assert origin_visit['type'] == 'nixguix'
+    assert origin_visit["status"] == "partial"
+    assert origin_visit["type"] == "nixguix"
 
 
 def test_uncompress_failure(swh_config, requests_mock_datadir):
@@ -124,14 +105,14 @@ def test_uncompress_failure(swh_config, requests_mock_datadir):
     loader = NixGuixLoader(sources_url)
     loader_status = loader.load()
 
-    urls = [s['urls'][0] for s in loader.sources]
+    urls = [s["urls"][0] for s in loader.sources]
     assert "https://example.com/file.txt" in urls
-    assert loader_status['status'] == 'eventful'
+    assert loader_status["status"] == "eventful"
 
     origin_visit = loader.storage.origin_visit_get_latest(sources_url)
     # The visit is partial because urls pointing to non tarball files
     # are not handled yet
-    assert origin_visit['status'] == 'partial'
+    assert origin_visit["status"] == "partial"
 
 
 def test_loader_incremental(swh_config, requests_mock_datadir):
@@ -143,30 +124,28 @@ def test_loader_incremental(swh_config, requests_mock_datadir):
     load_status = loader.load()
 
     loader.load()
-    expected_snapshot_id = '0c5881c74283793ebe9a09a105a9381e41380383'
-    assert load_status == {
-        'status': 'eventful',
-        'snapshot_id': expected_snapshot_id
-    }
+    expected_snapshot_id = "0c5881c74283793ebe9a09a105a9381e41380383"
+    assert load_status == {"status": "eventful", "snapshot_id": expected_snapshot_id}
     expected_branches = {
-        'evaluation': {
-            'target': 'cc4e04c26672dd74e5fd0fecb78b435fb55368f7',
-            'target_type': 'revision'
+        "evaluation": {
+            "target": "cc4e04c26672dd74e5fd0fecb78b435fb55368f7",
+            "target_type": "revision",
         },
-        'https://github.com/owner-1/repository-1/revision-1.tgz': {
-            'target': '488ad4e7b8e2511258725063cf43a2b897c503b4',
-            'target_type': 'revision'
+        "https://github.com/owner-1/repository-1/revision-1.tgz": {
+            "target": "488ad4e7b8e2511258725063cf43a2b897c503b4",
+            "target_type": "revision",
         },
     }
     expected_snapshot = {
-        'id': expected_snapshot_id,
-        'branches': expected_branches,
+        "id": expected_snapshot_id,
+        "branches": expected_branches,
     }
     check_snapshot(expected_snapshot, storage=loader.storage)
 
     urls = [
-        m.url for m in requests_mock_datadir.request_history
-        if m.url == ('https://github.com/owner-1/repository-1/revision-1.tgz')
+        m.url
+        for m in requests_mock_datadir.request_history
+        if m.url == ("https://github.com/owner-1/repository-1/revision-1.tgz")
     ]
     # The artifact
     # 'https://github.com/owner-1/repository-1/revision-1.tgz' is only
@@ -185,85 +164,79 @@ def test_loader_two_visits(swh_config, requests_mock_datadir_visits):
     """
     loader = NixGuixLoader(sources_url)
     load_status = loader.load()
-    expected_snapshot_id = '0c5881c74283793ebe9a09a105a9381e41380383'
-    assert load_status == {
-        'status': 'eventful',
-        'snapshot_id': expected_snapshot_id
-    }
+    expected_snapshot_id = "0c5881c74283793ebe9a09a105a9381e41380383"
+    assert load_status == {"status": "eventful", "snapshot_id": expected_snapshot_id}
 
     expected_branches = {
-        'evaluation': {
-            'target': 'cc4e04c26672dd74e5fd0fecb78b435fb55368f7',
-            'target_type': 'revision'
+        "evaluation": {
+            "target": "cc4e04c26672dd74e5fd0fecb78b435fb55368f7",
+            "target_type": "revision",
         },
-        'https://github.com/owner-1/repository-1/revision-1.tgz': {
-            'target': '488ad4e7b8e2511258725063cf43a2b897c503b4',
-            'target_type': 'revision'
-        }
+        "https://github.com/owner-1/repository-1/revision-1.tgz": {
+            "target": "488ad4e7b8e2511258725063cf43a2b897c503b4",
+            "target_type": "revision",
+        },
     }
 
     expected_snapshot = {
-        'id': expected_snapshot_id,
-        'branches': expected_branches,
+        "id": expected_snapshot_id,
+        "branches": expected_branches,
     }
     check_snapshot(expected_snapshot, storage=loader.storage)
 
     stats = get_stats(loader.storage)
     assert {
-        'content': 1,
-        'directory': 3,
-        'origin': 1,
-        'origin_visit': 1,
-        'person': 1,
-        'release': 0,
-        'revision': 1,
-        'skipped_content': 0,
-        'snapshot': 1
+        "content": 1,
+        "directory": 3,
+        "origin": 1,
+        "origin_visit": 1,
+        "person": 1,
+        "release": 0,
+        "revision": 1,
+        "skipped_content": 0,
+        "snapshot": 1,
     } == stats
 
     loader = NixGuixLoader(sources_url)
     load_status = loader.load()
-    expected_snapshot_id = 'b0bfa75cbd0cc90aac3b9e95fb0f59c731176d97'
-    assert load_status == {
-        'status': 'eventful',
-        'snapshot_id': expected_snapshot_id
-    }
+    expected_snapshot_id = "b0bfa75cbd0cc90aac3b9e95fb0f59c731176d97"
+    assert load_status == {"status": "eventful", "snapshot_id": expected_snapshot_id}
 
     # This ensures visits are incremental. Indeed, if we request a
     # second time an url, because of the requests_mock_datadir_visits
     # fixture, the file has to end with `_visit1`.
     expected_branches = {
-        'evaluation': {
-            'target': '602140776b2ce6c9159bcf52ada73a297c063d5e',
-            'target_type': 'revision'
+        "evaluation": {
+            "target": "602140776b2ce6c9159bcf52ada73a297c063d5e",
+            "target_type": "revision",
         },
-        'https://github.com/owner-1/repository-1/revision-1.tgz': {
-            'target': '488ad4e7b8e2511258725063cf43a2b897c503b4',
-            'target_type': 'revision'
+        "https://github.com/owner-1/repository-1/revision-1.tgz": {
+            "target": "488ad4e7b8e2511258725063cf43a2b897c503b4",
+            "target_type": "revision",
         },
-        'https://github.com/owner-2/repository-1/revision-1.tgz': {
-            'target': '85e0bad74e33e390aaeb74f139853ae3863ee544',
-            'target_type': 'revision'
-        }
+        "https://github.com/owner-2/repository-1/revision-1.tgz": {
+            "target": "85e0bad74e33e390aaeb74f139853ae3863ee544",
+            "target_type": "revision",
+        },
     }
 
     expected_snapshot = {
-        'id': expected_snapshot_id,
-        'branches': expected_branches,
+        "id": expected_snapshot_id,
+        "branches": expected_branches,
     }
     check_snapshot(expected_snapshot, storage=loader.storage)
 
     stats = get_stats(loader.storage)
     assert {
-        'content': 2,
-        'directory': 5,
-        'origin': 1,
-        'origin_visit': 2,
-        'person': 1,
-        'release': 0,
-        'revision': 2,
-        'skipped_content': 0,
-        'snapshot': 2
+        "content": 2,
+        "directory": 5,
+        "origin": 1,
+        "origin_visit": 2,
+        "person": 1,
+        "release": 0,
+        "revision": 2,
+        "skipped_content": 0,
+        "snapshot": 2,
     } == stats
 
 
@@ -271,39 +244,35 @@ def test_resolve_revision_from(swh_config, requests_mock_datadir):
     loader = NixGuixLoader(sources_url)
 
     known_artifacts = {
-        'id1': {'extrinsic': {'raw': {
-            'url': "url1",
-            'integrity': 'integrity1'}}},
-        'id2': {'extrinsic': {'raw': {
-            'url': "url2",
-            'integrity': 'integrity2'}}},
-        }
+        "id1": {"extrinsic": {"raw": {"url": "url1", "integrity": "integrity1"}}},
+        "id2": {"extrinsic": {"raw": {"url": "url2", "integrity": "integrity2"}}},
+    }
 
-    metadata = {'url': 'url1', 'integrity': 'integrity1'}
-    assert loader.resolve_revision_from(known_artifacts, metadata) == 'id1'
-    metadata = {'url': 'url3', 'integrity': 'integrity3'}
-    assert loader.resolve_revision_from(known_artifacts, metadata) == None # noqa
+    metadata = {"url": "url1", "integrity": "integrity1"}
+    assert loader.resolve_revision_from(known_artifacts, metadata) == "id1"
+    metadata = {"url": "url3", "integrity": "integrity3"}
+    assert loader.resolve_revision_from(known_artifacts, metadata) == None  # noqa
 
 
 def test_evaluation_branch(swh_config, requests_mock_datadir):
     loader = NixGuixLoader(sources_url)
     res = loader.load()
-    assert res['status'] == 'eventful'
+    assert res["status"] == "eventful"
 
     expected_branches = {
-        'https://github.com/owner-1/repository-1/revision-1.tgz': {
-            'target': '488ad4e7b8e2511258725063cf43a2b897c503b4',
-            'target_type': 'revision',
+        "https://github.com/owner-1/repository-1/revision-1.tgz": {
+            "target": "488ad4e7b8e2511258725063cf43a2b897c503b4",
+            "target_type": "revision",
         },
-        'evaluation': {
-            'target': 'cc4e04c26672dd74e5fd0fecb78b435fb55368f7',
-            'target_type': 'revision',
+        "evaluation": {
+            "target": "cc4e04c26672dd74e5fd0fecb78b435fb55368f7",
+            "target_type": "revision",
         },
     }
 
     expected_snapshot = {
-        'id': '0c5881c74283793ebe9a09a105a9381e41380383',
-        'branches': expected_branches,
+        "id": "0c5881c74283793ebe9a09a105a9381e41380383",
+        "branches": expected_branches,
     }
 
     check_snapshot(expected_snapshot, storage=loader.storage)
@@ -315,19 +284,21 @@ def test_eoferror(swh_config, requests_mock_datadir):
     snapshot is created, meaning this error is well managed.
 
     """
-    sources = "https://nix-community.github.io/nixpkgs-swh/sources-EOFError.json" # noqa
+    sources = (
+        "https://nix-community.github.io/nixpkgs-swh/sources-EOFError.json"  # noqa
+    )
     loader = NixGuixLoader(sources)
     loader.load()
 
     expected_branches = {
-        'evaluation': {
-            'target': 'cc4e04c26672dd74e5fd0fecb78b435fb55368f7',
-            'target_type': 'revision',
+        "evaluation": {
+            "target": "cc4e04c26672dd74e5fd0fecb78b435fb55368f7",
+            "target_type": "revision",
         },
     }
     expected_snapshot = {
-        'id': '4257fa2350168c6bfec726a06452ea27a2c0cb33',
-        'branches': expected_branches,
+        "id": "4257fa2350168c6bfec726a06452ea27a2c0cb33",
+        "branches": expected_branches,
     }
 
     check_snapshot(expected_snapshot, storage=loader.storage)

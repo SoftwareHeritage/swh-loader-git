@@ -8,9 +8,9 @@ from celery import shared_task
 from swh.loader.package.archive.loader import ArchiveLoader
 
 
-@shared_task(name=__name__ + '.LoadArchive')
-def load_archive_files(
-        *, url=None, artifacts=None, identity_artifact_keys=None):
+@shared_task(name=__name__ + ".LoadArchive")
+def load_archive_files(*, url=None, artifacts=None, identity_artifact_keys=None):
     """Load archive's artifacts (e.g gnu, etc...)"""
-    return ArchiveLoader(url, artifacts,
-                         identity_artifact_keys=identity_artifact_keys).load()
+    return ArchiveLoader(
+        url, artifacts, identity_artifact_keys=identity_artifact_keys
+    ).load()

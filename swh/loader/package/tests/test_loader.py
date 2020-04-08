@@ -8,7 +8,7 @@ from swh.loader.package.loader import PackageLoader
 
 class FakeStorage:
     def origin_add_one(self, origin):
-        raise ValueError('We refuse to add an origin')
+        raise ValueError("We refuse to add an origin")
 
 
 class FakeStorage2:
@@ -16,20 +16,20 @@ class FakeStorage2:
         return origin
 
     def origin_visit_add(self, origin, date, type):
-        raise ValueError('We refuse to add an origin visit')
+        raise ValueError("We refuse to add an origin visit")
 
 
 def test_loader_origin_visit_failure(swh_config):
     """Failure to add origin or origin visit should failed immediately
 
     """
-    loader = PackageLoader('some-url')
+    loader = PackageLoader("some-url")
     loader.storage = FakeStorage()
 
     actual_load_status = loader.load()
-    assert actual_load_status == {'status': 'failed'}
+    assert actual_load_status == {"status": "failed"}
 
     loader.storage = FakeStorage2()
 
     actual_load_status2 = loader.load()
-    assert actual_load_status2 == {'status': 'failed'}
+    assert actual_load_status2 == {"status": "failed"}

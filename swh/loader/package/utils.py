@@ -19,14 +19,10 @@ from swh.loader.package import DEFAULT_PARAMS
 logger = logging.getLogger(__name__)
 
 
-DOWNLOAD_HASHES = set(['sha1', 'sha256', 'length'])
+DOWNLOAD_HASHES = set(["sha1", "sha256", "length"])
 
 
-EMPTY_AUTHOR = Person(
-    fullname=b'',
-    name=None,
-    email=None,
-)
+EMPTY_AUTHOR = Person(fullname=b"", name=None, email=None,)
 
 
 def api_info(url: str) -> Dict:
@@ -45,14 +41,17 @@ def api_info(url: str) -> Dict:
     """
     response = requests.get(url, **DEFAULT_PARAMS)
     if response.status_code != 200:
-        raise ValueError("Fail to query '%s'. Reason: %s" % (
-            url, response.status_code))
+        raise ValueError("Fail to query '%s'. Reason: %s" % (url, response.status_code))
     return response.json()
 
 
-def download(url: str, dest: str, hashes: Dict = {},
-             filename: Optional[str] = None,
-             auth: Optional[Tuple[str, str]] = None) -> Tuple[str, Dict]:
+def download(
+    url: str,
+    dest: str,
+    hashes: Dict = {},
+    filename: Optional[str] = None,
+    auth: Optional[Tuple[str, str]] = None,
+) -> Tuple[str, Dict]:
     """Download a remote tarball from url, uncompresses and computes swh hashes
        on it.
 
@@ -74,19 +73,18 @@ def download(url: str, dest: str, hashes: Dict = {},
     """
     params = copy.deepcopy(DEFAULT_PARAMS)
     if auth is not None:
-        params['auth'] = auth
+        params["auth"] = auth
     response = requests.get(url, **params, stream=True)
     if response.status_code != 200:
-        raise ValueError("Fail to query '%s'. Reason: %s" % (
-            url, response.status_code))
+        raise ValueError("Fail to query '%s'. Reason: %s" % (url, response.status_code))
 
     filename = filename if filename else os.path.basename(url)
-    logger.debug('filename: %s', filename)
+    logger.debug("filename: %s", filename)
     filepath = os.path.join(dest, filename)
-    logger.debug('filepath: %s', filepath)
+    logger.debug("filepath: %s", filepath)
 
     h = MultiHash(hash_names=DOWNLOAD_HASHES)
-    with open(filepath, 'wb') as f:
+    with open(filepath, "wb") as f:
         for chunk in response.iter_content(chunk_size=HASH_BLOCK_SIZE):
             h.update(chunk)
             f.write(chunk)
@@ -99,31 +97,31 @@ def download(url: str, dest: str, hashes: Dict = {},
             expected_digest = hashes[algo_hash]
             if actual_digest != expected_digest:
                 raise ValueError(
-                    'Failure when fetching %s. '
-                    'Checksum mismatched: %s != %s' % (
-                        url, expected_digest, actual_digest))
+                    "Failure when fetching %s. "
+                    "Checksum mismatched: %s != %s"
+                    % (url, expected_digest, actual_digest)
+                )
 
     computed_hashes = h.hexdigest()
-    length = computed_hashes.pop('length')
+    length = computed_hashes.pop("length")
     extrinsic_metadata = {
-        'length': length,
-        'filename': filename,
-        'checksums': computed_hashes,
+        "length": length,
+        "filename": filename,
+        "checksums": computed_hashes,
     }
 
-    logger.debug('extrinsic_metadata', extrinsic_metadata)
+    logger.debug("extrinsic_metadata", extrinsic_metadata)
 
     return filepath, extrinsic_metadata
 
 
 def release_name(version: str, filename: Optional[str] = None) -> str:
     if filename:
-        return 'releases/%s/%s' % (version, filename)
-    return 'releases/%s' % version
+        return "releases/%s/%s" % (version, filename)
+    return "releases/%s" % version
 
 
-def artifact_identity(d: Mapping[str, Any],
-                      id_keys: Sequence[str]) -> List[Any]:
+def artifact_identity(d: Mapping[str, Any], id_keys: Sequence[str]) -> List[Any]:
     """Compute the primary key for a dict using the id_keys as primary key
        composite.
 

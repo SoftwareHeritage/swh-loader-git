@@ -8,7 +8,7 @@ from celery import shared_task
 from swh.loader.package.npm.loader import NpmLoader
 
 
-@shared_task(name=__name__ + '.LoadNpm')
+@shared_task(name=__name__ + ".LoadNpm")
 def load_npm(*, url: str):
     """Load Npm package"""
     return NpmLoader(url).load()

@@ -5,18 +5,15 @@
 
 
 def test_archive_loader(mocker, swh_app, celery_session_worker, swh_config):
-    mock_loader = mocker.patch(
-        'swh.loader.package.archive.loader.ArchiveLoader.load')
-    mock_loader.return_value = {'status': 'eventful'}
+    mock_loader = mocker.patch("swh.loader.package.archive.loader.ArchiveLoader.load")
+    mock_loader.return_value = {"status": "eventful"}
 
     res = swh_app.send_task(
-        'swh.loader.package.archive.tasks.LoadArchive',
-        kwargs={
-            'url': 'some-url',
-            'artifacts': []
-        })
+        "swh.loader.package.archive.tasks.LoadArchive",
+        kwargs={"url": "some-url", "artifacts": []},
+    )
     assert res
     res.wait()
     assert res.successful()
 
-    assert res.result == {'status': 'eventful'}
+    assert res.result == {"status": "eventful"}

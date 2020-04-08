@@ -5,23 +5,23 @@
 
 
 def test_nixguix_loader(mocker, swh_app, celery_session_worker, swh_config):
-    mock_loader = mocker.patch(
-        'swh.loader.package.nixguix.loader.NixGuixLoader.load')
-    mock_loader.return_value = {'status': 'eventful'}
+    mock_loader = mocker.patch("swh.loader.package.nixguix.loader.NixGuixLoader.load")
+    mock_loader.return_value = {"status": "eventful"}
 
     mock_retrieve_sources = mocker.patch(
-        'swh.loader.package.nixguix.loader.retrieve_sources')
+        "swh.loader.package.nixguix.loader.retrieve_sources"
+    )
     mock_retrieve_sources.return_value = {
-        'version': 1,
-        'sources': [],
-        'revision': 'some-revision'
+        "version": 1,
+        "sources": [],
+        "revision": "some-revision",
     }
 
     res = swh_app.send_task(
-        'swh.loader.package.nixguix.tasks.LoadNixguix',
-        kwargs=dict(url='some-url'))
+        "swh.loader.package.nixguix.tasks.LoadNixguix", kwargs=dict(url="some-url")
+    )
     assert res
     res.wait()
     assert res.successful()
 
-    assert res.result == {'status': 'eventful'}
+    assert res.result == {"status": "eventful"}
