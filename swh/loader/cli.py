@@ -25,7 +25,7 @@ LOADERS = {
 }
 
 
-SUPPORTED_LOADERS = list(LOADERS)
+SUPPORTED_LOADERS = sorted(list(LOADERS))
 
 
 def get_loader(name: str, **kwargs) -> Any:

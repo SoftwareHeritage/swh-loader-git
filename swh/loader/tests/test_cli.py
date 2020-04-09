@@ -9,6 +9,7 @@ import pytest
 from swh.loader.cli import run, list, get_loader, SUPPORTED_LOADERS
 from swh.loader.package.loader import PackageLoader
 
+from click.formatting import HelpFormatter
 from click.testing import CliRunner
 
 
@@ -38,6 +39,12 @@ def test_get_loader(swh_config):
         assert isinstance(loader, PackageLoader)
 
 
+def _write_usage(command, args, max_width=80):
+    hf = HelpFormatter(width=max_width)
+    hf.write_usage(command, args)
+    return hf.getvalue()[:-1]
+
+
 def test_run_help(swh_config):
     """Help message should be ok
 
@@ -46,15 +53,16 @@ def test_run_help(swh_config):
     result = runner.invoke(run, ["-h"])
 
     assert result.exit_code == 0
-    expected_help_msg = """Usage: run [OPTIONS] [archive|cran|debian|deposit|nixguix|npm|pypi] URL
-           [OPTIONS]...
+    usage_prefix = _write_usage(
+        "run", f"[OPTIONS] [{'|'.join(SUPPORTED_LOADERS)}] URL [OPTIONS]..."
+    )
+    expected_help_msg = f"""{usage_prefix}
 
   Ingest with loader <type> the origin located at <url>
 
 Options:
   -h, --help  Show this message and exit.
-"""  # noqa
-
+"""
     assert result.output.startswith(expected_help_msg)
 
 
@@ -76,13 +84,16 @@ def test_list_help(mocker, swh_config):
     runner = CliRunner()
     result = runner.invoke(list, ["--help"])
     assert result.exit_code == 0
-    expected_help_msg = """Usage: list [OPTIONS] [[all|archive|cran|debian|deposit|nixguix|npm|pypi]]
+    usage_prefix = _write_usage(
+        "list", f"[OPTIONS] [[{'|'.join(['all'] + SUPPORTED_LOADERS)}]]"
+    )
+    expected_help_msg = f"""{usage_prefix}
 
   List supported loaders and optionally their arguments
 
 Options:
   -h, --help  Show this message and exit.
-"""  # noqa
+"""
     assert result.output.startswith(expected_help_msg)
 
 
@@ -93,7 +104,8 @@ def test_list_help_npm(mocker, swh_config):
     runner = CliRunner()
     result = runner.invoke(list, ["npm"])
     assert result.exit_code == 0
-    expected_help_msg = """Loader: Load npm origin's artifact releases into swh archive.
+    expected_help_msg = """
+Loader: Load npm origin's artifact releases into swh archive.
 signature: (url: str)
-"""  # noqa
-    assert result.output.startswith(expected_help_msg)
+"""
+    assert result.output.startswith(expected_help_msg[1:])
