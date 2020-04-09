@@ -24,10 +24,8 @@ def swh_loader_config(swh_storage_postgresql) -> Dict[str, Any]:
                 {"cls": "buffer"},
                 {
                     "cls": "local",
-                    "args": {
-                        "db": swh_storage_postgresql.dsn,
-                        "objstorage": {"cls": "memory", "args": {}},
-                    },
+                    "db": swh_storage_postgresql.dsn,
+                    "objstorage": {"cls": "memory", "args": {}},
                 },
             ],
         },

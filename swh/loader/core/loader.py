@@ -63,10 +63,7 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
     CONFIG_BASE_FILENAME = None  # type: Optional[str]
 
     DEFAULT_CONFIG = {
-        "storage": (
-            "dict",
-            {"cls": "remote", "args": {"url": "http://localhost:5002/",}},
-        ),
+        "storage": ("dict", {"cls": "remote", "url": "http://localhost:5002/",}),
         "max_content_size": ("int", 100 * 1024 * 1024),
         "save_data": ("bool", False),
         "save_data_path": ("str", ""),
