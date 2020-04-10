@@ -139,11 +139,7 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
         return self.__save_data_path
 
     def flush(self) -> None:
-        """Flush any potential dangling data not sent to swh-storage.
-
-        Bypass the maybe_load_* methods which awaits threshold reached
-        signal. We actually want to store those as we are done
-        loading.
+        """Flush any potential buffered data not sent to swh-storage.
 
         """
         if hasattr(self.storage, "flush"):
