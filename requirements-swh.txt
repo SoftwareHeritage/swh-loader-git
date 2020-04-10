@@ -1,4 +1,4 @@
 swh.core >= 0.0.75
 swh.model >= 0.0.60
 swh.scheduler
-swh.storage >= 0.0.178
+swh.storage >= 0.0.184

@@ -278,8 +278,7 @@ class PackageLoader:
             - return the task's status
 
             """
-            if hasattr(self.storage, "flush"):
-                self.storage.flush()
+            self.storage.flush()
             self.storage.origin_visit_update(
                 origin=self.url,
                 visit_id=visit.visit,

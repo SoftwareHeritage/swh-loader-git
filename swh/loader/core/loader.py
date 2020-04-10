@@ -142,8 +142,7 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
         """Flush any potential buffered data not sent to swh-storage.
 
         """
-        if hasattr(self.storage, "flush"):
-            self.storage.flush()
+        self.storage.flush()
 
     @abstractmethod
     def cleanup(self) -> None:
