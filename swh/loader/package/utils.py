@@ -74,7 +74,9 @@ def download(
     params = copy.deepcopy(DEFAULT_PARAMS)
     if auth is not None:
         params["auth"] = auth
-    response = requests.get(url, **params, stream=True)
+    # so the connection does not hang indefinitely (read/connection timeout)
+    timeout = params.get("timeout", 60)
+    response = requests.get(url, **params, timeout=timeout, stream=True)
     if response.status_code != 200:
         raise ValueError("Fail to query '%s'. Reason: %s" % (url, response.status_code))
 
