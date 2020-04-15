@@ -11,14 +11,12 @@ from . import TEST_LOADER_CONFIG
 
 class GitLoaderTest(GitLoader):
     def parse_config_file(self, *args, **kwargs):
-        return {
-            **super().parse_config_file(*args, **kwargs),
-            **TEST_LOADER_CONFIG
-        }
+        return {**super().parse_config_file(*args, **kwargs), **TEST_LOADER_CONFIG}
 
 
 class TestGitLoader(DirGitLoaderTest):
     """Same tests as for the GitLoaderFromDisk, but running on GitLoader."""
+
     def setUp(self):
         super().setUp()
         self.loader = GitLoaderTest(self.repo_url)

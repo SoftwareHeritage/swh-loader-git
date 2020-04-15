@@ -14,7 +14,7 @@ class TestUtils(unittest.TestCase):
 
         """
         for e in range(32, 37):
-            ts = 2**e
+            ts = 2 ** e
             utils.check_date_time(ts)
 
     def test_check_date_time_empty_value(self):
@@ -25,6 +25,6 @@ class TestUtils(unittest.TestCase):
 
         """
         exp = 38
-        timestamp = 2**exp
-        with self.assertRaisesRegex(ValueError, 'is out of range'):
+        timestamp = 2 ** exp
+        with self.assertRaisesRegex(ValueError, "is out of range"):
             utils.check_date_time(timestamp)

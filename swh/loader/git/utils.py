@@ -13,8 +13,7 @@ import tempfile
 from swh.core import tarball
 
 
-def init_git_repo_from_archive(project_name, archive_path,
-                               root_temp_dir='/tmp'):
+def init_git_repo_from_archive(project_name, archive_path, root_temp_dir="/tmp"):
     """Given a path to an archive containing a git repository.
 
     Uncompress that archive to a temporary location and returns the path.
@@ -37,7 +36,8 @@ def init_git_repo_from_archive(project_name, archive_path,
 
     """
     temp_dir = tempfile.mkdtemp(
-        suffix='.swh.loader.git', prefix='tmp.', dir=root_temp_dir)
+        suffix=".swh.loader.git", prefix="tmp.", dir=root_temp_dir
+    )
 
     try:
         # create the repository that will be loaded with the dump
@@ -49,9 +49,10 @@ def init_git_repo_from_archive(project_name, archive_path,
         if not os.path.exists(repo_path):
             os.mkdir(repo_path)
             for root, dirs, files in os.walk(temp_dir):
-                if '.git' in dirs:
-                    shutil.copytree(os.path.join(root, '.git'),
-                                    os.path.join(repo_path, '.git'))
+                if ".git" in dirs:
+                    shutil.copytree(
+                        os.path.join(root, ".git"), os.path.join(repo_path, ".git")
+                    )
                     break
         return temp_dir, repo_path
     except Exception as e:
@@ -71,5 +72,4 @@ def check_date_time(timestamp):
     """
     if not timestamp:
         return None
-    datetime.datetime.fromtimestamp(timestamp,
-                                    datetime.timezone.utc)
+    datetime.datetime.fromtimestamp(timestamp, datetime.timezone.utc)
