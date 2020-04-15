@@ -242,6 +242,10 @@ class GitLoader(DVCSLoader):
         self.base_url = base_url
         self.ignore_history = ignore_history
         self.repo_representation = repo_representation
+        # state initialized in fetch_data
+        self.remote_refs = []
+        self.local_refs = {}
+        self.symbolic_refs = {}
 
     def fetch_pack_from_origin(self, origin_url, base_snapshot, do_activity):
         """Fetch a pack from the origin"""
