@@ -329,6 +329,8 @@ class PackageLoader:
                 if revision_id is None:
                     try:
                         revision_id = self._load_revision(p_info, origin)
+                        self.storage.flush()
+                        status_load = "eventful"
                     except Exception as e:
                         self.storage.clear_buffers()
                         load_exceptions.append(e)
@@ -337,10 +339,6 @@ class PackageLoader:
                             "Failed loading branch %s for %s", branch_name, self.url
                         )
                         continue
-                    else:
-                        # Flush loaded artifacts objects to storage
-                        self.storage.flush()
-                        status_load = "eventful"
 
                     if revision_id is None:
                         continue
