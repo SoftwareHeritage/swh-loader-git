@@ -8,7 +8,8 @@ from typing import Any, Dict
 
 def register() -> Dict[str, Any]:
     from swh.loader.git.loader import GitLoader
+
     return {
-        'task_modules': ['%s.tasks' % __name__],
-        'loader': GitLoader,
+        "task_modules": ["%s.tasks" % __name__],
+        "loader": GitLoader,
     }
