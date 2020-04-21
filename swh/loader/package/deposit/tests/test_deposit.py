@@ -5,6 +5,7 @@
 
 import re
 
+import pytest
 
 from swh.model.hashutil import hash_to_bytes
 from swh.loader.package.deposit.loader import DepositLoader
@@ -16,6 +17,16 @@ from swh.loader.package.tests.common import (
 )
 
 from swh.core.pytest_plugin import requests_mock_datadir_factory
+
+
+@pytest.fixture
+def requests_mock_datadir(requests_mock_datadir):
+    """Enhance default mock data to mock put requests as the loader does some
+       internal update queries there.
+
+    """
+    requests_mock_datadir.put(re.compile("https"))
+    return requests_mock_datadir
 
 
 def test_deposit_init_ok(swh_config, swh_loader_config):
@@ -95,9 +106,6 @@ def test_deposit_loading_failure_to_retrieve_1_artifact(
 
 
 def test_revision_metadata_structure(swh_config, requests_mock_datadir):
-    # do not care for deposit update query
-    requests_mock_datadir.put(re.compile("https"))
-
     url = "https://hal-test.archives-ouvertes.fr/some-external-id"
     deposit_id = 666
     loader = DepositLoader(url, deposit_id)
@@ -128,8 +136,6 @@ def test_revision_metadata_structure(swh_config, requests_mock_datadir):
 
 
 def test_deposit_loading_ok(swh_config, requests_mock_datadir):
-    requests_mock_datadir.put(re.compile("https"))  # do not care for put
-
     url = "https://hal-test.archives-ouvertes.fr/some-external-id"
     deposit_id = 666
     loader = DepositLoader(url, deposit_id)
