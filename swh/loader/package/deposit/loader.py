@@ -75,7 +75,15 @@ class DepositLoader(PackageLoader):
 
         # FIXME: the deposit no longer needs to build the revision
 
+        # Note:
+        # `date` and `committer_date` are always transmitted by the deposit read api
+        # which computes itself the values. The loader needs to use those to create the
+        # revision.
+
+        # date: codemeta:dateCreated if any, deposit completed_date otherwise
         date = TimestampWithTimezone.from_dict(revision_data["date"])
+        # commit_date: codemeta:datePublished if any, deposit completed_date otherwise
+        commit_date = TimestampWithTimezone.from_dict(revision_data["committer_date"])
         metadata = revision_data["metadata"]
         metadata.update(
             {
@@ -93,7 +101,7 @@ class DepositLoader(PackageLoader):
             author=parse_author(revision_data["author"]),
             date=date,
             committer=parse_author(revision_data["committer"]),
-            committer_date=date,
+            committer_date=commit_date,
             parents=[hash_to_bytes(p) for p in revision_data.get("parents", [])],
             directory=directory,
             synthetic=True,

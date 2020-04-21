@@ -211,3 +211,44 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
     assert metadata0["provider_id"] == provider["id"]
     assert metadata0["provider_type"] == "deposit_client"
     assert metadata0["tool_id"] == tool["id"]
+
+
+def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
+    """Field dates should be se appropriately
+
+    """
+    url = "https://hal-test.archives-ouvertes.fr/some-external-id"
+    deposit_id = 777
+    loader = DepositLoader(url, deposit_id)
+
+    actual_load_status = loader.load()
+    expected_snapshot_id = "3e68440fdd7c81d283f8f3aebb6f0c8657864192"
+
+    assert actual_load_status == {
+        "status": "eventful",
+        "snapshot_id": expected_snapshot_id,
+    }
+
+    revision_id = "564d18943d71be80d0d73b43a77cfb205bcde96c"
+    expected_branches = {"HEAD": {"target": revision_id, "target_type": "revision"}}
+    expected_snapshot = {
+        "id": expected_snapshot_id,
+        "branches": expected_branches,
+    }
+
+    check_snapshot(expected_snapshot, storage=loader.storage)
+
+    origin_visit = loader.storage.origin_visit_get_latest(url)
+
+    # The visit is partial because some hash collision were detected
+    assert origin_visit["status"] == "full"
+    assert origin_visit["type"] == "deposit"
+
+    raw_meta = loader.client.metadata_get(deposit_id)
+    # Ensure the date fields are set appropriately in the revision
+
+    # Retrieve the revision
+    revision = next(loader.storage.revision_get([hash_to_bytes(revision_id)]))
+    assert revision
+    for field_date in ["committer_date", "date"]:
+        assert revision[field_date] == raw_meta["revision"][field_date]
