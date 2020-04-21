@@ -21,72 +21,6 @@ from swh.loader.package.loader import PackageLoader
 logger = logging.getLogger(__name__)
 
 
-def retrieve_sources(url: str) -> Dict[str, Any]:
-    response = requests.get(url, allow_redirects=True)
-    if response.status_code != 200:
-        raise ValueError("Got %d HTTP code on %s", response.status_code, url)
-
-    return json.loads(response.content.decode("utf-8"))
-
-
-def clean_sources(sources: Dict[str, Any]) -> Dict[str, Any]:
-    """Validate and clean the sources structure. First, it ensures all top
-    level keys are presents. Then, it walks on the sources list
-    and removes sources that don't contain required keys.
-
-    Raises:
-      ValueError: if a top level key is missing
-
-    """
-    # Required top level keys
-    required_keys = ["version", "revision", "sources"]
-    missing_keys = []
-    for required_key in required_keys:
-        if required_key not in sources:
-            missing_keys.append(required_key)
-
-    if missing_keys != []:
-        raise ValueError(
-            "sources structure invalid, missing: %s", ",".join(missing_keys)
-        )
-
-    # Only the version 1 is currently supported
-    if sources["version"] != 1:
-        raise ValueError(
-            "The sources structure version '%d' is not supported", sources["version"]
-        )
-
-    # If a source doesn't contain required attributes, this source is
-    # skipped but others could still be archived.
-    verified_sources = []
-    for source in sources["sources"]:
-        valid = True
-        required_keys = ["urls", "integrity", "type"]
-        for required_key in required_keys:
-            if required_key not in source:
-                logger.info(
-                    "Skip source '%s' because key '%s' is missing", source, required_key
-                )
-                valid = False
-        if source["type"] != "url":
-            logger.info(
-                "Skip source '%s' because the type %s is not supported",
-                source,
-                source["type"],
-            )
-            valid = False
-        if not isinstance(source["urls"], list):
-            logger.info(
-                "Skip source '%s' because the urls attribute is not a list", source
-            )
-            valid = False
-        if valid:
-            verified_sources.append(source)
-
-    sources["sources"] = verified_sources
-    return sources
-
-
 class NixGuixLoader(PackageLoader):
     """Load sources from a sources.json file. This loader is used to load
     sources used by functional package manager (eg. Nix and Guix).
@@ -182,3 +116,69 @@ class NixGuixLoader(PackageLoader):
                 },
             },
         )
+
+
+def retrieve_sources(url: str) -> Dict[str, Any]:
+    response = requests.get(url, allow_redirects=True)
+    if response.status_code != 200:
+        raise ValueError("Got %d HTTP code on %s", response.status_code, url)
+
+    return json.loads(response.content.decode("utf-8"))
+
+
+def clean_sources(sources: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate and clean the sources structure. First, it ensures all top
+    level keys are presents. Then, it walks on the sources list
+    and removes sources that don't contain required keys.
+
+    Raises:
+      ValueError: if a top level key is missing
+
+    """
+    # Required top level keys
+    required_keys = ["version", "revision", "sources"]
+    missing_keys = []
+    for required_key in required_keys:
+        if required_key not in sources:
+            missing_keys.append(required_key)
+
+    if missing_keys != []:
+        raise ValueError(
+            "sources structure invalid, missing: %s", ",".join(missing_keys)
+        )
+
+    # Only the version 1 is currently supported
+    if sources["version"] != 1:
+        raise ValueError(
+            "The sources structure version '%d' is not supported", sources["version"]
+        )
+
+    # If a source doesn't contain required attributes, this source is
+    # skipped but others could still be archived.
+    verified_sources = []
+    for source in sources["sources"]:
+        valid = True
+        required_keys = ["urls", "integrity", "type"]
+        for required_key in required_keys:
+            if required_key not in source:
+                logger.info(
+                    "Skip source '%s' because key '%s' is missing", source, required_key
+                )
+                valid = False
+        if source["type"] != "url":
+            logger.info(
+                "Skip source '%s' because the type %s is not supported",
+                source,
+                source["type"],
+            )
+            valid = False
+        if not isinstance(source["urls"], list):
+            logger.info(
+                "Skip source '%s' because the urls attribute is not a list", source
+            )
+            valid = False
+        if valid:
+            verified_sources.append(source)
+
+    sources["sources"] = verified_sources
+    return sources
