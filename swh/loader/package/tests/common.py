@@ -1,4 +1,4 @@
-# Copyright (C) 2019  The Software Heritage developers
+# Copyright (C) 2019-2020  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -10,7 +10,6 @@ import logging
 from typing import Dict, List, Tuple
 
 from swh.model.hashutil import hash_to_bytes, hash_to_hex
-
 
 logger = logging.getLogger(__file__)
 
@@ -44,6 +43,10 @@ def check_snapshot(expected_snapshot, storage):
         expected_snapshot (dict): full snapshot with hex ids
         storage (Storage): expected storage
 
+    Returns:
+        the snapshot stored in the storage for further test assertion if any is
+        needed.
+
     """
     expected_snapshot_id = expected_snapshot["id"]
     expected_branches = expected_snapshot["branches"]
@@ -69,6 +72,7 @@ def check_snapshot(expected_snapshot, storage):
         for branch, target in snap["branches"].items()
     }
     assert expected_branches == branches
+    return snap
 
 
 def check_metadata(metadata: Dict, key_path: str, raw_type: str):
