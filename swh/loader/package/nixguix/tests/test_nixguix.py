@@ -178,9 +178,6 @@ def test_loader_incremental(swh_config, requests_mock_datadir):
     assert len(urls) == 1
 
 
-# FIXME: This test is not ok. The description is but not the implementation.
-# It uses 2 different loaders, 1 for each visit.
-# It should use only 1 loader to share the storage state
 def test_loader_two_visits(swh_config, requests_mock_datadir_visits):
     """To ensure there is only one origin, but two visits, two revisions
     and two snapshots are created.
