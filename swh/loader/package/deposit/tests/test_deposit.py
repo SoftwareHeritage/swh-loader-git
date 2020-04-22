@@ -128,6 +128,9 @@ def test_revision_metadata_structure(swh_config, requests_mock_datadir):
         ],
     )
 
+    # Only 2 top-level keys now
+    assert set(revision["metadata"].keys()) == {"extrinsic", "original_artifact"}
+
     for original_artifact in revision["metadata"]["original_artifact"]:
         check_metadata_paths(
             original_artifact,
@@ -217,7 +220,8 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
     """Field dates should be se appropriately
 
     """
-    url = "https://hal-test.archives-ouvertes.fr/some-external-id"
+    external_id = "some-external-id"
+    url = f"https://hal-test.archives-ouvertes.fr/{external_id}"
     deposit_id = 777
     loader = DepositLoader(url, deposit_id)
 
@@ -250,5 +254,77 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
     # Retrieve the revision
     revision = next(loader.storage.revision_get([hash_to_bytes(revision_id)]))
     assert revision
-    for field_date in ["committer_date", "date"]:
-        assert revision[field_date] == raw_meta["revision"][field_date]
+    assert revision["committer_date"] == raw_meta["revision"]["committer_date"]
+    assert revision["date"] == raw_meta["revision"]["date"]
+
+    read_api = f"https://deposit.softwareheritage.org/1/private/{deposit_id}/meta/"
+
+    assert revision["metadata"] == {
+        "extrinsic": {
+            "provider": read_api,
+            "raw": {
+                "branch_name": "master",
+                "origin": {"type": "deposit", "url": url,},
+                "origin_metadata": {
+                    "metadata": {
+                        "@xmlns": ["http://www.w3.org/2005/Atom"],
+                        "author": ["some awesome author", "another one", "no one",],
+                        "codemeta:dateCreated": "2017-10-07T15:17:08Z",
+                        "codemeta:datePublished": "2017-10-08T15:00:00Z",
+                        "external_identifier": "some-external-id",
+                        "url": url,
+                    },
+                    "provider": {
+                        "metadata": None,
+                        "provider_name": "hal",
+                        "provider_type": "deposit_client",
+                        "provider_url": "https://hal-test.archives-ouvertes.fr/",
+                    },
+                    "tool": {
+                        "configuration": {"sword_version": "2"},
+                        "name": "swh-deposit",
+                        "version": "0.0.1",
+                    },
+                },
+            },
+            "when": revision["metadata"]["extrinsic"]["when"],  # dynamic
+        },
+        "original_artifact": [
+            {
+                "checksums": {
+                    "sha1": "f8c63d7c890a7453498e6cf9fef215d85ec6801d",
+                    "sha256": "474bf646aeeff6d945eb752b1a9f8a40f3d81a88909ee7bd2d08cc822aa361e6",  # noqa
+                },
+                "filename": "archive.zip",
+                "length": 956830,
+            }
+        ],
+    }
+
+    # Check the metadata swh side
+    origin_meta = list(
+        loader.storage.origin_metadata_get_by(url, provider_type="deposit_client")
+    )
+
+    assert len(origin_meta) == 1
+
+    origin_meta = origin_meta[0]
+    # dynamic, a pain to display and not that interesting
+    origin_meta.pop("discovery_date")
+
+    assert origin_meta == {
+        "metadata": {
+            "@xmlns": ["http://www.w3.org/2005/Atom"],
+            "author": ["some awesome author", "another one", "no one"],
+            "codemeta:dateCreated": "2017-10-07T15:17:08Z",
+            "codemeta:datePublished": "2017-10-08T15:00:00Z",
+            "external_identifier": "some-external-id",
+            "url": "https://hal-test.archives-ouvertes.fr/some-external-id",
+        },
+        "origin_url": "https://hal-test.archives-ouvertes.fr/some-external-id",
+        "provider_id": 1,
+        "provider_name": "hal",
+        "provider_type": "deposit_client",
+        "provider_url": "https://hal-test.archives-ouvertes.fr/",
+        "tool_id": 1,
+    }

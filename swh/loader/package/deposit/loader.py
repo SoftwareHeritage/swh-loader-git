@@ -85,16 +85,6 @@ class DepositLoader(PackageLoader):
         date = TimestampWithTimezone.from_dict(revision_data["date"])
         # commit_date: codemeta:datePublished if any, deposit completed_date otherwise
         commit_date = TimestampWithTimezone.from_dict(revision_data["committer_date"])
-        metadata = revision_data["metadata"]
-        metadata.update(
-            {
-                "extrinsic": {
-                    "provider": self.client.metadata_url(self.deposit_id),
-                    "when": self.visit_date.isoformat(),
-                    "raw": a_metadata,
-                },
-            }
-        )
 
         return Revision(
             type=RevisionType.TAR,
@@ -106,7 +96,13 @@ class DepositLoader(PackageLoader):
             parents=[hash_to_bytes(p) for p in revision_data.get("parents", [])],
             directory=directory,
             synthetic=True,
-            metadata=metadata,
+            metadata={
+                "extrinsic": {
+                    "provider": self.client.metadata_url(self.deposit_id),
+                    "when": self.visit_date.isoformat(),
+                    "raw": a_metadata,
+                },
+            },
         )
 
     def load(self) -> Dict:
