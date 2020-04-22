@@ -254,8 +254,8 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
     # Retrieve the revision
     revision = next(loader.storage.revision_get([hash_to_bytes(revision_id)]))
     assert revision
-    assert revision["committer_date"] == raw_meta["revision"]["committer_date"]
-    assert revision["date"] == raw_meta["revision"]["date"]
+    assert revision["date"] == raw_meta["deposit"]["author_date"]
+    assert revision["committer_date"] == raw_meta["deposit"]["committer_date"]
 
     read_api = f"https://deposit.softwareheritage.org/1/private/{deposit_id}/meta/"
 
@@ -263,7 +263,6 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
         "extrinsic": {
             "provider": read_api,
             "raw": {
-                "branch_name": "master",
                 "origin": {"type": "deposit", "url": url,},
                 "origin_metadata": {
                     "metadata": {

@@ -71,10 +71,7 @@ class DepositLoader(PackageLoader):
     def build_revision(
         self, a_metadata: Dict, uncompressed_path: str, directory: Sha1Git
     ) -> Optional[Revision]:
-        # FIXME: the deposit read api should no longer need to build the revision entry
-        # as this would avoid unnecessary indirection. This would also align with what
-        # other package loaders do
-        revision_data = a_metadata.pop("revision")
+        depo = a_metadata.pop("deposit")
 
         # Note:
         # `date` and `committer_date` are always transmitted by the deposit read api
@@ -82,18 +79,24 @@ class DepositLoader(PackageLoader):
         # revision.
 
         # date: codemeta:dateCreated if any, deposit completed_date otherwise
-        date = TimestampWithTimezone.from_dict(revision_data["date"])
+        date = TimestampWithTimezone.from_dict(depo["author_date"])
         # commit_date: codemeta:datePublished if any, deposit completed_date otherwise
-        commit_date = TimestampWithTimezone.from_dict(revision_data["committer_date"])
+        commit_date = TimestampWithTimezone.from_dict(depo["committer_date"])
+
+        client, id, collection = [depo[k] for k in ["client", "id", "collection"]]
+        message = f"{client}: Deposit {id} in collection {collection}".encode("utf-8")
+
+        author = parse_author(depo["author"])
+        committer = parse_author(depo["committer"])
 
         return Revision(
             type=RevisionType.TAR,
-            message=revision_data["message"].encode("utf-8"),
-            author=parse_author(revision_data["author"]),
+            message=message,
+            author=author,
             date=date,
-            committer=parse_author(revision_data["committer"]),
+            committer=committer,
             committer_date=commit_date,
-            parents=[hash_to_bytes(p) for p in revision_data.get("parents", [])],
+            parents=[hash_to_bytes(p) for p in depo["revision_parents"]],
             directory=directory,
             synthetic=True,
             metadata={
