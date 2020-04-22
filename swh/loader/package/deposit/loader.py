@@ -71,9 +71,10 @@ class DepositLoader(PackageLoader):
     def build_revision(
         self, a_metadata: Dict, uncompressed_path: str, directory: Sha1Git
     ) -> Optional[Revision]:
+        # FIXME: the deposit read api should no longer need to build the revision entry
+        # as this would avoid unnecessary indirection. This would also align with what
+        # other package loaders do
         revision_data = a_metadata.pop("revision")
-
-        # FIXME: the deposit no longer needs to build the revision
 
         # Note:
         # `date` and `committer_date` are always transmitted by the deposit read api
