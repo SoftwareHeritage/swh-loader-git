@@ -122,24 +122,36 @@ class DepositLoader(PackageLoader):
         if success:
             # Update archive with metadata information
             origin_metadata = self.metadata["origin_metadata"]
-
             logger.debug("origin_metadata: %s", origin_metadata)
-            tools = self.storage.tool_add([origin_metadata["tool"]])
-            logger.debug("tools: %s", tools)
-            tool_id = tools[0]["id"]
 
             provider = origin_metadata["provider"]
-            # FIXME: Shall we delete this info?
-            provider_id = self.storage.metadata_provider_add(
-                provider["provider_name"],
-                provider["provider_type"],
-                provider["provider_url"],
-                metadata=None,
-            )
+            authority = {
+                "type": provider["provider_type"],
+                "url": provider["provider_url"],
+                "metadata": {
+                    "name": provider["provider_name"],
+                    **(provider["metadata"] or {}),
+                },
+            }
+            self.storage.metadata_authority_add(**authority)
+
+            tool = origin_metadata["tool"]
+            fetcher = {
+                "name": tool["name"],
+                "version": tool["version"],
+                "metadata": tool["configuration"],
+            }
+            self.storage.metadata_fetcher_add(**fetcher)
 
             metadata = origin_metadata["metadata"]
+            format = "sword-v2-atom-codemeta-v2-in-json"
             self.storage.origin_metadata_add(
-                self.url, self.visit_date, provider_id, tool_id, metadata
+                self.url,
+                self.visit_date,
+                {"type": authority["type"], "url": authority["url"]},
+                {"name": fetcher["name"], "version": fetcher["version"]},
+                format,
+                metadata,
             )
 
         # Update deposit status

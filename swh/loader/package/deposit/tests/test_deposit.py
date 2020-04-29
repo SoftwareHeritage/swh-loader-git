@@ -3,6 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import json
 import re
 
 import pytest
@@ -186,38 +187,24 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
 
     # check metadata
 
-    tool = {
+    fetcher = {
         "name": "swh-deposit",
         "version": "0.0.1",
-        "configuration": {"sword_version": "2",},
     }
 
-    tool = loader.storage.tool_get(tool)
-    assert tool is not None
-    assert tool["id"] is not None
-
-    provider = {
-        "provider_name": "hal",
-        "provider_type": "deposit_client",
-        "provider_url": "https://hal-test.archives-ouvertes.fr/",
-        "metadata": None,
+    authority = {
+        "type": "deposit_client",
+        "url": "https://hal-test.archives-ouvertes.fr/",
     }
 
-    provider = loader.storage.metadata_provider_get_by(provider)
-    assert provider is not None
-    assert provider["id"] is not None
-
-    metadata = list(
-        loader.storage.origin_metadata_get_by(url, provider_type="deposit_client")
-    )
+    metadata = list(loader.storage.origin_metadata_get(url, authority))
     assert metadata is not None
     assert isinstance(metadata, list)
     assert len(metadata) == 1
     metadata0 = metadata[0]
 
-    assert metadata0["provider_id"] == provider["id"]
-    assert metadata0["provider_type"] == "deposit_client"
-    assert metadata0["tool_id"] == tool["id"]
+    assert metadata0["authority"] == authority
+    assert metadata0["fetcher"] == fetcher
 
     # Retrieve the information for deposit status update query to the deposit
     urls = [
@@ -325,10 +312,18 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
         ],
     }
 
+    fetcher = {
+        "name": "swh-deposit",
+        "version": "0.0.1",
+    }
+
+    authority = {
+        "type": "deposit_client",
+        "url": "https://hal-test.archives-ouvertes.fr/",
+    }
+
     # Check the metadata swh side
-    origin_meta = list(
-        loader.storage.origin_metadata_get_by(url, provider_type="deposit_client")
-    )
+    origin_meta = list(loader.storage.origin_metadata_get(url, authority))
 
     assert len(origin_meta) == 1
 
@@ -337,20 +332,20 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
     origin_meta.pop("discovery_date")
 
     assert origin_meta == {
-        "metadata": {
-            "@xmlns": ["http://www.w3.org/2005/Atom"],
-            "author": ["some awesome author", "another one", "no one"],
-            "codemeta:dateCreated": "2017-10-07T15:17:08Z",
-            "codemeta:datePublished": "2017-10-08T15:00:00Z",
-            "external_identifier": "some-external-id",
-            "url": "https://hal-test.archives-ouvertes.fr/some-external-id",
-        },
         "origin_url": "https://hal-test.archives-ouvertes.fr/some-external-id",
-        "provider_id": 1,
-        "provider_name": "hal",
-        "provider_type": "deposit_client",
-        "provider_url": "https://hal-test.archives-ouvertes.fr/",
-        "tool_id": 1,
+        "metadata": json.dumps(
+            {
+                "@xmlns": ["http://www.w3.org/2005/Atom"],
+                "author": ["some awesome author", "another one", "no one"],
+                "codemeta:dateCreated": "2017-10-07T15:17:08Z",
+                "codemeta:datePublished": "2017-10-08T15:00:00Z",
+                "external_identifier": "some-external-id",
+                "url": "https://hal-test.archives-ouvertes.fr/some-external-id",
+            }
+        ).encode(),
+        "format": "sword-v2-atom-codemeta-v2-in-json",
+        "authority": authority,
+        "fetcher": fetcher,
     }
 
     # Retrieve the information for deposit status update query to the deposit
