@@ -33,7 +33,7 @@ class DummyLoader:
         origin = Origin(url="some-url")
         self.origin = origin
         self.origin_url = origin.url
-        self.visit_date = datetime.datetime.utcnow()
+        self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
         self.visit_type = "git"
         origin_url = self.storage.origin_add_one(origin)
         self.visit = self.storage.origin_visit_add(
