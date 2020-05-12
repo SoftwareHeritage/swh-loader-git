@@ -171,6 +171,7 @@ class DepositLoader(PackageLoader):
                 status="done",
                 revision_id=hash_to_hex(rev_id),
                 directory_id=hash_to_hex(dir_id),
+                snapshot_id=r["snapshot_id"],
                 origin_url=self.url,
             )
         except Exception:
@@ -246,6 +247,7 @@ class ApiClient:
         status: str,
         revision_id: Optional[str] = None,
         directory_id: Optional[str] = None,
+        snapshot_id: Optional[str] = None,
         origin_url: Optional[str] = None,
     ):
         """Update deposit's information including status, and persistent
@@ -258,6 +260,8 @@ class ApiClient:
             payload["revision_id"] = revision_id
         if directory_id:
             payload["directory_id"] = directory_id
+        if snapshot_id:
+            payload["snapshot_id"] = snapshot_id
         if origin_url:
             payload["origin_url"] = origin_url
 

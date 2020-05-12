@@ -7,7 +7,7 @@ import re
 
 import pytest
 
-from swh.model.hashutil import hash_to_bytes
+from swh.model.hashutil import hash_to_bytes, hash_to_hex
 from swh.loader.package.deposit.loader import DepositLoader
 
 from swh.loader.package.tests.common import (
@@ -17,6 +17,9 @@ from swh.loader.package.tests.common import (
 )
 
 from swh.core.pytest_plugin import requests_mock_datadir_factory
+
+
+DEPOSIT_URL = "https://deposit.softwareheritage.org/1/private"
 
 
 @pytest.fixture
@@ -68,7 +71,7 @@ def test_deposit_loading_unknown_deposit(swh_config, requests_mock_datadir):
 
 
 requests_mock_datadir_missing_one = requests_mock_datadir_factory(
-    ignore_urls=["https://deposit.softwareheritage.org/1/private/666/raw/",]
+    ignore_urls=[f"{DEPOSIT_URL}/666/raw/",]
 )
 
 
@@ -167,11 +170,9 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
     assert origin_visit["status"] == "full"
     assert origin_visit["type"] == "deposit"
 
+    revision_id = "637318680351f5d78856d13264faebbd91efe9bb"
     expected_branches = {
-        "HEAD": {
-            "target": "637318680351f5d78856d13264faebbd91efe9bb",
-            "target_type": "revision",
-        },
+        "HEAD": {"target": revision_id, "target_type": "revision",},
     }
 
     expected_snapshot = {
@@ -179,6 +180,9 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
         "branches": expected_branches,
     }
     check_snapshot(expected_snapshot, storage=loader.storage)
+
+    revision = next(loader.storage.revision_get([hash_to_bytes(revision_id)]))
+    assert revision
 
     # check metadata
 
@@ -214,6 +218,27 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
     assert metadata0["provider_id"] == provider["id"]
     assert metadata0["provider_type"] == "deposit_client"
     assert metadata0["tool_id"] == tool["id"]
+
+    # Retrieve the information for deposit status update query to the deposit
+    urls = [
+        m
+        for m in requests_mock_datadir.request_history
+        if m.url == f"{DEPOSIT_URL}/{deposit_id}/update/"
+    ]
+
+    assert len(urls) == 1
+    update_query = urls[0]
+
+    body = update_query.json()
+    expected_body = {
+        "status": "done",
+        "revision_id": revision_id,
+        "directory_id": hash_to_hex(revision["directory"]),
+        "snapshot_id": expected_snapshot_id,
+        "origin_url": url,
+    }
+
+    assert body == expected_body
 
 
 def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
@@ -257,7 +282,7 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
     assert revision["date"] == raw_meta["deposit"]["author_date"]
     assert revision["committer_date"] == raw_meta["deposit"]["committer_date"]
 
-    read_api = f"https://deposit.softwareheritage.org/1/private/{deposit_id}/meta/"
+    read_api = f"{DEPOSIT_URL}/{deposit_id}/meta/"
 
     assert revision["metadata"] == {
         "extrinsic": {
@@ -327,3 +352,24 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
         "provider_url": "https://hal-test.archives-ouvertes.fr/",
         "tool_id": 1,
     }
+
+    # Retrieve the information for deposit status update query to the deposit
+    urls = [
+        m
+        for m in requests_mock_datadir.request_history
+        if m.url == f"{DEPOSIT_URL}/{deposit_id}/update/"
+    ]
+
+    assert len(urls) == 1
+    update_query = urls[0]
+
+    body = update_query.json()
+    expected_body = {
+        "status": "done",
+        "revision_id": revision_id,
+        "directory_id": hash_to_hex(revision["directory"]),
+        "snapshot_id": expected_snapshot_id,
+        "origin_url": url,
+    }
+
+    assert body == expected_body
