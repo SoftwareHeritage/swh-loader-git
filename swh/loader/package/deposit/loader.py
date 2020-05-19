@@ -3,6 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import json
 import logging
 import requests
 import types
@@ -151,7 +152,7 @@ class DepositLoader(PackageLoader):
                 {"type": authority["type"], "url": authority["url"]},
                 {"name": fetcher["name"], "version": fetcher["version"]},
                 format,
-                metadata,
+                json.dumps(metadata).encode(),
             )
 
         # Update deposit status
