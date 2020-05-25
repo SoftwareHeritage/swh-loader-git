@@ -1,0 +1,16 @@
+{
+  "sources": [
+    {
+      "type": "url",
+      "urls": [ "https://github.com/owner-1/repository-1/revision-1.tgz" ],
+      "integrity": "sha256-3vm2Nt+O4zHf3Ovd/qsv1gKTEUwodX9FLxlrQdry0zs="
+    },
+    {
+      "type": "url",
+      "urls": [ "https://ftp.gnu.org/gnu/8sync/8sync-0.1.0.tar.gz" ],
+      "integrity": "sha256-3vm2Nt+O4zHf3Ovd/qsv1gKTEUwodX9FLxlrQdry0zs="
+    }
+  ],
+  "version": 1,
+  "revision": "cc4e04c26672dd74e5fd0fecb78b435fb55368f7"
+}

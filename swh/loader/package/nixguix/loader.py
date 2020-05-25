@@ -97,11 +97,27 @@ class NixGuixLoader(PackageLoader):
     def resolve_revision_from(
         self, known_artifacts: Dict, artifact_metadata: Dict
     ) -> Optional[bytes]:
-
         for rev_id, known_artifact in known_artifacts.items():
-            known_integrity = known_artifact["extrinsic"]["raw"]["integrity"]
-            if artifact_metadata["integrity"] == known_integrity:
-                return rev_id
+            try:
+                known_integrity = known_artifact["extrinsic"]["raw"]["integrity"]
+            except KeyError as e:
+                logger.exception(
+                    "Unexpected metadata revision structure detected: %(context)s",
+                    {
+                        "context": {
+                            "revision": hashutil.hash_to_hex(rev_id),
+                            "reason": str(e),
+                            "known_artifact": known_artifact,
+                        }
+                    },
+                )
+                # metadata field for the revision is not as expected by the loader
+                # nixguix. We consider this not the right revision and continue checking
+                # the other revisions
+                continue
+            else:
+                if artifact_metadata["integrity"] == known_integrity:
+                    return rev_id
         return None
 
     def extra_branches(self) -> Dict[bytes, Mapping[str, Any]]:

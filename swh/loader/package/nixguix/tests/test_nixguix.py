@@ -3,12 +3,19 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import os
+import json
+import logging
+
 import pytest
 
+from json.decoder import JSONDecodeError
 from typing import Dict, Optional, Tuple
 
-from json.decoder import JSONDecodeError
+from unittest.mock import patch
 
+from swh.model.model import Snapshot
+from swh.loader.package.archive.loader import ArchiveLoader
 from swh.loader.package.nixguix.loader import (
     NixGuixLoader,
     retrieve_sources,
@@ -17,6 +24,7 @@ from swh.loader.package.nixguix.loader import (
 
 from swh.loader.package.tests.common import get_stats, check_snapshot
 from swh.loader.package.utils import download
+from swh.model.hashutil import hash_to_bytes, hash_to_hex
 from swh.storage.exc import HashCollision
 
 sources_url = "https://nix-community.github.io/nixpkgs-swh/sources.json"
@@ -391,3 +399,122 @@ def test_raise_exception(swh_config, requests_mock_datadir, mocker):
     # The visit is partial because some hash collision were detected
     assert origin_visit["status"] == "partial"
     assert origin_visit["type"] == "nixguix"
+
+
+def test_load_nixguix_one_common_artifact_from_other_loader(
+    swh_config, datadir, requests_mock_datadir_visits, caplog
+):
+    """Misformatted revision should be caught and logged, then loading continues
+
+    """
+    caplog.set_level(logging.ERROR, "swh.loader.package.nixguix.loader")
+
+    # 1. first ingest with for example the archive loader
+    gnu_url = "https://ftp.gnu.org/gnu/8sync/"
+    release = "0.1.0"
+    artifact_url = f"https://ftp.gnu.org/gnu/8sync/8sync-{release}.tar.gz"
+    gnu_artifacts = [
+        {
+            "time": 944729610,
+            "url": artifact_url,
+            "length": 221837,
+            "filename": f"8sync-{release}.tar.gz",
+            "version": release,
+        }
+    ]
+    archive_loader = ArchiveLoader(url=gnu_url, artifacts=gnu_artifacts)
+    actual_load_status = archive_loader.load()
+    expected_snapshot_id = "c419397fd912039825ebdbea378bc6283f006bf5"
+    assert actual_load_status["status"] == "eventful"
+    assert actual_load_status["snapshot_id"] == expected_snapshot_id  # noqa
+
+    gnu_snapshot = archive_loader.storage.snapshot_get(
+        hash_to_bytes(expected_snapshot_id)
+    )
+
+    first_revision = gnu_snapshot["branches"][f"releases/{release}".encode("utf-8")]
+
+    # 2. Then ingest with the nixguix loader which lists the same artifact within its
+    # sources.json
+
+    # ensure test setup is ok
+    data_sources = os.path.join(
+        datadir, "https_nix-community.github.io", "nixpkgs-swh_sources_special.json"
+    )
+    all_sources = json.loads(open(data_sources).read())
+    found = False
+    for source in all_sources["sources"]:
+        if source["urls"][0] == artifact_url:
+            found = True
+            assert (
+                found is True
+            ), f"test setup error: {artifact_url} must be in {data_sources}"
+
+    # first visit with a snapshot, ok
+    sources_url = "https://nix-community.github.io/nixpkgs-swh/sources_special.json"
+    loader = NixGuixLoader(sources_url)
+    actual_load_status2 = loader.load()
+    assert actual_load_status2["status"] == "eventful"
+
+    snapshot_id = actual_load_status2["snapshot_id"]
+    snapshot = loader.storage.snapshot_get(hash_to_bytes(snapshot_id))
+    snapshot.pop("next_branch")  # snapshot_get endpoint detail to drop
+
+    # simulate a snapshot already seen with a revision with the wrong metadata structure
+    # This revision should be skipped, thus making the artifact being ingested again.
+    with patch(
+        "swh.loader.package.loader.PackageLoader.last_snapshot"
+    ) as last_snapshot:
+        # mutate the snapshot to target a revision with the wrong metadata structure
+        # snapshot["branches"][artifact_url.encode("utf-8")] = first_revision
+        old_revision = next(loader.storage.revision_get([first_revision["target"]]))
+        # assert that revision is not in the right format
+        assert old_revision["metadata"]["extrinsic"]["raw"].get("integrity", {}) == {}
+
+        # mutate snapshot to create a clash
+        snapshot["branches"][artifact_url.encode("utf-8")] = {
+            "target_type": "revision",
+            "target": old_revision["id"],
+        }
+
+        # modify snapshot to actually change revision metadata structure so we simulate
+        # a revision written by somebody else (structure different)
+        last_snapshot.return_value = Snapshot.from_dict(snapshot)
+
+        loader = NixGuixLoader(sources_url)
+        actual_load_status3 = loader.load()
+        assert last_snapshot.called
+        assert actual_load_status3["status"] == "eventful"
+
+        new_snapshot_id = "32ff641e510aceefc3a6d0dcbf208b2854d2e965"
+        assert actual_load_status3["snapshot_id"] == new_snapshot_id
+
+        last_snapshot = loader.storage.snapshot_get(hash_to_bytes(new_snapshot_id))
+        new_revision_branch = last_snapshot["branches"][artifact_url.encode("utf-8")]
+        assert new_revision_branch["target_type"] == "revision"
+
+        new_revision = next(
+            loader.storage.revision_get([new_revision_branch["target"]])
+        )
+
+        # the new revision has the correct structure,  so it got ingested alright by the
+        # new run
+        assert new_revision["metadata"]["extrinsic"]["raw"]["integrity"] is not None
+
+        nb_detections = 0
+        actual_detection: Dict
+        for record in caplog.records:
+            logtext = record.getMessage()
+            if "Unexpected metadata revision structure detected:" in logtext:
+                nb_detections += 1
+                actual_detection = record.args["context"]
+
+        assert actual_detection
+        # as many calls as there are sources listed in the sources.json
+        assert nb_detections == len(all_sources["sources"])
+
+        assert actual_detection == {
+            "revision": hash_to_hex(old_revision["id"]),
+            "reason": "'integrity'",
+            "known_artifact": old_revision["metadata"],
+        }
