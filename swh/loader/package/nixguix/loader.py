@@ -10,11 +10,16 @@ import requests
 from typing import Dict, Optional, Any, Mapping
 
 from swh.model import hashutil
-
-from swh.model.model import Sha1Git, Revision, RevisionType
+from swh.model.model import (
+    Revision,
+    RevisionType,
+    TargetType,
+    Snapshot,
+    BaseModel,
+    Sha1Git,
+)
 
 from swh.loader.package.utils import EMPTY_AUTHOR
-
 from swh.loader.package.loader import PackageLoader
 
 
@@ -61,6 +66,33 @@ class NixGuixLoader(PackageLoader):
         # fails, we should try the second one and so on.
         integrity = self._integrityByUrl[url]
         yield url, {"url": url, "raw": {"url": url, "integrity": integrity}}
+
+    def known_artifacts(self, snapshot: Optional[Snapshot]) -> Dict[Sha1Git, BaseModel]:
+        """Almost same implementation as the default one except it filters out the extra
+        "evaluation" branch which does not have the right metadata structure.
+
+        """
+        if not snapshot:
+            return {}
+
+        # Skip evaluation revision which has no metadata
+        revs = [
+            rev.target
+            for branch_name, rev in snapshot.branches.items()
+            if (
+                rev
+                and rev.target_type == TargetType.REVISION
+                and branch_name != b"evaluation"
+            )
+        ]
+        known_revisions = self.storage.revision_get(revs)
+
+        ret = {}
+        for revision in known_revisions:
+            if not revision:  # revision_get can return None
+                continue
+            ret[revision["id"]] = revision["metadata"]
+        return ret
 
     def resolve_revision_from(
         self, known_artifacts: Dict, artifact_metadata: Dict
