@@ -7,10 +7,13 @@ import os.path
 
 import dulwich.repo
 
+from swh.model.model import Snapshot, SnapshotBranch, TargetType
+from swh.model.hashutil import hash_to_bytes
+
+from swh.loader.core.tests import BaseLoaderTest
+
 from swh.loader.git.from_disk import GitLoaderFromDisk as OrigGitLoaderFromDisk
 from swh.loader.git.from_disk import GitLoaderFromArchive as OrigGitLoaderFromArchive
-from swh.loader.core.tests import BaseLoaderTest
-from swh.model.hashutil import hash_to_bytes
 
 from . import TEST_LOADER_CONFIG
 
@@ -313,6 +316,51 @@ class DirGitLoaderTest(BaseDirGitLoaderFromDiskTest, GitLoaderFromDiskTests):
             "target": hash_to_bytes(merge_commit.decode()),
             "target_type": "revision",
         }
+
+    def test_load_filter_branches(self):
+        filtered_branches = {b"refs/pull/42/merge"}
+        unfiltered_branches = {b"refs/pull/42/head"}
+
+        # Add branches to the repository on disk; some should be filtered by
+        # the loader, some should not.
+        for branch_name in filtered_branches | unfiltered_branches:
+            self.repo[branch_name] = self.repo[b"refs/heads/master"]
+
+        # Generate the expected snapshot from SNAPSHOT1 (which is the original
+        # state of the git repo)...
+        branches = {}
+
+        for branch_name, branch_dict in SNAPSHOT1["branches"].items():
+            target_type_name = branch_dict["target_type"]
+            target_obj = branch_dict["target"]
+
+            if target_type_name != "alias":
+                target = bytes.fromhex(target_obj)
+            else:
+                target = target_obj.encode()
+
+            branch = SnapshotBranch(
+                target=target, target_type=TargetType(target_type_name)
+            )
+            branches[branch_name.encode()] = branch
+
+        # ... and the unfiltered_branches, which are all pointing to the same
+        # commit as "refs/heads/master".
+        for branch_name in unfiltered_branches:
+            branches[branch_name] = branches[b"refs/heads/master"]
+
+        expected_snapshot = Snapshot(branches=branches)
+
+        # Load the modified repository
+        res = self.load()
+        assert res["status"] == "eventful"
+
+        assert self.loader.load_status() == {"status": "eventful"}
+        assert self.loader.visit_status() == "full"
+
+        visit = self.storage.origin_visit_get_latest(self.repo_url)
+        assert visit["snapshot"] == expected_snapshot.id
+        assert visit["status"] == "full"
 
     def test_load_dangling_symref(self):
         with open(os.path.join(self.destination_path, ".git/HEAD"), "wb") as f:

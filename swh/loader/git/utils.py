@@ -78,6 +78,25 @@ def check_date_time(timestamp):
     datetime.datetime.fromtimestamp(timestamp, datetime.timezone.utc)
 
 
+def ignore_branch_name(branch_name: bytes) -> bool:
+    """Should the git loader ignore the branch named `branch_name`?"""
+    if branch_name.endswith(b"^{}"):
+        # Peeled refs make the git protocol explode
+        return True
+    elif branch_name.startswith(b"refs/pull/") and branch_name.endswith(b"/merge"):
+        # We filter-out auto-merged GitHub pull requests
+        return True
+
+    return False
+
+
+def filter_refs(refs: Dict[bytes, bytes]) -> Dict[bytes, bytes]:
+    """Filter the refs dictionary using the policy set in `ignore_branch_name`"""
+    return {
+        name: target for name, target in refs.items() if not ignore_branch_name(name)
+    }
+
+
 def warn_dangling_branches(
     branches: Dict[bytes, Optional[SnapshotBranch]],
     dangling_branches: Dict[bytes, bytes],

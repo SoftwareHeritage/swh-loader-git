@@ -35,25 +35,6 @@ from swh.storage.algos.snapshot import snapshot_get_all_branches
 from . import converters, utils
 
 
-def ignore_branch_name(branch_name: bytes) -> bool:
-    """Should the git loader ignore the branch named `branch_name`?"""
-    if branch_name.endswith(b"^{}"):
-        # Peeled refs make the git protocol explode
-        return True
-    elif branch_name.startswith(b"refs/pull/") and branch_name.endswith(b"/merge"):
-        # We filter-out auto-merged GitHub pull requests
-        return True
-
-    return False
-
-
-def filter_refs(refs: Dict[bytes, bytes]) -> Dict[bytes, bytes]:
-    """Filter the refs dictionary using the policy set in `ignore_branch_name`"""
-    return {
-        name: target for name, target in refs.items() if not ignore_branch_name(name)
-    }
-
-
 class RepoRepresentation:
     """Repository representation for a Software Heritage origin."""
 
@@ -99,7 +80,7 @@ class RepoRepresentation:
         # Get the remote heads that we want to fetch
         remote_heads: Set[bytes] = set()
         for ref_name, ref_target in refs.items():
-            if ignore_branch_name(ref_name):
+            if utils.ignore_branch_name(ref_name):
                 continue
             remote_heads.add(ref_target)
 
@@ -203,8 +184,8 @@ class GitLoader(DVCSLoader):
         pack_buffer.seek(0)
 
         return FetchPackReturn(
-            remote_refs=filter_refs(remote_refs),
-            symbolic_refs=filter_refs(symbolic_refs),
+            remote_refs=utils.filter_refs(remote_refs),
+            symbolic_refs=utils.filter_refs(symbolic_refs),
             pack_buffer=pack_buffer,
             pack_size=pack_size,
         )
