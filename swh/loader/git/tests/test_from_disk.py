@@ -314,6 +314,33 @@ class DirGitLoaderTest(BaseDirGitLoaderFromDiskTest, GitLoaderFromDiskTests):
             "target_type": "revision",
         }
 
+    def test_load_dangling_symref(self):
+        with open(os.path.join(self.destination_path, ".git/HEAD"), "wb") as f:
+            f.write(b"ref: refs/heads/dangling-branch\n")
+
+        res = self.load()
+        self.assertEqual(res["status"], "eventful", res)
+
+        self.assertContentsContain(CONTENT1)
+        self.assertCountDirectories(7)
+        self.assertCountReleases(0)  # FIXME: should be 2 after T2059
+        self.assertCountRevisions(7)
+        self.assertCountSnapshots(1)
+
+        visit = self.storage.origin_visit_get_latest(self.repo_url)
+        snapshot_id = visit["snapshot"]
+        assert snapshot_id is not None
+        assert visit["status"] == "full"
+
+        snapshot = self.storage.snapshot_get(snapshot_id)
+        branches = snapshot["branches"]
+
+        assert branches[b"HEAD"] == {
+            "target": b"refs/heads/dangling-branch",
+            "target_type": "alias",
+        }
+        assert branches[b"refs/heads/dangling-branch"] is None
+
 
 class GitLoaderFromArchiveTest(BaseGitLoaderFromArchiveTest, GitLoaderFromDiskTests):
     """Tests for GitLoaderFromArchive. Imports the common ones

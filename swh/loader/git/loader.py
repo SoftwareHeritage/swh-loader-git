@@ -32,7 +32,7 @@ from swh.model.model import (
 from swh.loader.core.loader import DVCSLoader
 from swh.storage.algos.snapshot import snapshot_get_all_branches
 
-from . import converters
+from . import converters, utils
 
 
 def ignore_branch_name(branch_name: bytes) -> bool:
@@ -456,11 +456,18 @@ class GitLoader(DVCSLoader):
                 # and we can get it from the base snapshot later.
                 unfetched_refs[ref_name] = target
 
+        dangling_branches = {}
         # Handle symbolic references as alias branches
         for ref_name, target in self.symbolic_refs.items():
             branches[ref_name] = SnapshotBranch(
                 target_type=TargetType.ALIAS, target=target,
             )
+            if target not in branches and target not in unfetched_refs:
+                # This handles the case where the pointer is "dangling".
+                # There's a chance that a further symbolic reference
+                # override this default value, which is totally fine.
+                dangling_branches[target] = ref_name
+                branches[target] = None
 
         if unfetched_refs:
             # Handle inference of object types from the contents of the
@@ -491,6 +498,10 @@ class GitLoader(DVCSLoader):
                         )
                     )
                 )
+
+        utils.warn_dangling_branches(
+            branches, dangling_branches, self.log, self.origin_url
+        )
 
         self.snapshot = Snapshot(branches=branches)
         return self.snapshot
