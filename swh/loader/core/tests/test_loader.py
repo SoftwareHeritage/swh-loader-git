@@ -6,7 +6,6 @@
 import datetime
 import hashlib
 import logging
-import pytest
 
 from swh.model.model import Origin
 
@@ -114,7 +113,6 @@ def test_loader_logger_with_name():
     assert loader.log.name == "some.logger.name"
 
 
-@pytest.mark.fs
 def test_loader_save_data_path(tmp_path):
     loader = DummyBaseLoader("some.logger.name.1")
     url = "http://bitbucket.org/something"
