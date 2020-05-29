@@ -4,13 +4,14 @@
 # See top-level LICENSE file for more information
 
 from collections import defaultdict
+from dataclasses import dataclass
 import datetime
 from io import BytesIO
 import logging
 import os
 import pickle
 import sys
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Type
 
 import dulwich.client
 from dulwich.object_store import ObjectStoreGraphWalker
@@ -31,183 +32,67 @@ from swh.model.model import (
 from swh.loader.core.loader import DVCSLoader
 from swh.storage.algos.snapshot import snapshot_get_all_branches
 
-from . import converters
+from . import converters, utils
 
 
 class RepoRepresentation:
     """Repository representation for a Software Heritage origin."""
 
-    def __init__(self, storage, base_snapshot=None, ignore_history=False):
+    def __init__(
+        self, storage, base_snapshot: Optional[Snapshot] = None, ignore_history=False
+    ):
         self.storage = storage
-
-        self._parents_cache = {}
-        self._type_cache: Dict[bytes, TargetType] = {}
-
         self.ignore_history = ignore_history
 
         if base_snapshot and not ignore_history:
-            self.heads = set(self._cache_heads(base_snapshot))
+            self.base_snapshot: Snapshot = base_snapshot
         else:
-            self.heads = set()
+            self.base_snapshot = Snapshot(branches={})
 
-    def _fill_parents_cache(self, commits):
-        """When querying for a commit's parents, we fill the cache to a depth of 1000
-        commits."""
-        root_revs = self._encode_for_storage(commits)
-        for rev, parents in self.storage.revision_shortlog(root_revs, 1000):
-            rev_id = hashutil.hash_to_bytehex(rev)
-            if rev_id not in self._parents_cache:
-                self._parents_cache[rev_id] = [
-                    hashutil.hash_to_bytehex(parent) for parent in parents
-                ]
-        for rev in commits:
-            if rev not in self._parents_cache:
-                self._parents_cache[rev] = []
+        self.heads: Set[bytes] = set()
 
-    def _cache_heads(self, base_snapshot):
-        """Return all the known head commits for the given snapshot"""
-        _git_types = list(converters.DULWICH_TARGET_TYPES.values())
-
-        if not base_snapshot:
-            return []
-
-        snapshot_targets = set()
-        for branch in base_snapshot.branches.values():
-            if branch and branch.target_type in _git_types:
-                snapshot_targets.add(branch.target)
-
-        decoded_targets = self._decode_from_storage(snapshot_targets)
-
-        for id, objs in self.get_stored_objects(decoded_targets).items():
-            if not objs:
-                logging.warn("Missing head: %s" % hashutil.hash_to_hex(id))
-                return []
-
-        return decoded_targets
-
-    def get_parents(self, commit):
-        """Bogus method to prevent expensive recursion, at the expense of less
-        efficient downloading"""
+    def get_parents(self, commit: bytes) -> List[bytes]:
+        """This method should return the list of known parents"""
         return []
 
-    def get_heads(self):
-        return self.heads
+    def graph_walker(self) -> ObjectStoreGraphWalker:
+        return ObjectStoreGraphWalker(self.heads, self.get_parents)
 
-    @staticmethod
-    def _encode_for_storage(objects):
-        return [hashutil.bytehex_to_hash(object) for object in objects]
+    def determine_wants(self, refs: Dict[bytes, bytes]) -> List[bytes]:
+        """Get the list of bytehex sha1s that the git loader should fetch.
 
-    @staticmethod
-    def _decode_from_storage(objects):
-        return set(hashutil.hash_to_bytehex(object) for object in objects)
+        This compares the remote refs sent by the server with the base snapshot
+        provided by the loader.
 
-    def graph_walker(self):
-        return ObjectStoreGraphWalker(self.get_heads(), self.get_parents)
-
-    @staticmethod
-    def filter_unwanted_refs(refs):
-        """Filter the unwanted references from refs"""
-        ret = {}
-        for ref, val in refs.items():
-            if ref.endswith(b"^{}"):
-                # Peeled refs make the git protocol explode
-                continue
-            elif ref.startswith(b"refs/pull/") and ref.endswith(b"/merge"):
-                # We filter-out auto-merged GitHub pull requests
-                continue
-            else:
-                ret[ref] = val
-
-        return ret
-
-    def determine_wants(self, refs):
-        """Filter the remote references to figure out which ones
-        Software Heritage needs.
         """
         if not refs:
             return []
 
-        # Find what objects Software Heritage has
-        refs = self.find_remote_ref_types_in_swh(refs)
+        # Cache existing heads
+        local_heads: Set[bytes] = set()
+        for branch_name, branch in self.base_snapshot.branches.items():
+            if not branch or branch.target_type == TargetType.ALIAS:
+                continue
+            local_heads.add(hashutil.hash_to_hex(branch.target).encode())
 
-        # Cache the objects found in swh as existing heads
-        for target in refs.values():
-            if target["target_type"] is not None:
-                self.heads.add(target["target"])
+        self.heads = local_heads
 
-        ret = set()
-        for target in self.filter_unwanted_refs(refs).values():
-            if target["target_type"] is None:
-                # The target doesn't exist in Software Heritage, let's retrieve
-                # it.
-                ret.add(target["target"])
+        # Get the remote heads that we want to fetch
+        remote_heads: Set[bytes] = set()
+        for ref_name, ref_target in refs.items():
+            if utils.ignore_branch_name(ref_name):
+                continue
+            remote_heads.add(ref_target)
 
-        return list(ret)
+        return list(remote_heads - local_heads)
 
-    def _get_stored_objects_batch(
-        self, query
-    ) -> Dict[bytes, List[Dict[str, Union[bytes, TargetType]]]]:
-        results = self.storage.object_find_by_sha1_git(self._encode_for_storage(query))
-        ret: Dict[bytes, List[Dict[str, Union[bytes, TargetType]]]] = {}
-        for (id, objects) in results.items():
-            assert id not in ret
-            ret[id] = [
-                {"sha1_git": obj["sha1_git"], "type": TargetType(obj["type"]),}
-                for obj in objects
-            ]
-        return ret
 
-    def get_stored_objects(
-        self, objects
-    ) -> Dict[bytes, List[Dict[str, Union[bytes, TargetType]]]]:
-        """Find which of these objects were stored in the archive.
-
-        Do the request in packets to avoid a server timeout.
-        """
-        if self.ignore_history:
-            return {}
-
-        packet_size = 1000
-
-        ret: Dict[bytes, List[Dict[str, Union[bytes, TargetType]]]] = {}
-        query = []
-        for object in objects:
-            query.append(object)
-            if len(query) >= packet_size:
-                ret.update(self._get_stored_objects_batch(query))
-                query = []
-        if query:
-            ret.update(self._get_stored_objects_batch(query))
-        return ret
-
-    def find_remote_ref_types_in_swh(self, remote_refs) -> Dict[bytes, Dict[str, Any]]:
-        """Parse the remote refs information and list the objects that exist in
-        Software Heritage.
-
-        Returns:
-            dict whose keys are branch names, and values are tuples
-            `(target, target_type)`.
-        """
-
-        all_objs = set(remote_refs.values()) - set(self._type_cache)
-        type_by_id: Dict[bytes, TargetType] = {}
-
-        for id, objs in self.get_stored_objects(all_objs).items():
-            id = hashutil.hash_to_bytehex(id)
-            if objs:
-                type_ = objs[0]["type"]
-                assert isinstance(type_, TargetType)
-                type_by_id[id] = type_
-
-        self._type_cache.update(type_by_id)
-
-        ret = {}
-        for ref, id in remote_refs.items():
-            ret[ref] = {
-                "target": id,
-                "target_type": self._type_cache.get(id),
-            }
-        return ret
+@dataclass
+class FetchPackReturn:
+    remote_refs: Dict[bytes, bytes]
+    symbolic_refs: Dict[bytes, bytes]
+    pack_buffer: BytesIO
+    pack_size: int
 
 
 class GitLoader(DVCSLoader):
@@ -223,11 +108,11 @@ class GitLoader(DVCSLoader):
 
     def __init__(
         self,
-        url,
-        base_url=None,
-        ignore_history=False,
-        repo_representation=RepoRepresentation,
-        config=None,
+        url: str,
+        base_url: Optional[str] = None,
+        ignore_history: bool = False,
+        repo_representation: Type[RepoRepresentation] = RepoRepresentation,
+        config: Optional[Dict[str, Any]] = None,
     ):
         """Initialize the bulk updater.
 
@@ -237,17 +122,25 @@ class GitLoader(DVCSLoader):
             data.
 
         """
+        if config is None:
+            config = {}
+
         super().__init__(logging_class="swh.loader.git.BulkLoader", config=config)
         self.origin_url = url
         self.base_url = base_url
         self.ignore_history = ignore_history
         self.repo_representation = repo_representation
-        # state initialized in fetch_data
-        self.remote_refs = []
-        self.local_refs = {}
-        self.symbolic_refs = {}
 
-    def fetch_pack_from_origin(self, origin_url, base_snapshot, do_activity):
+        # state initialized in fetch_data
+        self.remote_refs: Dict[bytes, bytes] = {}
+        self.symbolic_refs: Dict[bytes, bytes] = {}
+
+    def fetch_pack_from_origin(
+        self,
+        origin_url: str,
+        base_snapshot: Optional[Snapshot],
+        do_activity: Callable[[bytes], None],
+    ) -> FetchPackReturn:
         """Fetch a pack from the origin"""
         pack_buffer = BytesIO()
 
@@ -263,7 +156,7 @@ class GitLoader(DVCSLoader):
 
         size_limit = self.config["pack_size_bytes"]
 
-        def do_pack(data):
+        def do_pack(data: bytes) -> None:
             cur_size = pack_buffer.tell()
             would_write = len(data)
             if cur_size + would_write > size_limit:
@@ -283,27 +176,23 @@ class GitLoader(DVCSLoader):
             progress=do_activity,
         )
 
-        remote_refs = pack_result.refs
-        symbolic_refs = pack_result.symrefs
-
-        if remote_refs:
-            local_refs = base_repo.find_remote_ref_types_in_swh(remote_refs)
-        else:
-            local_refs = remote_refs = {}
+        remote_refs = pack_result.refs or {}
+        symbolic_refs = pack_result.symrefs or {}
 
         pack_buffer.flush()
         pack_size = pack_buffer.tell()
         pack_buffer.seek(0)
 
-        return {
-            "remote_refs": base_repo.filter_unwanted_refs(remote_refs),
-            "local_refs": local_refs,
-            "symbolic_refs": symbolic_refs,
-            "pack_buffer": pack_buffer,
-            "pack_size": pack_size,
-        }
+        return FetchPackReturn(
+            remote_refs=utils.filter_refs(remote_refs),
+            symbolic_refs=utils.filter_refs(symbolic_refs),
+            pack_buffer=pack_buffer,
+            pack_size=pack_size,
+        )
 
-    def list_pack(self, pack_data, pack_size):
+    def list_pack(
+        self, pack_data, pack_size
+    ) -> Tuple[Dict[bytes, bytes], Dict[bytes, Set[bytes]]]:
         id_to_type = {}
         type_to_ids = defaultdict(set)
 
@@ -316,7 +205,7 @@ class GitLoader(DVCSLoader):
 
         return id_to_type, type_to_ids
 
-    def prepare_origin_visit(self, *args, **kwargs):
+    def prepare_origin_visit(self, *args, **kwargs) -> None:
         self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
         self.origin = Origin(url=self.origin_url)
 
@@ -330,26 +219,32 @@ class GitLoader(DVCSLoader):
             return None
         return Snapshot.from_dict(snapshot)
 
-    def prepare(self, *args, **kwargs):
+    def prepare(self, *args, **kwargs) -> None:
+        assert self.origin is not None
+
         base_origin_url = origin_url = self.origin.url
 
-        prev_snapshot = None
+        prev_snapshot: Optional[Snapshot] = None
 
         if not self.ignore_history:
             prev_snapshot = self.get_full_snapshot(origin_url)
 
-        if self.base_url and not prev_snapshot:
+        if self.base_url and prev_snapshot is None:
             base_origin = Origin(url=self.base_url)
             base_origin = self.storage.origin_get(base_origin)
             if base_origin:
-                base_origin_url = base_origin["url"]
+                base_origin_url = base_origin.url
                 prev_snapshot = self.get_full_snapshot(base_origin_url)
 
-        self.base_snapshot = prev_snapshot
-        self.base_origin_url = base_origin_url
+        if prev_snapshot is not None:
+            self.base_snapshot = prev_snapshot
+        else:
+            self.base_snapshot = Snapshot(branches={})
 
-    def fetch_data(self):
-        def do_progress(msg):
+    def fetch_data(self) -> bool:
+        assert self.origin is not None
+
+        def do_progress(msg: bytes) -> None:
             sys.stderr.buffer.write(msg)
             sys.stderr.flush()
 
@@ -357,20 +252,17 @@ class GitLoader(DVCSLoader):
             self.origin.url, self.base_snapshot, do_progress
         )
 
-        self.pack_buffer = fetch_info["pack_buffer"]
-        self.pack_size = fetch_info["pack_size"]
+        self.pack_buffer = fetch_info.pack_buffer
+        self.pack_size = fetch_info.pack_size
 
-        self.remote_refs = fetch_info["remote_refs"]
-        self.local_refs = fetch_info["local_refs"]
-        self.symbolic_refs = fetch_info["symbolic_refs"]
-
-        origin_url = self.origin.url
+        self.remote_refs = fetch_info.remote_refs
+        self.symbolic_refs = fetch_info.symbolic_refs
 
         self.log.info(
-            "Listed %d refs for repo %s" % (len(self.remote_refs), origin_url),
+            "Listed %d refs for repo %s" % (len(self.remote_refs), self.origin.url),
             extra={
                 "swh_type": "git_repo_list_refs",
-                "swh_repo": origin_url,
+                "swh_repo": self.origin.url,
                 "swh_num_refs": len(self.remote_refs),
             },
         )
@@ -381,8 +273,12 @@ class GitLoader(DVCSLoader):
         self.id_to_type = id_to_type
         self.type_to_ids = type_to_ids
 
-    def save_data(self):
+        # No more data to fetch
+        return False
+
+    def save_data(self) -> None:
         """Store a pack for archival"""
+        assert isinstance(self.visit_date, datetime.datetime)
 
         write_size = 8192
         pack_dir = self.get_save_data_path()
@@ -403,14 +299,14 @@ class GitLoader(DVCSLoader):
         with open(os.path.join(pack_dir, refs_name), "xb") as f:
             pickle.dump(self.remote_refs, f)
 
-    def get_inflater(self):
+    def get_inflater(self) -> PackInflater:
         """Reset the pack buffer and get an object inflater from it"""
         self.pack_buffer.seek(0)
         return PackInflater.for_pack_data(
             PackData.from_file(self.pack_buffer, self.pack_size)
         )
 
-    def has_contents(self):
+    def has_contents(self) -> bool:
         return bool(self.type_to_ids[b"blob"])
 
     def get_content_ids(self) -> Iterable[Dict[str, Any]]:
@@ -505,22 +401,88 @@ class GitLoader(DVCSLoader):
             yield converters.dulwich_tag_to_release(raw_obj, log=self.log)
 
     def get_snapshot(self) -> Snapshot:
+        """Get the snapshot for the current visit.
+
+        The main complexity of this function is mapping target objects to their
+        types, as the `refs` dictionaries returned by the git server only give
+        us the identifiers for the target objects, and not their types.
+
+        The loader itself only knows the types of the objects that it has
+        fetched from the server (as it has parsed them while loading them to
+        the archive). As we only fetched an increment between the previous
+        snapshot and the current state of the server, we are missing the type
+        information for the objects that would already have been referenced by
+        the previous snapshot, and that the git server didn't send us. We infer
+        the type of these objects from the previous snapshot.
+
+        """
         branches: Dict[bytes, Optional[SnapshotBranch]] = {}
 
-        for ref in self.remote_refs:
-            ret_ref = self.local_refs[ref].copy()
-            if not ret_ref["target_type"]:
-                target_type = self.id_to_type[ret_ref["target"]]
-                ret_ref["target_type"] = converters.DULWICH_TARGET_TYPES[target_type]
+        unfetched_refs: Dict[bytes, bytes] = {}
 
-            ret_ref["target"] = hashutil.bytehex_to_hash(ret_ref["target"])
+        # Retrieve types from the objects loaded by the current loader
+        for ref_name, ref_object in self.remote_refs.items():
+            if ref_name in self.symbolic_refs:
+                continue
+            target = hashutil.hash_to_bytes(ref_object.decode())
+            object_type = self.id_to_type.get(ref_object)
+            if object_type:
+                branches[ref_name] = SnapshotBranch(
+                    target=target,
+                    target_type=converters.DULWICH_TARGET_TYPES[object_type],
+                )
+            else:
+                # The object pointed at by this ref was not fetched, supposedly
+                # because it existed in the base snapshot. We record it here,
+                # and we can get it from the base snapshot later.
+                unfetched_refs[ref_name] = target
 
-            branches[ref] = SnapshotBranch(
-                target_type=ret_ref["target_type"], target=ret_ref["target"],
+        dangling_branches = {}
+        # Handle symbolic references as alias branches
+        for ref_name, target in self.symbolic_refs.items():
+            branches[ref_name] = SnapshotBranch(
+                target_type=TargetType.ALIAS, target=target,
             )
+            if target not in branches and target not in unfetched_refs:
+                # This handles the case where the pointer is "dangling".
+                # There's a chance that a further symbolic reference
+                # override this default value, which is totally fine.
+                dangling_branches[target] = ref_name
+                branches[target] = None
 
-        for ref, target in self.symbolic_refs.items():
-            branches[ref] = SnapshotBranch(target_type=TargetType.ALIAS, target=target,)
+        if unfetched_refs:
+            # Handle inference of object types from the contents of the
+            # previous snapshot
+            unknown_objects = {}
+            base_snapshot_reverse_branches = {
+                branch.target: branch
+                for branch in self.base_snapshot.branches.values()
+                if branch and branch.target_type != TargetType.ALIAS
+            }
+
+            for ref_name, target in unfetched_refs.items():
+                branch = base_snapshot_reverse_branches.get(target)
+                branches[ref_name] = branch
+                if not branch:
+                    unknown_objects[ref_name] = target
+
+            if unknown_objects:
+                # This object was referenced by the server; We did not fetch
+                # it, and we do not know it from the previous snapshot. This is
+                # likely a bug in the loader.
+                raise RuntimeError(
+                    "Unknown objects referenced by remote refs: %s"
+                    % (
+                        ", ".join(
+                            f"{name.decode()}: {hashutil.hash_to_hex(obj)}"
+                            for name, obj in unknown_objects.items()
+                        )
+                    )
+                )
+
+        utils.warn_dangling_branches(
+            branches, dangling_branches, self.log, self.origin_url
+        )
 
         self.snapshot = Snapshot(branches=branches)
         return self.snapshot
@@ -538,9 +500,9 @@ class GitLoader(DVCSLoader):
            the one we retrieved at the beginning of the run"""
         eventful = False
 
-        if self.base_snapshot:
+        if self.base_snapshot and self.snapshot:
             eventful = self.snapshot.id != self.base_snapshot.id
-        else:
+        elif self.snapshot:
             eventful = bool(self.snapshot.branches)
 
         return {"status": ("eventful" if eventful else "uneventful")}
@@ -561,7 +523,7 @@ if __name__ == "__main__":
         help="Ignore the repository history",
         default=False,
     )
-    def main(origin_url, base_url, ignore_history):
+    def main(origin_url: str, base_url: str, ignore_history: bool) -> Dict[str, Any]:
         loader = GitLoader(
             origin_url, base_url=base_url, ignore_history=ignore_history,
         )
