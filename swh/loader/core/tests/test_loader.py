@@ -7,7 +7,7 @@ import datetime
 import hashlib
 import logging
 
-from swh.model.model import Origin
+from swh.model.model import Origin, Snapshot
 
 from swh.loader.core.loader import BaseLoader, DVCSLoader
 
@@ -22,9 +22,6 @@ class DummyLoader:
         pass
 
     def fetch_data(self):
-        pass
-
-    def store_data(self):
         pass
 
     def get_snapshot_id(self):
@@ -55,6 +52,24 @@ class DummyDVCSLoader(DummyLoader, DVCSLoader):
             },
         }
 
+    def get_contents(self):
+        return []
+
+    def get_directories(self):
+        return []
+
+    def get_revisions(self):
+        return []
+
+    def get_releases(self):
+        return []
+
+    def get_snapshot(self):
+        return Snapshot(branches={})
+
+    def eventful(self):
+        return False
+
 
 class DummyBaseLoader(DummyLoader, BaseLoader):
     """Buffered loader will send new data when threshold is reached
@@ -83,6 +98,9 @@ class DummyBaseLoader(DummyLoader, BaseLoader):
                 ],
             },
         }
+
+    def store_data(self):
+        pass
 
 
 def test_base_loader():

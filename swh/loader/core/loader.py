@@ -396,7 +396,7 @@ class DVCSLoader(BaseLoader):
 
     def store_data(self) -> None:
         assert self.origin
-        if self.config["save_data"]:
+        if self.config.get("save_data"):
             self.save_data()
 
         if self.has_contents():
