@@ -146,3 +146,77 @@ def test_loader_save_data_path(tmp_path):
 
     save_path = loader.get_save_data_path()
     assert save_path == expected_save_path
+
+
+def _check_load_failure(caplog, loader, exc_class, exc_text):
+    """Check whether a failed load properly logged its exception, and that the
+    snapshot didn't get referenced in storage"""
+    for record in caplog.records:
+        if record.levelname != "ERROR":
+            continue
+        assert "Loading failure" in record.message
+        assert record.exc_info
+        exc = record.exc_info[1]
+        assert isinstance(exc, exc_class)
+        assert exc_text in exc.args[0]
+
+    # Check that the get_snapshot operation would have succeeded
+    assert loader.get_snapshot() is not None
+
+    # But that the snapshot didn't get loaded
+    assert loader.loaded_snapshot_id is None
+
+    # And confirm that the visit doesn't reference a snapshot
+    visit = loader.storage.origin_visit_get_latest(ORIGIN.url)
+    assert visit["status"] == "partial"
+    assert visit["snapshot"] is None
+
+
+class DummyDVCSLoaderExc(DummyDVCSLoader):
+    """A loader which raises an exception when loading some contents"""
+
+    def get_contents(self):
+        raise RuntimeError("Failed to get contents!")
+
+
+def test_dvcs_loader_exc_partial_visit(caplog):
+    logger_name = "dvcsloaderexc"
+    caplog.set_level(logging.ERROR, logger=logger_name)
+
+    loader = DummyDVCSLoaderExc(logging_class=logger_name)
+    result = loader.load()
+
+    assert result == {"status": "failed"}
+
+    _check_load_failure(caplog, loader, RuntimeError, "Failed to get contents!")
+
+
+class BrokenStorageProxy:
+    def __init__(self, storage):
+        self.storage = storage
+
+    def __getattr__(self, attr):
+        return getattr(self.storage, attr)
+
+    def snapshot_add(self, snapshots):
+        raise RuntimeError("Failed to add snapshot!")
+
+
+class DummyDVCSLoaderStorageExc(DummyDVCSLoader):
+    """A loader which raises an exception when loading some contents"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.storage = BrokenStorageProxy(self.storage)
+
+
+def test_dvcs_loader_storage_exc_partial_visit(caplog):
+    logger_name = "dvcsloaderexc"
+    caplog.set_level(logging.ERROR, logger=logger_name)
+
+    loader = DummyDVCSLoaderStorageExc(logging_class=logger_name)
+    result = loader.load()
+
+    assert result == {"status": "failed"}
+
+    _check_load_failure(caplog, loader, RuntimeError, "Failed to add snapshot!")

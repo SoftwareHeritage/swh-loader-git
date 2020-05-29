@@ -105,6 +105,8 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
 
         self.origin_metadata: Dict[str, Any] = {}
 
+        self.loaded_snapshot_id: Optional[Sha1Git] = None
+
         # Make sure the config is sane
         save_data = self.config.get("save_data")
         if save_data:
@@ -256,10 +258,6 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
         """
         return "full"
 
-    def get_snapshot_id(self) -> Optional[Sha1Git]:
-        """Get the snapshot id that needs to be loaded"""
-        raise NotImplementedError
-
     def pre_cleanup(self) -> None:
         """As a first step, will try and check for dangling data to cleanup.
         This should do its best to avoid raising issues.
@@ -310,7 +308,7 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
                 self.origin.url,
                 self.visit.visit,
                 self.visit_status(),
-                snapshot=self.get_snapshot_id(),
+                snapshot=self.loaded_snapshot_id,
             )
             self.post_load()
         except Exception:
@@ -322,7 +320,7 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
                 self.origin.url,
                 self.visit.visit,
                 "partial",
-                snapshot=self.get_snapshot_id(),
+                snapshot=self.loaded_snapshot_id,
             )
             self.post_load(success=False)
             return {"status": "failed"}
@@ -386,10 +384,6 @@ class DVCSLoader(BaseLoader):
         """Get the snapshot that needs to be loaded"""
         raise NotImplementedError
 
-    def get_snapshot_id(self) -> Optional[Sha1Git]:
-        snapshot = self.get_snapshot()
-        return snapshot.id if snapshot else None
-
     def eventful(self) -> bool:
         """Whether the load was eventful"""
         raise NotImplementedError
@@ -417,7 +411,7 @@ class DVCSLoader(BaseLoader):
             self.storage.revision_add(self.get_revisions())
         if self.has_releases():
             self.storage.release_add(self.get_releases())
-        self.flush()  # to ensure the snapshot targets existing objects
         snapshot = self.get_snapshot()
         self.storage.snapshot_add([snapshot])
         self.flush()
+        self.loaded_snapshot_id = snapshot.id
