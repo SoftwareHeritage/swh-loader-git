@@ -122,10 +122,11 @@ class PackageLoader:
         """
         snapshot = None
         visit = self.storage.origin_visit_get_latest(self.url, require_snapshot=True)
-        if visit and visit.get("snapshot"):
-            snapshot = Snapshot.from_dict(
-                snapshot_get_all_branches(self.storage, visit["snapshot"])
-            )
+        snapshot_id = None if not visit else visit.get("snapshot")
+        if snapshot_id is not None:
+            snapshot_dict = snapshot_get_all_branches(self.storage, snapshot_id)
+            if snapshot_dict:
+                snapshot = Snapshot.from_dict(snapshot_dict)
         return snapshot
 
     def known_artifacts(self, snapshot: Optional[Snapshot]) -> Dict[Sha1Git, BaseModel]:
