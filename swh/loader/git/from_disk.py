@@ -232,6 +232,8 @@ class GitLoaderFromDisk(DVCSLoader):
         branches: Dict[bytes, Optional[SnapshotBranch]] = {}
 
         for ref, target in self.repo.refs.as_dict().items():
+            if utils.ignore_branch_name(ref):
+                continue
             obj = self.get_object(target)
             if obj:
                 target_type = converters.DULWICH_TARGET_TYPES[obj.type_name]
@@ -241,8 +243,21 @@ class GitLoaderFromDisk(DVCSLoader):
             else:
                 branches[ref] = None
 
+        dangling_branches = {}
         for ref, target in self.repo.refs.get_symrefs().items():
-            branches[ref] = SnapshotBranch(target=target, target_type=TargetType.ALIAS,)
+            if utils.ignore_branch_name(ref):
+                continue
+            branches[ref] = SnapshotBranch(target=target, target_type=TargetType.ALIAS)
+            if target not in branches:
+                # This handles the case where the pointer is "dangling".
+                # There's a chance that a further symbolic reference will
+                # override this default value, which is totally fine.
+                dangling_branches[target] = ref
+                branches[target] = None
+
+        utils.warn_dangling_branches(
+            branches, dangling_branches, self.log, self.origin_url
+        )
 
         self.snapshot = Snapshot(branches=branches)
         return self.snapshot
