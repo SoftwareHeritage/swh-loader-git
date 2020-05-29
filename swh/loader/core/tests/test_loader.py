@@ -11,6 +11,8 @@ from swh.model.model import Origin
 
 from swh.loader.core.loader import BaseLoader, DVCSLoader
 
+ORIGIN = Origin(url="some-url")
+
 
 class DummyLoader:
     def cleanup(self):
@@ -29,12 +31,11 @@ class DummyLoader:
         return None
 
     def prepare_origin_visit(self, *args, **kwargs):
-        origin = Origin(url="some-url")
-        self.origin = origin
-        self.origin_url = origin.url
+        self.origin = ORIGIN
+        self.origin_url = ORIGIN.url
         self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
         self.visit_type = "git"
-        origin_url = self.storage.origin_add_one(origin)
+        origin_url = self.storage.origin_add_one(ORIGIN)
         self.visit = self.storage.origin_visit_add(
             origin_url, self.visit_date, self.visit_type
         )
