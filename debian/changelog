@@ -1,3 +1,15 @@
+swh-loader-git (0.1.0-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 0.1.0     - (tagged by Nicolas Dandrimont
+    <nicolas@dandrimont.eu> on 2020-05-29 10:33:12 +0200)
+  * Upstream changes:     - Release swh.loader.git v0.1.0     - Use the
+    previous snapshot instead of any object from the archive to do     -
+    incremental loads     - Merge branch filtering behavior between the
+    local and remote loaders     - Add default target branch for
+    symbolic references
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Fri, 29 May 2020 08:37:48 +0000
+
 swh-loader-git (0.0.60-1~swh1) unstable-swh; urgency=medium
 
   * New upstream release 0.0.60     - (tagged by Antoine R. Dumont
