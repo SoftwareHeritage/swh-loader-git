@@ -202,7 +202,7 @@ class BaseLoaderTest(TestCase, BaseLoaderStorageTest):
         filename=None,
         resources_path="resources",
         prefix_tmp_folder_name="",
-        uncompress_archive=True
+        uncompress_archive=True,
     ):
         super().setUp()
         repo_path = os.path.join(start_path, resources_path, archive_name)
