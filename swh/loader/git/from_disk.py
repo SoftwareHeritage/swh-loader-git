@@ -3,14 +3,21 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+
+from collections import defaultdict
 import datetime
-import dulwich.repo
 import os
 import shutil
 from typing import Dict, Optional
 
-from dulwich.errors import ObjectFormatException, EmptyFileException
-from collections import defaultdict
+from dulwich.errors import ObjectFormatException
+
+try:
+    from dulwich.errors import EmptyFileException
+except ImportError:
+    # dulwich >= 0.20
+    from dulwich.objects import EmptyFileException
+import dulwich.repo
 
 from swh.model import hashutil
 from swh.model.model import Origin, Snapshot, SnapshotBranch, TargetType
