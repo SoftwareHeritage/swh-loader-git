@@ -153,7 +153,7 @@ class NixGuixLoader(PackageLoader):
             date=None,
             committer=EMPTY_AUTHOR,
             committer_date=None,
-            parents=[],
+            parents=(),
             directory=directory,
             synthetic=True,
             metadata={

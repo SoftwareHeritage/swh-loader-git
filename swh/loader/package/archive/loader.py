@@ -129,7 +129,7 @@ class ArchiveLoader(PackageLoader):
             author=SWH_PERSON,
             committer=SWH_PERSON,
             committer_date=normalized_time,
-            parents=[],
+            parents=(),
             directory=directory,
             synthetic=True,
             metadata={

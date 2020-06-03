@@ -101,7 +101,7 @@ class PyPILoader(PackageLoader):
             date=date,
             committer=_author,
             committer_date=date,
-            parents=[],
+            parents=(),
             directory=directory,
             synthetic=True,
             metadata={

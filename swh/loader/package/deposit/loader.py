@@ -97,7 +97,7 @@ class DepositLoader(PackageLoader):
             date=date,
             committer=committer,
             committer_date=commit_date,
-            parents=[hash_to_bytes(p) for p in depo["revision_parents"]],
+            parents=tuple([hash_to_bytes(p) for p in depo["revision_parents"]]),
             directory=directory,
             synthetic=True,
             metadata={

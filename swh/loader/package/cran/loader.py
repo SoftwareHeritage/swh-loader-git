@@ -104,7 +104,7 @@ class CRANLoader(PackageLoader):
             author=author,
             committer=author,
             committer_date=date,
-            parents=[],
+            parents=(),
             directory=directory,
             synthetic=True,
             metadata={

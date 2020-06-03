@@ -153,7 +153,7 @@ class DebianLoader(PackageLoader):
             date=date,
             committer=author,
             committer_date=date,
-            parents=[],
+            parents=(),
             directory=directory,
             synthetic=True,
             metadata={
