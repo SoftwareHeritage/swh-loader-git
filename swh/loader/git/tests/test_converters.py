@@ -169,7 +169,7 @@ class TestConverters(unittest.TestCase):
                 negative_utc=False,
                 offset=120,
             ),
-            parents=[b"\xc3\xc5\x88q23`\x9f[\xbb\xb2\xd9\xe7\xf3\xfbJf\x0f?r"],
+            parents=(b"\xc3\xc5\x88q23`\x9f[\xbb\xb2\xd9\xe7\xf3\xfbJf\x0f?r",),
             synthetic=False,
         )
 
