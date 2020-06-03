@@ -79,7 +79,7 @@ def dulwich_tree_to_directory(tree, log=None) -> Directory:
             )
         )
 
-    return Directory(id=tree.sha().digest(), entries=entries,)
+    return Directory(id=tree.sha().digest(), entries=tuple(entries),)
 
 
 def parse_author(name_email: bytes) -> Person:
@@ -140,7 +140,7 @@ def dulwich_commit_to_revision(commit, log=None) -> Revision:
         message=commit.message,
         metadata=metadata,
         synthetic=False,
-        parents=[bytes.fromhex(p.decode()) for p in commit.parents],
+        parents=tuple(bytes.fromhex(p.decode()) for p in commit.parents),
     )
 
 
