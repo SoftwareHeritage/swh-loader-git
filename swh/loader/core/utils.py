@@ -25,6 +25,7 @@ def clean_dangling_folders(dirpath, pattern_check, log=None):
     if not os.path.exists(dirpath):
         return
     for filename in os.listdir(dirpath):
+        path_to_cleanup = os.path.join(dirpath, filename)
         try:
             # pattern: `swh.loader.svn-pid.{noise}`
             if (
@@ -37,7 +38,6 @@ def clean_dangling_folders(dirpath, pattern_check, log=None):
                 if log:
                     log.debug("PID %s is live, skipping" % pid)
                 continue
-            path_to_cleanup = os.path.join(dirpath, filename)
             # could be removed concurrently, so check before removal
             if os.path.exists(path_to_cleanup):
                 shutil.rmtree(path_to_cleanup)
