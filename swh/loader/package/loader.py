@@ -27,8 +27,10 @@ from swh.model.model import (
     TargetType,
     Snapshot,
     Origin,
+    OriginVisitStatus,
 )
 from swh.storage import get_storage
+from swh.storage.utils import now
 from swh.storage.algos.snapshot import snapshot_get_all_branches
 
 from swh.loader.package.utils import download
@@ -280,18 +282,23 @@ class PackageLoader:
 
             """
             self.storage.flush()
-            self.storage.origin_visit_update(
-                origin=self.url,
-                visit_id=visit.visit,
-                status=status_visit,
-                snapshot=snapshot and snapshot.id,
-            )
 
+            snapshot_id: Optional[bytes] = None
+            if snapshot and snapshot.id:  # to prevent the snapshot.id to b""
+                snapshot_id = snapshot.id
+            visit_status = OriginVisitStatus(
+                origin=self.url,
+                visit=visit.visit,
+                date=now(),
+                status=status_visit,
+                snapshot=snapshot_id,
+            )
+            self.storage.origin_visit_status_add([visit_status])
             result: Dict[str, Any] = {
                 "status": status_load,
             }
-            if snapshot:
-                result["snapshot_id"] = hash_to_hex(snapshot.id)
+            if snapshot_id:
+                result["snapshot_id"] = hash_to_hex(snapshot_id)
             return result
 
         # Prepare origin and origin_visit

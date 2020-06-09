@@ -18,12 +18,14 @@ from swh.model.model import (
     SkippedContent,
     Directory,
     Origin,
+    OriginVisitStatus,
     Revision,
     Release,
     Sha1Git,
     Snapshot,
 )
 from swh.storage import get_storage
+from swh.storage.utils import now
 
 
 class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
@@ -304,24 +306,28 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
                     break
 
             self.store_metadata()
-            self.storage.origin_visit_update(
-                self.origin.url,
-                self.visit.visit,
-                self.visit_status(),
+            visit_status = OriginVisitStatus(
+                origin=self.origin.url,
+                visit=self.visit.visit,
+                date=now(),
+                status=self.visit_status(),
                 snapshot=self.loaded_snapshot_id,
             )
+            self.storage.origin_visit_status_add([visit_status])
             self.post_load()
         except Exception:
             self.log.exception(
                 "Loading failure, updating to `partial` status",
                 extra={"swh_task_args": args, "swh_task_kwargs": kwargs,},
             )
-            self.storage.origin_visit_update(
-                self.origin.url,
-                self.visit.visit,
-                "partial",
+            visit_status = OriginVisitStatus(
+                origin=self.origin.url,
+                visit=self.visit.visit,
+                date=now(),
+                status="partial",
                 snapshot=self.loaded_snapshot_id,
             )
+            self.storage.origin_visit_status_add([visit_status])
             self.post_load(success=False)
             return {"status": "failed"}
         finally:
