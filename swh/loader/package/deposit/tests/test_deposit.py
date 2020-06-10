@@ -197,14 +197,15 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
         "url": "https://hal-test.archives-ouvertes.fr/",
     }
 
-    metadata = list(loader.storage.origin_metadata_get(url, authority))
-    assert metadata is not None
-    assert isinstance(metadata, list)
-    assert len(metadata) == 1
-    metadata0 = metadata[0]
+    orig_meta = loader.storage.origin_metadata_get(url, authority)
+    assert orig_meta is not None
+    assert isinstance(orig_meta, dict)
+    assert len(orig_meta["results"]) == 1
+    assert orig_meta["next_page_token"] is None
+    orig_meta0 = orig_meta["results"][0]
 
-    assert metadata0["authority"] == authority
-    assert metadata0["fetcher"] == fetcher
+    assert orig_meta0["authority"] == authority
+    assert orig_meta0["fetcher"] == fetcher
 
     # Retrieve the information for deposit status update query to the deposit
     urls = [
@@ -323,15 +324,19 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
     }
 
     # Check the metadata swh side
-    origin_meta = list(loader.storage.origin_metadata_get(url, authority))
+    orig_meta = loader.storage.origin_metadata_get(url, authority)
+    assert orig_meta is not None
+    assert isinstance(orig_meta, dict)
+    assert len(orig_meta["results"]) == 1
+    assert orig_meta["next_page_token"] is None
 
-    assert len(origin_meta) == 1
+    assert len(orig_meta["results"]) == 1
 
-    origin_meta = origin_meta[0]
+    orig_meta0 = orig_meta["results"][0]
     # dynamic, a pain to display and not that interesting
-    origin_meta.pop("discovery_date")
+    orig_meta0.pop("discovery_date")
 
-    assert origin_meta == {
+    assert orig_meta0 == {
         "origin_url": "https://hal-test.archives-ouvertes.fr/some-external-id",
         "metadata": json.dumps(
             {
