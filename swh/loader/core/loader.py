@@ -9,7 +9,7 @@ import logging
 import os
 
 from abc import ABCMeta, abstractmethod
-from typing import Any, Dict, Iterable, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, Optional, Tuple
 
 from swh.core import config
 from swh.model.model import (
@@ -18,6 +18,7 @@ from swh.model.model import (
     SkippedContent,
     Directory,
     Origin,
+    OriginVisit,
     OriginVisitStatus,
     Revision,
     Release,
@@ -98,7 +99,7 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
         self.max_content_size = self.config["max_content_size"]
 
         # possibly overridden in self.prepare method
-        self.visit_date: Optional[Union[str, datetime.datetime]] = None
+        self.visit_date: Optional[datetime.datetime] = None
 
         self.origin: Optional[Origin] = None
 
@@ -173,9 +174,19 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
 
         if not self.visit_date:  # now as default visit_date if not provided
             self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
+        assert isinstance(self.visit_date, datetime.datetime)
+        assert isinstance(self.visit_type, str)
         self.visit = self.storage.origin_visit_add(
-            self.origin.url, self.visit_date, self.visit_type
-        )
+            [
+                OriginVisit(
+                    origin=self.origin.url,
+                    date=self.visit_date,
+                    type=self.visit_type,
+                    status="ongoing",
+                    snapshot=None,
+                )
+            ]
+        )[0]
 
     @abstractmethod
     def prepare(self, *args, **kwargs) -> None:

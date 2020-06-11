@@ -7,7 +7,7 @@ import datetime
 import hashlib
 import logging
 
-from swh.model.model import Origin, Snapshot
+from swh.model.model import Origin, OriginVisit, Snapshot
 
 from swh.loader.core.loader import BaseLoader, DVCSLoader
 
@@ -33,9 +33,14 @@ class DummyLoader:
         self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
         self.visit_type = "git"
         origin_url = self.storage.origin_add_one(ORIGIN)
-        self.visit = self.storage.origin_visit_add(
-            origin_url, self.visit_date, self.visit_type
+        visit = OriginVisit(
+            origin=origin_url,
+            date=self.visit_date,
+            type=self.visit_type,
+            status="ongoing",
+            snapshot=None,
         )
+        self.visit = self.storage.origin_visit_add([visit])[0]
 
 
 class DummyDVCSLoader(DummyLoader, DVCSLoader):

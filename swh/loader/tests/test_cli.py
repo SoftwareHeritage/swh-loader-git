@@ -1,7 +1,9 @@
-# Copyright (C) 2019 The Software Heritage developers
+# Copyright (C) 2019-2020 The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
+
+import datetime
 
 import pytest
 
@@ -75,6 +77,24 @@ def test_run_pypi(mocker, swh_config):
     result = runner.invoke(run, ["pypi", "https://some-url"])
     assert result.exit_code == 0
     mock_loader.assert_called_once_with(url="https://some-url")  # constructor
+
+
+def test_run_with_visit_date(mocker, swh_config):
+    """iso visit_date parameter should be parsed as datetime
+
+    """
+    mock_loader = mocker.patch("swh.loader.cli.get_loader")
+
+    runner = CliRunner()
+    input_date = "2016-05-03 15:16:32+00"
+    result = runner.invoke(run, ["npm", "https://some-url", f"visit_date={input_date}"])
+    assert result.exit_code == 0
+    expected_parsed_date = datetime.datetime(
+        2016, 5, 3, 15, 16, 32, tzinfo=datetime.timezone.utc
+    )
+    mock_loader.assert_called_once_with(
+        "npm", url="https://some-url", visit_date=expected_parsed_date
+    )
 
 
 def test_list_help(mocker, swh_config):

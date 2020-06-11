@@ -1,4 +1,4 @@
-# Copyright (C) 2019  The Software Heritage developers
+# Copyright (C) 2019-2020  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -15,7 +15,7 @@ class FakeStorage2:
     def origin_add_one(self, origin):
         return origin
 
-    def origin_visit_add(self, origin, date, type):
+    def origin_visit_add(self, visits):
         raise ValueError("We refuse to add an origin visit")
 
 

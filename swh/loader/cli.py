@@ -1,4 +1,4 @@
-# Copyright (C) 2019 The Software Heritage developers
+# Copyright (C) 2019-2020 The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -7,6 +7,7 @@ import inspect
 import logging
 
 import click
+import iso8601
 import pkg_resources
 
 from typing import Any
@@ -70,6 +71,11 @@ def run(ctx, type, url, options):
     """Ingest with loader <type> the origin located at <url>"""
     (_, kw) = parse_options(options)
     logger.debug(f"kw: {kw}")
+    visit_date = kw.get("visit_date")
+    if visit_date and isinstance(visit_date, str):
+        visit_date = iso8601.parse_date(visit_date)
+        kw["visit_date"] = visit_date
+
     loader = get_loader(type, url=url, **kw)
     result = loader.load()
     click.echo(result)

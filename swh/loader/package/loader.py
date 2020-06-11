@@ -27,6 +27,7 @@ from swh.model.model import (
     TargetType,
     Snapshot,
     Origin,
+    OriginVisit,
     OriginVisitStatus,
 )
 from swh.storage import get_storage
@@ -286,6 +287,7 @@ class PackageLoader:
             snapshot_id: Optional[bytes] = None
             if snapshot and snapshot.id:  # to prevent the snapshot.id to b""
                 snapshot_id = snapshot.id
+            assert visit.visit
             visit_status = OriginVisitStatus(
                 origin=self.url,
                 visit=visit.visit,
@@ -306,8 +308,16 @@ class PackageLoader:
         try:
             self.storage.origin_add_one(origin)
             visit = self.storage.origin_visit_add(
-                self.url, date=self.visit_date, type=self.visit_type
-            )
+                [
+                    OriginVisit(
+                        origin=self.url,
+                        date=self.visit_date,
+                        type=self.visit_type,
+                        status="ongoing",
+                        snapshot=None,
+                    )
+                ]
+            )[0]
         except Exception as e:
             logger.exception("Failed to initialize origin_visit for %s", self.url)
             sentry_sdk.capture_exception(e)
