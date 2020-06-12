@@ -87,7 +87,9 @@ def test_run_with_visit_date(mocker, swh_config):
 
     runner = CliRunner()
     input_date = "2016-05-03 15:16:32+00"
-    result = runner.invoke(run, ["npm", "https://some-url", f"visit_date={input_date}"])
+    result = runner.invoke(
+        run, ["npm", "https://some-url", f"visit_date='{input_date}'"]
+    )
     assert result.exit_code == 0
     expected_parsed_date = datetime.datetime(
         2016, 5, 3, 15, 16, 32, tzinfo=datetime.timezone.utc
