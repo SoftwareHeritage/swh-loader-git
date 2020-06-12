@@ -3,6 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import datetime
 import os.path
 
 import dulwich.repo
@@ -131,7 +132,9 @@ class BaseDirGitLoaderFromDiskTest(BaseGitLoaderFromDiskTest):
         super().setUp("testrepo.tgz", uncompress_archive=True)
         self.loader = GitLoaderFromDiskTest(
             url=self.repo_url,
-            visit_date="2016-05-03 15:16:32+00",
+            visit_date=datetime.datetime(
+                2016, 5, 3, 15, 16, 32, tzinfo=datetime.timezone.utc
+            ),
             directory=self.destination_path,
         )
         self.storage = self.loader.storage
@@ -153,7 +156,9 @@ class BaseGitLoaderFromArchiveTest(BaseGitLoaderFromDiskTest):
         super().setUp("testrepo.tgz", uncompress_archive=False)
         self.loader = GitLoaderFromArchive(
             url=self.repo_url,
-            visit_date="2016-05-03 15:16:32+00",
+            visit_date=datetime.datetime(
+                2016, 5, 3, 15, 16, 32, tzinfo=datetime.timezone.utc
+            ),
             archive_path=self.destination_path,
         )
         self.storage = self.loader.storage
