@@ -16,6 +16,7 @@ from swh.loader.package.tests.common import (
     check_metadata_paths,
     get_stats,
 )
+from swh.loader.tests.common import assert_last_visit_matches
 
 from swh.core.pytest_plugin import requests_mock_datadir_factory
 
@@ -91,6 +92,8 @@ def test_deposit_loading_failure_to_retrieve_1_artifact(
     assert actual_load_status["status"] == "uneventful"
     assert actual_load_status["snapshot_id"] is not None
 
+    assert_last_visit_matches(loader.storage, url, status="partial", type="deposit")
+
     stats = get_stats(loader.storage)
     assert {
         "content": 0,
@@ -103,10 +106,6 @@ def test_deposit_loading_failure_to_retrieve_1_artifact(
         "skipped_content": 0,
         "snapshot": 1,
     } == stats
-
-    origin_visit = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit["status"] == "partial"
-    assert origin_visit["type"] == "deposit"
 
 
 def test_revision_metadata_structure(swh_config, requests_mock_datadir):
@@ -154,6 +153,8 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
         "snapshot_id": expected_snapshot_id,
     }
 
+    assert_last_visit_matches(loader.storage, url, status="full", type="deposit")
+
     stats = get_stats(loader.storage)
     assert {
         "content": 303,
@@ -166,10 +167,6 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
         "skipped_content": 0,
         "snapshot": 1,
     } == stats
-
-    origin_visit = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit["status"] == "full"
-    assert origin_visit["type"] == "deposit"
 
     revision_id = "637318680351f5d78856d13264faebbd91efe9bb"
     expected_branches = {
@@ -245,6 +242,7 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
         "status": "eventful",
         "snapshot_id": expected_snapshot_id,
     }
+    assert_last_visit_matches(loader.storage, url, status="full", type="deposit")
 
     revision_id = "564d18943d71be80d0d73b43a77cfb205bcde96c"
     expected_branches = {"HEAD": {"target": revision_id, "target_type": "revision"}}
@@ -254,12 +252,6 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
     }
 
     check_snapshot(expected_snapshot, storage=loader.storage)
-
-    origin_visit = loader.storage.origin_visit_get_latest(url)
-
-    # The visit is partial because some hash collision were detected
-    assert origin_visit["status"] == "full"
-    assert origin_visit["type"] == "deposit"
 
     raw_meta = loader.client.metadata_get(deposit_id)
     # Ensure the date fields are set appropriately in the revision

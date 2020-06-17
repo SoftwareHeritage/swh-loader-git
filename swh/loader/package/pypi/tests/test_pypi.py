@@ -28,6 +28,7 @@ from swh.loader.package.tests.common import (
     check_metadata_paths,
     get_stats,
 )
+from swh.loader.tests.common import assert_last_visit_matches
 
 
 def test_author_basic():
@@ -226,9 +227,7 @@ def test_no_release_artifact(swh_config, requests_mock_datadir_missing_all):
         "snapshot": 1,
     } == stats
 
-    origin_visit = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit["status"] == "partial"
-    assert origin_visit["type"] == "pypi"
+    assert_last_visit_matches(loader.storage, url, status="partial", type="pypi")
 
 
 # problem during loading:
@@ -260,9 +259,7 @@ def test_release_with_traceback(swh_config, requests_mock_datadir):
             "snapshot": 0,
         } == stats
 
-    origin_visit = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit["status"] == "partial"
-    assert origin_visit["type"] == "pypi"
+        assert_last_visit_matches(loader.storage, url, status="partial", type="pypi")
 
 
 # problem during loading: failure early enough in between swh contents...
@@ -389,9 +386,7 @@ def test_visit_with_missing_artifact(swh_config, requests_mock_datadir_missing_o
     }
     check_snapshot(expected_snapshot, storage=loader.storage)
 
-    origin_visit = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit["status"] == "partial"
-    assert origin_visit["type"] == "pypi"
+    assert_last_visit_matches(loader.storage, url, status="partial", type="pypi")
 
 
 def test_visit_with_1_release_artifact(swh_config, requests_mock_datadir):
@@ -476,9 +471,7 @@ def test_visit_with_1_release_artifact(swh_config, requests_mock_datadir):
     }
     check_snapshot(expected_snapshot, loader.storage)
 
-    origin_visit = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit["status"] == "full"
-    assert origin_visit["type"] == "pypi"
+    assert_last_visit_matches(loader.storage, url, status="full", type="pypi")
 
 
 def test_multiple_visits_with_no_change(swh_config, requests_mock_datadir):
@@ -494,6 +487,7 @@ def test_multiple_visits_with_no_change(swh_config, requests_mock_datadir):
         "status": "eventful",
         "snapshot_id": snapshot_id,
     }
+    assert_last_visit_matches(loader.storage, url, status="full", type="pypi")
 
     stats = get_stats(loader.storage)
 
@@ -527,15 +521,15 @@ def test_multiple_visits_with_no_change(swh_config, requests_mock_datadir):
     }
     check_snapshot(expected_snapshot, loader.storage)
 
-    origin_visit = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit["status"] == "full"
-    assert origin_visit["type"] == "pypi"
-
     actual_load_status2 = loader.load()
     assert actual_load_status2 == {
         "status": "uneventful",
         "snapshot_id": actual_load_status2["snapshot_id"],
     }
+
+    visit_status2 = assert_last_visit_matches(
+        loader.storage, url, status="full", type="pypi"
+    )
 
     stats2 = get_stats(loader.storage)
     expected_stats2 = stats.copy()
@@ -543,7 +537,7 @@ def test_multiple_visits_with_no_change(swh_config, requests_mock_datadir):
     assert expected_stats2 == stats2
 
     # same snapshot
-    actual_snapshot_id = origin_visit["snapshot"]
+    actual_snapshot_id = visit_status2.snapshot
     assert actual_snapshot_id == hash_to_bytes(snapshot_id)
 
 
@@ -562,9 +556,7 @@ def test_incremental_visit(swh_config, requests_mock_datadir_visits):
         "snapshot_id": expected_snapshot_id,
     }
 
-    origin_visit1 = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit1["status"] == "full"
-    assert origin_visit1["type"] == "pypi"
+    assert_last_visit_matches(loader.storage, url, status="full", type="pypi")
 
     assert {
         "content": 6,
@@ -591,10 +583,7 @@ def test_incremental_visit(swh_config, requests_mock_datadir_visits):
         "snapshot_id": expected_snapshot_id2,
     }
 
-    visits = list(loader.storage.origin_visit_get(url))
-    assert len(visits) == 2
-    assert visits[1]["status"] == "full"
-    assert visits[1]["type"] == "pypi"
+    assert_last_visit_matches(loader.storage, url, status="full", type="pypi")
 
     assert {
         "content": 6 + 1,  # 1 more content
@@ -674,9 +663,7 @@ def test_incremental_visit(swh_config, requests_mock_datadir_visits):
 
     check_snapshot(expected_snapshot, loader.storage)
 
-    origin_visit = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit["status"] == "full"
-    assert origin_visit["type"] == "pypi"
+    assert_last_visit_matches(loader.storage, url, status="full", type="pypi")
 
     urls = [
         m.url
@@ -729,9 +716,7 @@ def test_visit_1_release_with_2_artifacts(swh_config, requests_mock_datadir):
     }
     check_snapshot(expected_snapshot, loader.storage)
 
-    origin_visit = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit["status"] == "full"
-    assert origin_visit["type"] == "pypi"
+    assert_last_visit_matches(loader.storage, url, status="full", type="pypi")
 
 
 def test_pypi_artifact_to_revision_id_none():
@@ -843,6 +828,4 @@ def test_pypi_artifact_with_no_intrinsic_metadata(swh_config, requests_mock_data
     expected_snapshot = {"id": expected_snapshot_id, "branches": {}}
     check_snapshot(expected_snapshot, loader.storage)
 
-    origin_visit = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit["status"] == "full"
-    assert origin_visit["type"] == "pypi"
+    assert_last_visit_matches(loader.storage, url, status="full", type="pypi")

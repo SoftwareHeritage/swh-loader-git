@@ -20,6 +20,7 @@ from swh.loader.package.tests.common import (
     check_metadata_paths,
     get_stats,
 )
+from swh.loader.tests.common import assert_last_visit_matches
 
 
 def test_extract_npm_package_author(datadir):
@@ -350,9 +351,7 @@ def test_npm_loader_incremental_visit(swh_config, requests_mock_datadir_visits):
     actual_load_status = loader.load()
     assert actual_load_status["status"] == "eventful"
     assert actual_load_status["status"] is not None
-    origin_visit = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit["status"] == "full"
-    assert origin_visit["type"] == "npm"
+    assert_last_visit_matches(loader.storage, url, status="full", type="npm")
 
     stats = get_stats(loader.storage)
 
@@ -375,9 +374,7 @@ def test_npm_loader_incremental_visit(swh_config, requests_mock_datadir_visits):
     assert snap_id2 is not None
     assert snap_id2 != actual_load_status["snapshot_id"]
 
-    origin_visit2 = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit2["status"] == "full"
-    assert origin_visit2["type"] == "npm"
+    assert_last_visit_matches(loader.storage, url, status="full", type="npm")
 
     stats = get_stats(loader.storage)
 
@@ -410,9 +407,7 @@ def test_npm_loader_version_divergence(swh_config):
     actual_load_status = loader.load()
     assert actual_load_status["status"] == "eventful"
     assert actual_load_status["status"] is not None
-    origin_visit = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit["status"] == "full"
-    assert origin_visit["type"] == "npm"
+    assert_last_visit_matches(loader.storage, url, status="full", type="npm")
 
     stats = get_stats(loader.storage)
 
@@ -524,9 +519,7 @@ def test_npm_artifact_with_no_intrinsic_metadata(swh_config, requests_mock_datad
     }
     check_snapshot(expected_snapshot, loader.storage)
 
-    origin_visit = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit["status"] == "full"
-    assert origin_visit["type"] == "npm"
+    assert_last_visit_matches(loader.storage, url, status="full", type="npm")
 
 
 def test_npm_artifact_with_no_upload_time(swh_config, requests_mock_datadir):
@@ -547,9 +540,7 @@ def test_npm_artifact_with_no_upload_time(swh_config, requests_mock_datadir):
     }
     check_snapshot(expected_snapshot, loader.storage)
 
-    origin_visit = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit["status"] == "partial"
-    assert origin_visit["type"] == "npm"
+    assert_last_visit_matches(loader.storage, url, status="partial", type="npm")
 
 
 def test_npm_artifact_use_mtime_if_no_time(swh_config, requests_mock_datadir):
@@ -576,9 +567,7 @@ def test_npm_artifact_use_mtime_if_no_time(swh_config, requests_mock_datadir):
     }
     check_snapshot(expected_snapshot, loader.storage)
 
-    origin_visit = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit["status"] == "full"
-    assert origin_visit["type"] == "npm"
+    assert_last_visit_matches(loader.storage, url, status="full", type="npm")
 
 
 def test_npm_no_artifact(swh_config, requests_mock_datadir):
@@ -593,6 +582,4 @@ def test_npm_no_artifact(swh_config, requests_mock_datadir):
         "status": "failed",
     }
 
-    origin_visit = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit["status"] == "partial"
-    assert origin_visit["type"] == "npm"
+    assert_last_visit_matches(loader.storage, url, status="partial", type="npm")

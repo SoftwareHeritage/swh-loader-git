@@ -10,6 +10,8 @@ import logging
 from swh.model.model import Origin, OriginVisit, Snapshot
 
 from swh.loader.core.loader import BaseLoader, DVCSLoader
+from swh.loader.tests.common import assert_last_visit_matches
+
 
 ORIGIN = Origin(url="some-url")
 
@@ -172,9 +174,8 @@ def _check_load_failure(caplog, loader, exc_class, exc_text):
     assert loader.loaded_snapshot_id is None
 
     # And confirm that the visit doesn't reference a snapshot
-    visit = loader.storage.origin_visit_get_latest(ORIGIN.url)
-    assert visit["status"] == "partial"
-    assert visit["snapshot"] is None
+    visit = assert_last_visit_matches(loader.storage, ORIGIN.url, status="partial")
+    assert visit.snapshot is None
 
 
 class DummyDVCSLoaderExc(DummyDVCSLoader):

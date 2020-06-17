@@ -22,10 +22,15 @@ from swh.loader.package.nixguix.loader import (
     clean_sources,
 )
 
-from swh.loader.package.tests.common import get_stats, check_snapshot
+from swh.loader.package.tests.common import (
+    get_stats,
+    check_snapshot,
+)
 from swh.loader.package.utils import download
 from swh.model.hashutil import hash_to_bytes, hash_to_hex
 from swh.storage.exc import HashCollision
+from swh.loader.tests.common import assert_last_visit_matches
+
 
 sources_url = "https://nix-community.github.io/nixpkgs-swh/sources.json"
 
@@ -118,11 +123,11 @@ def test_loader_one_visit(swh_config, requests_mock_datadir):
         "snapshot": 1,
     } == stats
 
-    origin_visit = loader.storage.origin_visit_get_latest(sources_url)
     # The visit is partial because urls pointing to non tarball file
     # are not handled yet
-    assert origin_visit["status"] == "partial"
-    assert origin_visit["type"] == "nixguix"
+    assert_last_visit_matches(
+        loader.storage, sources_url, status="partial", type="nixguix"
+    )
 
 
 def test_uncompress_failure(swh_config, requests_mock_datadir):
@@ -141,10 +146,11 @@ def test_uncompress_failure(swh_config, requests_mock_datadir):
     assert "https://example.com/file.txt" in urls
     assert loader_status["status"] == "eventful"
 
-    origin_visit = loader.storage.origin_visit_get_latest(sources_url)
     # The visit is partial because urls pointing to non tarball files
     # are not handled yet
-    assert origin_visit["status"] == "partial"
+    assert_last_visit_matches(
+        loader.storage, sources_url, status="partial", type="nixguix"
+    )
 
 
 def test_loader_incremental(swh_config, requests_mock_datadir):
@@ -158,6 +164,11 @@ def test_loader_incremental(swh_config, requests_mock_datadir):
     loader.load()
     expected_snapshot_id = "0c5881c74283793ebe9a09a105a9381e41380383"
     assert load_status == {"status": "eventful", "snapshot_id": expected_snapshot_id}
+
+    assert_last_visit_matches(
+        loader.storage, sources_url, status="partial", type="nixguix"
+    )
+
     expected_branches = {
         "evaluation": {
             "target": "cc4e04c26672dd74e5fd0fecb78b435fb55368f7",
@@ -200,6 +211,10 @@ def test_loader_two_visits(swh_config, requests_mock_datadir_visits):
     expected_snapshot_id = "0c5881c74283793ebe9a09a105a9381e41380383"
     assert load_status == {"status": "eventful", "snapshot_id": expected_snapshot_id}
 
+    assert_last_visit_matches(
+        loader.storage, sources_url, status="partial", type="nixguix"
+    )
+
     expected_branches = {
         "evaluation": {
             "target": "cc4e04c26672dd74e5fd0fecb78b435fb55368f7",
@@ -235,6 +250,10 @@ def test_loader_two_visits(swh_config, requests_mock_datadir_visits):
     load_status = loader.load()
     expected_snapshot_id = "b0bfa75cbd0cc90aac3b9e95fb0f59c731176d97"
     assert load_status == {"status": "eventful", "snapshot_id": expected_snapshot_id}
+
+    assert_last_visit_matches(
+        loader.storage, sources_url, status="partial", type="nixguix"
+    )
 
     # This ensures visits are incremental. Indeed, if we request a
     # second time an url, because of the requests_mock_datadir_visits
@@ -293,6 +312,10 @@ def test_evaluation_branch(swh_config, requests_mock_datadir):
     loader = NixGuixLoader(sources_url)
     res = loader.load()
     assert res["status"] == "eventful"
+
+    assert_last_visit_matches(
+        loader.storage, sources_url, status="partial", type="nixguix"
+    )
 
     expected_branches = {
         "https://github.com/owner-1/repository-1/revision-1.tgz": {
@@ -394,11 +417,10 @@ def test_raise_exception(swh_config, requests_mock_datadir, mocker):
 
     assert len(mock_download.mock_calls) == 2
 
-    origin_visit = loader.storage.origin_visit_get_latest(sources_url)
-
-    # The visit is partial because some hash collision were detected
-    assert origin_visit["status"] == "partial"
-    assert origin_visit["type"] == "nixguix"
+    # The visit is partial because some artifact downloads failed
+    assert_last_visit_matches(
+        loader.storage, sources_url, status="partial", type="nixguix"
+    )
 
 
 def test_load_nixguix_one_common_artifact_from_other_loader(
@@ -428,6 +450,10 @@ def test_load_nixguix_one_common_artifact_from_other_loader(
     assert actual_load_status["status"] == "eventful"
     assert actual_load_status["snapshot_id"] == expected_snapshot_id  # noqa
 
+    assert_last_visit_matches(
+        archive_loader.storage, gnu_url, status="full", type="tar"
+    )
+
     gnu_snapshot = archive_loader.storage.snapshot_get(
         hash_to_bytes(expected_snapshot_id)
     )
@@ -455,6 +481,10 @@ def test_load_nixguix_one_common_artifact_from_other_loader(
     loader = NixGuixLoader(sources_url)
     actual_load_status2 = loader.load()
     assert actual_load_status2["status"] == "eventful"
+
+    assert_last_visit_matches(
+        loader.storage, sources_url, status="full", type="nixguix"
+    )
 
     snapshot_id = actual_load_status2["snapshot_id"]
     snapshot = loader.storage.snapshot_get(hash_to_bytes(snapshot_id))
@@ -485,6 +515,10 @@ def test_load_nixguix_one_common_artifact_from_other_loader(
         actual_load_status3 = loader.load()
         assert last_snapshot.called
         assert actual_load_status3["status"] == "eventful"
+
+        assert_last_visit_matches(
+            loader.storage, sources_url, status="full", type="nixguix"
+        )
 
         new_snapshot_id = "32ff641e510aceefc3a6d0dcbf208b2854d2e965"
         assert actual_load_status3["snapshot_id"] == new_snapshot_id

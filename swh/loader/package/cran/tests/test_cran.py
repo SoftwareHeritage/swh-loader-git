@@ -20,7 +20,11 @@ from swh.loader.package.cran.loader import (
 from swh.core.tarball import uncompress
 from swh.model.model import TimestampWithTimezone
 
-from swh.loader.package.tests.common import check_snapshot, get_stats
+from swh.loader.package.tests.common import (
+    check_snapshot,
+    get_stats,
+)
+from swh.loader.tests.common import assert_last_visit_matches
 
 
 def test_cran_parse_date():
@@ -182,9 +186,7 @@ def test_cran_one_visit(swh_config, requests_mock_datadir):
     }
     check_snapshot(expected_snapshot, loader.storage)
 
-    origin_visit = loader.storage.origin_visit_get_latest(origin_url)
-    assert origin_visit["status"] == "full"
-    assert origin_visit["type"] == "cran"
+    assert_last_visit_matches(loader.storage, origin_url, status="full", type="cran")
 
     visit_stats = get_stats(loader.storage)
     assert {
@@ -241,9 +243,7 @@ def test_cran_2_visits_same_origin(swh_config, requests_mock_datadir):
     }
     check_snapshot(expected_snapshot, loader.storage)
 
-    origin_visit = loader.storage.origin_visit_get_latest(origin_url)
-    assert origin_visit["status"] == "full"
-    assert origin_visit["type"] == "cran"
+    assert_last_visit_matches(loader.storage, origin_url, status="full", type="cran")
 
     visit_stats = get_stats(loader.storage)
     assert {
@@ -266,9 +266,7 @@ def test_cran_2_visits_same_origin(swh_config, requests_mock_datadir):
         "snapshot_id": expected_snapshot_id,
     }
 
-    origin_visit2 = loader.storage.origin_visit_get_latest(origin_url)
-    assert origin_visit2["status"] == "full"
-    assert origin_visit2["type"] == "cran"
+    assert_last_visit_matches(loader.storage, origin_url, status="full", type="cran")
 
     visit_stats2 = get_stats(loader.storage)
     visit_stats["origin_visit"] += 1

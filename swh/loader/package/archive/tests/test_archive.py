@@ -11,6 +11,7 @@ from swh.loader.package.tests.common import (
     check_metadata_paths,
     get_stats,
 )
+from swh.loader.tests.common import assert_last_visit_matches
 
 
 URL = "https://ftp.gnu.org/gnu/8sync/"
@@ -119,9 +120,7 @@ def visit_with_no_artifact_found(swh_config, requests_mock_datadir):
         "snapshot": 1,
     } == stats
 
-    origin_visit = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit["status"] == "partial"
-    assert origin_visit["type"] == "tar"
+    assert_last_visit_matches(loader.storage, url, status="partial", type="tar")
 
 
 def test_check_revision_metadata_structure(swh_config, requests_mock_datadir):
@@ -130,6 +129,8 @@ def test_check_revision_metadata_structure(swh_config, requests_mock_datadir):
     actual_load_status = loader.load()
     assert actual_load_status["status"] == "eventful"
     assert actual_load_status["snapshot_id"] is not None
+
+    assert_last_visit_matches(loader.storage, URL, status="full", type="tar")
 
     expected_revision_id = hash_to_bytes("44183488c0774ce3c957fa19ba695cf18a4a42b3")
     revision = list(loader.storage.revision_get([expected_revision_id]))[0]
@@ -165,6 +166,8 @@ def test_visit_with_release_artifact_no_prior_visit(swh_config, requests_mock_da
     assert (
         actual_load_status["snapshot_id"] == _expected_new_snapshot_first_visit_id
     )  # noqa
+
+    assert_last_visit_matches(loader.storage, URL, status="full", type="tar")
 
     stats = get_stats(loader.storage)
     assert {
@@ -206,19 +209,15 @@ def test_2_visits_without_change(swh_config, requests_mock_datadir):
     actual_load_status = loader.load()
     assert actual_load_status["status"] == "eventful"
     assert actual_load_status["snapshot_id"] is not None
-    origin_visit = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit["status"] == "full"
-    assert origin_visit["type"] == "tar"
+
+    assert_last_visit_matches(loader.storage, url, status="full", type="tar")
 
     actual_load_status2 = loader.load()
     assert actual_load_status2["status"] == "uneventful"
     assert actual_load_status2["snapshot_id"] is not None
-
     assert actual_load_status["snapshot_id"] == actual_load_status2["snapshot_id"]
 
-    origin_visit2 = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit2["status"] == "full"
-    assert origin_visit2["type"] == "tar"
+    assert_last_visit_matches(loader.storage, url, status="full", type="tar")
 
     urls = [
         m.url
@@ -240,9 +239,7 @@ def test_2_visits_with_new_artifact(swh_config, requests_mock_datadir):
     assert actual_load_status["status"] == "eventful"
     assert actual_load_status["snapshot_id"] is not None
 
-    origin_visit = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit["status"] == "full"
-    assert origin_visit["type"] == "tar"
+    assert_last_visit_matches(loader.storage, url, status="full", type="tar")
 
     stats = get_stats(loader.storage)
     assert {
@@ -295,9 +292,7 @@ def test_2_visits_with_new_artifact(swh_config, requests_mock_datadir):
         "snapshot": 1 + 1,
     } == stats2
 
-    origin_visit2 = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit2["status"] == "full"
-    assert origin_visit2["type"] == "tar"
+    assert_last_visit_matches(loader.storage, url, status="full", type="tar")
 
     urls = [
         m.url
@@ -334,16 +329,12 @@ def test_2_visits_without_change_not_gnu(swh_config, requests_mock_datadir):
     actual_load_status = loader.load()
     assert actual_load_status["status"] == "eventful"
     assert actual_load_status["snapshot_id"] is not None
-    origin_visit = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit["status"] == "full"
-    assert origin_visit["type"] == "tar"
+    assert_last_visit_matches(loader.storage, url, status="full", type="tar")
 
     actual_load_status2 = loader.load()
     assert actual_load_status2["status"] == "uneventful"
     assert actual_load_status2["snapshot_id"] == actual_load_status["snapshot_id"]
-    origin_visit2 = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit2["status"] == "full"
-    assert origin_visit2["type"] == "tar"
+    assert_last_visit_matches(loader.storage, url, status="full", type="tar")
 
     urls = [
         m.url

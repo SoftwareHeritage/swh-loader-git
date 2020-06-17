@@ -10,8 +10,11 @@ class FakeStorage:
     def origin_add_one(self, origin):
         raise ValueError("We refuse to add an origin")
 
+    def origin_visit_get_latest(self, origin):
+        return None
 
-class FakeStorage2:
+
+class FakeStorage2(FakeStorage):
     def origin_add_one(self, origin):
         return origin
 

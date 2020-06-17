@@ -19,7 +19,12 @@ from swh.loader.package.debian.loader import (
     get_package_metadata,
     extract_package,
 )
-from swh.loader.package.tests.common import check_snapshot, get_stats
+from swh.loader.package.tests.common import (
+    check_snapshot,
+    get_stats,
+)
+from swh.loader.tests.common import assert_last_visit_matches
+
 from swh.loader.package.debian.loader import resolve_revision_from
 
 from swh.model.model import Person
@@ -100,10 +105,9 @@ def test_debian_first_visit(swh_config, requests_mock_datadir):
     """With no prior visit, load a gnu project ends up with 1 snapshot
 
     """
+    url = "deb://Debian/packages/cicero"
     loader = DebianLoader(
-        url="deb://Debian/packages/cicero",
-        date="2019-10-12T05:58:09.165557+00:00",
-        packages=PACKAGE_PER_VERSION,
+        url=url, date="2019-10-12T05:58:09.165557+00:00", packages=PACKAGE_PER_VERSION,
     )
 
     actual_load_status = loader.load()
@@ -112,6 +116,8 @@ def test_debian_first_visit(swh_config, requests_mock_datadir):
         "status": "eventful",
         "snapshot_id": expected_snapshot_id,
     }
+
+    assert_last_visit_matches(loader.storage, url, status="full", type="deb")
 
     stats = get_stats(loader.storage)
     assert {
@@ -156,9 +162,7 @@ def test_debian_first_visit_then_another_visit(swh_config, requests_mock_datadir
         "snapshot_id": expected_snapshot_id,
     }
 
-    origin_visit = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit["status"] == "full"
-    assert origin_visit["type"] == "deb"
+    assert_last_visit_matches(loader.storage, url, status="full", type="deb")
 
     stats = get_stats(loader.storage)
     assert {
@@ -188,9 +192,7 @@ def test_debian_first_visit_then_another_visit(swh_config, requests_mock_datadir
     # No change in between load
     actual_load_status2 = loader.load()
     assert actual_load_status2["status"] == "uneventful"
-    origin_visit2 = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit2["status"] == "full"
-    assert origin_visit2["type"] == "deb"
+    assert_last_visit_matches(loader.storage, url, status="full", type="deb")
 
     stats2 = get_stats(loader.storage)
     assert {
@@ -375,9 +377,7 @@ def test_debian_multiple_packages(swh_config, requests_mock_datadir):
         "snapshot_id": expected_snapshot_id,
     }
 
-    origin_visit = loader.storage.origin_visit_get_latest(url)
-    assert origin_visit["status"] == "full"
-    assert origin_visit["type"] == "deb"
+    assert_last_visit_matches(loader.storage, url, status="full", type="deb")
 
     expected_snapshot = {
         "id": expected_snapshot_id,
