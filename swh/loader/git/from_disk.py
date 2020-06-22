@@ -22,6 +22,7 @@ import dulwich.repo
 from swh.model import hashutil
 from swh.model.model import Origin, Snapshot, SnapshotBranch, TargetType
 from swh.loader.core.loader import DVCSLoader
+from swh.storage.algos.origin import origin_get_latest_visit_status
 
 from . import converters, utils
 
@@ -139,13 +140,14 @@ class GitLoaderFromDisk(DVCSLoader):
 
     def fetch_data(self):
         """Fetch the data from the data source"""
-        previous_visit = self.storage.origin_visit_get_latest(
-            self.origin.url, require_snapshot=True
+        visit_and_status = origin_get_latest_visit_status(
+            self.storage, self.origin_url, require_snapshot=True
         )
-        if previous_visit:
-            self.previous_snapshot_id = previous_visit["snapshot"]
-        else:
+        if visit_and_status is None:
             self.previous_snapshot_id = None
+        else:
+            _, visit_status = visit_and_status
+            self.previous_snapshot_id = visit_status.snapshot
 
         type_to_ids = defaultdict(list)
         for oid in self.iter_objects():
