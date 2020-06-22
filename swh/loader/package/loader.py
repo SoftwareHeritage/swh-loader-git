@@ -32,7 +32,7 @@ from swh.model.model import (
 )
 from swh.storage import get_storage
 from swh.storage.utils import now
-from swh.storage.algos.snapshot import snapshot_get_all_branches
+from swh.storage.algos.snapshot import snapshot_get_latest
 
 from swh.loader.package.utils import download
 
@@ -120,17 +120,10 @@ class PackageLoader:
         return ""
 
     def last_snapshot(self) -> Optional[Snapshot]:
-        """Retrieve the last snapshot
+        """Retrieve the last snapshot out of the last visit.
 
         """
-        snapshot = None
-        visit = self.storage.origin_visit_get_latest(self.url, require_snapshot=True)
-        snapshot_id = None if not visit else visit.get("snapshot")
-        if snapshot_id is not None:
-            snapshot_dict = snapshot_get_all_branches(self.storage, snapshot_id)
-            if snapshot_dict:
-                snapshot = Snapshot.from_dict(snapshot_dict)
-        return snapshot
+        return snapshot_get_latest(self.storage, self.url)
 
     def known_artifacts(self, snapshot: Optional[Snapshot]) -> Dict[Sha1Git, BaseModel]:
         """Retrieve the known releases/artifact for the origin.
