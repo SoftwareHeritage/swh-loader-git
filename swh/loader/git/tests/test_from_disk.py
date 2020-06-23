@@ -3,6 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import datetime
 import os.path
 
 import dulwich.repo
@@ -11,6 +12,7 @@ from swh.model.model import Snapshot, SnapshotBranch, TargetType
 from swh.model.hashutil import hash_to_bytes
 
 from swh.loader.core.tests import BaseLoaderTest
+from swh.loader.tests.common import assert_last_visit_matches
 
 from swh.loader.git.from_disk import GitLoaderFromDisk as OrigGitLoaderFromDisk
 from swh.loader.git.from_disk import GitLoaderFromArchive as OrigGitLoaderFromArchive
@@ -131,7 +133,9 @@ class BaseDirGitLoaderFromDiskTest(BaseGitLoaderFromDiskTest):
         super().setUp("testrepo.tgz", uncompress_archive=True)
         self.loader = GitLoaderFromDiskTest(
             url=self.repo_url,
-            visit_date="2016-05-03 15:16:32+00",
+            visit_date=datetime.datetime(
+                2016, 5, 3, 15, 16, 32, tzinfo=datetime.timezone.utc
+            ),
             directory=self.destination_path,
         )
         self.storage = self.loader.storage
@@ -153,7 +157,9 @@ class BaseGitLoaderFromArchiveTest(BaseGitLoaderFromDiskTest):
         super().setUp("testrepo.tgz", uncompress_archive=False)
         self.loader = GitLoaderFromArchive(
             url=self.repo_url,
-            visit_date="2016-05-03 15:16:32+00",
+            visit_date=datetime.datetime(
+                2016, 5, 3, 15, 16, 32, tzinfo=datetime.timezone.utc
+            ),
             archive_path=self.destination_path,
         )
         self.storage = self.loader.storage
@@ -184,9 +190,13 @@ class GitLoaderFromDiskTests:
         self.assertEqual(self.loader.load_status(), {"status": "eventful"})
         self.assertEqual(self.loader.visit_status(), "full")
 
-        visit = self.storage.origin_visit_get_latest(self.repo_url)
-        self.assertEqual(visit["snapshot"], hash_to_bytes(SNAPSHOT1["id"]))
-        self.assertEqual(visit["status"], "full")
+        assert_last_visit_matches(
+            self.storage,
+            self.repo_url,
+            status="full",
+            type="git",
+            snapshot=hash_to_bytes(SNAPSHOT1["id"]),
+        )
 
     def test_load_unchanged(self):
         """Checks loading a repository a second time does not add
@@ -194,17 +204,25 @@ class GitLoaderFromDiskTests:
         res = self.load()
         self.assertEqual(res["status"], "eventful")
 
-        visit = self.storage.origin_visit_get_latest(self.repo_url)
-        self.assertEqual(visit["snapshot"], hash_to_bytes(SNAPSHOT1["id"]))
-        self.assertEqual(visit["status"], "full")
+        assert_last_visit_matches(
+            self.storage,
+            self.repo_url,
+            status="full",
+            type="git",
+            snapshot=hash_to_bytes(SNAPSHOT1["id"]),
+        )
 
         res = self.load()
         self.assertEqual(res["status"], "uneventful")
         self.assertCountSnapshots(1)
 
-        visit = self.storage.origin_visit_get_latest(self.repo_url)
-        self.assertEqual(visit["snapshot"], hash_to_bytes(SNAPSHOT1["id"]))
-        self.assertEqual(visit["status"], "full")
+        assert_last_visit_matches(
+            self.storage,
+            self.repo_url,
+            status="full",
+            type="git",
+            snapshot=hash_to_bytes(SNAPSHOT1["id"]),
+        )
 
 
 class DirGitLoaderTest(BaseDirGitLoaderFromDiskTest, GitLoaderFromDiskTests):
@@ -247,11 +265,12 @@ class DirGitLoaderTest(BaseDirGitLoaderFromDiskTest, GitLoaderFromDiskTests):
         self.assertEqual(self.loader.load_status(), {"status": "eventful"})
         self.assertEqual(self.loader.visit_status(), "full")
 
-        visit = self.storage.origin_visit_get_latest(self.repo_url)
-        self.assertIsNotNone(visit["snapshot"])
-        self.assertEqual(visit["status"], "full")
+        visit_status = assert_last_visit_matches(
+            self.storage, self.repo_url, status="full", type="git"
+        )
+        self.assertIsNotNone(visit_status.snapshot)
 
-        snapshot_id = visit["snapshot"]
+        snapshot_id = visit_status.snapshot
         snapshot = self.storage.snapshot_get(snapshot_id)
         branches = snapshot["branches"]
         assert branches[b"HEAD"] == {
@@ -299,11 +318,12 @@ class DirGitLoaderTest(BaseDirGitLoaderFromDiskTest, GitLoaderFromDiskTests):
         self.assertEqual(self.loader.load_status(), {"status": "eventful"})
         self.assertEqual(self.loader.visit_status(), "full")
 
-        visit = self.storage.origin_visit_get_latest(self.repo_url)
-        self.assertIsNotNone(visit["snapshot"])
-        self.assertEqual(visit["status"], "full")
+        visit_status = assert_last_visit_matches(
+            self.storage, self.repo_url, status="full", type="git"
+        )
+        self.assertIsNotNone(visit_status.snapshot)
 
-        merge_snapshot_id = visit["snapshot"]
+        merge_snapshot_id = visit_status.snapshot
         assert merge_snapshot_id != snapshot_id
 
         merge_snapshot = self.storage.snapshot_get(merge_snapshot_id)
@@ -358,9 +378,13 @@ class DirGitLoaderTest(BaseDirGitLoaderFromDiskTest, GitLoaderFromDiskTests):
         assert self.loader.load_status() == {"status": "eventful"}
         assert self.loader.visit_status() == "full"
 
-        visit = self.storage.origin_visit_get_latest(self.repo_url)
-        assert visit["snapshot"] == expected_snapshot.id
-        assert visit["status"] == "full"
+        assert_last_visit_matches(
+            self.storage,
+            self.repo_url,
+            status="full",
+            type="git",
+            snapshot=expected_snapshot.id,
+        )
 
     def test_load_dangling_symref(self):
         with open(os.path.join(self.destination_path, ".git/HEAD"), "wb") as f:
@@ -375,10 +399,11 @@ class DirGitLoaderTest(BaseDirGitLoaderFromDiskTest, GitLoaderFromDiskTests):
         self.assertCountRevisions(7)
         self.assertCountSnapshots(1)
 
-        visit = self.storage.origin_visit_get_latest(self.repo_url)
-        snapshot_id = visit["snapshot"]
+        visit_status = assert_last_visit_matches(
+            self.storage, self.repo_url, status="full", type="git"
+        )
+        snapshot_id = visit_status.snapshot
         assert snapshot_id is not None
-        assert visit["status"] == "full"
 
         snapshot = self.storage.snapshot_get(snapshot_id)
         branches = snapshot["branches"]
