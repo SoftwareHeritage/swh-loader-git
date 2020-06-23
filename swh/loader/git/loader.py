@@ -30,7 +30,7 @@ from swh.model.model import (
     Sha1Git,
 )
 from swh.loader.core.loader import DVCSLoader
-from swh.storage.algos.snapshot import snapshot_get_all_branches
+from swh.storage.algos.snapshot import snapshot_get_latest
 
 from . import converters, utils
 
@@ -210,14 +210,7 @@ class GitLoader(DVCSLoader):
         self.origin = Origin(url=self.origin_url)
 
     def get_full_snapshot(self, origin_url) -> Optional[Snapshot]:
-        visit = self.storage.origin_visit_get_latest(origin_url, require_snapshot=True)
-        if visit and visit["snapshot"]:
-            snapshot = snapshot_get_all_branches(self.storage, visit["snapshot"])
-        else:
-            snapshot = None
-        if snapshot is None:
-            return None
-        return Snapshot.from_dict(snapshot)
+        return snapshot_get_latest(self.storage, origin_url)
 
     def prepare(self, *args, **kwargs) -> None:
         assert self.origin is not None
