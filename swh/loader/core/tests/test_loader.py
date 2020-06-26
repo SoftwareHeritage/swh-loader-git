@@ -36,11 +36,7 @@ class DummyLoader:
         self.visit_type = "git"
         origin_url = self.storage.origin_add_one(ORIGIN)
         visit = OriginVisit(
-            origin=origin_url,
-            date=self.visit_date,
-            type=self.visit_type,
-            status="ongoing",
-            snapshot=None,
+            origin=origin_url, date=self.visit_date, type=self.visit_type,
         )
         self.visit = self.storage.origin_visit_add([visit])[0]
 

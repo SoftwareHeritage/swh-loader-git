@@ -16,9 +16,6 @@ ORIGIN_VISIT = OriginVisit(
     visit=1,
     date=datetime.datetime.now(tz=datetime.timezone.utc),
     type="archive",
-    status="full",
-    snapshot=hash_to_bytes("d81cc0710eb6cf9efd5b920a8453e1e07157b6cd"),
-    metadata=None,
 )
 
 

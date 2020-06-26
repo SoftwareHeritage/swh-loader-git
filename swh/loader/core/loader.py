@@ -179,11 +179,7 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
         self.visit = self.storage.origin_visit_add(
             [
                 OriginVisit(
-                    origin=self.origin.url,
-                    date=self.visit_date,
-                    type=self.visit_type,
-                    status="ongoing",
-                    snapshot=None,
+                    origin=self.origin.url, date=self.visit_date, type=self.visit_type,
                 )
             ]
         )[0]

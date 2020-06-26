@@ -303,11 +303,7 @@ class PackageLoader:
             visit = self.storage.origin_visit_add(
                 [
                     OriginVisit(
-                        origin=self.url,
-                        date=self.visit_date,
-                        type=self.visit_type,
-                        status="ongoing",
-                        snapshot=None,
+                        origin=self.url, date=self.visit_date, type=self.visit_type,
                     )
                 ]
             )[0]
