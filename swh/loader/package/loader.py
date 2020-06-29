@@ -410,14 +410,15 @@ class PackageLoader:
 
             for obj in directory.iter_tree():
                 obj = obj.to_model()
-                if isinstance(obj, Content):
+                obj_type = obj.object_type
+                if obj_type in ("content", "content_file"):
                     # FIXME: read the data from disk later (when the
                     # storage buffer is flushed).
                     obj = obj.with_data()
                     contents.append(obj)
-                elif isinstance(obj, SkippedContent):
+                elif obj_type == "skipped_content":
                     skipped_contents.append(obj)
-                elif isinstance(obj, Directory):
+                elif obj_type == "directory":
                     directories.append(obj)
                 else:
                     raise TypeError(f"Unexpected content type from disk: {obj}")
