@@ -299,7 +299,7 @@ class PackageLoader:
         # Prepare origin and origin_visit
         origin = Origin(url=self.url)
         try:
-            self.storage.origin_add_one(origin)
+            self.storage.origin_add([origin])
             visit = self.storage.origin_visit_add(
                 [
                     OriginVisit(

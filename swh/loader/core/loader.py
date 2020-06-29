@@ -170,7 +170,7 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
 
         """
         assert self.origin
-        self.storage.origin_add_one(self.origin)
+        self.storage.origin_add([self.origin])
 
         if not self.visit_date:  # now as default visit_date if not provided
             self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
