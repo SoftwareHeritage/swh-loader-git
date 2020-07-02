@@ -20,9 +20,6 @@ from swh.model.hashutil import hash_to_hex
 from swh.model.model import (
     BaseModel,
     Sha1Git,
-    Content,
-    SkippedContent,
-    Directory,
     Revision,
     TargetType,
     Snapshot,
@@ -404,24 +401,9 @@ class PackageLoader:
                 max_content_length=self.max_content_size,
             )
 
-            contents: List[Content] = []
-            skipped_contents: List[SkippedContent] = []
-            directories: List[Directory] = []
-
-            for obj in directory.iter_tree():
-                obj = obj.to_model()
-                obj_type = obj.object_type
-                if obj_type in ("content", "content_file"):
-                    # FIXME: read the data from disk later (when the
-                    # storage buffer is flushed).
-                    obj = obj.with_data()
-                    contents.append(obj)
-                elif obj_type == "skipped_content":
-                    skipped_contents.append(obj)
-                elif obj_type == "directory":
-                    directories.append(obj)
-                else:
-                    raise TypeError(f"Unexpected content type from disk: {obj}")
+            contents, skipped_contents, directories = from_disk.iter_directory(
+                directory
+            )
 
             logger.debug("Number of skipped contents: %s", len(skipped_contents))
             self.storage.skipped_content_add(skipped_contents)
