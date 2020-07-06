@@ -13,7 +13,7 @@ from unittest import TestCase
 from swh.loader.git.loader import GitLoader
 from swh.loader.git.tests.test_from_disk import FullGitLoaderTests
 
-from swh.loader.git.tests import prepare_repository_from_archive
+from swh.loader.tests import prepare_repository_from_archive
 
 
 class GitLoaderTest(TestCase, FullGitLoaderTests):

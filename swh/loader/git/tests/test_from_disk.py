@@ -14,12 +14,14 @@ from unittest import TestCase
 
 from swh.model.model import Snapshot, SnapshotBranch, TargetType
 from swh.model.hashutil import hash_to_bytes
-from swh.loader.tests.common import assert_last_visit_matches
-from swh.loader.git.from_disk import GitLoaderFromDisk
-from swh.loader.git.from_disk import GitLoaderFromArchive
-from swh.loader.package.tests.common import check_snapshot, get_stats
+from swh.loader.git.from_disk import GitLoaderFromDisk, GitLoaderFromArchive
 
-from swh.loader.git.tests import prepare_repository_from_archive
+from swh.loader.tests import (
+    assert_last_visit_matches,
+    check_snapshot,
+    get_stats,
+    prepare_repository_from_archive,
+)
 
 
 SNAPSHOT_ID = "a23699280a82a043f8c0994cf1631b568f716f95"
