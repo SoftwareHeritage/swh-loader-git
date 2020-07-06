@@ -5,5 +5,6 @@ include README.md
 include conftest.py
 recursive-include swh/loader/package/tests/ *.tar.gz
 recursive-include swh py.typed
+recursive-include swh/loader/tests/data/ *
 recursive-include swh/loader/package/tests/data/ *
 recursive-include swh/loader/package/*/tests/data/ *
