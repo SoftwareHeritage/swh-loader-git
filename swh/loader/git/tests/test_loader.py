@@ -3,24 +3,34 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import os
+
+import pytest
+import dulwich.repo
+
+from unittest import TestCase
+
 from swh.loader.git.loader import GitLoader
-from swh.loader.git.tests.test_from_disk import DirGitLoaderTest
+from swh.loader.git.tests.test_from_disk import FullGitLoaderTests
 
-from . import TEST_LOADER_CONFIG
-
-
-class GitLoaderTest(GitLoader):
-    def parse_config_file(self, *args, **kwargs):
-        return {**super().parse_config_file(*args, **kwargs), **TEST_LOADER_CONFIG}
+from swh.loader.git.tests import prepare_repository_from_archive
 
 
-class TestGitLoader(DirGitLoaderTest):
-    """Same tests as for the GitLoaderFromDisk, but running on GitLoader."""
+class GitLoaderTest(TestCase, FullGitLoaderTests):
+    """Prepare a git directory repository to be loaded through a GitLoader.
+    This tests all git loader scenario.
 
-    def setUp(self):
+    """
+
+    @pytest.fixture(autouse=True)
+    def init(self, swh_config, datadir, tmp_path):
         super().setUp()
-        self.loader = GitLoaderTest(self.repo_url)
-        self.storage = self.loader.storage
-
-    def load(self):
-        return self.loader.load()
+        archive_name = "testrepo"
+        archive_path = os.path.join(datadir, f"{archive_name}.tgz")
+        tmp_path = str(tmp_path)
+        self.repo_url = prepare_repository_from_archive(
+            archive_path, archive_name, tmp_path=tmp_path
+        )
+        self.destination_path = os.path.join(tmp_path, archive_name)
+        self.loader = GitLoader(self.repo_url)
+        self.repo = dulwich.repo.Repo(self.destination_path)

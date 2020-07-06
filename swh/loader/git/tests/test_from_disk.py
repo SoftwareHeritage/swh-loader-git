@@ -3,38 +3,24 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import copy
 import datetime
 import os.path
 
 import dulwich.repo
+import pytest
+
+from unittest import TestCase
 
 from swh.model.model import Snapshot, SnapshotBranch, TargetType
 from swh.model.hashutil import hash_to_bytes
-
-from swh.loader.core.tests import BaseLoaderTest
 from swh.loader.tests.common import assert_last_visit_matches
+from swh.loader.git.from_disk import GitLoaderFromDisk
+from swh.loader.git.from_disk import GitLoaderFromArchive
+from swh.loader.package.tests.common import check_snapshot, get_stats
 
-from swh.loader.git.from_disk import GitLoaderFromDisk as OrigGitLoaderFromDisk
-from swh.loader.git.from_disk import GitLoaderFromArchive as OrigGitLoaderFromArchive
+from swh.loader.git.tests import prepare_repository_from_archive
 
-from . import TEST_LOADER_CONFIG
-
-
-class GitLoaderFromArchive(OrigGitLoaderFromArchive):
-    def project_name_from_archive(self, archive_path):
-        # We don't want the project name to be 'resources'.
-        return "testrepo"
-
-    def parse_config_file(self, *args, **kwargs):
-        return TEST_LOADER_CONFIG
-
-
-CONTENT1 = {
-    "33ab5639bfd8e7b95eb1d8d0b87781d4ffea4d5d",  # README v1
-    "349c4ff7d21f1ec0eda26f3d9284c293e3425417",  # README v2
-    "799c11e348d39f1704022b8354502e2f81f3c037",  # file1.txt
-    "4bdb40dfd6ec75cb730e678b5d7786e30170c5fb",  # file2.txt
-}
 
 SNAPSHOT_ID = "a23699280a82a043f8c0994cf1631b568f716f95"
 
@@ -105,119 +91,77 @@ REVISIONS1 = {
 }
 
 
-class BaseGitLoaderFromDiskTest(BaseLoaderTest):
-    def setUp(self, archive_name, uncompress_archive, filename="testrepo"):
-        super().setUp(
-            archive_name=archive_name,
-            filename=filename,
-            prefix_tmp_folder_name="swh.loader.git.",
-            start_path=os.path.dirname(__file__),
-            uncompress_archive=uncompress_archive,
-        )
-
-
-class GitLoaderFromDiskTest(OrigGitLoaderFromDisk):
-    def parse_config_file(self, *args, **kwargs):
-        return TEST_LOADER_CONFIG
-
-
-class BaseDirGitLoaderFromDiskTest(BaseGitLoaderFromDiskTest):
-    """Mixin base loader test to prepare the git
-       repository to uncompress, load and test the results.
-
-       This sets up
-
-    """
-
-    def setUp(self):
-        super().setUp("testrepo.tgz", uncompress_archive=True)
-        self.loader = GitLoaderFromDiskTest(
-            url=self.repo_url,
-            visit_date=datetime.datetime(
-                2016, 5, 3, 15, 16, 32, tzinfo=datetime.timezone.utc
-            ),
-            directory=self.destination_path,
-        )
-        self.storage = self.loader.storage
-        self.repo = dulwich.repo.Repo(self.destination_path)
-
-    def load(self):
-        return self.loader.load()
-
-
-class BaseGitLoaderFromArchiveTest(BaseGitLoaderFromDiskTest):
-    """Mixin base loader test to prepare the git
-       repository to uncompress, load and test the results.
-
-       This sets up
-
-    """
-
-    def setUp(self):
-        super().setUp("testrepo.tgz", uncompress_archive=False)
-        self.loader = GitLoaderFromArchive(
-            url=self.repo_url,
-            visit_date=datetime.datetime(
-                2016, 5, 3, 15, 16, 32, tzinfo=datetime.timezone.utc
-            ),
-            archive_path=self.destination_path,
-        )
-        self.storage = self.loader.storage
-
-    def load(self):
-        return self.loader.load()
-
-
-class GitLoaderFromDiskTests:
+class CommonGitLoaderTests:
     """Common tests for all git loaders."""
 
     def test_load(self):
         """Loads a simple repository (made available by `setUp()`),
         and checks everything was added in the storage."""
-        res = self.load()
-        self.assertEqual(res["status"], "eventful", res)
+        res = self.loader.load()
 
-        self.assertContentsContain(CONTENT1)
-        self.assertCountDirectories(7)
-        self.assertCountReleases(0)  # FIXME: should be 2 after T2059
-        self.assertCountRevisions(7)
-        self.assertCountSnapshots(1)
-
-        self.assertRevisionsContain(REVISIONS1)
-
-        self.assertSnapshotEqual(SNAPSHOT1)
-
-        self.assertEqual(self.loader.load_status(), {"status": "eventful"})
-        self.assertEqual(self.loader.visit_status(), "full")
+        assert res == {"status": "eventful"}
 
         assert_last_visit_matches(
-            self.storage,
+            self.loader.storage,
             self.repo_url,
             status="full",
             type="git",
             snapshot=hash_to_bytes(SNAPSHOT1["id"]),
         )
+
+        stats = get_stats(self.loader.storage)
+        assert stats == {
+            "content": 4,
+            "directory": 7,
+            "origin": 1,
+            "origin_visit": 1,
+            "person": 1,
+            "release": 0,
+            "revision": 7,
+            "skipped_content": 0,
+            "snapshot": 1,
+        }
+
+        check_snapshot(SNAPSHOT1, self.loader.storage)
 
     def test_load_unchanged(self):
         """Checks loading a repository a second time does not add
         any extra data."""
-        res = self.load()
-        self.assertEqual(res["status"], "eventful")
+        res = self.loader.load()
+        assert res == {"status": "eventful"}
 
         assert_last_visit_matches(
-            self.storage,
+            self.loader.storage,
             self.repo_url,
             status="full",
             type="git",
             snapshot=hash_to_bytes(SNAPSHOT1["id"]),
         )
 
-        res = self.load()
-        self.assertEqual(res["status"], "uneventful")
-        self.assertCountSnapshots(1)
+        stats0 = get_stats(self.loader.storage)
+        assert stats0 == {
+            "content": 4,
+            "directory": 7,
+            "origin": 1,
+            "origin_visit": 1,
+            "person": 1,
+            "release": 0,
+            "revision": 7,
+            "skipped_content": 0,
+            "snapshot": 1,
+        }
+
+        res = self.loader.load()
+        assert res == {"status": "uneventful"}
+        stats1 = get_stats(self.loader.storage)
+        expected_stats = copy.deepcopy(stats0)
+        expected_stats["origin_visit"] += 1
+        assert stats1 == expected_stats
+
+        check_snapshot(SNAPSHOT1, self.loader.storage)
 
         assert_last_visit_matches(
-            self.storage,
+            self.loader.storage,
             self.repo_url,
             status="full",
             type="git",
@@ -225,17 +169,32 @@ class GitLoaderFromDiskTests:
         )
 
 
-class DirGitLoaderTest(BaseDirGitLoaderFromDiskTest, GitLoaderFromDiskTests):
-    """Tests for the GitLoaderFromDisk. Includes the common ones, and
-    add others that only work with a local dir."""
+class FullGitLoaderTests(CommonGitLoaderTests):
+    """Tests for GitLoader (from disk or not). Includes the common ones, and
+       add others that only work with a local dir.
+
+    """
 
     def test_load_changed(self):
         """Loads a repository, makes some changes by adding files, commits,
         and merges, load it again, and check the storage contains everything
         it should."""
         # Initial load
-        res = self.load()
-        self.assertEqual(res["status"], "eventful", res)
+        res = self.loader.load()
+        assert res == {"status": "eventful"}
+
+        stats0 = get_stats(self.loader.storage)
+        assert stats0 == {
+            "content": 4,
+            "directory": 7,
+            "origin": 1,
+            "origin_visit": 1,
+            "person": 1,
+            "release": 0,
+            "revision": 7,
+            "skipped_content": 0,
+            "snapshot": 1,
+        }
 
         # Load with a new file + revision
         with open(os.path.join(self.destination_path, "hello.py"), "a") as fd:
@@ -251,27 +210,30 @@ class DirGitLoaderTest(BaseDirGitLoaderFromDiskTest, GitLoaderFromDiskTests):
         assert new_revision not in revisions
         revisions[new_revision] = new_dir
 
-        res = self.load()
-        self.assertEqual(res["status"], "eventful")
+        res = self.loader.load()
+        assert res == {"status": "eventful"}
 
-        self.assertCountContents(4 + 1)
-        self.assertCountDirectories(7 + 1)
-        self.assertCountReleases(0)  # FIXME: should be 2 after T2059
-        self.assertCountRevisions(7 + 1)
-        self.assertCountSnapshots(1 + 1)
+        stats1 = get_stats(self.loader.storage)
+        expected_stats = copy.deepcopy(stats0)
+        # did one new visit
+        expected_stats["origin_visit"] += 1
+        # with one more of the following objects
+        expected_stats["person"] += 1
+        expected_stats["content"] += 1
+        expected_stats["directory"] += 1
+        expected_stats["revision"] += 1
+        # concluding into 1 new snapshot
+        expected_stats["snapshot"] += 1
 
-        self.assertRevisionsContain(revisions)
-
-        self.assertEqual(self.loader.load_status(), {"status": "eventful"})
-        self.assertEqual(self.loader.visit_status(), "full")
+        assert stats1 == expected_stats
 
         visit_status = assert_last_visit_matches(
-            self.storage, self.repo_url, status="full", type="git"
+            self.loader.storage, self.repo_url, status="full", type="git"
         )
-        self.assertIsNotNone(visit_status.snapshot)
+        assert visit_status.snapshot is not None
 
         snapshot_id = visit_status.snapshot
-        snapshot = self.storage.snapshot_get(snapshot_id)
+        snapshot = self.loader.storage.snapshot_get(snapshot_id)
         branches = snapshot["branches"]
         assert branches[b"HEAD"] == {
             "target": b"refs/heads/master",
@@ -304,29 +266,30 @@ class DirGitLoaderTest(BaseDirGitLoaderFromDiskTest, GitLoaderFromDiskTests):
         assert merge_commit.decode() not in revisions
         revisions[merge_commit.decode()] = merged_tree.id.decode()
 
-        res = self.load()
-        self.assertEqual(res["status"], "eventful")
+        res = self.loader.load()
+        assert res == {"status": "eventful"}
 
-        self.assertCountContents(4 + 1)
-        self.assertCountDirectories(7 + 2)
-        self.assertCountReleases(0)  # FIXME: should be 2 after T2059
-        self.assertCountRevisions(7 + 2)
-        self.assertCountSnapshots(1 + 1 + 1)
+        stats2 = get_stats(self.loader.storage)
+        expected_stats = copy.deepcopy(stats1)
+        # one more visit
+        expected_stats["origin_visit"] += 1
+        # with 1 new directory and revision
+        expected_stats["directory"] += 1
+        expected_stats["revision"] += 1
+        # concluding into 1 new snapshot
+        expected_stats["snapshot"] += 1
 
-        self.assertRevisionsContain(revisions)
-
-        self.assertEqual(self.loader.load_status(), {"status": "eventful"})
-        self.assertEqual(self.loader.visit_status(), "full")
+        assert stats2 == expected_stats
 
         visit_status = assert_last_visit_matches(
-            self.storage, self.repo_url, status="full", type="git"
+            self.loader.storage, self.repo_url, status="full", type="git"
         )
-        self.assertIsNotNone(visit_status.snapshot)
+        assert visit_status.snapshot is not None
 
         merge_snapshot_id = visit_status.snapshot
         assert merge_snapshot_id != snapshot_id
 
-        merge_snapshot = self.storage.snapshot_get(merge_snapshot_id)
+        merge_snapshot = self.loader.storage.snapshot_get(merge_snapshot_id)
         merge_branches = merge_snapshot["branches"]
         assert merge_branches[b"HEAD"] == {
             "target": b"refs/heads/master",
@@ -372,14 +335,11 @@ class DirGitLoaderTest(BaseDirGitLoaderFromDiskTest, GitLoaderFromDiskTests):
         expected_snapshot = Snapshot(branches=branches)
 
         # Load the modified repository
-        res = self.load()
-        assert res["status"] == "eventful"
-
-        assert self.loader.load_status() == {"status": "eventful"}
-        assert self.loader.visit_status() == "full"
+        res = self.loader.load()
+        assert res == {"status": "eventful"}
 
         assert_last_visit_matches(
-            self.storage,
+            self.loader.storage,
             self.repo_url,
             status="full",
             type="git",
@@ -390,22 +350,16 @@ class DirGitLoaderTest(BaseDirGitLoaderFromDiskTest, GitLoaderFromDiskTests):
         with open(os.path.join(self.destination_path, ".git/HEAD"), "wb") as f:
             f.write(b"ref: refs/heads/dangling-branch\n")
 
-        res = self.load()
-        self.assertEqual(res["status"], "eventful", res)
-
-        self.assertContentsContain(CONTENT1)
-        self.assertCountDirectories(7)
-        self.assertCountReleases(0)  # FIXME: should be 2 after T2059
-        self.assertCountRevisions(7)
-        self.assertCountSnapshots(1)
+        res = self.loader.load()
+        assert res == {"status": "eventful"}
 
         visit_status = assert_last_visit_matches(
-            self.storage, self.repo_url, status="full", type="git"
+            self.loader.storage, self.repo_url, status="full", type="git"
         )
         snapshot_id = visit_status.snapshot
         assert snapshot_id is not None
 
-        snapshot = self.storage.snapshot_get(snapshot_id)
+        snapshot = self.loader.storage.snapshot_get(snapshot_id)
         branches = snapshot["branches"]
 
         assert branches[b"HEAD"] == {
@@ -414,9 +368,57 @@ class DirGitLoaderTest(BaseDirGitLoaderFromDiskTest, GitLoaderFromDiskTests):
         }
         assert branches[b"refs/heads/dangling-branch"] is None
 
+        stats = get_stats(self.loader.storage)
+        assert stats == {
+            "content": 4,
+            "directory": 7,
+            "origin": 1,
+            "origin_visit": 1,
+            "person": 1,
+            "release": 0,
+            "revision": 7,
+            "skipped_content": 0,
+            "snapshot": 1,
+        }
 
-class GitLoaderFromArchiveTest(BaseGitLoaderFromArchiveTest, GitLoaderFromDiskTests):
-    """Tests for GitLoaderFromArchive. Imports the common ones
-    from GitLoaderTests."""
 
-    pass
+class GitLoaderFromDiskTest(TestCase, FullGitLoaderTests):
+    """Prepare a git directory repository to be loaded through a GitLoaderFromDisk.
+    This tests all git loader scenario.
+
+    """
+
+    @pytest.fixture(autouse=True)
+    def init(self, swh_config, datadir, tmp_path):
+        archive_name = "testrepo"
+        archive_path = os.path.join(datadir, f"{archive_name}.tgz")
+        tmp_path = str(tmp_path)
+        self.repo_url = prepare_repository_from_archive(
+            archive_path, archive_name, tmp_path=tmp_path
+        )
+        self.destination_path = os.path.join(tmp_path, archive_name)
+        self.loader = GitLoaderFromDisk(
+            url=self.repo_url,
+            visit_date=datetime.datetime(
+                2016, 5, 3, 15, 16, 32, tzinfo=datetime.timezone.utc
+            ),
+            directory=self.destination_path,
+        )
+        self.repo = dulwich.repo.Repo(self.destination_path)
+
+
+class GitLoaderFromArchiveTest(TestCase, CommonGitLoaderTests):
+    """Tests for GitLoaderFromArchive. Only tests common scenario."""
+
+    @pytest.fixture(autouse=True)
+    def init(self, swh_config, datadir, tmp_path):
+        archive_name = "testrepo"
+        archive_path = os.path.join(datadir, f"{archive_name}.tgz")
+        self.repo_url = archive_path
+        self.loader = GitLoaderFromArchive(
+            url=self.repo_url,
+            archive_path=archive_path,
+            visit_date=datetime.datetime(
+                2016, 5, 3, 15, 16, 32, tzinfo=datetime.timezone.utc
+            ),
+        )
