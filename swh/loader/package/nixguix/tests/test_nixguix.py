@@ -83,6 +83,8 @@ def test_clean_sources_invalid_sources(swh_config, requests_mock_datadir):
             {"type": "url", "urls": "my-url", "integrity": "my-integrity"},
             # type is not url
             {"type": "git", "urls": ["my-url"], "integrity": "my-integrity"},
+            # missing fields which got double-checked nonetheless...
+            {"integrity": "my-integrity"},
         ],
         "revision": "my-revision",
     }

@@ -214,14 +214,14 @@ def clean_sources(sources: Dict[str, Any]) -> Dict[str, Any]:
                     "Skip source '%s' because key '%s' is missing", source, required_key
                 )
                 valid = False
-        if source["type"] != "url":
+        if valid and source["type"] != "url":
             logger.info(
                 "Skip source '%s' because the type %s is not supported",
                 source,
                 source["type"],
             )
             valid = False
-        if not isinstance(source["urls"], list):
+        if valid and not isinstance(source["urls"], list):
             logger.info(
                 "Skip source '%s' because the urls attribute is not a list", source
             )
