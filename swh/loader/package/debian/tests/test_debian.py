@@ -23,7 +23,7 @@ from swh.loader.package.tests.common import (
     check_snapshot,
     get_stats,
 )
-from swh.loader.tests.common import assert_last_visit_matches
+from swh.loader.tests import assert_last_visit_matches
 
 from swh.loader.package.debian.loader import resolve_revision_from
 

@@ -29,7 +29,7 @@ from swh.loader.package.tests.common import (
 from swh.loader.package.utils import download
 from swh.model.hashutil import hash_to_bytes, hash_to_hex
 from swh.storage.exc import HashCollision
-from swh.loader.tests.common import assert_last_visit_matches
+from swh.loader.tests import assert_last_visit_matches
 
 
 sources_url = "https://nix-community.github.io/nixpkgs-swh/sources.json"
