@@ -59,12 +59,16 @@ def test_clean_sources_invalid_schema(swh_config, requests_mock_datadir):
 
 
 def test_clean_sources_invalid_version(swh_config, requests_mock_datadir):
-    sources = {"version": 2, "sources": [], "revision": "my-revision"}
+    for version_ok in [1, "1"]:  # Check those versions are fine
+        clean_sources({"version": version_ok, "sources": [], "revision": "my-revision"})
 
-    with pytest.raises(
-        ValueError, match="sources structure version .* is not supported"
-    ):
-        clean_sources(sources)
+    for version_ko in [0, "0", 2, "2"]:  # Check version != 1 raise an error
+        with pytest.raises(
+            ValueError, match="sources structure version .* is not supported"
+        ):
+            clean_sources(
+                {"version": version_ko, "sources": [], "revision": "my-revision"}
+            )
 
 
 def test_clean_sources_invalid_sources(swh_config, requests_mock_datadir):
