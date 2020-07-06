@@ -144,13 +144,11 @@ class PackageLoader:
         ]
         known_revisions = self.storage.revision_get(revs)
 
-        ret = {}
-        for revision in known_revisions:
-            if not revision:  # revision_get can return None
-                continue
-            ret[revision["id"]] = revision["metadata"]
-
-        return ret
+        return {
+            revision["id"]: revision["metadata"]
+            for revision in known_revisions
+            if revision
+        }
 
     def resolve_revision_from(
         self, known_artifacts: Dict, artifact_metadata: Dict
