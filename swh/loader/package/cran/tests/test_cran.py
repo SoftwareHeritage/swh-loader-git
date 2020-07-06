@@ -20,11 +20,11 @@ from swh.loader.package.cran.loader import (
 from swh.core.tarball import uncompress
 from swh.model.model import TimestampWithTimezone
 
-from swh.loader.package.tests.common import (
+from swh.loader.tests import (
+    assert_last_visit_matches,
     check_snapshot,
     get_stats,
 )
-from swh.loader.tests import assert_last_visit_matches
 
 
 def test_cran_parse_date():

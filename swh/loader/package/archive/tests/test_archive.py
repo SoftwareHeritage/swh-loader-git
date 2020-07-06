@@ -6,12 +6,12 @@
 from swh.model.hashutil import hash_to_bytes
 
 from swh.loader.package.archive.loader import ArchiveLoader
-from swh.loader.package.tests.common import (
+from swh.loader.package.tests.common import check_metadata_paths
+from swh.loader.tests import (
+    assert_last_visit_matches,
     check_snapshot,
-    check_metadata_paths,
     get_stats,
 )
-from swh.loader.tests import assert_last_visit_matches
 
 
 URL = "https://ftp.gnu.org/gnu/8sync/"

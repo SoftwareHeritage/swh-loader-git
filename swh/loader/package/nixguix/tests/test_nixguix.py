@@ -22,14 +22,15 @@ from swh.loader.package.nixguix.loader import (
     clean_sources,
 )
 
-from swh.loader.package.tests.common import (
-    get_stats,
-    check_snapshot,
-)
 from swh.loader.package.utils import download
 from swh.model.hashutil import hash_to_bytes, hash_to_hex
 from swh.storage.exc import HashCollision
-from swh.loader.tests import assert_last_visit_matches
+
+from swh.loader.tests import (
+    assert_last_visit_matches,
+    get_stats,
+    check_snapshot,
+)
 
 
 sources_url = "https://nix-community.github.io/nixpkgs-swh/sources.json"

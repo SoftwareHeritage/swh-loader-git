@@ -19,11 +19,11 @@ from swh.loader.package.debian.loader import (
     get_package_metadata,
     extract_package,
 )
-from swh.loader.package.tests.common import (
+from swh.loader.tests import (
+    assert_last_visit_matches,
     check_snapshot,
     get_stats,
 )
-from swh.loader.tests import assert_last_visit_matches
 
 from swh.loader.package.debian.loader import resolve_revision_from
 

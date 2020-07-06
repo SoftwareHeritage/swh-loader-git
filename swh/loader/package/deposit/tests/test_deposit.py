@@ -11,12 +11,12 @@ import pytest
 from swh.model.hashutil import hash_to_bytes, hash_to_hex
 from swh.loader.package.deposit.loader import DepositLoader
 
-from swh.loader.package.tests.common import (
+from swh.loader.package.tests.common import check_metadata_paths
+from swh.loader.tests import (
+    assert_last_visit_matches,
     check_snapshot,
-    check_metadata_paths,
     get_stats,
 )
-from swh.loader.tests import assert_last_visit_matches
 
 from swh.core.pytest_plugin import requests_mock_datadir_factory
 
