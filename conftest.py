@@ -9,8 +9,7 @@ import yaml
 
 from typing import Any, Dict
 
-from swh.storage.tests.conftest import *  # noqa
-from swh.scheduler.tests.conftest import *  # noqa
+from swh.scheduler.tests.conftest import swh_app  # noqa
 
 
 @pytest.fixture
