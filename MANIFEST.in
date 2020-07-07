@@ -3,4 +3,5 @@ include Makefile
 include requirements*.txt
 include version.txt
 recursive-include swh/loader/git/tests/data *
+recursive-include swh/loader/git/tests/data *.bundle *.tgz
 recursive-include swh py.typed
