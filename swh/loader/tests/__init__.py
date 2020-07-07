@@ -116,20 +116,7 @@ def check_snapshot(expected_snapshot, storage):
     expected_branches = expected_snapshot["branches"]
     snap = storage.snapshot_get(hash_to_bytes(expected_snapshot_id))
     if snap is None:
-        # display known snapshots instead if possible
-        if hasattr(storage, "_snapshots"):  # in-mem storage
-            from pprint import pprint
-
-            for snap_id, (_snap, _) in storage._snapshots.items():
-                snapd = _snap.to_dict()
-                snapd["id"] = hash_to_hex(snapd["id"])
-                branches = {
-                    branch.decode("utf-8"): decode_target(target)
-                    for branch, target in snapd["branches"].items()
-                }
-                snapd["branches"] = branches
-                pprint(snapd)
-        raise AssertionError("Snapshot is not found")
+        raise AssertionError(f"Snapshot {expected_snapshot_id} is not found")
 
     branches = {
         branch.decode("utf-8"): decode_target(target)

@@ -243,11 +243,16 @@ def test_check_snapshot_failure():
     }
 
     unexpected_snapshot = {
-        "id": "2498dbf535f882bc7f9a18fb16c9ad27fda7bab7",
+        "id": "2498dbf535f882bc7f9a18fb16c9ad27fda7bab7",  # id is correct
         "branches": {
-            "master": {"target": hash_hex, "target_type": "release",}  # wrong value
+            "master": {"target": hash_hex, "target_type": "release",}  # wrong branch
         },
     }
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(AssertionError, match="Differing items"):
+        check_snapshot(unexpected_snapshot, storage)
+
+    # snapshot id which does not exist
+    unexpected_snapshot["id"] = "999666f535f882bc7f9a18fb16c9ad27fda7bab7"
+    with pytest.raises(AssertionError, match="is not found"):
         check_snapshot(unexpected_snapshot, storage)
