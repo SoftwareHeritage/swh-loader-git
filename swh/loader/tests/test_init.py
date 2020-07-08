@@ -9,7 +9,6 @@ import pytest
 import os
 import subprocess
 
-from swh.loader.tests import prepare_repository_from_archive, assert_last_visit_matches
 from swh.model.model import (
     OriginVisit,
     OriginVisitStatus,
@@ -20,8 +19,10 @@ from swh.model.model import (
 from swh.model.hashutil import hash_to_bytes
 
 from swh.loader.tests import (
-    decode_target,
+    assert_last_visit_matches,
+    encode_target,
     check_snapshot,
+    prepare_repository_from_archive,
 )
 
 
@@ -172,34 +173,33 @@ def test_prepare_repository_from_archive_no_filename(datadir, tmp_path):
     assert os.path.exists(expected_uncompressed_archive_path)
 
 
-def test_decode_target_edge():
-    assert not decode_target(None)
+def test_encode_target():
+    assert encode_target(None) is None
 
+    for target_alias in ["something", b"something"]:
+        target = {
+            "target_type": "alias",
+            "target": target_alias,
+        }
+        actual_alias_encode_target = encode_target(target)
+        assert actual_alias_encode_target == {
+            "target_type": "alias",
+            "target": b"something",
+        }
 
-def test_decode_target():
-    actual_alias_decode_target = decode_target(
-        {"target_type": "alias", "target": b"something",}
-    )
-
-    assert actual_alias_decode_target == {
-        "target_type": "alias",
-        "target": "something",
-    }
-
-    actual_decode_target = decode_target(
-        {"target_type": "revision", "target": hash_to_bytes(hash_hex),}
-    )
-
-    assert actual_decode_target == {
-        "target_type": "revision",
-        "target": hash_hex,
-    }
+    for hash_ in [hash_hex, hash_to_bytes(hash_hex)]:
+        target = {"target_type": "revision", "target": hash_}
+        actual_encode_target = encode_target(target)
+        assert actual_encode_target == {
+            "target_type": "revision",
+            "target": hash_to_bytes(hash_hex),
+        }
 
 
 def test_check_snapshot(swh_storage):
-    snap_id = "2498dbf535f882bc7f9a18fb16c9ad27fda7bab7"
+    """Check snapshot should not raise when everything is fine"""
     snapshot = Snapshot(
-        id=hash_to_bytes(snap_id),
+        id=hash_to_bytes("2498dbf535f882bc7f9a18fb16c9ad27fda7bab7"),
         branches={
             b"master": SnapshotBranch(
                 target=hash_to_bytes(hash_hex), target_type=TargetType.REVISION,
@@ -212,16 +212,15 @@ def test_check_snapshot(swh_storage):
         "snapshot:add": 1,
     }
 
-    expected_snapshot = {
-        "id": snap_id,
-        "branches": {"master": {"target": hash_hex, "target_type": "revision",}},
-    }
-    check_snapshot(expected_snapshot, swh_storage)
+    for snap in [snapshot, snapshot.to_dict()]:
+        check_snapshot(snap, swh_storage)
 
 
 def test_check_snapshot_failure(swh_storage):
+    """check_snapshot should raise if something goes wrong"""
+    snap_id_hex = "2498dbf535f882bc7f9a18fb16c9ad27fda7bab7"
     snapshot = Snapshot(
-        id=hash_to_bytes("2498dbf535f882bc7f9a18fb16c9ad27fda7bab7"),
+        id=hash_to_bytes(snap_id_hex),
         branches={
             b"master": SnapshotBranch(
                 target=hash_to_bytes(hash_hex), target_type=TargetType.REVISION,
@@ -241,10 +240,19 @@ def test_check_snapshot_failure(swh_storage):
         },
     }
 
-    with pytest.raises(AssertionError, match="Differing items"):
-        check_snapshot(unexpected_snapshot, swh_storage)
+    # id is correct, the branch is wrong, that should raise nonetheless
+    for snap_id in [snap_id_hex, snapshot.id]:
+        with pytest.raises(AssertionError, match="Differing attributes"):
+            unexpected_snapshot["id"] = snap_id
+            check_snapshot(unexpected_snapshot, swh_storage)
 
     # snapshot id which does not exist
-    unexpected_snapshot["id"] = "999666f535f882bc7f9a18fb16c9ad27fda7bab7"
-    with pytest.raises(AssertionError, match="is not found"):
-        check_snapshot(unexpected_snapshot, swh_storage)
+    wrong_snap_id_hex = "999666f535f882bc7f9a18fb16c9ad27fda7bab7"
+    for snap_id in [wrong_snap_id_hex, hash_to_bytes(wrong_snap_id_hex)]:
+        unexpected_snapshot["id"] = wrong_snap_id_hex
+        with pytest.raises(AssertionError, match="is not found"):
+            check_snapshot(unexpected_snapshot, swh_storage)
+
+    # not a Snapshot object, raise!
+    with pytest.raises(AssertionError, match="variable 'snapshot' must be a snapshot"):
+        check_snapshot(ORIGIN_VISIT, swh_storage)

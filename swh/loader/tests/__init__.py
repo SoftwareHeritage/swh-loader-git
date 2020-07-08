@@ -7,11 +7,12 @@ import os
 import subprocess
 
 from pathlib import PosixPath
-from typing import Dict, Optional, Union
+from typing import Any, Dict, Optional, Union
 
-from swh.model.model import OriginVisitStatus
-from swh.model.hashutil import hash_to_bytes, hash_to_hex
+from swh.model.model import OriginVisitStatus, Snapshot
+from swh.model.hashutil import hash_to_bytes
 
+from swh.storage.interface import StorageInterface
 from swh.storage.algos.origin import origin_get_latest_visit_status
 
 
@@ -81,49 +82,67 @@ def prepare_repository_from_archive(
     return repo_url
 
 
-def decode_target(target):
+def encode_target(target: Dict) -> Dict:
     """Test helper to ease readability in test
 
     """
     if not target:
         return target
     target_type = target["target_type"]
-
-    if target_type == "alias":
-        decoded_target = target["target"].decode("utf-8")
+    target_data = target["target"]
+    if target_type == "alias" and isinstance(target_data, str):
+        encoded_target = target_data.encode("utf-8")
+    elif isinstance(target_data, str):
+        encoded_target = hash_to_bytes(target_data)
     else:
-        decoded_target = hash_to_hex(target["target"])
+        encoded_target = target_data
 
-    return {"target": decoded_target, "target_type": target_type}
+    return {"target": encoded_target, "target_type": target_type}
 
 
-def check_snapshot(expected_snapshot, storage):
+def check_snapshot(
+    snapshot: Union[Dict[str, Any], Snapshot], storage: StorageInterface
+):
     """Check for snapshot match.
 
-    Provide the hashes as hexadecimal, the conversion is done
-    within the method.
+    The hashes can be both in hex or bytes, the necessary conversion will happen prior
+    to check.
 
     Args:
-        expected_snapshot (dict): full snapshot with hex ids
-        storage (Storage): expected storage
+        snapshot: full snapshot to check for existence and consistency
+        storage: storage to lookup information into
 
     Returns:
         the snapshot stored in the storage for further test assertion if any is
         needed.
 
     """
-    expected_snapshot_id = expected_snapshot["id"]
-    expected_branches = expected_snapshot["branches"]
-    snap = storage.snapshot_get(hash_to_bytes(expected_snapshot_id))
-    if snap is None:
-        raise AssertionError(f"Snapshot {expected_snapshot_id} is not found")
+    if isinstance(snapshot, Snapshot):
+        expected_snapshot = snapshot
+    elif isinstance(snapshot, dict):
+        # dict must be snapshot compliant
+        snapshot_dict = {"id": hash_to_bytes(snapshot["id"])}
+        branches = {}
+        for branch, target in snapshot["branches"].items():
+            if isinstance(branch, str):
+                branch = branch.encode("utf-8")
+            branches[branch] = encode_target(target)
+        snapshot_dict["branches"] = branches
+        expected_snapshot = Snapshot.from_dict(snapshot_dict)
+    else:
+        raise AssertionError(f"variable 'snapshot' must be a snapshot: {snapshot!r}")
 
-    branches = {
-        branch.decode("utf-8"): decode_target(target)
-        for branch, target in snap["branches"].items()
-    }
-    assert expected_branches == branches
-    return snap
+    snap = storage.snapshot_get(expected_snapshot.id)
+    if snap is None:
+        raise AssertionError(f"Snapshot {expected_snapshot.id.hex()} is not found")
+
+    assert snap["next_branch"] is None  # we don't deal with large snapshot in tests
+    snap.pop("next_branch")
+    actual_snap = Snapshot.from_dict(snap)
+
+    assert expected_snapshot == actual_snap
+
+    return snap  # for retro compat, returned the dict, remove when clients are migrated
 
 
 def get_stats(storage) -> Dict:
