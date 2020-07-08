@@ -1,3 +1,4 @@
 pytest
 pytest-mock
 swh.scheduler[testing]
+swh.storage[testing]
