@@ -105,25 +105,18 @@ def dulwich_commit_to_revision(commit, log=None) -> Revision:
 
     git_metadata = []
     if commit.encoding is not None:
-        git_metadata.append(["encoding", commit.encoding])
+        git_metadata.append((b"encoding", commit.encoding))
     if commit.mergetag:
         for mergetag in commit.mergetag:
             raw_string = mergetag.as_raw_string()
             assert raw_string.endswith(b"\n")
-            git_metadata.append(["mergetag", raw_string[:-1]])
+            git_metadata.append((b"mergetag", raw_string[:-1]))
 
     if commit.extra:
-        git_metadata.extend([k.decode("utf-8"), v] for k, v in commit.extra)
+        git_metadata.extend((k, v) for k, v in commit.extra)
 
     if commit.gpgsig:
-        git_metadata.append(["gpgsig", commit.gpgsig])
-
-    if git_metadata:
-        metadata: Optional[Dict[str, Any]] = {
-            "extra_headers": git_metadata,
-        }
-    else:
-        metadata = None
+        git_metadata.append((b"gpgsig", commit.gpgsig))
 
     return Revision(
         id=commit.sha().digest(),
@@ -138,7 +131,8 @@ def dulwich_commit_to_revision(commit, log=None) -> Revision:
         type=RevisionType.GIT,
         directory=bytes.fromhex(commit.tree.decode()),
         message=commit.message,
-        metadata=metadata,
+        metadata=None,
+        extra_headers=tuple(git_metadata),
         synthetic=False,
         parents=tuple(bytes.fromhex(p.decode()) for p in commit.parents),
     )
