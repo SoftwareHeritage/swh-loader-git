@@ -5,7 +5,7 @@
 
 """Convert dulwich objects to dictionaries suitable for swh.storage"""
 
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 
 from swh.model.hashutil import DEFAULT_ALGORITHMS, hash_to_bytes, MultiHash
 from swh.model.model import (
@@ -118,9 +118,6 @@ def dulwich_commit_to_revision(commit, log=None) -> Revision:
     if commit.gpgsig:
         git_metadata.append((b"gpgsig", commit.gpgsig))
 
-    extra_headers: Tuple[Tuple[bytes, bytes], ...]
-    extra_headers = tuple(git_metadata)
-
     return Revision(
         id=commit.sha().digest(),
         author=parse_author(commit.author),
@@ -135,7 +132,7 @@ def dulwich_commit_to_revision(commit, log=None) -> Revision:
         directory=bytes.fromhex(commit.tree.decode()),
         message=commit.message,
         metadata=None,
-        extra_headers=extra_headers,
+        extra_headers=tuple(git_metadata),
         synthetic=False,
         parents=tuple(bytes.fromhex(p.decode()) for p in commit.parents),
     )
