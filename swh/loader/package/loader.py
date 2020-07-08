@@ -16,6 +16,7 @@ import sentry_sdk
 from swh.core.tarball import uncompress
 from swh.core.config import SWHConfig
 from swh.model import from_disk
+from swh.model.collections import ImmutableDict
 from swh.model.hashutil import hash_to_hex
 from swh.model.model import (
     BaseModel,
@@ -422,11 +423,16 @@ class PackageLoader:
                 # skipping those
                 return None
 
-        metadata = revision.metadata or {}
-        metadata.update(
-            {"original_artifact": [hashes for _, hashes in dl_artifacts],}
+        extra_metadata: Tuple[str, Any] = (
+            "original_artifact",
+            [hashes for _, hashes in dl_artifacts],
         )
-        revision = attr.evolve(revision, metadata=metadata)
+        if revision.metadata is not None:
+            full_metadata = list(revision.metadata.items()) + [extra_metadata]
+        else:
+            full_metadata = [extra_metadata]
+
+        revision = attr.evolve(revision, metadata=ImmutableDict(full_metadata))
 
         logger.debug("Revision: %s", revision)
 
