@@ -9,8 +9,6 @@ import pytest
 import os
 import subprocess
 
-from swh.storage import get_storage
-
 from swh.loader.tests import prepare_repository_from_archive, assert_last_visit_matches
 from swh.model.model import (
     OriginVisit,
@@ -29,8 +27,6 @@ from swh.loader.tests import (
 
 hash_hex = "43e45d56f88993aae6a0198013efa80716fd8920"
 
-
-storage_config = {"cls": "pipeline", "steps": [{"cls": "memory",}]}
 
 ORIGIN_VISIT = OriginVisit(
     origin="some-url",
@@ -200,9 +196,7 @@ def test_decode_target():
     }
 
 
-def test_check_snapshot():
-    storage = get_storage(**storage_config)
-
+def test_check_snapshot(swh_storage):
     snap_id = "2498dbf535f882bc7f9a18fb16c9ad27fda7bab7"
     snapshot = Snapshot(
         id=hash_to_bytes(snap_id),
@@ -213,7 +207,7 @@ def test_check_snapshot():
         },
     )
 
-    s = storage.snapshot_add([snapshot])
+    s = swh_storage.snapshot_add([snapshot])
     assert s == {
         "snapshot:add": 1,
     }
@@ -222,12 +216,10 @@ def test_check_snapshot():
         "id": snap_id,
         "branches": {"master": {"target": hash_hex, "target_type": "revision",}},
     }
-    check_snapshot(expected_snapshot, storage)
+    check_snapshot(expected_snapshot, swh_storage)
 
 
-def test_check_snapshot_failure():
-    storage = get_storage(**storage_config)
-
+def test_check_snapshot_failure(swh_storage):
     snapshot = Snapshot(
         id=hash_to_bytes("2498dbf535f882bc7f9a18fb16c9ad27fda7bab7"),
         branches={
@@ -237,7 +229,7 @@ def test_check_snapshot_failure():
         },
     )
 
-    s = storage.snapshot_add([snapshot])
+    s = swh_storage.snapshot_add([snapshot])
     assert s == {
         "snapshot:add": 1,
     }
@@ -250,9 +242,9 @@ def test_check_snapshot_failure():
     }
 
     with pytest.raises(AssertionError, match="Differing items"):
-        check_snapshot(unexpected_snapshot, storage)
+        check_snapshot(unexpected_snapshot, swh_storage)
 
     # snapshot id which does not exist
     unexpected_snapshot["id"] = "999666f535f882bc7f9a18fb16c9ad27fda7bab7"
     with pytest.raises(AssertionError, match="is not found"):
-        check_snapshot(unexpected_snapshot, storage)
+        check_snapshot(unexpected_snapshot, swh_storage)
