@@ -27,6 +27,52 @@ from swh.model.model import (
 import swh.loader.git.converters as converters
 
 TEST_DATA = os.path.join(os.path.dirname(__file__), "data")
+GPGSIG = (
+    b"-----BEGIN PGP SIGNATURE-----\n"
+    b"\n"
+    b"iQJLBAABCAA1FiEEAOWDevQbOk/9ITMF6ImSleOlnUcFAl8EnS4XHGRhdmlkLmRv\n"
+    b"dWFyZEBzZGZhMy5vcmcACgkQ6ImSleOlnUdrqQ/8C5RO4NZ5Qr/dwAy2cPA7ktkY\n"
+    b"1oUjKtspQoPbC1X3MXVa1aWo9B3KuOMR2URw44RhMNFwjccLOhfss06E8p7CZr2H\n"
+    b"uR3CzdDw7i52jHLCL2M2ZMaPAEbQuHjXWiUWIUXz9So8YwpTyd2XQneyOC2RDDEI\n"
+    b"I2NVbmiMeDz33jJYPrQO0QayW+ErW+xgBF7N/qS9jFWsdV1ZNfn9NxkTH8UdGuAX\n"
+    b"583P+0tVC2DjXc6vORVhyFzyfn1A9wHosbtWI2Mpa+zezPjoPSkcyQAJu2GyOkMC\n"
+    b"YzSjJdQVqyovo+INkIf6PuUNdp41886BG/06xwT8fl4sVsyO51lNIfgH0DMwfTTB\n"
+    b"ZgThYnvvO7SrXDm3QzBTXkvAiHiFFl3iNyGkCyxvgVmaTntuFT+cP+HD/pCiGaC+\n"
+    b"jHzRwfUrmuLd/lLPyq3JXBibyjnfd3SVS+7q1NZHJ4WUmCboZ0+pfrEl65mEQ/Hz\n"
+    b"J1qCwQ/3SsTB77ANf6lLzGSowjjrtHcBTkTbFxR4ACUhiBbosyDKpHTM7fzGFGjo\n"
+    b"EIjohzrEnqR3bbyxJkK+nxoOByhIRdowgyeJ02I4neMyLJqcaup8NMWCddxqjaPt\n"
+    b"YobghnjaDqEd+suL/v83hbZUAZHNO3i1OZYGMqzp1WHikDPoTwGP76baqBoXi56T\n"
+    b"4WSpxCAJRDODHLk1HgU=\n"
+    b"=73wF"
+    b"\n"
+    b"-----END PGP SIGNATURE-----"
+)
+
+MERGETAG = (
+    b"object 9768d0b576dbaaecd80abedad6dfd0d72f1476da\n"
+    b"type commit\n"
+    b"tag v0.0.1\n"
+    b"tagger David Douard <david.douard@sdfa3.org> 1594138133 +0200\n"
+    b"\n"
+    b"v0.0.1\n"
+    b"-----BEGIN PGP SIGNATURE-----\n"
+    b"\n"
+    b"iQJLBAABCAA1FiEEAOWDevQbOk/9ITMF6ImSleOlnUcFAl8EnhkXHGRhdmlkLmRv\n"
+    b"dWFyZEBzZGZhMy5vcmcACgkQ6ImSleOlnUcdzg//ZW9y2xU5JFQuUsBe/LfKrs+m\n"
+    b"0ohVInPKXwAfpB3+gn/XtTSLe+Nnr8+QEZyVRCUz2gpGZ2tNqRjhYLIX4x5KKlaV\n"
+    b"rfl/6Cy7zibsxxuzA1h7HylCs3IPsueQpznVHUwD9jQ5baGJSc2Lt1LufXTueHZJ\n"
+    b"Oc0oLiP5xCZcPqeX8R/4zUUImJZ1QrPeKmQ/3F+Iq62iWp7nWDp8PtwpykSiYlNf\n"
+    b"KrJM8omGvrlrWLtfPNUaQFClXwnwK1/HyNY2kYan6K5NtsIl2UX0LZ42GkRjJIrb\n"
+    b"q4TFIZWZ6xndtEhHEX6B8Q5TZV6sqPgNnfGpbhj8BDoZgjD0Y43fzfDiZ0Bl2tph\n"
+    b"tXaLg3SX/UUjFVzC1zkoQ2MR7+j8NVKauAsBINpKF4pMGsrsVRk8764pgO49iQ+S\n"
+    b"8JVCVV76dNNm1gd7BbhFAdIAiegBtsEF69niJBoHKYLlrT8E8hDkF/gk4IkimPqf\n"
+    b"UHtw/fPhVW3B4G2skd013NJGcnRj5oKtaM99d2Roxc3vhSRiTsoaM8BM9NDvLmJg\n"
+    b"35rWEOnet39iJIMCHk3AYaJl8QmUhllDdr6vygaBVeVEf27m2c3NzONmIKpWqa2J\n"
+    b"kTpF4cmzHYro34G7WuJ1bYvmLb6qWNQt9wd8RW+J1kVm5I8dkjPzLUougBpOd0YL\n"
+    b"Bl5UTQILbV4Tv8ZlmJM=\n"
+    b"=s1lv\n"
+    b"-----END PGP SIGNATURE-----"
+)
 
 
 class SWHObjectType:
@@ -75,23 +121,17 @@ class TestConverters(unittest.TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.repo_path = tempfile.mkdtemp()
-        cls.repo = dulwich.repo.Repo.init_bare(cls.repo_path)
 
-        fast_export = os.path.join(
-            TEST_DATA, "git-repos", "example-submodule.fast-export.xz"
-        )
-
-        xz = subprocess.Popen(
-            ["xzcat"], stdin=open(fast_export, "rb"), stdout=subprocess.PIPE,
-        )
+        bundle = os.path.join(TEST_DATA, "git-repos", "example-submodule.bundle")
 
         git = subprocess.Popen(
-            ["git", "fast-import", "--quiet"], stdin=xz.stdout, cwd=cls.repo_path,
+            ["git", "clone", "--quiet", "--bare", "--mirror", bundle, cls.repo_path],
+            cwd=TEST_DATA,
         )
 
         # flush stdout of xz
-        xz.stdout.close()
         git.communicate()
+        cls.repo = dulwich.repo.Repo(cls.repo_path)
 
     @classmethod
     def tearDownClass(cls):
@@ -142,7 +182,6 @@ class TestConverters(unittest.TestCase):
         sha1 = b"9768d0b576dbaaecd80abedad6dfd0d72f1476da"
 
         revision = converters.dulwich_commit_to_revision(self.repo[sha1])
-
         expected_revision = Revision(
             id=hash_to_bytes("9768d0b576dbaaecd80abedad6dfd0d72f1476da"),
             directory=b"\xf0i\\./\xa7\xce\x9dW@#\xc3A7a\xa4s\xe5\x00\xca",
@@ -164,6 +203,7 @@ class TestConverters(unittest.TestCase):
             ),
             message=b"add submodule dependency\n",
             metadata=None,
+            extra_headers=(),
             date=TimestampWithTimezone(
                 timestamp=Timestamp(seconds=1443083765, microseconds=0,),
                 negative_utc=False,
@@ -174,6 +214,83 @@ class TestConverters(unittest.TestCase):
         )
 
         self.assertEqual(revision, expected_revision)
+
+    def test_commit_to_revision_with_extra_headers(self):
+        sha1 = b"322f5bc915e50fc25e85226b5a182bded0e98e4b"
+
+        revision = converters.dulwich_commit_to_revision(self.repo[sha1])
+        expected_revision = Revision(
+            id=hash_to_bytes(sha1.decode()),
+            directory=bytes.fromhex("f8ec06e4ed7b9fff4918a0241a48023143f30000"),
+            type=RevisionType.GIT,
+            committer=Person(
+                name=b"David Douard",
+                fullname=b"David Douard <david.douard@sdfa3.org>",
+                email=b"david.douard@sdfa3.org",
+            ),
+            author=Person(
+                name=b"David Douard",
+                fullname=b"David Douard <david.douard@sdfa3.org>",
+                email=b"david.douard@sdfa3.org",
+            ),
+            committer_date=TimestampWithTimezone(
+                timestamp=Timestamp(seconds=1594137902, microseconds=0,),
+                negative_utc=False,
+                offset=120,
+            ),
+            message=b"Am\xe9lioration du fichier READM\xa4\n",
+            metadata=None,
+            extra_headers=((b"encoding", b"ISO-8859-15"), (b"gpgsig", GPGSIG)),
+            date=TimestampWithTimezone(
+                timestamp=Timestamp(seconds=1594136900, microseconds=0,),
+                negative_utc=False,
+                offset=120,
+            ),
+            parents=(bytes.fromhex("c730509025c6e81947102b2d77bc4dc1cade9489"),),
+            synthetic=False,
+        )
+
+        assert revision == expected_revision
+
+    def test_commit_to_revision_with_extra_headers_mergetag(self):
+        sha1 = b"3ab3da4bf0f81407be16969df09cd1c8af9ac703"
+
+        revision = converters.dulwich_commit_to_revision(self.repo[sha1])
+        expected_revision = Revision(
+            id=hash_to_bytes(sha1.decode()),
+            directory=bytes.fromhex("faa4b64a841ca3e3f07d6501caebda2e3e8e544e"),
+            type=RevisionType.GIT,
+            committer=Person(
+                name=b"David Douard",
+                fullname=b"David Douard <david.douard@sdfa3.org>",
+                email=b"david.douard@sdfa3.org",
+            ),
+            author=Person(
+                name=b"David Douard",
+                fullname=b"David Douard <david.douard@sdfa3.org>",
+                email=b"david.douard@sdfa3.org",
+            ),
+            committer_date=TimestampWithTimezone(
+                timestamp=Timestamp(seconds=1594138183, microseconds=0,),
+                negative_utc=False,
+                offset=120,
+            ),
+            message=b"Merge tag 'v0.0.1' into readme\n\nv0.0.1\n",
+            metadata=None,
+            extra_headers=((b"encoding", b"ISO-8859-15"), (b"mergetag", MERGETAG)),
+            date=TimestampWithTimezone(
+                timestamp=Timestamp(seconds=1594138183, microseconds=0,),
+                negative_utc=False,
+                offset=120,
+            ),
+            parents=(
+                bytes.fromhex("322f5bc915e50fc25e85226b5a182bded0e98e4b"),
+                bytes.fromhex("9768d0b576dbaaecd80abedad6dfd0d72f1476da"),
+            ),
+            synthetic=False,
+        )
+
+        assert revision == expected_revision
 
     def test_author_line_to_author(self):
         # edge case out of the way
