@@ -10,11 +10,12 @@ import logging
 import pytest
 
 from json.decoder import JSONDecodeError
-from typing import Dict, Optional, Tuple
+from swh.storage.interface import StorageInterface
+from typing import Any, Dict, Iterable, Optional, Tuple, Union
 
 from unittest.mock import patch
 
-from swh.model.model import Snapshot
+from swh.model.model import Snapshot, TargetType
 from swh.loader.package.archive.loader import ArchiveLoader
 from swh.loader.package.nixguix.loader import (
     NixGuixLoader,
@@ -29,11 +30,21 @@ from swh.storage.exc import HashCollision
 from swh.loader.tests import (
     assert_last_visit_matches,
     get_stats,
-    check_snapshot,
+    check_snapshot as check_snapshot_full,
 )
 
 
 sources_url = "https://nix-community.github.io/nixpkgs-swh/sources.json"
+
+
+def check_snapshot(
+    snapshot: Union[Dict[str, Any], Snapshot],
+    storage: StorageInterface,
+    allowed_empty: Iterable[Tuple[TargetType, bytes]] = [
+        (TargetType.REVISION, b"evaluation")
+    ],
+):
+    return check_snapshot_full(snapshot, storage, allowed_empty)
 
 
 def test_retrieve_sources(swh_config, requests_mock_datadir):

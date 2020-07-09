@@ -6,10 +6,11 @@
 import os
 import subprocess
 
+from collections import defaultdict
 from pathlib import PosixPath
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
-from swh.model.model import OriginVisitStatus, Snapshot
+from swh.model.model import OriginVisitStatus, Snapshot, TargetType
 from swh.model.hashutil import hash_to_bytes
 
 from swh.storage.interface import StorageInterface
@@ -100,17 +101,34 @@ def encode_target(target: Dict) -> Dict:
     return {"target": encoded_target, "target_type": target_type}
 
 
-def check_snapshot(
-    snapshot: Union[Dict[str, Any], Snapshot], storage: StorageInterface
-):
-    """Check for snapshot match.
+class InconsistentAliasBranchError(AssertionError):
+    """When an alias branch targets an inexistent branch."""
 
-    The hashes can be both in hex or bytes, the necessary conversion will happen prior
-    to check.
+    pass
+
+
+class InexistentObjectsError(AssertionError):
+    """When a targeted branch reference does not exist in the storage"""
+
+    pass
+
+
+def check_snapshot(
+    snapshot: Union[Dict[str, Any], Snapshot],
+    storage: StorageInterface,
+    allowed_empty: Iterable[Tuple[TargetType, bytes]] = [],
+):
+    """Check that:
+    - snapshot exists in the storage and match
+    - each object reference up to the revision/release targets exists
 
     Args:
         snapshot: full snapshot to check for existence and consistency
         storage: storage to lookup information into
+        allowed_empty: Iterable of branch we allow to be empty (some edge case loaders
+          allows this case to happen, nixguix for example allows the branch evaluation"
+          to target the nixpkgs git commit reference, which may not yet be resolvable at
+          loading time)
 
     Returns:
         the snapshot stored in the storage for further test assertion if any is
@@ -132,17 +150,60 @@ def check_snapshot(
     else:
         raise AssertionError(f"variable 'snapshot' must be a snapshot: {snapshot!r}")
 
-    snap = storage.snapshot_get(expected_snapshot.id)
-    if snap is None:
+    snapshot_dict = storage.snapshot_get(expected_snapshot.id)
+    if snapshot_dict is None:
         raise AssertionError(f"Snapshot {expected_snapshot.id.hex()} is not found")
 
-    assert snap["next_branch"] is None  # we don't deal with large snapshot in tests
-    snap.pop("next_branch")
-    actual_snap = Snapshot.from_dict(snap)
+    snapshot_dict.pop("next_branch")
+    actual_snaphot = Snapshot.from_dict(snapshot_dict)
+    assert isinstance(actual_snaphot, Snapshot)
 
-    assert expected_snapshot == actual_snap
+    assert expected_snapshot == actual_snaphot
 
-    return snap  # for retro compat, returned the dict, remove when clients are migrated
+    branches_by_target_type = defaultdict(list)
+    object_to_branch = {}
+    for branch, target in actual_snaphot.branches.items():
+        if (target.target_type, branch) in allowed_empty:
+            # safe for those elements to not be checked for existence
+            continue
+        branches_by_target_type[target.target_type].append(target.target)
+        object_to_branch[target.target] = branch
+
+    # check that alias references target something that exists, otherwise raise
+    aliases: List[bytes] = branches_by_target_type.get(TargetType.ALIAS, [])
+    for alias in aliases:
+        if alias not in actual_snaphot.branches:
+            raise InconsistentAliasBranchError(
+                f"Alias branch {alias.decode('utf-8')} "
+                f"should be in {list(actual_snaphot.branches)}"
+            )
+
+    revs = branches_by_target_type.get(TargetType.REVISION)
+    if revs:
+        revisions = list(storage.revision_get(revs))
+        not_found = [rev_id for rev_id, rev in zip(revs, revisions) if rev is None]
+        if not_found:
+            missing_objs = ", ".join(
+                str((object_to_branch[rev], rev.hex())) for rev in not_found
+            )
+            raise InexistentObjectsError(
+                f"Branch/Revision(s) {missing_objs} should exist in storage"
+            )
+
+    rels = branches_by_target_type.get(TargetType.RELEASE)
+    if rels:
+        releases = list(storage.release_get(rels))
+        not_found = [rel_id for rel_id, rel in zip(rels, releases) if rel is None]
+        if not_found:
+            missing_objs = ", ".join(
+                str((object_to_branch[rel], rel.hex())) for rel in not_found
+            )
+            raise InexistentObjectsError(
+                f"Branch/Release(s) {missing_objs} should exist in storage"
+            )
+
+    # for retro compat, returned the dict, remove when clients are migrated
+    return snapshot_dict
 
 
 def get_stats(storage) -> Dict:
