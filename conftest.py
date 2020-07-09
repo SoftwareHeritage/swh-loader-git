@@ -9,7 +9,7 @@ import yaml
 
 from typing import Any, Dict
 
-from swh.scheduler.tests.conftest import swh_app  # noqa
+pytest_plugins = ["swh.scheduler.pytest_plugin", "swh.storage.pytest_plugin"]
 
 
 @pytest.fixture
@@ -54,9 +54,9 @@ def swh_proxy():
     os.environ["https_proxy"] = "http://localhost:999"
 
 
-@pytest.fixture(scope="session")  # type: ignore  # expected redefinition
-def celery_includes():
-    return [
+@pytest.fixture(scope="session")
+def swh_scheduler_celery_includes(swh_scheduler_celery_includes):
+    return swh_scheduler_celery_includes + [
         "swh.loader.package.archive.tasks",
         "swh.loader.package.cran.tasks",
         "swh.loader.package.debian.tasks",
