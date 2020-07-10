@@ -363,11 +363,9 @@ def test_check_snapshot_failures(swh_storage):
     4. snapshot is found in storage, targeted revision does not exist
     5. snapshot is found in storage, targeted revision exists but the directory the
        revision targets does not exist
-    6. snapshot is found in storage, targeted release does not exist
-
-    The following are not dealt with yet:
-    7. snapshot is found in storage, nested targeted directories does not exist
-    8. snapshot is found in storage, nested targeted contents does not exist
+    6. snapshot is found in storage, target revision exists, targeted directory by the
+       revision exist. Content targeted by the directory does not exist.
+    7. snapshot is found in storage, targeted release does not exist
 
     """
     snap_id_hex = "2498dbf535f882bc7f9a18fb16c9ad27fda7bab7"
@@ -469,9 +467,35 @@ def test_check_snapshot_failures(swh_storage):
     assert DIRECTORY.id == REVISION.directory
     swh_storage.directory_add([DIRECTORY])
 
-    # 6. snapshot is found in storage, targeted release does not exist
+    # 6. snapshot is found in storage, target revision exists, targeted directory by the
+    # revision exist. Content targeted by the directory does not exist.
+
+    assert DIRECTORY.entries[0].target == CONTENT.sha1_git
+    not_found = list(swh_storage.content_missing_per_sha1_git([CONTENT.sha1_git]))
+    assert len(not_found) == 1
+
+    swh_storage.directory_add([DIRECTORY.to_dict()])
 
     snapshot3 = Snapshot(
+        id=hash_to_bytes("091456f535f882bc7f9a18fb16c9ad27fda7bab7"),
+        branches={
+            b"alias": SnapshotBranch(target=b"HEAD", target_type=TargetType.ALIAS,),
+            b"HEAD": SnapshotBranch(
+                target=REVISION.id, target_type=TargetType.REVISION,
+            ),
+        },
+    )
+
+    swh_storage.snapshot_add([snapshot3.to_dict()])
+    with pytest.raises(InexistentObjectsError, match="Missing content(s)"):
+        check_snapshot(snapshot3, swh_storage)
+
+    # 7. snapshot is found in storage, targeted release does not exist
+
+    # release targets the revisions which exists
+    assert RELEASE.target == REVISION.id
+
+    snapshot4 = Snapshot(
         id=hash_to_bytes("789666f535f882bc7f9a18fb16c9ad27fda7bab7"),
         branches={
             b"alias": SnapshotBranch(target=b"HEAD", target_type=TargetType.ALIAS,),
@@ -484,7 +508,7 @@ def test_check_snapshot_failures(swh_storage):
         },
     )
 
-    swh_storage.snapshot_add([snapshot3])
+    swh_storage.snapshot_add([snapshot4])
 
     with pytest.raises(InexistentObjectsError, match="Branch/Release"):
-        check_snapshot(snapshot3, swh_storage)
+        check_snapshot(snapshot4, swh_storage)

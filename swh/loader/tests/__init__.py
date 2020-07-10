@@ -205,6 +205,7 @@ def check_snapshot(
                 f"Branch/Release(s) {missing_objs} should exist in storage"
             )
 
+    # first level dirs exist?
     dirs = objects_by_target_type.get(TargetType.DIRECTORY)
     if dirs:
         not_found = list(storage.directory_missing(dirs))
@@ -216,6 +217,39 @@ def check_snapshot(
                 f"Missing directories {missing_objs}: "
                 "(revision exists, directory target does not)"
             )
+        for dir_ in dirs:  # retrieve new objects to check for existence
+            paths = storage.directory_ls(dir_, recursive=True)
+            for path in paths:
+                if path["type"] == "dir":
+                    target_type = TargetType.DIRECTORY
+                else:
+                    target_type = TargetType.CONTENT
+                target = path["target"]
+                objects_by_target_type[target_type].append(target)
+                object_to_branch[target] = dir_
+
+    # check nested directories
+    dirs = objects_by_target_type.get(TargetType.DIRECTORY)
+    if dirs:
+        not_found = list(storage.directory_missing(dirs))
+        if not_found:
+            missing_objs = ", ".join(
+                str((object_to_branch[dir_].hex(), dir_.hex())) for dir_ in not_found
+            )
+            raise InexistentObjectsError(
+                f"Missing directories {missing_objs}: "
+                "(revision exists, directory target does not)"
+            )
+
+    # check contents directories
+    cnts = objects_by_target_type.get(TargetType.CONTENT)
+    if cnts:
+        not_found = list(storage.content_missing_per_sha1_git(cnts))
+        if not_found:
+            missing_objs = ", ".join(
+                str((object_to_branch[cnt].hex(), cnt.hex())) for cnt in not_found
+            )
+            raise InexistentObjectsError(f"Missing contents {missing_objs}")
 
     # for retro compat, returned the dict, remove when clients are migrated
     return snapshot_dict
