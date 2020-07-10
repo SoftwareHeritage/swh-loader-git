@@ -9,7 +9,16 @@ import re
 import pytest
 
 from swh.model.hashutil import hash_to_bytes, hash_to_hex
-from swh.model.model import Snapshot, SnapshotBranch, TargetType
+from swh.model.model import (
+    Snapshot,
+    SnapshotBranch,
+    TargetType,
+    MetadataAuthority,
+    MetadataAuthorityType,
+    MetadataFetcher,
+    MetadataTargetType,
+    RawExtrinsicMetadata,
+)
 from swh.loader.package.deposit.loader import DepositLoader
 
 from swh.loader.package.tests.common import check_metadata_paths
@@ -187,25 +196,24 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
 
     # check metadata
 
-    fetcher = {
-        "name": "swh-deposit",
-        "version": "0.0.1",
-    }
+    fetcher = MetadataFetcher(name="swh-deposit", version="0.0.1",)
 
-    authority = {
-        "type": "deposit_client",
-        "url": "https://hal-test.archives-ouvertes.fr/",
-    }
+    authority = MetadataAuthority(
+        type=MetadataAuthorityType.DEPOSIT,
+        url="https://hal-test.archives-ouvertes.fr/",
+    )
 
-    orig_meta = loader.storage.origin_metadata_get(url, authority)
+    orig_meta = loader.storage.object_metadata_get(
+        MetadataTargetType.ORIGIN, url, authority
+    )
     assert orig_meta is not None
     assert isinstance(orig_meta, dict)
     assert len(orig_meta["results"]) == 1
     assert orig_meta["next_page_token"] is None
     orig_meta0 = orig_meta["results"][0]
 
-    assert orig_meta0["authority"] == authority
-    assert orig_meta0["fetcher"] == fetcher
+    assert orig_meta0.authority == authority
+    assert orig_meta0.fetcher == fetcher
 
     # Retrieve the information for deposit status update query to the deposit
     urls = [
@@ -311,18 +319,17 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
         ],
     }
 
-    fetcher = {
-        "name": "swh-deposit",
-        "version": "0.0.1",
-    }
+    fetcher = MetadataFetcher(name="swh-deposit", version="0.0.1",)
 
-    authority = {
-        "type": "deposit_client",
-        "url": "https://hal-test.archives-ouvertes.fr/",
-    }
+    authority = MetadataAuthority(
+        type=MetadataAuthorityType.DEPOSIT,
+        url="https://hal-test.archives-ouvertes.fr/",
+    )
 
     # Check the metadata swh side
-    orig_meta = loader.storage.origin_metadata_get(url, authority)
+    orig_meta = loader.storage.object_metadata_get(
+        MetadataTargetType.ORIGIN, url, authority
+    )
     assert orig_meta is not None
     assert isinstance(orig_meta, dict)
     assert len(orig_meta["results"]) == 1
@@ -331,12 +338,12 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
     assert len(orig_meta["results"]) == 1
 
     orig_meta0 = orig_meta["results"][0]
-    # dynamic, a pain to display and not that interesting
-    orig_meta0.pop("discovery_date")
 
-    assert orig_meta0 == {
-        "origin_url": "https://hal-test.archives-ouvertes.fr/some-external-id",
-        "metadata": json.dumps(
+    assert orig_meta0 == RawExtrinsicMetadata(
+        type=MetadataTargetType.ORIGIN,
+        id="https://hal-test.archives-ouvertes.fr/some-external-id",
+        discovery_date=orig_meta0.discovery_date,
+        metadata=json.dumps(
             {
                 "@xmlns": ["http://www.w3.org/2005/Atom"],
                 "author": ["some awesome author", "another one", "no one"],
@@ -346,10 +353,10 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
                 "url": "https://hal-test.archives-ouvertes.fr/some-external-id",
             }
         ).encode(),
-        "format": "sword-v2-atom-codemeta-v2-in-json",
-        "authority": authority,
-        "fetcher": fetcher,
-    }
+        format="sword-v2-atom-codemeta-v2-in-json",
+        authority=authority,
+        fetcher=fetcher,
+    )
 
     # Retrieve the information for deposit status update query to the deposit
     urls = [

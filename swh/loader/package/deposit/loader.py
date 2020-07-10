@@ -17,6 +17,11 @@ from swh.model.model import (
     RevisionType,
     TimestampWithTimezone,
     Sha1Git,
+    MetadataAuthority,
+    MetadataAuthorityType,
+    MetadataFetcher,
+    MetadataTargetType,
+    RawExtrinsicMetadata,
 )
 from swh.loader.package.loader import PackageLoader
 from swh.loader.package.utils import download
@@ -126,33 +131,37 @@ class DepositLoader(PackageLoader):
             logger.debug("origin_metadata: %s", origin_metadata)
 
             provider = origin_metadata["provider"]
-            authority = {
-                "type": provider["provider_type"],
-                "url": provider["provider_url"],
-                "metadata": {
+            assert provider["provider_type"] == "deposit_client"
+            authority = MetadataAuthority(
+                type=MetadataAuthorityType.DEPOSIT,
+                url=provider["provider_url"],
+                metadata={
                     "name": provider["provider_name"],
                     **(provider["metadata"] or {}),
                 },
-            }
-            self.storage.metadata_authority_add(**authority)
+            )
+            self.storage.metadata_authority_add([authority])
 
             tool = origin_metadata["tool"]
-            fetcher = {
-                "name": tool["name"],
-                "version": tool["version"],
-                "metadata": tool["configuration"],
-            }
-            self.storage.metadata_fetcher_add(**fetcher)
+            fetcher = MetadataFetcher(
+                name=tool["name"],
+                version=tool["version"],
+                metadata=tool["configuration"],
+            )
+            self.storage.metadata_fetcher_add([fetcher])
 
-            metadata = origin_metadata["metadata"]
-            format = "sword-v2-atom-codemeta-v2-in-json"
-            self.storage.origin_metadata_add(
-                self.url,
-                self.visit_date,
-                {"type": authority["type"], "url": authority["url"]},
-                {"name": fetcher["name"], "version": fetcher["version"]},
-                format,
-                json.dumps(metadata).encode(),
+            self.storage.object_metadata_add(
+                [
+                    RawExtrinsicMetadata(
+                        type=MetadataTargetType.ORIGIN,
+                        id=self.url,
+                        discovery_date=self.visit_date,
+                        authority=authority,
+                        fetcher=fetcher,
+                        format="sword-v2-atom-codemeta-v2-in-json",
+                        metadata=json.dumps(origin_metadata["metadata"]).encode(),
+                    )
+                ]
             )
 
         # Update deposit status
