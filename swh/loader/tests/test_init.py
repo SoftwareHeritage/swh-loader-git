@@ -361,11 +361,13 @@ def test_check_snapshot_failures(swh_storage):
     2. snapshot id is not correct, it's not found in the storage
     3. snapshot reference an alias which does not exist
     4. snapshot is found in storage, targeted revision does not exist
-    5. snapshot is found in storage, targeted release does not exist
+    5. snapshot is found in storage, targeted revision exists but the directory the
+       revision targets does not exist
+    6. snapshot is found in storage, targeted release does not exist
 
     The following are not dealt with yet:
-    6. snapshot is found in storage, targeted directory does not exist
-    7. snapshot is found in storage, targeted content does not exist
+    7. snapshot is found in storage, nested targeted directories does not exist
+    8. snapshot is found in storage, nested targeted contents does not exist
 
     """
     snap_id_hex = "2498dbf535f882bc7f9a18fb16c9ad27fda7bab7"
@@ -423,6 +425,10 @@ def test_check_snapshot_failures(swh_storage):
         check_snapshot(snapshot0, swh_storage)
 
     # 4. snapshot is found in storage, targeted revision does not exist
+
+    rev_not_found = list(swh_storage.revision_missing([REVISION.id]))
+    assert len(rev_not_found) == 1
+
     snapshot1 = Snapshot(
         id=hash_to_bytes("456666f535f882bc7f9a18fb16c9ad27fda7bab7"),
         branches={
@@ -438,8 +444,34 @@ def test_check_snapshot_failures(swh_storage):
     with pytest.raises(InexistentObjectsError, match="Branch/Revision"):
         check_snapshot(snapshot1, swh_storage)
 
+    # 5. snapshot is found in storage, targeted revision exists but the directory the
+    # revision targets does not exist
+
     swh_storage.revision_add([REVISION.to_dict()])
+
+    dir_not_found = list(swh_storage.directory_missing([REVISION.directory]))
+    assert len(dir_not_found) == 1
+
     snapshot2 = Snapshot(
+        id=hash_to_bytes("987123f535f882bc7f9a18fb16c9ad27fda7bab7"),
+        branches={
+            b"alias": SnapshotBranch(target=b"HEAD", target_type=TargetType.ALIAS,),
+            b"HEAD": SnapshotBranch(
+                target=REVISION.id, target_type=TargetType.REVISION,
+            ),
+        },
+    )
+
+    swh_storage.snapshot_add([snapshot2.to_dict()])
+    with pytest.raises(InexistentObjectsError, match="Missing directories"):
+        check_snapshot(snapshot2, swh_storage)
+
+    assert DIRECTORY.id == REVISION.directory
+    swh_storage.directory_add([DIRECTORY])
+
+    # 6. snapshot is found in storage, targeted release does not exist
+
+    snapshot3 = Snapshot(
         id=hash_to_bytes("789666f535f882bc7f9a18fb16c9ad27fda7bab7"),
         branches={
             b"alias": SnapshotBranch(target=b"HEAD", target_type=TargetType.ALIAS,),
@@ -452,7 +484,7 @@ def test_check_snapshot_failures(swh_storage):
         },
     )
 
-    swh_storage.snapshot_add([snapshot2])
+    swh_storage.snapshot_add([snapshot3])
 
     with pytest.raises(InexistentObjectsError, match="Branch/Release"):
-        check_snapshot(snapshot2, swh_storage)
+        check_snapshot(snapshot3, swh_storage)

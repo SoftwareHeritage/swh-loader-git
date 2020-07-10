@@ -160,17 +160,17 @@ def check_snapshot(
 
     assert expected_snapshot == actual_snaphot
 
-    branches_by_target_type = defaultdict(list)
+    objects_by_target_type = defaultdict(list)
     object_to_branch = {}
     for branch, target in actual_snaphot.branches.items():
         if (target.target_type, branch) in allowed_empty:
             # safe for those elements to not be checked for existence
             continue
-        branches_by_target_type[target.target_type].append(target.target)
+        objects_by_target_type[target.target_type].append(target.target)
         object_to_branch[target.target] = branch
 
     # check that alias references target something that exists, otherwise raise
-    aliases: List[bytes] = branches_by_target_type.get(TargetType.ALIAS, [])
+    aliases: List[bytes] = objects_by_target_type.get(TargetType.ALIAS, [])
     for alias in aliases:
         if alias not in actual_snaphot.branches:
             raise InconsistentAliasBranchError(
@@ -178,7 +178,7 @@ def check_snapshot(
                 f"should be in {list(actual_snaphot.branches)}"
             )
 
-    revs = branches_by_target_type.get(TargetType.REVISION)
+    revs = objects_by_target_type.get(TargetType.REVISION)
     if revs:
         revisions = list(storage.revision_get(revs))
         not_found = [rev_id for rev_id, rev in zip(revs, revisions) if rev is None]
@@ -189,17 +189,32 @@ def check_snapshot(
             raise InexistentObjectsError(
                 f"Branch/Revision(s) {missing_objs} should exist in storage"
             )
+        # retrieve information from revision
+        for rev in revisions:
+            objects_by_target_type[TargetType.DIRECTORY].append(rev["directory"])
+            object_to_branch[rev["directory"]] = rev["id"]
 
-    rels = branches_by_target_type.get(TargetType.RELEASE)
+    rels = objects_by_target_type.get(TargetType.RELEASE)
     if rels:
-        releases = list(storage.release_get(rels))
-        not_found = [rel_id for rel_id, rel in zip(rels, releases) if rel is None]
+        not_found = list(storage.release_missing(rels))
         if not_found:
             missing_objs = ", ".join(
                 str((object_to_branch[rel], rel.hex())) for rel in not_found
             )
             raise InexistentObjectsError(
                 f"Branch/Release(s) {missing_objs} should exist in storage"
+            )
+
+    dirs = objects_by_target_type.get(TargetType.DIRECTORY)
+    if dirs:
+        not_found = list(storage.directory_missing(dirs))
+        if not_found:
+            missing_objs = ", ".join(
+                str((object_to_branch[dir_].hex(), dir_.hex())) for dir_ in not_found
+            )
+            raise InexistentObjectsError(
+                f"Missing directories {missing_objs}: "
+                "(revision exists, directory target does not)"
             )
 
     # for retro compat, returned the dict, remove when clients are migrated
