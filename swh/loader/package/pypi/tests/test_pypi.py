@@ -381,7 +381,7 @@ def test_visit_with_missing_artifact(swh_config, requests_mock_datadir_missing_o
     }
 
     expected_snapshot = {
-        "id": expected_snapshot_id,
+        "id": hash_to_bytes(expected_snapshot_id),
         "branches": expected_branches,
     }
     check_snapshot(expected_snapshot, storage=loader.storage)
@@ -466,7 +466,7 @@ def test_visit_with_1_release_artifact(swh_config, requests_mock_datadir):
     }
 
     expected_snapshot = {
-        "id": expected_snapshot_id,
+        "id": hash_to_bytes(expected_snapshot_id),
         "branches": expected_branches,
     }
     check_snapshot(expected_snapshot, loader.storage)
@@ -516,7 +516,7 @@ def test_multiple_visits_with_no_change(swh_config, requests_mock_datadir):
     }
 
     expected_snapshot = {
-        "id": snapshot_id,
+        "id": hash_to_bytes(snapshot_id),
         "branches": expected_branches,
     }
     check_snapshot(expected_snapshot, loader.storage)
@@ -657,7 +657,7 @@ def test_incremental_visit(swh_config, requests_mock_datadir_visits):
         b"HEAD": {"target": b"releases/1.3.0", "target_type": "alias",},
     }
     expected_snapshot = {
-        "id": expected_snapshot_id2,
+        "id": hash_to_bytes(expected_snapshot_id2),
         "branches": expected_branches,
     }
 
@@ -711,7 +711,7 @@ def test_visit_1_release_with_2_artifacts(swh_config, requests_mock_datadir):
     }
 
     expected_snapshot = {
-        "id": expected_snapshot_id,
+        "id": hash_to_bytes(expected_snapshot_id),
         "branches": expected_branches,
     }
     check_snapshot(expected_snapshot, loader.storage)
@@ -825,7 +825,7 @@ def test_pypi_artifact_with_no_intrinsic_metadata(swh_config, requests_mock_data
     }
 
     # no branch as one artifact without any intrinsic metadata
-    expected_snapshot = {"id": expected_snapshot_id, "branches": {}}
+    expected_snapshot = {"id": hash_to_bytes(expected_snapshot_id), "branches": {}}
     check_snapshot(expected_snapshot, loader.storage)
 
     assert_last_visit_matches(loader.storage, url, status="full", type="pypi")

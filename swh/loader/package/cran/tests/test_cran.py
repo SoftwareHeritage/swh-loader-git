@@ -176,7 +176,7 @@ def test_cran_one_visit(swh_config, requests_mock_datadir):
     }
 
     expected_snapshot = {
-        "id": expected_snapshot_id,
+        "id": hash_to_bytes(expected_snapshot_id),
         "branches": {
             b"HEAD": {"target": b"releases/2.22-6", "target_type": "alias"},
             b"releases/2.22-6": {
@@ -233,7 +233,7 @@ def test_cran_2_visits_same_origin(swh_config, requests_mock_datadir):
     }
 
     expected_snapshot = {
-        "id": expected_snapshot_id,
+        "id": hash_to_bytes(expected_snapshot_id),
         "branches": {
             b"HEAD": {"target": b"releases/2.22-6", "target_type": "alias"},
             b"releases/2.22-6": {

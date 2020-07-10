@@ -134,7 +134,7 @@ def test_debian_first_visit(swh_config, requests_mock_datadir):
     } == stats
 
     expected_snapshot = {
-        "id": expected_snapshot_id,
+        "id": hash_to_bytes(expected_snapshot_id),
         "branches": {
             b"releases/stretch/contrib/0.7.2-3": {
                 "target_type": "revision",
@@ -179,7 +179,7 @@ def test_debian_first_visit_then_another_visit(swh_config, requests_mock_datadir
     } == stats
 
     expected_snapshot = {
-        "id": expected_snapshot_id,
+        "id": hash_to_bytes(expected_snapshot_id),
         "branches": {
             b"releases/stretch/contrib/0.7.2-3": {
                 "target_type": "revision",
@@ -381,7 +381,7 @@ def test_debian_multiple_packages(swh_config, requests_mock_datadir):
     assert_last_visit_matches(loader.storage, url, status="full", type="deb")
 
     expected_snapshot = {
-        "id": expected_snapshot_id,
+        "id": hash_to_bytes(expected_snapshot_id),
         "branches": {
             b"releases/stretch/contrib/0.7.2-3": {
                 "target_type": "revision",

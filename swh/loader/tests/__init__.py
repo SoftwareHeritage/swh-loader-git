@@ -135,30 +135,20 @@ def check_snapshot(
         needed.
 
     """
-    if isinstance(snapshot, Snapshot):
-        expected_snapshot = snapshot
-    elif isinstance(snapshot, dict):
-        # dict must be snapshot compliant
-        snapshot_dict = {"id": hash_to_bytes(snapshot["id"])}
-        branches = {}
-        for branch, target in snapshot["branches"].items():
-            if isinstance(branch, str):
-                branch = branch.encode("utf-8")
-            branches[branch] = encode_target(target)
-        snapshot_dict["branches"] = branches
-        expected_snapshot = Snapshot.from_dict(snapshot_dict)
-    else:
+    if isinstance(snapshot, dict):
+        snapshot = Snapshot.from_dict(snapshot)
+    if not isinstance(snapshot, Snapshot):
         raise AssertionError(f"variable 'snapshot' must be a snapshot: {snapshot!r}")
 
-    snapshot_dict = storage.snapshot_get(expected_snapshot.id)
+    snapshot_dict = storage.snapshot_get(snapshot.id)
     if snapshot_dict is None:
-        raise AssertionError(f"Snapshot {expected_snapshot.id.hex()} is not found")
+        raise AssertionError(f"Snapshot {snapshot.id.hex()} is not found")
 
     snapshot_dict.pop("next_branch")
     actual_snaphot = Snapshot.from_dict(snapshot_dict)
     assert isinstance(actual_snaphot, Snapshot)
 
-    assert expected_snapshot == actual_snaphot
+    assert snapshot == actual_snaphot
 
     objects_by_target_type = defaultdict(list)
     object_to_branch = {}

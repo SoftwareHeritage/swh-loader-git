@@ -198,7 +198,7 @@ def test_loader_incremental(swh_config, requests_mock_datadir):
         },
     }
     expected_snapshot = {
-        "id": expected_snapshot_id,
+        "id": hash_to_bytes(expected_snapshot_id),
         "branches": expected_branches,
     }
     snapshot = check_snapshot(expected_snapshot, storage=loader.storage)
@@ -245,7 +245,7 @@ def test_loader_two_visits(swh_config, requests_mock_datadir_visits):
     }
 
     expected_snapshot = {
-        "id": expected_snapshot_id,
+        "id": hash_to_bytes(expected_snapshot_id),
         "branches": expected_branches,
     }
     snapshot = check_snapshot(expected_snapshot, storage=loader.storage)
@@ -292,7 +292,7 @@ def test_loader_two_visits(swh_config, requests_mock_datadir_visits):
     }
 
     expected_snapshot = {
-        "id": expected_snapshot_id,
+        "id": hash_to_bytes(expected_snapshot_id),
         "branches": expected_branches,
     }
     snapshot = check_snapshot(expected_snapshot, storage=loader.storage)
@@ -347,7 +347,7 @@ def test_evaluation_branch(swh_config, requests_mock_datadir):
     }
 
     expected_snapshot = {
-        "id": "0c5881c74283793ebe9a09a105a9381e41380383",
+        "id": hash_to_bytes("0c5881c74283793ebe9a09a105a9381e41380383"),
         "branches": expected_branches,
     }
 
@@ -374,7 +374,7 @@ def test_eoferror(swh_config, requests_mock_datadir):
         },
     }
     expected_snapshot = {
-        "id": "4257fa2350168c6bfec726a06452ea27a2c0cb33",
+        "id": hash_to_bytes("4257fa2350168c6bfec726a06452ea27a2c0cb33"),
         "branches": expected_branches,
     }
 
@@ -426,7 +426,7 @@ def test_raise_exception(swh_config, requests_mock_datadir, mocker):
         },
     }
     expected_snapshot = {
-        "id": expected_snapshot_id,
+        "id": hash_to_bytes(expected_snapshot_id),
         "branches": expected_branches,
     }
 

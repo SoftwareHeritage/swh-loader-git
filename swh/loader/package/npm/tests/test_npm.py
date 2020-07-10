@@ -323,7 +323,7 @@ def test_npm_loader_first_visit(swh_config, requests_mock_datadir):
     )
 
     expected_snapshot = {
-        "id": expected_snapshot_id,
+        "id": hash_to_bytes(expected_snapshot_id),
         "branches": {
             b"HEAD": {"target": b"releases/0.0.4", "target_type": "alias"},
             b"releases/0.0.2": {
@@ -424,7 +424,7 @@ def test_npm_loader_version_divergence(swh_config):
     } == stats
 
     expected_snapshot = {
-        "id": "b11ebac8c9d0c9e5063a2df693a18e3aba4b2f92",
+        "id": hash_to_bytes("b11ebac8c9d0c9e5063a2df693a18e3aba4b2f92"),
         "branches": {
             b"HEAD": {"target_type": "alias", "target": b"releases/0.1.0"},
             b"releases/0.1.0": {
@@ -514,7 +514,7 @@ def test_npm_artifact_with_no_intrinsic_metadata(swh_config, requests_mock_datad
 
     # no branch as one artifact without any intrinsic metadata
     expected_snapshot = {
-        "id": "1a8893e6a86f444e8be8e7bda6cb34fb1735a00e",
+        "id": hash_to_bytes("1a8893e6a86f444e8be8e7bda6cb34fb1735a00e"),
         "branches": {},
     }
     check_snapshot(expected_snapshot, loader.storage)
@@ -535,7 +535,7 @@ def test_npm_artifact_with_no_upload_time(swh_config, requests_mock_datadir):
 
     # no branch as one artifact without any intrinsic metadata
     expected_snapshot = {
-        "id": "1a8893e6a86f444e8be8e7bda6cb34fb1735a00e",
+        "id": hash_to_bytes("1a8893e6a86f444e8be8e7bda6cb34fb1735a00e"),
         "branches": {},
     }
     check_snapshot(expected_snapshot, loader.storage)
@@ -556,7 +556,7 @@ def test_npm_artifact_use_mtime_if_no_time(swh_config, requests_mock_datadir):
 
     # artifact is used
     expected_snapshot = {
-        "id": "d6e08e19159f77983242877c373c75222d5ae9dd",
+        "id": hash_to_bytes("d6e08e19159f77983242877c373c75222d5ae9dd"),
         "branches": {
             b"HEAD": {"target_type": "alias", "target": b"releases/0.0.1"},
             b"releases/0.0.1": {

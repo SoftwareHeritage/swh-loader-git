@@ -82,8 +82,8 @@ _expected_branches_first_visit = {
 
 # hash is different then before as we changed the snapshot
 # gnu used to use `release/` (singular) instead of plural
-_expected_new_snapshot_first_visit_id = (
-    "c419397fd912039825ebdbea378bc6283f006bf5"  # noqa
+_expected_new_snapshot_first_visit_id = hash_to_bytes(
+    "c419397fd912039825ebdbea378bc6283f006bf5"
 )
 
 
@@ -164,7 +164,8 @@ def test_visit_with_release_artifact_no_prior_visit(swh_config, requests_mock_da
     actual_load_status = loader.load()
     assert actual_load_status["status"] == "eventful"
     assert (
-        actual_load_status["snapshot_id"] == _expected_new_snapshot_first_visit_id
+        hash_to_bytes(actual_load_status["snapshot_id"])
+        == _expected_new_snapshot_first_visit_id
     )  # noqa
 
     assert_last_visit_matches(loader.storage, URL, status="full", type="tar")

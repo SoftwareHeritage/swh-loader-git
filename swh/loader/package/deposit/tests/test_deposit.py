@@ -174,7 +174,7 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
     }
 
     expected_snapshot = {
-        "id": expected_snapshot_id,
+        "id": hash_to_bytes(expected_snapshot_id),
         "branches": expected_branches,
     }
     check_snapshot(expected_snapshot, storage=loader.storage)
@@ -249,7 +249,7 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
         b"HEAD": {"target": hash_to_bytes(revision_id), "target_type": "revision"}
     }
     expected_snapshot = {
-        "id": expected_snapshot_id,
+        "id": hash_to_bytes(expected_snapshot_id),
         "branches": expected_branches,
     }
 
