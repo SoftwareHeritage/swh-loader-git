@@ -73,10 +73,10 @@ _expected_new_revisions_first_visit = {
 }
 
 _expected_branches_first_visit = {
-    "HEAD": {"target_type": "alias", "target": "releases/0.1.0",},
-    "releases/0.1.0": {
+    b"HEAD": {"target_type": "alias", "target": b"releases/0.1.0",},
+    b"releases/0.1.0": {
         "target_type": "revision",
-        "target": "44183488c0774ce3c957fa19ba695cf18a4a42b3",
+        "target": hash_to_bytes("44183488c0774ce3c957fa19ba695cf18a4a42b3"),
     },
 }
 

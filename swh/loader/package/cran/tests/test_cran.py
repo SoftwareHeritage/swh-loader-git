@@ -18,6 +18,7 @@ from swh.loader.package.cran.loader import (
     parse_debian_control,
 )
 from swh.core.tarball import uncompress
+from swh.model.hashutil import hash_to_bytes
 from swh.model.model import TimestampWithTimezone
 
 from swh.loader.tests import (
@@ -177,9 +178,9 @@ def test_cran_one_visit(swh_config, requests_mock_datadir):
     expected_snapshot = {
         "id": expected_snapshot_id,
         "branches": {
-            "HEAD": {"target": f"releases/{version}", "target_type": "alias"},
-            f"releases/{version}": {
-                "target": "42bdb16facd5140424359c8ce89a28ecfa1ce603",
+            b"HEAD": {"target": b"releases/2.22-6", "target_type": "alias"},
+            b"releases/2.22-6": {
+                "target": hash_to_bytes("42bdb16facd5140424359c8ce89a28ecfa1ce603"),
                 "target_type": "revision",
             },
         },
@@ -234,9 +235,9 @@ def test_cran_2_visits_same_origin(swh_config, requests_mock_datadir):
     expected_snapshot = {
         "id": expected_snapshot_id,
         "branches": {
-            "HEAD": {"target": f"releases/{version}", "target_type": "alias"},
-            f"releases/{version}": {
-                "target": "42bdb16facd5140424359c8ce89a28ecfa1ce603",
+            b"HEAD": {"target": b"releases/2.22-6", "target_type": "alias"},
+            b"releases/2.22-6": {
+                "target": hash_to_bytes("42bdb16facd5140424359c8ce89a28ecfa1ce603"),
                 "target_type": "revision",
             },
         },

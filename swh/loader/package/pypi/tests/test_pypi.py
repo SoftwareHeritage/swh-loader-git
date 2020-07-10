@@ -373,11 +373,11 @@ def test_visit_with_missing_artifact(swh_config, requests_mock_datadir_missing_o
     assert list(loader.storage.revision_missing(expected_revs)) == []
 
     expected_branches = {
-        "releases/1.2.0": {
-            "target": "e445da4da22b31bfebb6ffc4383dbf839a074d21",
+        b"releases/1.2.0": {
+            "target": hash_to_bytes("e445da4da22b31bfebb6ffc4383dbf839a074d21"),
             "target_type": "revision",
         },
-        "HEAD": {"target": "releases/1.2.0", "target_type": "alias",},
+        b"HEAD": {"target": b"releases/1.2.0", "target_type": "alias",},
     }
 
     expected_snapshot = {
@@ -454,15 +454,15 @@ def test_visit_with_1_release_artifact(swh_config, requests_mock_datadir):
     assert list(loader.storage.revision_missing(expected_revs)) == []
 
     expected_branches = {
-        "releases/1.1.0": {
-            "target": "4c99891f93b81450385777235a37b5e966dd1571",
+        b"releases/1.1.0": {
+            "target": hash_to_bytes("4c99891f93b81450385777235a37b5e966dd1571"),
             "target_type": "revision",
         },
-        "releases/1.2.0": {
-            "target": "e445da4da22b31bfebb6ffc4383dbf839a074d21",
+        b"releases/1.2.0": {
+            "target": hash_to_bytes("e445da4da22b31bfebb6ffc4383dbf839a074d21"),
             "target_type": "revision",
         },
-        "HEAD": {"target": "releases/1.2.0", "target_type": "alias",},
+        b"HEAD": {"target": b"releases/1.2.0", "target_type": "alias",},
     }
 
     expected_snapshot = {
@@ -504,15 +504,15 @@ def test_multiple_visits_with_no_change(swh_config, requests_mock_datadir):
     } == stats
 
     expected_branches = {
-        "releases/1.1.0": {
-            "target": "4c99891f93b81450385777235a37b5e966dd1571",
+        b"releases/1.1.0": {
+            "target": hash_to_bytes("4c99891f93b81450385777235a37b5e966dd1571"),
             "target_type": "revision",
         },
-        "releases/1.2.0": {
-            "target": "e445da4da22b31bfebb6ffc4383dbf839a074d21",
+        b"releases/1.2.0": {
+            "target": hash_to_bytes("e445da4da22b31bfebb6ffc4383dbf839a074d21"),
             "target_type": "revision",
         },
-        "HEAD": {"target": "releases/1.2.0", "target_type": "alias",},
+        b"HEAD": {"target": b"releases/1.2.0", "target_type": "alias",},
     }
 
     expected_snapshot = {
@@ -642,19 +642,19 @@ def test_incremental_visit(swh_config, requests_mock_datadir_visits):
     assert list(loader.storage.revision_missing(expected_revs)) == []
 
     expected_branches = {
-        "releases/1.1.0": {
-            "target": "4c99891f93b81450385777235a37b5e966dd1571",
+        b"releases/1.1.0": {
+            "target": hash_to_bytes("4c99891f93b81450385777235a37b5e966dd1571"),
             "target_type": "revision",
         },
-        "releases/1.2.0": {
-            "target": "e445da4da22b31bfebb6ffc4383dbf839a074d21",
+        b"releases/1.2.0": {
+            "target": hash_to_bytes("e445da4da22b31bfebb6ffc4383dbf839a074d21"),
             "target_type": "revision",
         },
-        "releases/1.3.0": {
-            "target": "51247143b01445c9348afa9edfae31bf7c5d86b1",
+        b"releases/1.3.0": {
+            "target": hash_to_bytes("51247143b01445c9348afa9edfae31bf7c5d86b1"),
             "target_type": "revision",
         },
-        "HEAD": {"target": "releases/1.3.0", "target_type": "alias",},
+        b"HEAD": {"target": b"releases/1.3.0", "target_type": "alias",},
     }
     expected_snapshot = {
         "id": expected_snapshot_id2,
@@ -700,12 +700,12 @@ def test_visit_1_release_with_2_artifacts(swh_config, requests_mock_datadir):
     }
 
     expected_branches = {
-        "releases/1.1.0/nexter-1.1.0.zip": {
-            "target": "4c99891f93b81450385777235a37b5e966dd1571",
+        b"releases/1.1.0/nexter-1.1.0.zip": {
+            "target": hash_to_bytes("4c99891f93b81450385777235a37b5e966dd1571"),
             "target_type": "revision",
         },
-        "releases/1.1.0/nexter-1.1.0.tar.gz": {
-            "target": "0bf88f5760cca7665d0af4d6575d9301134fe11a",
+        b"releases/1.1.0/nexter-1.1.0.tar.gz": {
+            "target": hash_to_bytes("0bf88f5760cca7665d0af4d6575d9301134fe11a"),
             "target_type": "revision",
         },
     }

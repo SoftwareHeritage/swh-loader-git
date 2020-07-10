@@ -170,7 +170,7 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
 
     revision_id = "637318680351f5d78856d13264faebbd91efe9bb"
     expected_branches = {
-        "HEAD": {"target": revision_id, "target_type": "revision",},
+        b"HEAD": {"target": hash_to_bytes(revision_id), "target_type": "revision",},
     }
 
     expected_snapshot = {
@@ -245,7 +245,9 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
     assert_last_visit_matches(loader.storage, url, status="full", type="deposit")
 
     revision_id = "564d18943d71be80d0d73b43a77cfb205bcde96c"
-    expected_branches = {"HEAD": {"target": revision_id, "target_type": "revision"}}
+    expected_branches = {
+        b"HEAD": {"target": hash_to_bytes(revision_id), "target_type": "revision"}
+    }
     expected_snapshot = {
         "id": expected_snapshot_id,
         "branches": expected_branches,

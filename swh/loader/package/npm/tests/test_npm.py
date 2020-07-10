@@ -325,17 +325,17 @@ def test_npm_loader_first_visit(swh_config, requests_mock_datadir):
     expected_snapshot = {
         "id": expected_snapshot_id,
         "branches": {
-            "HEAD": {"target": "releases/0.0.4", "target_type": "alias"},
-            "releases/0.0.2": {
-                "target": "d8a1c7474d2956ac598a19f0f27d52f7015f117e",
+            b"HEAD": {"target": b"releases/0.0.4", "target_type": "alias"},
+            b"releases/0.0.2": {
+                "target": hash_to_bytes("d8a1c7474d2956ac598a19f0f27d52f7015f117e"),
                 "target_type": "revision",
             },
-            "releases/0.0.3": {
-                "target": "5f9eb78af37ffd12949f235e86fac04898f9f72a",
+            b"releases/0.0.3": {
+                "target": hash_to_bytes("5f9eb78af37ffd12949f235e86fac04898f9f72a"),
                 "target_type": "revision",
             },
-            "releases/0.0.4": {
-                "target": "ba019b192bdb94bd0b5bd68b3a5f92b5acc2239a",
+            b"releases/0.0.4": {
+                "target": hash_to_bytes("ba019b192bdb94bd0b5bd68b3a5f92b5acc2239a"),
                 "target_type": "revision",
             },
         },
@@ -426,14 +426,14 @@ def test_npm_loader_version_divergence(swh_config):
     expected_snapshot = {
         "id": "b11ebac8c9d0c9e5063a2df693a18e3aba4b2f92",
         "branches": {
-            "HEAD": {"target_type": "alias", "target": "releases/0.1.0"},
-            "releases/0.1.0": {
+            b"HEAD": {"target_type": "alias", "target": b"releases/0.1.0"},
+            b"releases/0.1.0": {
                 "target_type": "revision",
-                "target": "845673bfe8cbd31b1eaf757745a964137e6f9116",
+                "target": hash_to_bytes("845673bfe8cbd31b1eaf757745a964137e6f9116"),
             },
-            "releases/0.1.1-alpha.14": {
+            b"releases/0.1.1-alpha.14": {
                 "target_type": "revision",
-                "target": "05181c12cd8c22035dd31155656826b85745da37",
+                "target": hash_to_bytes("05181c12cd8c22035dd31155656826b85745da37"),
             },
         },
     }
@@ -558,10 +558,10 @@ def test_npm_artifact_use_mtime_if_no_time(swh_config, requests_mock_datadir):
     expected_snapshot = {
         "id": "d6e08e19159f77983242877c373c75222d5ae9dd",
         "branches": {
-            "HEAD": {"target_type": "alias", "target": "releases/0.0.1"},
-            "releases/0.0.1": {
+            b"HEAD": {"target_type": "alias", "target": b"releases/0.0.1"},
+            b"releases/0.0.1": {
                 "target_type": "revision",
-                "target": "9e4dd2b40d1b46b70917c0949aa2195c823a648e",
+                "target": hash_to_bytes("9e4dd2b40d1b46b70917c0949aa2195c823a648e"),
             },
         },
     }

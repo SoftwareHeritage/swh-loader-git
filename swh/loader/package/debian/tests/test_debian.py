@@ -27,6 +27,7 @@ from swh.loader.tests import (
 
 from swh.loader.package.debian.loader import resolve_revision_from
 
+from swh.model.hashutil import hash_to_bytes
 from swh.model.model import Person
 
 
@@ -135,9 +136,9 @@ def test_debian_first_visit(swh_config, requests_mock_datadir):
     expected_snapshot = {
         "id": expected_snapshot_id,
         "branches": {
-            "releases/stretch/contrib/0.7.2-3": {
+            b"releases/stretch/contrib/0.7.2-3": {
                 "target_type": "revision",
-                "target": "2807f5b3f84368b4889a9ae827fe85854ffecf07",
+                "target": hash_to_bytes("2807f5b3f84368b4889a9ae827fe85854ffecf07"),
             }
         },
     }  # different than the previous loader as no release is done
@@ -180,9 +181,9 @@ def test_debian_first_visit_then_another_visit(swh_config, requests_mock_datadir
     expected_snapshot = {
         "id": expected_snapshot_id,
         "branches": {
-            "releases/stretch/contrib/0.7.2-3": {
+            b"releases/stretch/contrib/0.7.2-3": {
                 "target_type": "revision",
-                "target": "2807f5b3f84368b4889a9ae827fe85854ffecf07",
+                "target": hash_to_bytes("2807f5b3f84368b4889a9ae827fe85854ffecf07"),
             }
         },
     }  # different than the previous loader as no release is done
@@ -382,13 +383,13 @@ def test_debian_multiple_packages(swh_config, requests_mock_datadir):
     expected_snapshot = {
         "id": expected_snapshot_id,
         "branches": {
-            "releases/stretch/contrib/0.7.2-3": {
+            b"releases/stretch/contrib/0.7.2-3": {
                 "target_type": "revision",
-                "target": "2807f5b3f84368b4889a9ae827fe85854ffecf07",
+                "target": hash_to_bytes("2807f5b3f84368b4889a9ae827fe85854ffecf07"),
             },
-            "releases/buster/contrib/0.7.2-4": {
+            b"releases/buster/contrib/0.7.2-4": {
                 "target_type": "revision",
-                "target": "8224139c274c984147ef4b09aa0e462c55a10bd3",
+                "target": hash_to_bytes("8224139c274c984147ef4b09aa0e462c55a10bd3"),
             },
         },
     }

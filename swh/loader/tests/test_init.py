@@ -386,7 +386,10 @@ def test_check_snapshot_failures(swh_storage):
     unexpected_snapshot = {
         "id": "2498dbf535f882bc7f9a18fb16c9ad27fda7bab7",  # id is correct
         "branches": {
-            "master": {"target": hash_hex, "target_type": "release",}  # wrong branch
+            b"master": {
+                "target": hash_to_bytes(hash_hex),  # wrong branch
+                "target_type": "release",
+            }
         },
     }
 
