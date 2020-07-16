@@ -59,7 +59,23 @@ def check_snapshot(
         (TargetType.REVISION, b"evaluation")
     ],
 ):
-    return check_snapshot_full(snapshot, storage, allowed_empty)
+    check_snapshot_full(snapshot, storage, allowed_empty)
+
+    assert isinstance(snapshot, Snapshot)
+    # then ensure the snapshot revisions are structurally as expected
+    revision_ids = []
+    for name, branch in snapshot.branches.items():
+        if name == b"evaluation":
+            continue  # skipping that particular branch
+        if branch.target_type == TargetType.REVISION:
+            revision_ids.append(branch.target)
+
+    revisions = storage.revision_get(revision_ids)
+    for rev in revisions:
+        metadata = rev["metadata"]
+        raw = metadata["extrinsic"]["raw"]
+        assert "url" in raw
+        assert "integrity" in raw
 
 
 def test_retrieve_sources(swh_config, requests_mock_datadir):
@@ -117,25 +133,6 @@ def test_clean_sources_invalid_sources(swh_config, requests_mock_datadir):
     clean = clean_sources(sources)
 
     assert len(clean["sources"]) == 1
-
-
-def check_snapshot_revisions_ok(snapshot: Snapshot, storage: StorageInterface):
-    """Ensure the snapshot revisions are structurally as expected
-
-    """
-    revision_ids = []
-    for name, branch in snapshot.branches.items():
-        if name == b"evaluation":
-            continue  # skipping that particular branch
-        if branch.target_type == TargetType.REVISION:
-            revision_ids.append(branch.target)
-
-    revisions = storage.revision_get(revision_ids)
-    for rev in revisions:
-        metadata = rev["metadata"]
-        raw = metadata["extrinsic"]["raw"]
-        assert "url" in raw
-        assert "integrity" in raw
 
 
 def test_loader_one_visit(swh_config, requests_mock_datadir):
@@ -206,7 +203,6 @@ def test_loader_incremental(swh_config, requests_mock_datadir):
     )
 
     check_snapshot(SNAPSHOT1, storage=loader.storage)
-    check_snapshot_revisions_ok(SNAPSHOT1, loader.storage)
 
     urls = [
         m.url
@@ -241,7 +237,6 @@ def test_loader_two_visits(swh_config, requests_mock_datadir_visits):
     )
 
     check_snapshot(SNAPSHOT1, storage=loader.storage)
-    check_snapshot_revisions_ok(SNAPSHOT1, loader.storage)
 
     stats = get_stats(loader.storage)
     assert {
@@ -294,7 +289,6 @@ def test_loader_two_visits(swh_config, requests_mock_datadir_visits):
         },
     )
     check_snapshot(expected_snapshot, storage=loader.storage)
-    check_snapshot_revisions_ok(expected_snapshot, loader.storage)
 
     stats = get_stats(loader.storage)
     assert {
@@ -338,7 +332,6 @@ def test_evaluation_branch(swh_config, requests_mock_datadir):
     )
 
     check_snapshot(SNAPSHOT1, storage=loader.storage)
-    check_snapshot_revisions_ok(SNAPSHOT1, loader.storage)
 
 
 def test_eoferror(swh_config, requests_mock_datadir):
@@ -364,7 +357,6 @@ def test_eoferror(swh_config, requests_mock_datadir):
     )
 
     check_snapshot(expected_snapshot, storage=loader.storage)
-    check_snapshot_revisions_ok(expected_snapshot, loader.storage)
 
 
 def fake_download(
@@ -400,7 +392,6 @@ def test_raise_exception(swh_config, requests_mock_datadir, mocker):
     }
 
     check_snapshot(SNAPSHOT1, storage=loader.storage)
-    check_snapshot_revisions_ok(SNAPSHOT1, loader.storage)
 
     assert len(mock_download.mock_calls) == 2
 
