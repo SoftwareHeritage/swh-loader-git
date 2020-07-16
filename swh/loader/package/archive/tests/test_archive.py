@@ -4,6 +4,7 @@
 # See top-level LICENSE file for more information
 
 from swh.model.hashutil import hash_to_bytes
+from swh.model.model import Snapshot, SnapshotBranch, TargetType
 
 from swh.loader.package.archive.loader import ArchiveLoader
 from swh.loader.package.tests.common import check_metadata_paths
@@ -71,20 +72,6 @@ _expected_new_revisions_first_visit = {
         "3aebc29ed1fccc4a6f2f2010fb8e57882406b528"
     )
 }
-
-_expected_branches_first_visit = {
-    b"HEAD": {"target_type": "alias", "target": b"releases/0.1.0",},
-    b"releases/0.1.0": {
-        "target_type": "revision",
-        "target": hash_to_bytes("44183488c0774ce3c957fa19ba695cf18a4a42b3"),
-    },
-}
-
-# hash is different then before as we changed the snapshot
-# gnu used to use `release/` (singular) instead of plural
-_expected_new_snapshot_first_visit_id = hash_to_bytes(
-    "c419397fd912039825ebdbea378bc6283f006bf5"
-)
 
 
 def visit_with_no_artifact_found(swh_config, requests_mock_datadir):
@@ -163,10 +150,15 @@ def test_visit_with_release_artifact_no_prior_visit(swh_config, requests_mock_da
 
     actual_load_status = loader.load()
     assert actual_load_status["status"] == "eventful"
+
+    expected_snapshot_first_visit_id = hash_to_bytes(
+        "c419397fd912039825ebdbea378bc6283f006bf5"
+    )
+
     assert (
         hash_to_bytes(actual_load_status["snapshot_id"])
-        == _expected_new_snapshot_first_visit_id
-    )  # noqa
+        == expected_snapshot_first_visit_id
+    )
 
     assert_last_visit_matches(loader.storage, URL, status="full", type="tar")
 
@@ -192,10 +184,18 @@ def test_visit_with_release_artifact_no_prior_visit(swh_config, requests_mock_da
     expected_revs = map(hash_to_bytes, _expected_new_revisions_first_visit)
     assert list(loader.storage.revision_missing(expected_revs)) == []
 
-    expected_snapshot = {
-        "id": _expected_new_snapshot_first_visit_id,
-        "branches": _expected_branches_first_visit,
-    }
+    expected_snapshot = Snapshot(
+        id=expected_snapshot_first_visit_id,
+        branches={
+            b"HEAD": SnapshotBranch(
+                target_type=TargetType.ALIAS, target=b"releases/0.1.0",
+            ),
+            b"releases/0.1.0": SnapshotBranch(
+                target_type=TargetType.REVISION,
+                target=hash_to_bytes("44183488c0774ce3c957fa19ba695cf18a4a42b3"),
+            ),
+        },
+    )
 
     check_snapshot(expected_snapshot, loader.storage)
 
