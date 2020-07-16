@@ -8,7 +8,7 @@ import os
 import pytest
 
 from swh.model.hashutil import hash_to_bytes
-from swh.model.model import Person
+from swh.model.model import Person, Snapshot, SnapshotBranch, TargetType
 
 from swh.loader.package.npm.loader import (
     NpmLoader,
@@ -284,16 +284,20 @@ def test_revision_metadata_structure(swh_config, requests_mock_datadir):
 
 
 def test_npm_loader_first_visit(swh_config, requests_mock_datadir):
-
     package = "org"
-    loader = NpmLoader(package_url(package))
+    url = package_url(package)
+    loader = NpmLoader(url)
 
     actual_load_status = loader.load()
-    expected_snapshot_id = "d0587e1195aed5a8800411a008f2f2d627f18e2d"
+    expected_snapshot_id = hash_to_bytes("d0587e1195aed5a8800411a008f2f2d627f18e2d")
     assert actual_load_status == {
         "status": "eventful",
-        "snapshot_id": expected_snapshot_id,
+        "snapshot_id": expected_snapshot_id.hex(),
     }
+
+    assert_last_visit_matches(
+        loader.storage, url, status="full", type="npm", snapshot=expected_snapshot_id
+    )
 
     stats = get_stats(loader.storage)
 
@@ -322,24 +326,26 @@ def test_npm_loader_first_visit(swh_config, requests_mock_datadir):
         list(loader.storage.revision_missing(_expected_new_revisions_first_visit)) == []
     )
 
-    expected_snapshot = {
-        "id": hash_to_bytes(expected_snapshot_id),
-        "branches": {
-            b"HEAD": {"target": b"releases/0.0.4", "target_type": "alias"},
-            b"releases/0.0.2": {
-                "target": hash_to_bytes("d8a1c7474d2956ac598a19f0f27d52f7015f117e"),
-                "target_type": "revision",
-            },
-            b"releases/0.0.3": {
-                "target": hash_to_bytes("5f9eb78af37ffd12949f235e86fac04898f9f72a"),
-                "target_type": "revision",
-            },
-            b"releases/0.0.4": {
-                "target": hash_to_bytes("ba019b192bdb94bd0b5bd68b3a5f92b5acc2239a"),
-                "target_type": "revision",
-            },
+    expected_snapshot = Snapshot(
+        id=expected_snapshot_id,
+        branches={
+            b"HEAD": SnapshotBranch(
+                target=b"releases/0.0.4", target_type=TargetType.ALIAS
+            ),
+            b"releases/0.0.2": SnapshotBranch(
+                target=hash_to_bytes("d8a1c7474d2956ac598a19f0f27d52f7015f117e"),
+                target_type=TargetType.REVISION,
+            ),
+            b"releases/0.0.3": SnapshotBranch(
+                target=hash_to_bytes("5f9eb78af37ffd12949f235e86fac04898f9f72a"),
+                target_type=TargetType.REVISION,
+            ),
+            b"releases/0.0.4": SnapshotBranch(
+                target=hash_to_bytes("ba019b192bdb94bd0b5bd68b3a5f92b5acc2239a"),
+                target_type=TargetType.REVISION,
+            ),
         },
-    }
+    )
     check_snapshot(expected_snapshot, loader.storage)
 
 
@@ -348,10 +354,15 @@ def test_npm_loader_incremental_visit(swh_config, requests_mock_datadir_visits):
     url = package_url(package)
     loader = NpmLoader(url)
 
+    expected_snapshot_id = hash_to_bytes("d0587e1195aed5a8800411a008f2f2d627f18e2d")
     actual_load_status = loader.load()
-    assert actual_load_status["status"] == "eventful"
-    assert actual_load_status["status"] is not None
-    assert_last_visit_matches(loader.storage, url, status="full", type="npm")
+    assert actual_load_status == {
+        "status": "eventful",
+        "snapshot_id": expected_snapshot_id.hex(),
+    }
+    assert_last_visit_matches(
+        loader.storage, url, status="full", type="npm", snapshot=expected_snapshot_id
+    )
 
     stats = get_stats(loader.storage)
 
@@ -405,9 +416,14 @@ def test_npm_loader_version_divergence(swh_config):
     loader = NpmLoader(url)
 
     actual_load_status = loader.load()
-    assert actual_load_status["status"] == "eventful"
-    assert actual_load_status["status"] is not None
-    assert_last_visit_matches(loader.storage, url, status="full", type="npm")
+    expected_snapshot_id = hash_to_bytes("b11ebac8c9d0c9e5063a2df693a18e3aba4b2f92")
+    assert actual_load_status == {
+        "status": "eventful",
+        "snapshot_id": expected_snapshot_id.hex(),
+    }
+    assert_last_visit_matches(
+        loader.storage, url, status="full", type="npm", snapshot=expected_snapshot_id
+    )
 
     stats = get_stats(loader.storage)
 
@@ -423,20 +439,22 @@ def test_npm_loader_version_divergence(swh_config):
         "snapshot": 1,
     } == stats
 
-    expected_snapshot = {
-        "id": hash_to_bytes("b11ebac8c9d0c9e5063a2df693a18e3aba4b2f92"),
-        "branches": {
-            b"HEAD": {"target_type": "alias", "target": b"releases/0.1.0"},
-            b"releases/0.1.0": {
-                "target_type": "revision",
-                "target": hash_to_bytes("845673bfe8cbd31b1eaf757745a964137e6f9116"),
-            },
-            b"releases/0.1.1-alpha.14": {
-                "target_type": "revision",
-                "target": hash_to_bytes("05181c12cd8c22035dd31155656826b85745da37"),
-            },
+    expected_snapshot = Snapshot(
+        id=expected_snapshot_id,
+        branches={
+            b"HEAD": SnapshotBranch(
+                target_type=TargetType.ALIAS, target=b"releases/0.1.0"
+            ),
+            b"releases/0.1.0": SnapshotBranch(
+                target_type=TargetType.REVISION,
+                target=hash_to_bytes("845673bfe8cbd31b1eaf757745a964137e6f9116"),
+            ),
+            b"releases/0.1.1-alpha.14": SnapshotBranch(
+                target_type=TargetType.REVISION,
+                target=hash_to_bytes("05181c12cd8c22035dd31155656826b85745da37"),
+            ),
         },
-    }
+    )
     check_snapshot(expected_snapshot, loader.storage)
 
 
@@ -510,16 +528,20 @@ def test_npm_artifact_with_no_intrinsic_metadata(swh_config, requests_mock_datad
     loader = NpmLoader(url)
 
     actual_load_status = loader.load()
-    assert actual_load_status["status"] == "eventful"
-
     # no branch as one artifact without any intrinsic metadata
-    expected_snapshot = {
-        "id": hash_to_bytes("1a8893e6a86f444e8be8e7bda6cb34fb1735a00e"),
-        "branches": {},
+    expected_snapshot = Snapshot(
+        id=hash_to_bytes("1a8893e6a86f444e8be8e7bda6cb34fb1735a00e"), branches={},
+    )
+    assert actual_load_status == {
+        "status": "eventful",
+        "snapshot_id": expected_snapshot.id.hex(),
     }
+
     check_snapshot(expected_snapshot, loader.storage)
 
-    assert_last_visit_matches(loader.storage, url, status="full", type="npm")
+    assert_last_visit_matches(
+        loader.storage, url, status="full", type="npm", snapshot=expected_snapshot.id
+    )
 
 
 def test_npm_artifact_with_no_upload_time(swh_config, requests_mock_datadir):
@@ -531,16 +553,20 @@ def test_npm_artifact_with_no_upload_time(swh_config, requests_mock_datadir):
     loader = NpmLoader(url)
 
     actual_load_status = loader.load()
-    assert actual_load_status["status"] == "uneventful"
-
     # no branch as one artifact without any intrinsic metadata
-    expected_snapshot = {
-        "id": hash_to_bytes("1a8893e6a86f444e8be8e7bda6cb34fb1735a00e"),
-        "branches": {},
+    expected_snapshot = Snapshot(
+        id=hash_to_bytes("1a8893e6a86f444e8be8e7bda6cb34fb1735a00e"), branches={},
+    )
+    assert actual_load_status == {
+        "status": "uneventful",
+        "snapshot_id": expected_snapshot.id.hex(),
     }
+
     check_snapshot(expected_snapshot, loader.storage)
 
-    assert_last_visit_matches(loader.storage, url, status="partial", type="npm")
+    assert_last_visit_matches(
+        loader.storage, url, status="partial", type="npm", snapshot=expected_snapshot.id
+    )
 
 
 def test_npm_artifact_use_mtime_if_no_time(swh_config, requests_mock_datadir):
@@ -552,22 +578,31 @@ def test_npm_artifact_use_mtime_if_no_time(swh_config, requests_mock_datadir):
     loader = NpmLoader(url)
 
     actual_load_status = loader.load()
-    assert actual_load_status["status"] == "eventful"
+    expected_snapshot_id = hash_to_bytes("d6e08e19159f77983242877c373c75222d5ae9dd")
+
+    assert actual_load_status == {
+        "status": "eventful",
+        "snapshot_id": expected_snapshot_id.hex(),
+    }
 
     # artifact is used
-    expected_snapshot = {
-        "id": hash_to_bytes("d6e08e19159f77983242877c373c75222d5ae9dd"),
-        "branches": {
-            b"HEAD": {"target_type": "alias", "target": b"releases/0.0.1"},
-            b"releases/0.0.1": {
-                "target_type": "revision",
-                "target": hash_to_bytes("9e4dd2b40d1b46b70917c0949aa2195c823a648e"),
-            },
+    expected_snapshot = Snapshot(
+        id=expected_snapshot_id,
+        branches={
+            b"HEAD": SnapshotBranch(
+                target_type=TargetType.ALIAS, target=b"releases/0.0.1"
+            ),
+            b"releases/0.0.1": SnapshotBranch(
+                target_type=TargetType.REVISION,
+                target=hash_to_bytes("9e4dd2b40d1b46b70917c0949aa2195c823a648e"),
+            ),
         },
-    }
+    )
     check_snapshot(expected_snapshot, loader.storage)
 
-    assert_last_visit_matches(loader.storage, url, status="full", type="npm")
+    assert_last_visit_matches(
+        loader.storage, url, status="full", type="npm", snapshot=expected_snapshot.id
+    )
 
 
 def test_npm_no_artifact(swh_config, requests_mock_datadir):
