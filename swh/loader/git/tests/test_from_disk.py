@@ -12,7 +12,7 @@ import pytest
 
 from unittest import TestCase
 
-from swh.model.model import Snapshot, SnapshotBranch, TargetType
+from swh.model.model import Snapshot
 from swh.model.hashutil import hash_to_bytes
 from swh.loader.git.from_disk import GitLoaderFromDisk, GitLoaderFromArchive
 
@@ -24,30 +24,28 @@ from swh.loader.tests import (
 )
 
 
-SNAPSHOT_ID = "a23699280a82a043f8c0994cf1631b568f716f95"
-
 SNAPSHOT1 = {
-    "id": SNAPSHOT_ID,
+    "id": hash_to_bytes("a23699280a82a043f8c0994cf1631b568f716f95"),
     "branches": {
-        "HEAD": {"target": "refs/heads/master", "target_type": "alias",},
-        "refs/heads/master": {
-            "target": "2f01f5ca7e391a2f08905990277faf81e709a649",
+        b"HEAD": {"target": b"refs/heads/master", "target_type": "alias",},
+        b"refs/heads/master": {
+            "target": hash_to_bytes("2f01f5ca7e391a2f08905990277faf81e709a649"),
             "target_type": "revision",
         },
-        "refs/heads/branch1": {
-            "target": "b0a77609903f767a2fd3d769904ef9ef68468b87",
+        b"refs/heads/branch1": {
+            "target": hash_to_bytes("b0a77609903f767a2fd3d769904ef9ef68468b87"),
             "target_type": "revision",
         },
-        "refs/heads/branch2": {
-            "target": "bd746cd1913721b269b395a56a97baf6755151c2",
+        b"refs/heads/branch2": {
+            "target": hash_to_bytes("bd746cd1913721b269b395a56a97baf6755151c2"),
             "target_type": "revision",
         },
-        "refs/tags/branch2-after-delete": {
-            "target": "bd746cd1913721b269b395a56a97baf6755151c2",
+        b"refs/tags/branch2-after-delete": {
+            "target": hash_to_bytes("bd746cd1913721b269b395a56a97baf6755151c2"),
             "target_type": "revision",
         },
-        "refs/tags/branch2-before-delete": {
-            "target": "1135e94ccf73b5f9bd6ef07b3fa2c5cc60bba69b",
+        b"refs/tags/branch2-before-delete": {
+            "target": hash_to_bytes("1135e94ccf73b5f9bd6ef07b3fa2c5cc60bba69b"),
             "target_type": "revision",
         },
     },
@@ -313,21 +311,7 @@ class FullGitLoaderTests(CommonGitLoaderTests):
 
         # Generate the expected snapshot from SNAPSHOT1 (which is the original
         # state of the git repo)...
-        branches = {}
-
-        for branch_name, branch_dict in SNAPSHOT1["branches"].items():
-            target_type_name = branch_dict["target_type"]
-            target_obj = branch_dict["target"]
-
-            if target_type_name != "alias":
-                target = bytes.fromhex(target_obj)
-            else:
-                target = target_obj.encode()
-
-            branch = SnapshotBranch(
-                target=target, target_type=TargetType(target_type_name)
-            )
-            branches[branch_name.encode()] = branch
+        branches = SNAPSHOT1["branches"].copy()
 
         # ... and the unfiltered_branches, which are all pointing to the same
         # commit as "refs/heads/master".
