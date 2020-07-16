@@ -9,6 +9,7 @@ import re
 import pytest
 
 from swh.model.hashutil import hash_to_bytes, hash_to_hex
+from swh.model.model import Snapshot, SnapshotBranch, TargetType
 from swh.loader.package.deposit.loader import DepositLoader
 
 from swh.loader.package.tests.common import check_metadata_paths
@@ -168,18 +169,20 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
         "snapshot": 1,
     } == stats
 
-    revision_id = "637318680351f5d78856d13264faebbd91efe9bb"
-    expected_branches = {
-        b"HEAD": {"target": hash_to_bytes(revision_id), "target_type": "revision",},
-    }
+    revision_id_hex = "637318680351f5d78856d13264faebbd91efe9bb"
+    revision_id = hash_to_bytes(revision_id_hex)
 
-    expected_snapshot = {
-        "id": hash_to_bytes(expected_snapshot_id),
-        "branches": expected_branches,
-    }
+    expected_snapshot = Snapshot(
+        id=hash_to_bytes(expected_snapshot_id),
+        branches={
+            b"HEAD": SnapshotBranch(
+                target=revision_id, target_type=TargetType.REVISION,
+            ),
+        },
+    )
     check_snapshot(expected_snapshot, storage=loader.storage)
 
-    revision = next(loader.storage.revision_get([hash_to_bytes(revision_id)]))
+    revision = next(loader.storage.revision_get([revision_id]))
     assert revision
 
     # check metadata
@@ -217,7 +220,7 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
     body = update_query.json()
     expected_body = {
         "status": "done",
-        "revision_id": revision_id,
+        "revision_id": revision_id_hex,
         "directory_id": hash_to_hex(revision["directory"]),
         "snapshot_id": expected_snapshot_id,
         "origin_url": url,
@@ -245,13 +248,14 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
     assert_last_visit_matches(loader.storage, url, status="full", type="deposit")
 
     revision_id = "564d18943d71be80d0d73b43a77cfb205bcde96c"
-    expected_branches = {
-        b"HEAD": {"target": hash_to_bytes(revision_id), "target_type": "revision"}
-    }
-    expected_snapshot = {
-        "id": hash_to_bytes(expected_snapshot_id),
-        "branches": expected_branches,
-    }
+    expected_snapshot = Snapshot(
+        id=hash_to_bytes(expected_snapshot_id),
+        branches={
+            b"HEAD": SnapshotBranch(
+                target=hash_to_bytes(revision_id), target_type=TargetType.REVISION
+            )
+        },
+    )
 
     check_snapshot(expected_snapshot, storage=loader.storage)
 
