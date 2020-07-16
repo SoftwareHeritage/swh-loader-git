@@ -6,6 +6,7 @@
 import datetime
 import pytest
 
+import attr
 import os
 import subprocess
 
@@ -383,16 +384,13 @@ def test_check_snapshot_failures(swh_storage):
         "snapshot:add": 1,
     }
 
-    unexpected_snapshot = {
-        # id is correct
-        "id": hash_to_bytes(snap_id_hex),
-        "branches": {
-            b"master": {
-                "target": hash_to_bytes(hash_hex),  # wrong branch
-                "target_type": "release",
-            }
+    unexpected_snapshot = Snapshot(
+        branches={
+            b"tip": SnapshotBranch(  # wrong branch
+                target=hash_to_bytes(hash_hex), target_type=TargetType.RELEASE
+            )
         },
-    }
+    )
 
     # 0. not a Snapshot object, raise!
     with pytest.raises(AssertionError, match="variable 'snapshot' must be a snapshot"):
@@ -400,14 +398,12 @@ def test_check_snapshot_failures(swh_storage):
 
     # 1. snapshot id is correct but branches mismatched
     with pytest.raises(AssertionError, match="Differing attributes"):
-        unexpected_snapshot["id"] = snapshot.id
-        check_snapshot(unexpected_snapshot, swh_storage)
+        check_snapshot(attr.evolve(unexpected_snapshot, id=snapshot.id), swh_storage)
 
     # 2. snapshot id is not correct, it's not found in the storage
     wrong_snap_id = hash_to_bytes("999666f535f882bc7f9a18fb16c9ad27fda7bab7")
-    unexpected_snapshot["id"] = wrong_snap_id
     with pytest.raises(AssertionError, match="is not found"):
-        check_snapshot(unexpected_snapshot, swh_storage)
+        check_snapshot(attr.evolve(unexpected_snapshot, id=wrong_snap_id), swh_storage)
 
     # 3. snapshot references an inexistent alias
     snapshot0 = Snapshot(
