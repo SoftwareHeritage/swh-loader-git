@@ -28,7 +28,7 @@ from swh.loader.tests import (
 from swh.loader.package.debian.loader import resolve_revision_from
 
 from swh.model.hashutil import hash_to_bytes
-from swh.model.model import Person
+from swh.model.model import Person, Snapshot, SnapshotBranch, TargetType
 
 
 logger = logging.getLogger(__name__)
@@ -133,15 +133,15 @@ def test_debian_first_visit(swh_config, requests_mock_datadir):
         "snapshot": 1,
     } == stats
 
-    expected_snapshot = {
-        "id": hash_to_bytes(expected_snapshot_id),
-        "branches": {
-            b"releases/stretch/contrib/0.7.2-3": {
-                "target_type": "revision",
-                "target": hash_to_bytes("2807f5b3f84368b4889a9ae827fe85854ffecf07"),
-            }
+    expected_snapshot = Snapshot(
+        id=hash_to_bytes(expected_snapshot_id),
+        branches={
+            b"releases/stretch/contrib/0.7.2-3": SnapshotBranch(
+                target_type=TargetType.REVISION,
+                target=hash_to_bytes("2807f5b3f84368b4889a9ae827fe85854ffecf07"),
+            )
         },
-    }  # different than the previous loader as no release is done
+    )  # different than the previous loader as no release is done
 
     check_snapshot(expected_snapshot, loader.storage)
 
@@ -178,15 +178,15 @@ def test_debian_first_visit_then_another_visit(swh_config, requests_mock_datadir
         "snapshot": 1,
     } == stats
 
-    expected_snapshot = {
-        "id": hash_to_bytes(expected_snapshot_id),
-        "branches": {
-            b"releases/stretch/contrib/0.7.2-3": {
-                "target_type": "revision",
-                "target": hash_to_bytes("2807f5b3f84368b4889a9ae827fe85854ffecf07"),
-            }
+    expected_snapshot = Snapshot(
+        id=hash_to_bytes(expected_snapshot_id),
+        branches={
+            b"releases/stretch/contrib/0.7.2-3": SnapshotBranch(
+                target_type=TargetType.REVISION,
+                target=hash_to_bytes("2807f5b3f84368b4889a9ae827fe85854ffecf07"),
+            )
         },
-    }  # different than the previous loader as no release is done
+    )  # different than the previous loader as no release is done
 
     check_snapshot(expected_snapshot, loader.storage)
 
@@ -380,19 +380,19 @@ def test_debian_multiple_packages(swh_config, requests_mock_datadir):
 
     assert_last_visit_matches(loader.storage, url, status="full", type="deb")
 
-    expected_snapshot = {
-        "id": hash_to_bytes(expected_snapshot_id),
-        "branches": {
-            b"releases/stretch/contrib/0.7.2-3": {
-                "target_type": "revision",
-                "target": hash_to_bytes("2807f5b3f84368b4889a9ae827fe85854ffecf07"),
-            },
-            b"releases/buster/contrib/0.7.2-4": {
-                "target_type": "revision",
-                "target": hash_to_bytes("8224139c274c984147ef4b09aa0e462c55a10bd3"),
-            },
+    expected_snapshot = Snapshot(
+        id=hash_to_bytes(expected_snapshot_id),
+        branches={
+            b"releases/stretch/contrib/0.7.2-3": SnapshotBranch(
+                target_type=TargetType.REVISION,
+                target=hash_to_bytes("2807f5b3f84368b4889a9ae827fe85854ffecf07"),
+            ),
+            b"releases/buster/contrib/0.7.2-4": SnapshotBranch(
+                target_type=TargetType.REVISION,
+                target=hash_to_bytes("8224139c274c984147ef4b09aa0e462c55a10bd3"),
+            ),
         },
-    }
+    )
 
     check_snapshot(expected_snapshot, loader.storage)
 
