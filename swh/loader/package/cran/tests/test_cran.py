@@ -19,12 +19,26 @@ from swh.loader.package.cran.loader import (
 )
 from swh.core.tarball import uncompress
 from swh.model.hashutil import hash_to_bytes
-from swh.model.model import TimestampWithTimezone
+from swh.model.model import Snapshot, SnapshotBranch, TargetType, TimestampWithTimezone
 
 from swh.loader.tests import (
     assert_last_visit_matches,
     check_snapshot,
     get_stats,
+)
+
+
+SNAPSHOT = Snapshot(
+    id=hash_to_bytes("920adcccc78aaeedd3cfa4459dd900d8c3431a21"),
+    branches={
+        b"HEAD": SnapshotBranch(
+            target=b"releases/2.22-6", target_type=TargetType.ALIAS
+        ),
+        b"releases/2.22-6": SnapshotBranch(
+            target=hash_to_bytes("42bdb16facd5140424359c8ce89a28ecfa1ce603"),
+            target_type=TargetType.REVISION,
+        ),
+    },
 )
 
 
@@ -169,23 +183,12 @@ def test_cran_one_visit(swh_config, requests_mock_datadir):
 
     actual_load_status = loader.load()
 
-    expected_snapshot_id = "920adcccc78aaeedd3cfa4459dd900d8c3431a21"
     assert actual_load_status == {
         "status": "eventful",
-        "snapshot_id": expected_snapshot_id,
+        "snapshot_id": SNAPSHOT.id.hex(),
     }
 
-    expected_snapshot = {
-        "id": hash_to_bytes(expected_snapshot_id),
-        "branches": {
-            b"HEAD": {"target": b"releases/2.22-6", "target_type": "alias"},
-            b"releases/2.22-6": {
-                "target": hash_to_bytes("42bdb16facd5140424359c8ce89a28ecfa1ce603"),
-                "target_type": "revision",
-            },
-        },
-    }
-    check_snapshot(expected_snapshot, loader.storage)
+    check_snapshot(SNAPSHOT, loader.storage)
 
     assert_last_visit_matches(loader.storage, origin_url, status="full", type="cran")
 
@@ -229,20 +232,10 @@ def test_cran_2_visits_same_origin(swh_config, requests_mock_datadir):
     expected_snapshot_id = "920adcccc78aaeedd3cfa4459dd900d8c3431a21"
     assert actual_load_status == {
         "status": "eventful",
-        "snapshot_id": expected_snapshot_id,
+        "snapshot_id": SNAPSHOT.id.hex(),
     }
 
-    expected_snapshot = {
-        "id": hash_to_bytes(expected_snapshot_id),
-        "branches": {
-            b"HEAD": {"target": b"releases/2.22-6", "target_type": "alias"},
-            b"releases/2.22-6": {
-                "target": hash_to_bytes("42bdb16facd5140424359c8ce89a28ecfa1ce603"),
-                "target_type": "revision",
-            },
-        },
-    }
-    check_snapshot(expected_snapshot, loader.storage)
+    check_snapshot(SNAPSHOT, loader.storage)
 
     assert_last_visit_matches(loader.storage, origin_url, status="full", type="cran")
 
