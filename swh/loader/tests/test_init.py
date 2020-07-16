@@ -337,11 +337,11 @@ def test_check_snapshot(swh_storage):
         else:
             assert target.target in [REVISION.id, RELEASE.id]
 
-    swh_storage.content_add([CONTENT.to_dict()])
-    swh_storage.directory_add([DIRECTORY.to_dict()])
-    swh_storage.revision_add([REVISION.to_dict()])
-    swh_storage.release_add([RELEASE.to_dict()])
-    s = swh_storage.snapshot_add([SNAPSHOT.to_dict()])
+    swh_storage.content_add([CONTENT])
+    swh_storage.directory_add([DIRECTORY])
+    swh_storage.revision_add([REVISION])
+    swh_storage.release_add([RELEASE])
+    s = swh_storage.snapshot_add([SNAPSHOT])
     assert s == {
         "snapshot:add": 1,
     }
@@ -444,7 +444,7 @@ def test_check_snapshot_failures(swh_storage):
     # 5. snapshot is found in storage, targeted revision exists but the directory the
     # revision targets does not exist
 
-    swh_storage.revision_add([REVISION.to_dict()])
+    swh_storage.revision_add([REVISION])
 
     dir_not_found = list(swh_storage.directory_missing([REVISION.directory]))
     assert len(dir_not_found) == 1
@@ -459,7 +459,7 @@ def test_check_snapshot_failures(swh_storage):
         },
     )
 
-    swh_storage.snapshot_add([snapshot2.to_dict()])
+    swh_storage.snapshot_add([snapshot2])
     with pytest.raises(InexistentObjectsError, match="Missing directories"):
         check_snapshot(snapshot2, swh_storage)
 
@@ -473,7 +473,7 @@ def test_check_snapshot_failures(swh_storage):
     not_found = list(swh_storage.content_missing_per_sha1_git([CONTENT.sha1_git]))
     assert len(not_found) == 1
 
-    swh_storage.directory_add([DIRECTORY.to_dict()])
+    swh_storage.directory_add([DIRECTORY])
 
     snapshot3 = Snapshot(
         id=hash_to_bytes("091456f535f882bc7f9a18fb16c9ad27fda7bab7"),
@@ -485,7 +485,7 @@ def test_check_snapshot_failures(swh_storage):
         },
     )
 
-    swh_storage.snapshot_add([snapshot3.to_dict()])
+    swh_storage.snapshot_add([snapshot3])
     with pytest.raises(InexistentObjectsError, match="Missing content(s)"):
         check_snapshot(snapshot3, swh_storage)
 
