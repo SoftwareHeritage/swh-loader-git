@@ -24,10 +24,8 @@ from swh.loader.tests import (
 )
 
 
-SNAPSHOT_ID = "a23699280a82a043f8c0994cf1631b568f716f95"
-
 SNAPSHOT1 = {
-    "id": SNAPSHOT_ID,
+    "id": hash_to_bytes("a23699280a82a043f8c0994cf1631b568f716f95"),
     "branches": {
         b"HEAD": {"target": b"refs/heads/master", "target_type": "alias",},
         b"refs/heads/master": {
