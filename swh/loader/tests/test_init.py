@@ -347,11 +347,10 @@ def test_check_snapshot(swh_storage):
         "snapshot:add": 1,
     }
 
-    for snap in [SNAPSHOT, SNAPSHOT.to_dict()]:
-        # all should be fine!
-        check_snapshot(
-            snap, swh_storage, allowed_empty=[(TargetType.REVISION, b"evaluation")]
-        )
+    # all should be fine!
+    check_snapshot(
+        SNAPSHOT, swh_storage, allowed_empty=[(TargetType.REVISION, b"evaluation")]
+    )
 
 
 def test_check_snapshot_failures(swh_storage):

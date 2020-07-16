@@ -11,7 +11,7 @@ import pytest
 
 from json.decoder import JSONDecodeError
 from swh.storage.interface import StorageInterface
-from typing import Any, Dict, Iterable, Optional, Tuple, Union
+from typing import Dict, Iterable, Optional, Tuple
 
 from unittest.mock import patch
 
@@ -53,7 +53,7 @@ SNAPSHOT1 = Snapshot(
 
 
 def check_snapshot(
-    snapshot: Union[Dict[str, Any], Snapshot],
+    snapshot: Snapshot,
     storage: StorageInterface,
     allowed_empty: Iterable[Tuple[TargetType, bytes]] = [
         (TargetType.REVISION, b"evaluation")

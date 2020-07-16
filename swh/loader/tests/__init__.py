@@ -8,7 +8,7 @@ import subprocess
 
 from collections import defaultdict
 from pathlib import PosixPath
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Dict, Iterable, List, Optional, Tuple, Union
 
 from swh.model.model import OriginVisitStatus, Snapshot, TargetType
 from swh.model.hashutil import hash_to_bytes
@@ -114,7 +114,7 @@ class InexistentObjectsError(AssertionError):
 
 
 def check_snapshot(
-    snapshot: Union[Dict[str, Any], Snapshot],
+    snapshot: Snapshot,
     storage: StorageInterface,
     allowed_empty: Iterable[Tuple[TargetType, bytes]] = [],
 ):
@@ -135,8 +135,6 @@ def check_snapshot(
         needed.
 
     """
-    if isinstance(snapshot, dict):
-        snapshot = Snapshot.from_dict(snapshot)
     if not isinstance(snapshot, Snapshot):
         raise AssertionError(f"variable 'snapshot' must be a snapshot: {snapshot!r}")
 
