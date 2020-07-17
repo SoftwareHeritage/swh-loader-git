@@ -12,7 +12,7 @@ import pytest
 
 from unittest import TestCase
 
-from swh.model.model import Snapshot
+from swh.model.model import Snapshot, SnapshotBranch, TargetType
 from swh.model.hashutil import hash_to_bytes
 from swh.loader.git.from_disk import GitLoaderFromDisk, GitLoaderFromArchive
 
@@ -24,32 +24,34 @@ from swh.loader.tests import (
 )
 
 
-SNAPSHOT1 = {
-    "id": hash_to_bytes("a23699280a82a043f8c0994cf1631b568f716f95"),
-    "branches": {
-        b"HEAD": {"target": b"refs/heads/master", "target_type": "alias",},
-        b"refs/heads/master": {
-            "target": hash_to_bytes("2f01f5ca7e391a2f08905990277faf81e709a649"),
-            "target_type": "revision",
-        },
-        b"refs/heads/branch1": {
-            "target": hash_to_bytes("b0a77609903f767a2fd3d769904ef9ef68468b87"),
-            "target_type": "revision",
-        },
-        b"refs/heads/branch2": {
-            "target": hash_to_bytes("bd746cd1913721b269b395a56a97baf6755151c2"),
-            "target_type": "revision",
-        },
-        b"refs/tags/branch2-after-delete": {
-            "target": hash_to_bytes("bd746cd1913721b269b395a56a97baf6755151c2"),
-            "target_type": "revision",
-        },
-        b"refs/tags/branch2-before-delete": {
-            "target": hash_to_bytes("1135e94ccf73b5f9bd6ef07b3fa2c5cc60bba69b"),
-            "target_type": "revision",
-        },
+SNAPSHOT1 = Snapshot(
+    id=hash_to_bytes("a23699280a82a043f8c0994cf1631b568f716f95"),
+    branches={
+        b"HEAD": SnapshotBranch(
+            target=b"refs/heads/master", target_type=TargetType.ALIAS,
+        ),
+        b"refs/heads/master": SnapshotBranch(
+            target=hash_to_bytes("2f01f5ca7e391a2f08905990277faf81e709a649"),
+            target_type=TargetType.REVISION,
+        ),
+        b"refs/heads/branch1": SnapshotBranch(
+            target=hash_to_bytes("b0a77609903f767a2fd3d769904ef9ef68468b87"),
+            target_type=TargetType.REVISION,
+        ),
+        b"refs/heads/branch2": SnapshotBranch(
+            target=hash_to_bytes("bd746cd1913721b269b395a56a97baf6755151c2"),
+            target_type=TargetType.REVISION,
+        ),
+        b"refs/tags/branch2-after-delete": SnapshotBranch(
+            target=hash_to_bytes("bd746cd1913721b269b395a56a97baf6755151c2"),
+            target_type=TargetType.REVISION,
+        ),
+        b"refs/tags/branch2-before-delete": SnapshotBranch(
+            target=hash_to_bytes("1135e94ccf73b5f9bd6ef07b3fa2c5cc60bba69b"),
+            target_type=TargetType.REVISION,
+        ),
     },
-}
+)
 
 # directory hashes obtained with:
 # gco b6f40292c4e94a8f7e7b4aff50e6c7429ab98e2a
@@ -106,7 +108,7 @@ class CommonGitLoaderTests:
             self.repo_url,
             status="full",
             type="git",
-            snapshot=hash_to_bytes(SNAPSHOT1["id"]),
+            snapshot=SNAPSHOT1.id,
         )
 
         stats = get_stats(self.loader.storage)
@@ -135,7 +137,7 @@ class CommonGitLoaderTests:
             self.repo_url,
             status="full",
             type="git",
-            snapshot=hash_to_bytes(SNAPSHOT1["id"]),
+            snapshot=SNAPSHOT1.id,
         )
 
         stats0 = get_stats(self.loader.storage)
@@ -165,7 +167,7 @@ class CommonGitLoaderTests:
             self.repo_url,
             status="full",
             type="git",
-            snapshot=hash_to_bytes(SNAPSHOT1["id"]),
+            snapshot=SNAPSHOT1.id,
         )
 
 
@@ -311,7 +313,7 @@ class FullGitLoaderTests(CommonGitLoaderTests):
 
         # Generate the expected snapshot from SNAPSHOT1 (which is the original
         # state of the git repo)...
-        branches = SNAPSHOT1["branches"].copy()
+        branches = dict(SNAPSHOT1.branches)
 
         # ... and the unfiltered_branches, which are all pointing to the same
         # commit as "refs/heads/master".
@@ -324,6 +326,7 @@ class FullGitLoaderTests(CommonGitLoaderTests):
         res = self.loader.load()
         assert res == {"status": "eventful"}
 
+        check_snapshot(expected_snapshot, self.loader.storage)
         assert_last_visit_matches(
             self.loader.storage,
             self.repo_url,
