@@ -11,7 +11,7 @@ import pytest
 
 from json.decoder import JSONDecodeError
 from swh.storage.interface import StorageInterface
-from typing import Dict, Iterable, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 from unittest.mock import patch
 
@@ -52,21 +52,21 @@ SNAPSHOT1 = Snapshot(
 )
 
 
-def check_snapshot(
-    snapshot: Snapshot,
-    storage: StorageInterface,
-    allowed_empty: Iterable[Tuple[TargetType, bytes]] = [
-        (TargetType.REVISION, b"evaluation")
-    ],
-):
-    check_snapshot_full(snapshot, storage, allowed_empty)
+def check_snapshot(snapshot: Snapshot, storage: StorageInterface):
+    # The `evaluation` branch is allowed to be unresolvable. It's possible at current
+    # nixguix visit time, it is not yet visited (the git loader is in charge of its
+    # visit for now). For more details, check the
+    # swh.loader.package.nixguix.NixGuixLoader.extra_branches docstring.
+    check_snapshot_full(
+        snapshot, storage, allowed_empty=[(TargetType.REVISION, b"evaluation")]
+    )
 
     assert isinstance(snapshot, Snapshot)
     # then ensure the snapshot revisions are structurally as expected
     revision_ids = []
     for name, branch in snapshot.branches.items():
         if name == b"evaluation":
-            continue  # skipping that particular branch
+            continue  # skipping that particular branch (cf. previous comment)
         if branch.target_type == TargetType.REVISION:
             revision_ids.append(branch.target)
 
