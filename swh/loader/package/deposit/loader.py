@@ -133,7 +133,7 @@ class DepositLoader(PackageLoader):
             provider = origin_metadata["provider"]
             assert provider["provider_type"] == "deposit_client"
             authority = MetadataAuthority(
-                type=MetadataAuthorityType.DEPOSIT,
+                type=MetadataAuthorityType.DEPOSIT_CLIENT,
                 url=provider["provider_url"],
                 metadata={
                     "name": provider["provider_name"],

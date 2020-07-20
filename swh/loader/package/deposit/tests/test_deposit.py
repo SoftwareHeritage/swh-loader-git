@@ -199,7 +199,7 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
     fetcher = MetadataFetcher(name="swh-deposit", version="0.0.1",)
 
     authority = MetadataAuthority(
-        type=MetadataAuthorityType.DEPOSIT,
+        type=MetadataAuthorityType.DEPOSIT_CLIENT,
         url="https://hal-test.archives-ouvertes.fr/",
     )
 
@@ -322,7 +322,7 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
     fetcher = MetadataFetcher(name="swh-deposit", version="0.0.1",)
 
     authority = MetadataAuthority(
-        type=MetadataAuthorityType.DEPOSIT,
+        type=MetadataAuthorityType.DEPOSIT_CLIENT,
         url="https://hal-test.archives-ouvertes.fr/",
     )
 
