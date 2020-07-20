@@ -198,7 +198,7 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
 
         Returns:
           dict: an origin ready to be sent to storage by
-          :func:`origin_add_one`.
+          :func:`origin_add`.
         """
         assert self.origin
         return self.origin
