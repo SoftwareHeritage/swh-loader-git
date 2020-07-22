@@ -29,6 +29,9 @@ from swh.loader.package.utils import api_info, release_name
 logger = logging.getLogger(__name__)
 
 
+EMPTY_PERSON = Person(fullname=b"", name=None, email=None)
+
+
 class NpmLoader(PackageLoader):
     """Load npm origin's artifact releases into swh archive.
 
@@ -210,7 +213,7 @@ def extract_npm_package_author(package_json: Dict[str, Any]) -> Person:
     return it in swh format.
 
     Args:
-        package_json (dict): Dict holding the content of parsed
+        package_json: Dict holding the content of parsed
             ``package.json`` file
 
     Returns:
@@ -219,10 +222,13 @@ def extract_npm_package_author(package_json: Dict[str, Any]) -> Person:
     """
     for author_key in ("author", "authors"):
         if author_key in package_json:
-            author_str = _author_str(package_json[author_key])
+            author_data = package_json[author_key]
+            if author_data is None:
+                return EMPTY_PERSON
+            author_str = _author_str(author_data)
             return Person.from_fullname(author_str.encode())
 
-    return Person(fullname=b"", name=None, email=None)
+    return EMPTY_PERSON
 
 
 def _lstrip_bom(s, bom=BOM_UTF8):

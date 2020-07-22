@@ -46,6 +46,7 @@ def test_npm_author_str():
             {"name": ["Susan McSween", "William H. Bonney", "Doc Scurlock",]},
             "Susan McSween",
         ),
+        (None, None),
     ]:
         assert _author_str(author) == expected_author
 
@@ -188,6 +189,17 @@ def test_extract_npm_package_author(datadir):
         fullname=b"xiaohuoni <448627663@qq.com>",
         name=b"xiaohuoni",
         email=b"448627663@qq.com",
+    )
+
+    package_json_no_authors = json.loads(
+        """{
+        "authors": null,
+        "license": "MIT"
+    }"""
+    )
+
+    assert extract_npm_package_author(package_json_no_authors) == Person(
+        fullname=b"", name=None, email=None
     )
 
 
