@@ -1,4 +1,4 @@
-# Copyright (C) 2019  The Software Heritage developers
+# Copyright (C) 2019-2020  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -8,7 +8,7 @@ import logging
 import os
 
 from codecs import BOM_UTF8
-from typing import Any, Dict, Generator, Mapping, Sequence, Tuple, Optional
+from typing import Any, Dict, Generator, List, Mapping, Optional, Sequence, Tuple, Union
 
 import attr
 import chardet
@@ -181,7 +181,27 @@ def artifact_to_revision_id(
     return None
 
 
-def extract_npm_package_author(package_json) -> Person:
+def _author_str(author_data: Union[Dict, List, str]) -> str:
+    """Parse author from package.json author fields
+
+    """
+    if isinstance(author_data, dict):
+        author_str = ""
+        name = author_data.get("name")
+        if name is not None:
+            author_str += name
+        email = author_data.get("email")
+        if email is not None:
+            author_str += f" <{email}>"
+        result = author_str
+    elif isinstance(author_data, list):
+        result = _author_str(author_data[0]) if len(author_data) > 0 else ""
+    else:
+        result = author_data
+    return result
+
+
+def extract_npm_package_author(package_json: Dict[str, Any]) -> Person:
     """
     Extract package author from a ``package.json`` file content and
     return it in swh format.
@@ -194,20 +214,6 @@ def extract_npm_package_author(package_json) -> Person:
         Person
 
     """
-
-    def _author_str(author_data):
-        if type(author_data) is dict:
-            author_str = ""
-            if "name" in author_data:
-                author_str += author_data["name"]
-            if "email" in author_data:
-                author_str += " <%s>" % author_data["email"]
-            return author_str
-        elif type(author_data) is list:
-            return _author_str(author_data[0]) if len(author_data) > 0 else ""
-        else:
-            return author_data
-
     for author_key in ("author", "authors"):
         if author_key in package_json:
             author_str = _author_str(package_json[author_key])
