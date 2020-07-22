@@ -5,17 +5,17 @@
 
 import dateutil.parser
 import datetime
+from datetime import timezone
 import os
+from os import path
 import logging
 import re
+from typing import Any, Dict, Iterator, List, Mapping, Optional, Tuple
 
-from datetime import timezone
-from os import path
-from typing import Any, Generator, Dict, List, Mapping, Optional, Tuple
-
+import attr
 from debian.deb822 import Deb822
 
-from swh.loader.package.loader import PackageLoader
+from swh.loader.package.loader import BasePackageInfo, PackageLoader
 from swh.loader.package.utils import release_name, artifact_identity
 from swh.model.model import (
     Person,
@@ -32,7 +32,11 @@ logger = logging.getLogger(__name__)
 DATE_PATTERN = re.compile(r"^(?P<year>\d{4})-(?P<month>\d{2})$")
 
 
-class CRANLoader(PackageLoader):
+class CRANPackageInfo(BasePackageInfo):
+    raw = attr.ib(type=Dict[str, Any])
+
+
+class CRANLoader(PackageLoader[CRANPackageInfo]):
     visit_type = "cran"
 
     def __init__(self, url: str, artifacts: List[Dict]):
@@ -57,18 +61,14 @@ class CRANLoader(PackageLoader):
     def get_default_version(self) -> str:
         return self.artifacts[-1]["version"]
 
-    def get_package_info(
-        self, version: str
-    ) -> Generator[Tuple[str, Dict[str, Any]], None, None]:
+    def get_package_info(self, version: str) -> Iterator[Tuple[str, CRANPackageInfo]]:
         for a_metadata in self.artifacts:
             url = a_metadata["url"]
             package_version = a_metadata["version"]
             if version == package_version:
-                p_info = {
-                    "url": url,
-                    "filename": path.basename(url),
-                    "raw": a_metadata,
-                }
+                p_info = CRANPackageInfo(
+                    url=url, filename=path.basename(url), raw=a_metadata,
+                )
                 yield release_name(version), p_info
 
     def resolve_revision_from(

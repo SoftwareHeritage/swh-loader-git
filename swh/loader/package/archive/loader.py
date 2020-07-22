@@ -3,13 +3,14 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import iso8601
 import logging
-
 from os import path
-from typing import Any, Dict, Generator, Mapping, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterator, Mapping, Optional, Sequence, Tuple
 
-from swh.loader.package.loader import PackageLoader
+import attr
+import iso8601
+
+from swh.loader.package.loader import PackageLoader, BasePackageInfo
 from swh.loader.package.utils import release_name, artifact_identity
 from swh.model.model import (
     Sha1Git,
@@ -29,7 +30,11 @@ SWH_PERSON = Person(
 REVISION_MESSAGE = b"swh-loader-package: synthetic revision message"
 
 
-class ArchiveLoader(PackageLoader):
+class ArchivePackageInfo(BasePackageInfo):
+    raw = attr.ib(type=Dict[str, Any])
+
+
+class ArchiveLoader(PackageLoader[ArchivePackageInfo]):
     """Load archive origin's artifact files into swh archive
 
     """
@@ -84,17 +89,17 @@ class ArchiveLoader(PackageLoader):
 
     def get_package_info(
         self, version: str
-    ) -> Generator[Tuple[str, Mapping[str, Any]], None, None]:
+    ) -> Iterator[Tuple[str, ArchivePackageInfo]]:
         for a_metadata in self.artifacts:
             url = a_metadata["url"]
             package_version = a_metadata["version"]
             if version == package_version:
                 filename = a_metadata.get("filename")
-                p_info = {
-                    "url": url,
-                    "filename": filename if filename else path.split(url)[-1],
-                    "raw": a_metadata,
-                }
+                p_info = ArchivePackageInfo(
+                    url=url,
+                    filename=filename if filename else path.split(url)[-1],
+                    raw=a_metadata,
+                )
                 # FIXME: this code assumes we have only 1 artifact per
                 # versioned package
                 yield release_name(version), p_info

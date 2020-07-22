@@ -6,9 +6,10 @@
 import json
 import logging
 import requests
+from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, Tuple, Union
 import types
 
-from typing import Any, Dict, Generator, List, Mapping, Optional, Sequence, Tuple, Union
+import attr
 
 from swh.model.hashutil import hash_to_hex, hash_to_bytes
 from swh.model.model import (
@@ -23,14 +24,19 @@ from swh.model.model import (
     MetadataTargetType,
     RawExtrinsicMetadata,
 )
-from swh.loader.package.loader import PackageLoader
+from swh.loader.package.loader import PackageLoader, BasePackageInfo
 from swh.loader.package.utils import download
 
 
 logger = logging.getLogger(__name__)
 
 
-class DepositLoader(PackageLoader):
+class DepositPackageInfo(BasePackageInfo):
+    filename = attr.ib(type=str)  # instead of Optional[str]
+    raw = attr.ib(type=Dict[str, Any])
+
+
+class DepositLoader(PackageLoader[DepositPackageInfo]):
     """Load pypi origin's artifact releases into swh archive.
 
     """
@@ -59,20 +65,19 @@ class DepositLoader(PackageLoader):
 
     def get_package_info(
         self, version: str
-    ) -> Generator[Tuple[str, Mapping[str, Any]], None, None]:
-        p_info = {
-            "filename": "archive.zip",
-            "raw": self.metadata,
-        }
+    ) -> Iterator[Tuple[str, DepositPackageInfo]]:
+        p_info = DepositPackageInfo(
+            url=self.url, filename="archive.zip", raw=self.metadata,
+        )
         yield "HEAD", p_info
 
     def download_package(
-        self, p_info: Mapping[str, Any], tmpdir: str
+        self, p_info: DepositPackageInfo, tmpdir: str
     ) -> List[Tuple[str, Mapping]]:
         """Override to allow use of the dedicated deposit client
 
         """
-        return [self.client.archive_get(self.deposit_id, tmpdir, p_info["filename"])]
+        return [self.client.archive_get(self.deposit_id, tmpdir, p_info.filename)]
 
     def build_revision(
         self, a_metadata: Dict, uncompressed_path: str, directory: Sha1Git
@@ -109,7 +114,7 @@ class DepositLoader(PackageLoader):
                 "extrinsic": {
                     "provider": self.client.metadata_url(self.deposit_id),
                     "when": self.visit_date.isoformat(),
-                    "raw": a_metadata,
+                    "raw": a_metadata,  # Actually the processed metadata instead of raw
                 },
             },
         )

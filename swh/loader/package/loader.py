@@ -8,7 +8,18 @@ import logging
 import tempfile
 import os
 
-from typing import Any, Dict, Generator, List, Mapping, Optional, Sequence, Tuple
+from typing import (
+    Any,
+    Dict,
+    Iterator,
+    Generic,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    TypeVar,
+)
 
 import attr
 import sentry_sdk
@@ -38,7 +49,17 @@ from swh.loader.package.utils import download
 logger = logging.getLogger(__name__)
 
 
-class PackageLoader:
+@attr.s
+class BasePackageInfo:
+    url = attr.ib(type=str)
+    filename = attr.ib(type=Optional[str])
+    raw = attr.ib(type=Any)
+
+
+TPackageInfo = TypeVar("TPackageInfo", bound=BasePackageInfo)
+
+
+class PackageLoader(Generic[TPackageInfo]):
     # Origin visit type (str) set by the loader
     visit_type = ""
 
@@ -77,9 +98,7 @@ class PackageLoader:
         """
         return []
 
-    def get_package_info(
-        self, version: str
-    ) -> Generator[Tuple[str, Mapping[str, Any]], None, None]:
+    def get_package_info(self, version: str) -> Iterator[Tuple[str, TPackageInfo]]:
         """Given a release version of a package, retrieve the associated
            package information for such version.
 
@@ -170,7 +189,7 @@ class PackageLoader:
         return None
 
     def download_package(
-        self, p_info: Mapping[str, Any], tmpdir: str
+        self, p_info: TPackageInfo, tmpdir: str
     ) -> List[Tuple[str, Mapping]]:
         """Download artifacts for a specific package. All downloads happen in
         in the tmpdir folder.
@@ -191,9 +210,7 @@ class PackageLoader:
             List of (path, computed hashes)
 
         """
-        a_uri = p_info["url"]
-        filename = p_info.get("filename")
-        return [download(a_uri, dest=tmpdir, filename=filename)]
+        return [download(p_info.url, dest=tmpdir, filename=p_info.filename)]
 
     def uncompress(
         self, dl_artifacts: List[Tuple[str, Mapping[str, Any]]], dest: str
@@ -328,7 +345,7 @@ class PackageLoader:
             # `p_` stands for `package_`
             for branch_name, p_info in self.get_package_info(version):
                 logger.debug("package_info: %s", p_info)
-                revision_id = self.resolve_revision_from(known_artifacts, p_info["raw"])
+                revision_id = self.resolve_revision_from(known_artifacts, p_info.raw)
                 if revision_id is None:
                     try:
                         revision_id = self._load_revision(p_info, origin)
@@ -377,7 +394,7 @@ class PackageLoader:
 
         return finalize_visit()
 
-    def _load_revision(self, p_info, origin) -> Optional[Sha1Git]:
+    def _load_revision(self, p_info: TPackageInfo, origin) -> Optional[Sha1Git]:
         """Does all the loading of a revision itself:
 
         * downloads a package and uncompresses it
@@ -414,7 +431,7 @@ class PackageLoader:
 
             # FIXME: This should be release. cf. D409
             revision = self.build_revision(
-                p_info["raw"], uncompressed_path, directory=directory.hash
+                p_info.raw, uncompressed_path, directory=directory.hash
             )
             if not revision:
                 # Some artifacts are missing intrinsic metadata

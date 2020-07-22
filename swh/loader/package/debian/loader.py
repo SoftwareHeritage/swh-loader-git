@@ -8,13 +8,14 @@ import logging
 from os import path
 import re
 import subprocess
+from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, Tuple
 
+import attr
 from dateutil.parser import parse as parse_date
 from debian.changelog import Changelog
 from debian.deb822 import Dsc
-from typing import Any, Generator, List, Mapping, Optional, Sequence, Tuple
 
-from swh.loader.package.loader import PackageLoader
+from swh.loader.package.loader import BasePackageInfo, PackageLoader
 from swh.loader.package.utils import download, release_name
 from swh.model.model import (
     Sha1Git,
@@ -29,7 +30,11 @@ logger = logging.getLogger(__name__)
 UPLOADERS_SPLIT = re.compile(r"(?<=\>)\s*,\s*")
 
 
-class DebianLoader(PackageLoader):
+class DebianPackageInfo(BasePackageInfo):
+    raw = attr.ib(type=Dict[str, Any])
+
+
+class DebianLoader(PackageLoader[DebianPackageInfo]):
     """Load debian origins into swh archive.
 
     """
@@ -86,12 +91,9 @@ class DebianLoader(PackageLoader):
         """
         return list(self.packages.keys())
 
-    def get_package_info(
-        self, version: str
-    ) -> Generator[Tuple[str, Mapping[str, Any]], None, None]:
+    def get_package_info(self, version: str) -> Iterator[Tuple[str, DebianPackageInfo]]:
         meta = self.packages[version]
-        p_info = meta.copy()
-        p_info["raw"] = meta
+        p_info = DebianPackageInfo(url=self.url, filename=None, raw=meta,)
         yield release_name(version), p_info
 
     def resolve_revision_from(
@@ -100,10 +102,10 @@ class DebianLoader(PackageLoader):
         return resolve_revision_from(known_package_artifacts, artifact_metadata)
 
     def download_package(
-        self, p_info: Mapping[str, Any], tmpdir: str
+        self, p_info: DebianPackageInfo, tmpdir: str
     ) -> List[Tuple[str, Mapping]]:
         """Contrary to other package loaders (1 package, 1 artifact),
-        `a_metadata` represents the package's datafiles set to fetch:
+        `p_info.files` represents the package's datafiles set to fetch:
         - <package-version>.orig.tar.gz
         - <package-version>.dsc
         - <package-version>.diff.gz
@@ -111,7 +113,7 @@ class DebianLoader(PackageLoader):
         This is delegated to the `download_package` function.
 
         """
-        all_hashes = download_package(p_info, tmpdir)
+        all_hashes = download_package(p_info.raw, tmpdir)
         logger.debug("all_hashes: %s", all_hashes)
         res = []
         for hashes in all_hashes.values():

@@ -8,7 +8,7 @@ import logging
 import os
 
 from codecs import BOM_UTF8
-from typing import Any, Dict, Generator, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple, Union
 
 import attr
 import chardet
@@ -22,7 +22,7 @@ from swh.model.model import (
     Sha1Git,
 )
 
-from swh.loader.package.loader import PackageLoader
+from swh.loader.package.loader import BasePackageInfo, PackageLoader
 from swh.loader.package.utils import api_info, release_name
 
 
@@ -32,7 +32,11 @@ logger = logging.getLogger(__name__)
 EMPTY_PERSON = Person(fullname=b"", name=None, email=None)
 
 
-class NpmLoader(PackageLoader):
+class NpmPackageInfo(BasePackageInfo):
+    raw = attr.ib(type=Dict[str, Any])
+
+
+class NpmLoader(PackageLoader[NpmPackageInfo]):
     """Load npm origin's artifact releases into swh archive.
 
     """
@@ -67,16 +71,10 @@ class NpmLoader(PackageLoader):
     def get_default_version(self) -> str:
         return self.info["dist-tags"].get("latest", "")
 
-    def get_package_info(
-        self, version: str
-    ) -> Generator[Tuple[str, Mapping[str, Any]], None, None]:
+    def get_package_info(self, version: str) -> Iterator[Tuple[str, NpmPackageInfo]]:
         meta = self.info["versions"][version]
         url = meta["dist"]["tarball"]
-        p_info = {
-            "url": url,
-            "filename": os.path.basename(url),
-            "raw": meta,
-        }
+        p_info = NpmPackageInfo(url=url, filename=os.path.basename(url), raw=meta,)
         yield release_name(version), p_info
 
     def resolve_revision_from(

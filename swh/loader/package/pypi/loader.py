@@ -5,9 +5,10 @@
 
 import os
 import logging
-
-from typing import Any, Dict, Generator, Mapping, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterator, Optional, Sequence, Tuple
 from urllib.parse import urlparse
+
+import attr
 from pkginfo import UnpackedSDist
 
 from swh.model.model import (
@@ -18,13 +19,17 @@ from swh.model.model import (
     RevisionType,
 )
 
-from swh.loader.package.loader import PackageLoader
+from swh.loader.package.loader import BasePackageInfo, PackageLoader
 from swh.loader.package.utils import api_info, release_name, EMPTY_AUTHOR
 
 logger = logging.getLogger(__name__)
 
 
-class PyPILoader(PackageLoader):
+class PyPIPackageInfo(BasePackageInfo):
+    raw = attr.ib(type=Dict[str, Any])
+
+
+class PyPILoader(PackageLoader[PyPIPackageInfo]):
     """Load pypi origin's artifact releases into swh archive.
 
     """
@@ -51,19 +56,13 @@ class PyPILoader(PackageLoader):
     def get_default_version(self) -> str:
         return self.info["info"]["version"]
 
-    def get_package_info(
-        self, version: str
-    ) -> Generator[Tuple[str, Mapping[str, Any]], None, None]:
+    def get_package_info(self, version: str) -> Iterator[Tuple[str, PyPIPackageInfo]]:
         res = []
         for meta in self.info["releases"][version]:
             if meta["packagetype"] != "sdist":
                 continue
             filename = meta["filename"]
-            p_info = {
-                "url": meta["url"],
-                "filename": filename,
-                "raw": meta,
-            }
+            p_info = PyPIPackageInfo(url=meta["url"], filename=filename, raw=meta,)
             res.append((version, p_info))
 
         if len(res) == 1:
@@ -71,7 +70,7 @@ class PyPILoader(PackageLoader):
             yield release_name(version), p_info
         else:
             for version, p_info in res:
-                yield release_name(version, p_info["filename"]), p_info
+                yield release_name(version, p_info.filename), p_info
 
     def resolve_revision_from(
         self, known_artifacts: Dict, artifact_metadata: Dict

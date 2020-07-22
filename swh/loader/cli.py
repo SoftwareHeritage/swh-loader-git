@@ -93,5 +93,11 @@ def list(ctx, type):
         registry_entry = LOADERS[type].load()()
         loader_cls = registry_entry["loader"]
         doc = inspect.getdoc(loader_cls).strip()
-        signature = inspect.signature(loader_cls)
-        click.echo(f"Loader: {doc}\nsignature: {signature}")
+
+        # Hack to get the signature of the class even though it subclasses
+        # Generic, which reimplements __new__.
+        # See <https://bugs.python.org/issue40897>
+        signature = inspect.signature(loader_cls.__init__)
+        signature_str = str(signature).replace("self, ", "")
+
+        click.echo(f"Loader: {doc}\nsignature: {signature_str}")
