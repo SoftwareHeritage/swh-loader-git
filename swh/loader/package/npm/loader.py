@@ -189,7 +189,10 @@ def _author_str(author_data: Union[Dict, List, str]) -> str:
         author_str = ""
         name = author_data.get("name")
         if name is not None:
-            author_str += name
+            if isinstance(name, str):
+                author_str += name
+            elif isinstance(name, list):
+                author_str += _author_str(name[0]) if len(name) > 0 else ""
         email = author_data.get("email")
         if email is not None:
             author_str += f" <{email}>"

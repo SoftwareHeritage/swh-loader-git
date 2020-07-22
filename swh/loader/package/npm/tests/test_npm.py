@@ -41,6 +41,11 @@ def test_npm_author_str():
         ({"name": None, "email": None,}, ""),
         ({}, ""),
         (None, None),
+        ({"name": []}, "",),
+        (
+            {"name": ["Susan McSween", "William H. Bonney", "Doc Scurlock",]},
+            "Susan McSween",
+        ),
     ]:
         assert _author_str(author) == expected_author
 
