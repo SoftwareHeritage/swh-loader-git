@@ -3,10 +3,12 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import attr
+
 from swh.model.hashutil import hash_to_bytes
 from swh.model.model import Snapshot, SnapshotBranch, TargetType
 
-from swh.loader.package.archive.loader import ArchiveLoader
+from swh.loader.package.archive.loader import ArchiveLoader, ArchivePackageInfo
 from swh.loader.package.tests.common import check_metadata_paths
 from swh.loader.tests import (
     assert_last_visit_matches,
@@ -343,3 +345,35 @@ def test_2_visits_without_change_not_gnu(swh_config, requests_mock_datadir):
         if m.url.startswith("https://ftp.gnu.org")
     ]
     assert len(urls) == 1
+
+
+def test_artifact_identity():
+    """Compute primary key should return the right identity
+
+    """
+
+    @attr.s
+    class TestPackageInfo(ArchivePackageInfo):
+        a = attr.ib()
+        b = attr.ib()
+
+    metadata = GNU_ARTIFACTS[0]
+
+    p_info = TestPackageInfo(raw={**metadata, "a": 1, "b": 2}, a=1, b=2, **metadata,)
+
+    for id_keys, expected_id in [
+        (["a", "b"], [1, 2]),
+        ([], []),
+        (["a", "key-that-does-not-exist"], [1, None]),
+        (
+            None,
+            [
+                metadata["time"],
+                metadata["url"],
+                metadata["length"],
+                metadata["version"],
+            ],
+        ),
+    ]:
+        actual_id = p_info.artifact_identity(id_keys=id_keys)
+        assert actual_id == expected_id

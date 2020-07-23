@@ -3,6 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import datetime
 import json
 import logging
 import requests
@@ -31,9 +32,52 @@ from swh.loader.package.utils import download
 logger = logging.getLogger(__name__)
 
 
+@attr.s
 class DepositPackageInfo(BasePackageInfo):
     filename = attr.ib(type=str)  # instead of Optional[str]
     raw = attr.ib(type=Dict[str, Any])
+
+    author_date = attr.ib(type=datetime.datetime)
+    """codemeta:dateCreated if any, deposit completed_date otherwise"""
+    commit_date = attr.ib(type=datetime.datetime)
+    """codemeta:datePublished if any, deposit completed_date otherwise"""
+    client = attr.ib(type=str)
+    id = attr.ib(type=int)
+    """Internal ID of the deposit in the deposit DB"""
+    collection = attr.ib(type=str)
+    """The collection in the deposit; see SWORD specification."""
+    author = attr.ib(type=Person)
+    committer = attr.ib(type=Person)
+    revision_parents = attr.ib(type=Tuple[Sha1Git, ...])
+    """Revisions created from previous deposits, that will be used as parents of the
+    revision created for this deposit."""
+
+    @classmethod
+    def from_metadata(
+        cls, metadata: Dict[str, Any], url: str, filename: str
+    ) -> "DepositPackageInfo":
+        # Note:
+        # `date` and `committer_date` are always transmitted by the deposit read api
+        # which computes itself the values. The loader needs to use those to create the
+        # revision.
+
+        metadata = metadata.copy()
+        # FIXME: this removes information from 'raw' metadata
+        depo = metadata.pop("deposit")
+
+        return cls(
+            url=url,
+            filename=filename,
+            author_date=depo["author_date"],
+            commit_date=depo["committer_date"],
+            client=depo["client"],
+            id=depo["id"],
+            collection=depo["collection"],
+            author=parse_author(depo["author"]),
+            committer=parse_author(depo["committer"]),
+            revision_parents=tuple(hash_to_bytes(p) for p in depo["revision_parents"]),
+            raw=metadata,
+        )
 
 
 class DepositLoader(PackageLoader[DepositPackageInfo]):
@@ -66,8 +110,8 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
     def get_package_info(
         self, version: str
     ) -> Iterator[Tuple[str, DepositPackageInfo]]:
-        p_info = DepositPackageInfo(
-            url=self.url, filename="archive.zip", raw=self.metadata,
+        p_info = DepositPackageInfo.from_metadata(
+            self.metadata, url=self.url, filename="archive.zip",
         )
         yield "HEAD", p_info
 
@@ -80,41 +124,27 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
         return [self.client.archive_get(self.deposit_id, tmpdir, p_info.filename)]
 
     def build_revision(
-        self, a_metadata: Dict, uncompressed_path: str, directory: Sha1Git
+        self, p_info: DepositPackageInfo, uncompressed_path: str, directory: Sha1Git
     ) -> Optional[Revision]:
-        depo = a_metadata.pop("deposit")
-
-        # Note:
-        # `date` and `committer_date` are always transmitted by the deposit read api
-        # which computes itself the values. The loader needs to use those to create the
-        # revision.
-
-        # date: codemeta:dateCreated if any, deposit completed_date otherwise
-        date = TimestampWithTimezone.from_dict(depo["author_date"])
-        # commit_date: codemeta:datePublished if any, deposit completed_date otherwise
-        commit_date = TimestampWithTimezone.from_dict(depo["committer_date"])
-
-        client, id, collection = [depo[k] for k in ["client", "id", "collection"]]
-        message = f"{client}: Deposit {id} in collection {collection}".encode("utf-8")
-
-        author = parse_author(depo["author"])
-        committer = parse_author(depo["committer"])
+        message = (
+            f"{p_info.client}: Deposit {p_info.id} in collection {p_info.collection}"
+        ).encode("utf-8")
 
         return Revision(
             type=RevisionType.TAR,
             message=message,
-            author=author,
-            date=date,
-            committer=committer,
-            committer_date=commit_date,
-            parents=tuple([hash_to_bytes(p) for p in depo["revision_parents"]]),
+            author=p_info.author,
+            date=TimestampWithTimezone.from_dict(p_info.author_date),
+            committer=p_info.committer,
+            committer_date=TimestampWithTimezone.from_dict(p_info.commit_date),
+            parents=p_info.revision_parents,
             directory=directory,
             synthetic=True,
             metadata={
                 "extrinsic": {
                     "provider": self.client.metadata_url(self.deposit_id),
                     "when": self.visit_date.isoformat(),
-                    "raw": a_metadata,  # Actually the processed metadata instead of raw
+                    "raw": p_info.raw,
                 },
             },
         )

@@ -32,8 +32,42 @@ logger = logging.getLogger(__name__)
 EMPTY_PERSON = Person(fullname=b"", name=None, email=None)
 
 
+@attr.s
 class NpmPackageInfo(BasePackageInfo):
     raw = attr.ib(type=Dict[str, Any])
+
+    date = attr.ib(type=Optional[str])
+    shasum = attr.ib(type=str)
+    """sha1 checksum"""
+    version = attr.ib(type=str)
+
+    @classmethod
+    def from_metadata(
+        cls, project_metadata: Dict[str, Any], version: str
+    ) -> "NpmPackageInfo":
+        package_metadata = project_metadata["versions"][version]
+        url = package_metadata["dist"]["tarball"]
+
+        # No date available in intrinsic metadata: retrieve it from the API
+        # metadata, using the version number that the API claims this package
+        # has.
+        extrinsic_version = package_metadata["version"]
+
+        if "time" in project_metadata:
+            date = project_metadata["time"][extrinsic_version]
+        elif "mtime" in package_metadata:
+            date = package_metadata["mtime"]
+        else:
+            date = None
+
+        return cls(
+            url=url,
+            filename=os.path.basename(url),
+            date=date,
+            shasum=package_metadata["dist"]["shasum"],
+            version=extrinsic_version,
+            raw=package_metadata,  # FIXME: we're losing some of the project metadata
+        )
 
 
 class NpmLoader(PackageLoader[NpmPackageInfo]):
@@ -71,46 +105,37 @@ class NpmLoader(PackageLoader[NpmPackageInfo]):
     def get_default_version(self) -> str:
         return self.info["dist-tags"].get("latest", "")
 
-    def get_package_info(self, version: str) -> Iterator[Tuple[str, NpmPackageInfo]]:
-        meta = self.info["versions"][version]
-        url = meta["dist"]["tarball"]
-        p_info = NpmPackageInfo(url=url, filename=os.path.basename(url), raw=meta,)
+    def get_package_info(
+        self, version: str
+    ) -> Iterator[Tuple[str, NpmPackageInfo]]:
+        p_info = NpmPackageInfo.from_metadata(
+            project_metadata=self.info, version=version
+        )
         yield release_name(version), p_info
 
     def resolve_revision_from(
-        self, known_artifacts: Dict, artifact_metadata: Dict
+        self, known_artifacts: Dict, p_info: NpmPackageInfo
     ) -> Optional[bytes]:
-        return artifact_to_revision_id(known_artifacts, artifact_metadata)
+        return artifact_to_revision_id(known_artifacts, p_info)
 
     def build_revision(
-        self, a_metadata: Dict, uncompressed_path: str, directory: Sha1Git
+        self, p_info: NpmPackageInfo, uncompressed_path: str, directory: Sha1Git
     ) -> Optional[Revision]:
         i_metadata = extract_intrinsic_metadata(uncompressed_path)
         if not i_metadata:
             return None
-        # from intrinsic metadata
         author = extract_npm_package_author(i_metadata)
         message = i_metadata["version"].encode("ascii")
 
-        # from extrinsic metadata
-
-        # No date available in intrinsic metadata: retrieve it from the API
-        # metadata, using the version number that the API claims this package
-        # has.
-        extrinsic_version = a_metadata["version"]
-
-        if "time" in self.info:
-            date = self.info["time"][extrinsic_version]
-        elif "mtime" in a_metadata:
-            date = a_metadata["mtime"]
-        else:
-            artifact_name = os.path.basename(a_metadata["dist"]["tarball"])
+        if p_info.date is None:
+            url = p_info.url
+            artifact_name = os.path.basename(url)
             raise ValueError(
                 "Origin %s: Cannot determine upload time for artifact %s."
-                % (self.url, artifact_name)
+                % (p_info.url, artifact_name)
             )
 
-        date = TimestampWithTimezone.from_iso8601(date)
+        date = TimestampWithTimezone.from_iso8601(p_info.date)
 
         # FIXME: this is to remain bug-compatible with earlier versions:
         date = attr.evolve(date, timestamp=attr.evolve(date.timestamp, microseconds=0))
@@ -130,7 +155,7 @@ class NpmLoader(PackageLoader[NpmPackageInfo]):
                 "extrinsic": {
                     "provider": self.provider_url,
                     "when": self.visit_date.isoformat(),
-                    "raw": a_metadata,
+                    "raw": p_info.raw,
                 },
             },
         )
@@ -138,7 +163,7 @@ class NpmLoader(PackageLoader[NpmPackageInfo]):
 
 
 def artifact_to_revision_id(
-    known_artifacts: Dict, artifact_metadata: Dict
+    known_artifacts: Dict, p_info: NpmPackageInfo
 ) -> Optional[bytes]:
     """Given metadata artifact, solves the associated revision id.
 
@@ -165,7 +190,7 @@ def artifact_to_revision_id(
         }
 
     """
-    shasum = artifact_metadata["dist"]["shasum"]
+    shasum = p_info.shasum
     for rev_id, known_artifact in known_artifacts.items():
         known_original_artifact = known_artifact.get("original_artifact")
         if not known_original_artifact:

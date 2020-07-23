@@ -739,11 +739,9 @@ def test_pypi_artifact_to_revision_id_none():
     """Current loader version should stop soon if nothing can be found
 
     """
-    artifact_metadata = {
-        "digests": {
-            "sha256": "6975816f2c5ad4046acc676ba112f2fff945b01522d63948531f11f11e0892ec",  # noqa
-        },
-    }
+
+    class artifact_metadata:
+        sha256 = "6975816f2c5ad4046acc676ba112f2fff945b01522d63948531f11f11e0892ec"
 
     assert artifact_to_revision_id({}, artifact_metadata) is None
 
@@ -760,11 +758,9 @@ def test_pypi_artifact_to_revision_id_old_loader_version():
     """Current loader version should solve old metadata scheme
 
     """
-    artifact_metadata = {
-        "digests": {
-            "sha256": "6975816f2c5ad4046acc676ba112f2fff945b01522d63948531f11f11e0892ec",  # noqa
-        }
-    }
+
+    class artifact_metadata:
+        sha256 = "6975816f2c5ad4046acc676ba112f2fff945b01522d63948531f11f11e0892ec"
 
     known_artifacts = {
         hash_to_bytes("b11ebac8c9d0c9e5063a2df693a18e3aba4b2f92"): {
@@ -786,11 +782,9 @@ def test_pypi_artifact_to_revision_id_current_loader_version():
     """Current loader version should be able to solve current metadata scheme
 
     """
-    artifact_metadata = {
-        "digests": {
-            "sha256": "6975816f2c5ad4046acc676ba112f2fff945b01522d63948531f11f11e0892ec",  # noqa
-        }
-    }
+
+    class artifact_metadata:
+        sha256 = "6975816f2c5ad4046acc676ba112f2fff945b01522d63948531f11f11e0892ec"
 
     known_artifacts = {
         hash_to_bytes("b11ebac8c9d0c9e5063a2df693a18e3aba4b2f92"): {
@@ -810,20 +804,6 @@ def test_pypi_artifact_to_revision_id_current_loader_version():
     assert artifact_to_revision_id(known_artifacts, artifact_metadata) == hash_to_bytes(
         "b11ebac8c9d0c9e5063a2df693a18e3aba4b2f92"
     )
-
-
-def test_pypi_artifact_to_revision_id_failures():
-    with pytest.raises(KeyError, match="sha256"):
-        artifact_metadata = {
-            "digests": {},
-        }
-        assert artifact_to_revision_id({}, artifact_metadata)
-
-    with pytest.raises(KeyError, match="digests"):
-        artifact_metadata = {
-            "something": "wrong",
-        }
-        assert artifact_to_revision_id({}, artifact_metadata)
 
 
 def test_pypi_artifact_with_no_intrinsic_metadata(swh_config, requests_mock_datadir):

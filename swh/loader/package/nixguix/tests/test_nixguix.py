@@ -18,6 +18,7 @@ from unittest.mock import patch
 from swh.model.model import Snapshot, SnapshotBranch, TargetType
 from swh.loader.package.archive.loader import ArchiveLoader
 from swh.loader.package.nixguix.loader import (
+    NixGuixPackageInfo,
     NixGuixLoader,
     retrieve_sources,
     clean_sources,
@@ -312,10 +313,14 @@ def test_resolve_revision_from(swh_config, requests_mock_datadir):
         "id2": {"extrinsic": {"raw": {"url": "url2", "integrity": "integrity2"}}},
     }
 
-    metadata = {"url": "url1", "integrity": "integrity1"}
-    assert loader.resolve_revision_from(known_artifacts, metadata) == "id1"
-    metadata = {"url": "url3", "integrity": "integrity3"}
-    assert loader.resolve_revision_from(known_artifacts, metadata) == None  # noqa
+    p_info = NixGuixPackageInfo.from_metadata(
+        {"url": "url1", "integrity": "integrity1"}
+    )
+    assert loader.resolve_revision_from(known_artifacts, p_info) == "id1"
+    p_info = NixGuixPackageInfo.from_metadata(
+        {"url": "url3", "integrity": "integrity3"}
+    )
+    assert loader.resolve_revision_from(known_artifacts, p_info) == None  # noqa
 
 
 def test_evaluation_branch(swh_config, requests_mock_datadir):

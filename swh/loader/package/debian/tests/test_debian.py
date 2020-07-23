@@ -3,7 +3,6 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import copy
 import logging
 import pytest
 import random
@@ -12,11 +11,14 @@ from os import path
 
 from swh.loader.package.debian.loader import (
     DebianLoader,
+    DebianPackageInfo,
+    DebianPackageChangelog,
+    IntrinsicPackageMetadata,
     download_package,
     dsc_information,
     uid_to_person,
     prepare_person,
-    get_package_metadata,
+    get_intrinsic_package_metadata,
     extract_package,
 )
 from swh.loader.tests import (
@@ -33,6 +35,8 @@ from swh.model.model import Person, Snapshot, SnapshotBranch, TargetType
 
 logger = logging.getLogger(__name__)
 
+
+URL = "deb://Debian/packages/cicero"
 
 PACKAGE_FILES = {
     "name": "cicero",
@@ -106,9 +110,8 @@ def test_debian_first_visit(swh_config, requests_mock_datadir):
     """With no prior visit, load a gnu project ends up with 1 snapshot
 
     """
-    url = "deb://Debian/packages/cicero"
     loader = DebianLoader(
-        url=url, date="2019-10-12T05:58:09.165557+00:00", packages=PACKAGE_PER_VERSION,
+        url=URL, date="2019-10-12T05:58:09.165557+00:00", packages=PACKAGE_PER_VERSION,
     )
 
     actual_load_status = loader.load()
@@ -118,7 +121,7 @@ def test_debian_first_visit(swh_config, requests_mock_datadir):
         "snapshot_id": expected_snapshot_id,
     }
 
-    assert_last_visit_matches(loader.storage, url, status="full", type="deb")
+    assert_last_visit_matches(loader.storage, URL, status="full", type="deb")
 
     stats = get_stats(loader.storage)
     assert {
@@ -150,9 +153,8 @@ def test_debian_first_visit_then_another_visit(swh_config, requests_mock_datadir
     """With no prior visit, load a debian project ends up with 1 snapshot
 
     """
-    url = "deb://Debian/packages/cicero"
     loader = DebianLoader(
-        url=url, date="2019-10-12T05:58:09.165557+00:00", packages=PACKAGE_PER_VERSION
+        url=URL, date="2019-10-12T05:58:09.165557+00:00", packages=PACKAGE_PER_VERSION
     )
 
     actual_load_status = loader.load()
@@ -163,7 +165,7 @@ def test_debian_first_visit_then_another_visit(swh_config, requests_mock_datadir
         "snapshot_id": expected_snapshot_id,
     }
 
-    assert_last_visit_matches(loader.storage, url, status="full", type="deb")
+    assert_last_visit_matches(loader.storage, URL, status="full", type="deb")
 
     stats = get_stats(loader.storage)
     assert {
@@ -193,7 +195,7 @@ def test_debian_first_visit_then_another_visit(swh_config, requests_mock_datadir
     # No change in between load
     actual_load_status2 = loader.load()
     assert actual_load_status2["status"] == "uneventful"
-    assert_last_visit_matches(loader.storage, url, status="full", type="deb")
+    assert_last_visit_matches(loader.storage, URL, status="full", type="deb")
 
     stats2 = get_stats(loader.storage)
     assert {
@@ -246,7 +248,8 @@ def test_prepare_person():
 
 def test_download_package(datadir, tmpdir, requests_mock_datadir):
     tmpdir = str(tmpdir)  # py3.5 work around (LocalPath issue)
-    all_hashes = download_package(PACKAGE_FILES, tmpdir)
+    p_info = DebianPackageInfo.from_metadata(PACKAGE_FILES, url=URL)
+    all_hashes = download_package(p_info, tmpdir)
     assert all_hashes == {
         "cicero_0.7.2-3.diff.gz": {
             "checksums": {
@@ -277,7 +280,8 @@ def test_download_package(datadir, tmpdir, requests_mock_datadir):
 
 def test_dsc_information_ok():
     fname = "cicero_0.7.2-3.dsc"
-    dsc_url, dsc_name = dsc_information(PACKAGE_FILES)
+    p_info = DebianPackageInfo.from_metadata(PACKAGE_FILES, url=URL)
+    dsc_url, dsc_name = dsc_information(p_info)
 
     assert dsc_url == PACKAGE_FILES["files"][fname]["uri"]
     assert dsc_name == PACKAGE_FILES["files"][fname]["name"]
@@ -285,10 +289,10 @@ def test_dsc_information_ok():
 
 def test_dsc_information_not_found():
     fname = "cicero_0.7.2-3.dsc"
-    package_files = copy.deepcopy(PACKAGE_FILES)
-    package_files["files"].pop(fname)
+    p_info = DebianPackageInfo.from_metadata(PACKAGE_FILES, url=URL)
+    p_info.files.pop(fname)
 
-    dsc_url, dsc_name = dsc_information(package_files)
+    dsc_url, dsc_name = dsc_information(p_info)
 
     assert dsc_url is None
     assert dsc_name is None
@@ -297,30 +301,30 @@ def test_dsc_information_not_found():
 def test_dsc_information_too_many_dsc_entries():
     # craft an extra dsc file
     fname = "cicero_0.7.2-3.dsc"
-    package_files = copy.deepcopy(PACKAGE_FILES)
-    data = package_files["files"][fname]
+    p_info = DebianPackageInfo.from_metadata(PACKAGE_FILES, url=URL)
+    data = p_info.files[fname]
     fname2 = fname.replace("cicero", "ciceroo")
-    package_files["files"][fname2] = data
+    p_info.files[fname2] = data
 
     with pytest.raises(
         ValueError,
         match="Package %s_%s references several dsc"
-        % (package_files["name"], package_files["version"]),
+        % (PACKAGE_FILES["name"], PACKAGE_FILES["version"]),
     ):
-        dsc_information(package_files)
+        dsc_information(p_info)
 
 
-def test_get_package_metadata(requests_mock_datadir, datadir, tmp_path):
+def test_get_intrinsic_package_metadata(requests_mock_datadir, datadir, tmp_path):
     tmp_path = str(tmp_path)  # py3.5 compat.
-    package = PACKAGE_FILES
+    p_info = DebianPackageInfo.from_metadata(PACKAGE_FILES, url=URL)
 
-    logger.debug("package: %s", package)
+    logger.debug("p_info: %s", p_info)
 
     # download the packages
-    all_hashes = download_package(package, tmp_path)
+    all_hashes = download_package(p_info, tmp_path)
 
     # Retrieve information from package
-    _, dsc_name = dsc_information(package)
+    _, dsc_name = dsc_information(p_info)
 
     dl_artifacts = [(tmp_path, hashes) for hashes in all_hashes.values()]
 
@@ -329,25 +333,27 @@ def test_get_package_metadata(requests_mock_datadir, datadir, tmp_path):
 
     # Retrieve information on package
     dsc_path = path.join(path.dirname(extracted_path), dsc_name)
-    actual_package_info = get_package_metadata(package, dsc_path, extracted_path)
+    actual_package_info = get_intrinsic_package_metadata(
+        p_info, dsc_path, extracted_path
+    )
 
     logger.debug("actual_package_info: %s", actual_package_info)
 
-    assert actual_package_info == {
-        "changelog": {
-            "date": "2014-10-19T16:52:35+02:00",
-            "history": [
+    assert actual_package_info == IntrinsicPackageMetadata(
+        changelog=DebianPackageChangelog(
+            date="2014-10-19T16:52:35+02:00",
+            history=[
                 ("cicero", "0.7.2-2"),
                 ("cicero", "0.7.2-1"),
                 ("cicero", "0.7-1"),
             ],
-            "person": {
+            person={
                 "email": "sthibault@debian.org",
                 "fullname": "Samuel Thibault <sthibault@debian.org>",
                 "name": "Samuel Thibault",
             },
-        },
-        "maintainers": [
+        ),
+        maintainers=[
             {
                 "email": "debian-accessibility@lists.debian.org",
                 "fullname": "Debian Accessibility Team "
@@ -360,15 +366,14 @@ def test_get_package_metadata(requests_mock_datadir, datadir, tmp_path):
                 "name": "Samuel Thibault",
             },
         ],
-        "name": "cicero",
-        "version": "0.7.2-3",
-    }
+        name="cicero",
+        version="0.7.2-3",
+    )
 
 
 def test_debian_multiple_packages(swh_config, requests_mock_datadir):
-    url = "deb://Debian/packages/cicero"
     loader = DebianLoader(
-        url=url, date="2019-10-12T05:58:09.165557+00:00", packages=PACKAGES_PER_VERSION
+        url=URL, date="2019-10-12T05:58:09.165557+00:00", packages=PACKAGES_PER_VERSION
     )
 
     actual_load_status = loader.load()
@@ -378,7 +383,7 @@ def test_debian_multiple_packages(swh_config, requests_mock_datadir):
         "snapshot_id": expected_snapshot_id,
     }
 
-    assert_last_visit_matches(loader.storage, url, status="full", type="deb")
+    assert_last_visit_matches(loader.storage, URL, status="full", type="deb")
 
     expected_snapshot = Snapshot(
         id=hash_to_bytes(expected_snapshot_id),
@@ -401,12 +406,19 @@ def test_resolve_revision_from_edge_cases():
     """Solving revision with empty data will result in unknown revision
 
     """
-    for package_artifacts in [{}, PACKAGE_FILES]:
-        actual_revision = resolve_revision_from({}, package_artifacts)
+    empty_artifact = {
+        "name": PACKAGE_FILES["name"],
+        "version": PACKAGE_FILES["version"],
+    }
+    for package_artifacts in [empty_artifact, PACKAGE_FILES]:
+        p_info = DebianPackageInfo.from_metadata(package_artifacts, url=URL)
+        actual_revision = resolve_revision_from({}, p_info)
         assert actual_revision is None
 
     for known_artifacts in [{}, PACKAGE_FILES]:
-        actual_revision = resolve_revision_from(known_artifacts, {})
+        actual_revision = resolve_revision_from(
+            known_artifacts, DebianPackageInfo.from_metadata(empty_artifact, url=URL)
+        )
         assert actual_revision is None
 
     known_package_artifacts = {
@@ -417,7 +429,9 @@ def test_resolve_revision_from_edge_cases():
             # ... removed the unnecessary intermediary data
         }
     }
-    assert not resolve_revision_from(known_package_artifacts, PACKAGE_FILES)
+    assert not resolve_revision_from(
+        known_package_artifacts, DebianPackageInfo.from_metadata(PACKAGE_FILES, url=URL)
+    )
 
 
 def test_resolve_revision_from_edge_cases_hit_and_miss():
@@ -425,6 +439,7 @@ def test_resolve_revision_from_edge_cases_hit_and_miss():
 
     """
     artifact_metadata = PACKAGE_FILES2
+    p_info = DebianPackageInfo.from_metadata(artifact_metadata, url=URL)
     expected_revision_id = (
         b"(\x08\xf5\xb3\xf8Ch\xb4\x88\x9a\x9a\xe8'\xff\x85\x85O\xfe\xcf\x07"  # noqa
     )
@@ -435,7 +450,7 @@ def test_resolve_revision_from_edge_cases_hit_and_miss():
         }
     }
 
-    actual_revision = resolve_revision_from(known_package_artifacts, artifact_metadata)
+    actual_revision = resolve_revision_from(known_package_artifacts, p_info)
 
     assert actual_revision is None
 
@@ -445,6 +460,7 @@ def test_resolve_revision_from():
 
     """
     artifact_metadata = PACKAGE_FILES
+    p_info = DebianPackageInfo.from_metadata(artifact_metadata, url=URL)
     expected_revision_id = (
         b"(\x07\xf5\xb3\xf8Ch\xb4\x88\x9a\x9a\xe8'\xfe\x85\x85O\xfe\xcf\x07"  # noqa
     )
@@ -453,7 +469,11 @@ def test_resolve_revision_from():
     # shuffling dict's keys
     keys = list(files.keys())
     random.shuffle(keys)
-    package_files = {"files": {k: files[k] for k in keys}}
+    package_files = {
+        "name": PACKAGE_FILES["name"],
+        "version": PACKAGE_FILES["version"],
+        "files": {k: files[k] for k in keys},
+    }
 
     known_package_artifacts = {
         expected_revision_id: {
@@ -462,6 +482,6 @@ def test_resolve_revision_from():
         }
     }
 
-    actual_revision = resolve_revision_from(known_package_artifacts, artifact_metadata)
+    actual_revision = resolve_revision_from(known_package_artifacts, p_info)
 
     assert actual_revision == expected_revision_id

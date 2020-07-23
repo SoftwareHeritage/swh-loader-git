@@ -51,9 +51,28 @@ logger = logging.getLogger(__name__)
 
 @attr.s
 class BasePackageInfo:
+    """Compute the primary key for a dict using the id_keys as primary key
+       composite.
+
+    Args:
+        d: A dict entry to compute the primary key on
+        id_keys: Sequence of keys to use as primary key
+
+    Returns:
+        The identity for that dict entry
+
+    """
+
     url = attr.ib(type=str)
     filename = attr.ib(type=Optional[str])
     raw = attr.ib(type=Any)
+
+    @property
+    def ID_KEYS(self):
+        raise NotImplementedError(f"{self.__class__.__name__} is missing ID_KEYS")
+
+    def artifact_identity(self):
+        return [getattr(self, k) for k in self.ID_KEYS]
 
 
 TPackageInfo = TypeVar("TPackageInfo", bound=BasePackageInfo)
@@ -112,13 +131,13 @@ class PackageLoader(Generic[TPackageInfo]):
         yield from {}
 
     def build_revision(
-        self, a_metadata: Dict, uncompressed_path: str, directory: Sha1Git
+        self, p_info: TPackageInfo, uncompressed_path: str, directory: Sha1Git
     ) -> Optional[Revision]:
         """Build the revision from the archive metadata (extrinsic
         artifact metadata) and the intrinsic metadata.
 
         Args:
-            a_metadata: Artifact metadata
+            p_info: Package information
             uncompressed_path: Artifact uncompressed path on disk
 
         Returns:
@@ -170,7 +189,7 @@ class PackageLoader(Generic[TPackageInfo]):
         }
 
     def resolve_revision_from(
-        self, known_artifacts: Dict, artifact_metadata: Dict
+        self, known_artifacts: Dict, p_info: TPackageInfo,
     ) -> Optional[bytes]:
         """Resolve the revision from a snapshot and an artifact metadata dict.
 
@@ -180,7 +199,7 @@ class PackageLoader(Generic[TPackageInfo]):
 
         Args:
             snapshot: Snapshot
-            artifact_metadata: Information dict
+            p_info: Package information
 
         Returns:
             None or revision identifier
@@ -345,7 +364,7 @@ class PackageLoader(Generic[TPackageInfo]):
             # `p_` stands for `package_`
             for branch_name, p_info in self.get_package_info(version):
                 logger.debug("package_info: %s", p_info)
-                revision_id = self.resolve_revision_from(known_artifacts, p_info.raw)
+                revision_id = self.resolve_revision_from(known_artifacts, p_info)
                 if revision_id is None:
                     try:
                         revision_id = self._load_revision(p_info, origin)
@@ -431,7 +450,7 @@ class PackageLoader(Generic[TPackageInfo]):
 
             # FIXME: This should be release. cf. D409
             revision = self.build_revision(
-                p_info.raw, uncompressed_path, directory=directory.hash
+                p_info, uncompressed_path, directory=directory.hash
             )
             if not revision:
                 # Some artifacts are missing intrinsic metadata

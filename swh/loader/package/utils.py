@@ -8,7 +8,7 @@ import logging
 import os
 import requests
 
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import Dict, Optional, Tuple
 
 from swh.model.hashutil import MultiHash, HASH_BLOCK_SIZE
 from swh.model.model import Person
@@ -121,18 +121,3 @@ def release_name(version: str, filename: Optional[str] = None) -> str:
     if filename:
         return "releases/%s/%s" % (version, filename)
     return "releases/%s" % version
-
-
-def artifact_identity(d: Mapping[str, Any], id_keys: Sequence[str]) -> List[Any]:
-    """Compute the primary key for a dict using the id_keys as primary key
-       composite.
-
-    Args:
-        d: A dict entry to compute the primary key on
-        id_keys: Sequence of keys to use as primary key
-
-    Returns:
-        The identity for that dict entry
-
-    """
-    return [d.get(k) for k in id_keys]

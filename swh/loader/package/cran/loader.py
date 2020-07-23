@@ -16,7 +16,7 @@ import attr
 from debian.deb822 import Deb822
 
 from swh.loader.package.loader import BasePackageInfo, PackageLoader
-from swh.loader.package.utils import release_name, artifact_identity
+from swh.loader.package.utils import release_name
 from swh.model.model import (
     Person,
     TimestampWithTimezone,
@@ -32,8 +32,22 @@ logger = logging.getLogger(__name__)
 DATE_PATTERN = re.compile(r"^(?P<year>\d{4})-(?P<month>\d{2})$")
 
 
+@attr.s
 class CRANPackageInfo(BasePackageInfo):
     raw = attr.ib(type=Dict[str, Any])
+    version = attr.ib(type=str)
+
+    ID_KEYS = ["url", "version"]
+
+    @classmethod
+    def from_metadata(cls, a_metadata: Dict[str, Any]) -> "CRANPackageInfo":
+        url = a_metadata["url"]
+        return CRANPackageInfo(
+            url=url,
+            filename=path.basename(url),
+            raw=a_metadata,
+            version=a_metadata["version"],
+        )
 
 
 class CRANLoader(PackageLoader[CRANPackageInfo]):
@@ -49,7 +63,6 @@ class CRANLoader(PackageLoader[CRANPackageInfo]):
         """
         super().__init__(url=url)
         # explicit what we consider the artifact identity
-        self.id_keys = ["url", "version"]
         self.artifacts = artifacts
 
     def get_versions(self) -> List[str]:
@@ -63,40 +76,36 @@ class CRANLoader(PackageLoader[CRANPackageInfo]):
 
     def get_package_info(self, version: str) -> Iterator[Tuple[str, CRANPackageInfo]]:
         for a_metadata in self.artifacts:
-            url = a_metadata["url"]
-            package_version = a_metadata["version"]
-            if version == package_version:
-                p_info = CRANPackageInfo(
-                    url=url, filename=path.basename(url), raw=a_metadata,
-                )
+            p_info = CRANPackageInfo.from_metadata(a_metadata)
+            if version == p_info.version:
                 yield release_name(version), p_info
 
     def resolve_revision_from(
-        self,
-        known_artifacts: Mapping[bytes, Mapping],
-        artifact_metadata: Mapping[str, Any],
+        self, known_artifacts: Mapping[bytes, Mapping], p_info: CRANPackageInfo,
     ) -> Optional[bytes]:
         """Given known_artifacts per revision, try to determine the revision for
            artifact_metadata
 
         """
-        new_identity = artifact_identity(artifact_metadata, self.id_keys)
+        new_identity = p_info.artifact_identity()
         for rev_id, known_artifact_meta in known_artifacts.items():
             logging.debug("known_artifact_meta: %s", known_artifact_meta)
             known_artifact = known_artifact_meta["extrinsic"]["raw"]
-            known_identity = artifact_identity(known_artifact, self.id_keys)
+            known_identity = CRANPackageInfo.from_metadata(
+                known_artifact
+            ).artifact_identity()
             if new_identity == known_identity:
                 return rev_id
         return None
 
     def build_revision(
-        self, a_metadata: Mapping[str, Any], uncompressed_path: str, directory: Sha1Git
+        self, p_info: CRANPackageInfo, uncompressed_path: str, directory: Sha1Git
     ) -> Optional[Revision]:
         # a_metadata is empty
         metadata = extract_intrinsic_metadata(uncompressed_path)
         date = parse_date(metadata.get("Date"))
         author = Person.from_fullname(metadata.get("Maintainer", "").encode())
-        version = metadata.get("Version", a_metadata["version"])
+        version = metadata.get("Version", p_info.version)
         return Revision(
             message=version.encode("utf-8"),
             type=RevisionType.TAR,
@@ -112,7 +121,7 @@ class CRANLoader(PackageLoader[CRANPackageInfo]):
                 "extrinsic": {
                     "provider": self.url,
                     "when": self.visit_date.isoformat(),
-                    "raw": a_metadata,
+                    "raw": p_info.raw,
                 },
             },
         )

@@ -501,9 +501,9 @@ def test_npm_artifact_to_revision_id_none():
     """Current loader version should stop soon if nothing can be found
 
     """
-    artifact_metadata = {
-        "dist": {"shasum": "05181c12cd8c22035dd31155656826b85745da37",},
-    }
+
+    class artifact_metadata:
+        shasum = "05181c12cd8c22035dd31155656826b85745da37"
 
     known_artifacts = {
         "b11ebac8c9d0c9e5063a2df693a18e3aba4b2f92": {},
@@ -516,9 +516,9 @@ def test_npm_artifact_to_revision_id_old_loader_version():
     """Current loader version should solve old metadata scheme
 
     """
-    artifact_metadata = {
-        "dist": {"shasum": "05181c12cd8c22035dd31155656826b85745da37",}
-    }
+
+    class artifact_metadata:
+        shasum = "05181c12cd8c22035dd31155656826b85745da37"
 
     known_artifacts = {
         hash_to_bytes("b11ebac8c9d0c9e5063a2df693a18e3aba4b2f92"): {
@@ -538,9 +538,9 @@ def test_npm_artifact_to_revision_id_current_loader_version():
     """Current loader version should be able to solve current metadata scheme
 
     """
-    artifact_metadata = {
-        "dist": {"shasum": "05181c12cd8c22035dd31155656826b85745da37",}
-    }
+
+    class artifact_metadata:
+        shasum = "05181c12cd8c22035dd31155656826b85745da37"
 
     known_artifacts = {
         hash_to_bytes("b11ebac8c9d0c9e5063a2df693a18e3aba4b2f92"): {

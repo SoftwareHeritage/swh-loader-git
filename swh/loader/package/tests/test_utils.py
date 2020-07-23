@@ -9,7 +9,7 @@ import pytest
 
 
 import swh.loader.package
-from swh.loader.package.utils import download, api_info, release_name, artifact_identity
+from swh.loader.package.utils import download, api_info, release_name
 
 
 def test_version_generation():
@@ -156,24 +156,3 @@ def test_release_name():
         ("0.0.2", "something", "releases/0.0.2/something"),
     ]:
         assert release_name(version, filename) == expected_release
-
-
-def test_artifact_identity():
-    """Compute primary key should return the right identity
-
-    """
-    data = {
-        "a": 1,
-        "b": 2,
-        "length": 221837,
-        "filename": "8sync-0.1.0.tar.gz",
-        "version": "0.1.0",
-    }
-
-    for id_keys, expected_id in [
-        (["a", "b"], [1, 2]),
-        ([], []),
-        (["a", "key-that-does-not-exist"], [1, None]),
-    ]:
-        actual_id = artifact_identity(data, id_keys=id_keys)
-        assert actual_id == expected_id
