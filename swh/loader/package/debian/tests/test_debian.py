@@ -402,11 +402,11 @@ def test_resolve_revision_from_edge_cases():
 
     """
     for package_artifacts in [{}, PACKAGE_FILES]:
-        actual_revision = resolve_revision_from(package_artifacts, {})
+        actual_revision = resolve_revision_from({}, package_artifacts)
         assert actual_revision is None
 
     for known_artifacts in [{}, PACKAGE_FILES]:
-        actual_revision = resolve_revision_from({}, known_artifacts)
+        actual_revision = resolve_revision_from(known_artifacts, {})
         assert actual_revision is None
 
     known_package_artifacts = {
