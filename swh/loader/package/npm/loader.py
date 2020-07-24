@@ -34,7 +34,7 @@ EMPTY_PERSON = Person(fullname=b"", name=None, email=None)
 
 @attr.s
 class NpmPackageInfo(BasePackageInfo):
-    raw = attr.ib(type=Dict[str, Any])
+    raw_info = attr.ib(type=Dict[str, Any])
 
     date = attr.ib(type=Optional[str])
     shasum = attr.ib(type=str)
@@ -66,7 +66,7 @@ class NpmPackageInfo(BasePackageInfo):
             date=date,
             shasum=package_metadata["dist"]["shasum"],
             version=extrinsic_version,
-            raw=package_metadata,  # FIXME: we're losing some of the project metadata
+            raw_info=package_metadata,  # FIXME: loses some of the project metadata
         )
 
 
@@ -105,9 +105,7 @@ class NpmLoader(PackageLoader[NpmPackageInfo]):
     def get_default_version(self) -> str:
         return self.info["dist-tags"].get("latest", "")
 
-    def get_package_info(
-        self, version: str
-    ) -> Iterator[Tuple[str, NpmPackageInfo]]:
+    def get_package_info(self, version: str) -> Iterator[Tuple[str, NpmPackageInfo]]:
         p_info = NpmPackageInfo.from_metadata(
             project_metadata=self.info, version=version
         )
@@ -155,7 +153,7 @@ class NpmLoader(PackageLoader[NpmPackageInfo]):
                 "extrinsic": {
                     "provider": self.provider_url,
                     "when": self.visit_date.isoformat(),
-                    "raw": p_info.raw,
+                    "raw": p_info.raw_info,
                 },
             },
         )

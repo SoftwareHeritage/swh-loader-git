@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 @attr.s
 class DepositPackageInfo(BasePackageInfo):
     filename = attr.ib(type=str)  # instead of Optional[str]
-    raw = attr.ib(type=Dict[str, Any])
+    raw_info = attr.ib(type=Dict[str, Any])
 
     author_date = attr.ib(type=datetime.datetime)
     """codemeta:dateCreated if any, deposit completed_date otherwise"""
@@ -76,7 +76,7 @@ class DepositPackageInfo(BasePackageInfo):
             author=parse_author(depo["author"]),
             committer=parse_author(depo["committer"]),
             revision_parents=tuple(hash_to_bytes(p) for p in depo["revision_parents"]),
-            raw=metadata,
+            raw_info=metadata,
         )
 
 
@@ -144,7 +144,7 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
                 "extrinsic": {
                     "provider": self.client.metadata_url(self.deposit_id),
                     "when": self.visit_date.isoformat(),
-                    "raw": p_info.raw,
+                    "raw": p_info.raw_info,
                 },
             },
         )

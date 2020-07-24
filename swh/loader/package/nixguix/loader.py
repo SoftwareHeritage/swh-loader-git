@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 @attr.s
 class NixGuixPackageInfo(BasePackageInfo):
-    raw = attr.ib(type=Dict[str, Any])
+    raw_info = attr.ib(type=Dict[str, Any])
 
     integrity = attr.ib(type=str)
     """Hash of the archive, formatted as in the Subresource Integrity
@@ -41,7 +41,7 @@ class NixGuixPackageInfo(BasePackageInfo):
             url=metadata["url"],
             filename=None,
             integrity=metadata["integrity"],
-            raw=metadata,
+            raw_info=metadata,
         )
 
 
@@ -180,7 +180,7 @@ class NixGuixLoader(PackageLoader[NixGuixPackageInfo]):
                 "extrinsic": {
                     "provider": self.provider_url,
                     "when": self.visit_date.isoformat(),
-                    "raw": p_info.raw,
+                    "raw": p_info.raw_info,
                 },
             },
         )

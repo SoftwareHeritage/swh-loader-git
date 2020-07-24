@@ -359,7 +359,9 @@ def test_artifact_identity():
 
     metadata = GNU_ARTIFACTS[0]
 
-    p_info = TestPackageInfo(raw={**metadata, "a": 1, "b": 2}, a=1, b=2, **metadata,)
+    p_info = TestPackageInfo(
+        raw_info={**metadata, "a": 1, "b": 2}, a=1, b=2, **metadata,
+    )
 
     for id_keys, expected_id in [
         (["a", "b"], [1, 2]),

@@ -65,7 +65,6 @@ class BasePackageInfo:
 
     url = attr.ib(type=str)
     filename = attr.ib(type=Optional[str])
-    raw = attr.ib(type=Any)
 
     @property
     def ID_KEYS(self):

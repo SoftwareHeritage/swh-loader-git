@@ -34,7 +34,7 @@ DATE_PATTERN = re.compile(r"^(?P<year>\d{4})-(?P<month>\d{2})$")
 
 @attr.s
 class CRANPackageInfo(BasePackageInfo):
-    raw = attr.ib(type=Dict[str, Any])
+    raw_info = attr.ib(type=Dict[str, Any])
     version = attr.ib(type=str)
 
     ID_KEYS = ["url", "version"]
@@ -45,7 +45,7 @@ class CRANPackageInfo(BasePackageInfo):
         return CRANPackageInfo(
             url=url,
             filename=path.basename(url),
-            raw=a_metadata,
+            raw_info=a_metadata,
             version=a_metadata["version"],
         )
 
@@ -121,7 +121,7 @@ class CRANLoader(PackageLoader[CRANPackageInfo]):
                 "extrinsic": {
                     "provider": self.url,
                     "when": self.visit_date.isoformat(),
-                    "raw": p_info.raw,
+                    "raw": p_info.raw_info,
                 },
             },
         )

@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 @attr.s
 class PyPIPackageInfo(BasePackageInfo):
-    raw = attr.ib(type=Dict[str, Any])
+    raw_info = attr.ib(type=Dict[str, Any])
 
     comment_text = attr.ib(type=Optional[str])
     sha256 = attr.ib(type=str)
@@ -38,7 +38,7 @@ class PyPIPackageInfo(BasePackageInfo):
         return cls(
             url=metadata["url"],
             filename=metadata["filename"],
-            raw=metadata,
+            raw_info=metadata,
             comment_text=metadata.get("comment_text"),
             sha256=metadata["digests"]["sha256"],
             upload_time=metadata["upload_time"],
@@ -123,7 +123,7 @@ class PyPILoader(PackageLoader[PyPIPackageInfo]):
                 "extrinsic": {
                     "provider": self.provider_url,
                     "when": self.visit_date.isoformat(),
-                    "raw": p_info.raw,
+                    "raw": p_info.raw_info,
                 },
             },
         )

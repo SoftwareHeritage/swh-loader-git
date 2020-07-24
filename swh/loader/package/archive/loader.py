@@ -33,7 +33,7 @@ REVISION_MESSAGE = b"swh-loader-package: synthetic revision message"
 
 @attr.s
 class ArchivePackageInfo(BasePackageInfo):
-    raw = attr.ib(type=Dict[str, Any])
+    raw_info = attr.ib(type=Dict[str, Any])
     length = attr.ib(type=int)
     """Size of the archive file"""
     time = attr.ib(type=Union[str, datetime.datetime])
@@ -46,8 +46,8 @@ class ArchivePackageInfo(BasePackageInfo):
     def artifact_identity(self, id_keys=None):
         if id_keys is None:
             id_keys = self.ID_KEYS
-        # TODO: use parsed attributes instead of self.raw
-        return [self.raw.get(k) for k in id_keys]
+        # TODO: use parsed attributes instead of self.raw_info
+        return [self.raw_info.get(k) for k in id_keys]
 
     @classmethod
     def from_metadata(cls, a_metadata: Dict[str, Any]) -> "ArchivePackageInfo":
@@ -56,7 +56,7 @@ class ArchivePackageInfo(BasePackageInfo):
         return cls(
             url=url,
             filename=filename if filename else path.split(url)[-1],
-            raw=a_metadata,
+            raw_info=a_metadata,
             length=a_metadata["length"],
             time=a_metadata["time"],
             version=a_metadata["version"],
@@ -164,7 +164,7 @@ class ArchiveLoader(PackageLoader[ArchivePackageInfo]):
                 "extrinsic": {
                     "provider": self.url,
                     "when": self.visit_date.isoformat(),
-                    "raw": p_info.raw,
+                    "raw": p_info.raw_info,
                 },
             },
         )

@@ -64,7 +64,7 @@ class DebianPackageChangelog:
 
 @attr.s
 class DebianPackageInfo(BasePackageInfo):
-    raw = attr.ib(type=Dict[str, Any])
+    raw_info = attr.ib(type=Dict[str, Any])
     files = attr.ib(type=Dict[str, DebianFileMetadata])
     """Metadata of the files (.deb, .dsc, ...) of the package."""
     name = attr.ib(type=str)
@@ -75,7 +75,7 @@ class DebianPackageInfo(BasePackageInfo):
         return cls(
             url=url,
             filename=None,
-            raw=a_metadata,
+            raw_info=a_metadata,
             files={
                 file_name: DebianFileMetadata(**file_metadata)
                 for (file_name, file_metadata) in a_metadata.get("files", {}).items()
@@ -228,7 +228,7 @@ class DebianLoader(PackageLoader[DebianPackageInfo]):
                 "extrinsic": {
                     "provider": dsc_url,
                     "when": self.visit_date.isoformat(),
-                    "raw": p_info.raw,
+                    "raw": p_info.raw_info,
                 },
             },
         )

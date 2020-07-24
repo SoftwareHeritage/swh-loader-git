@@ -57,7 +57,6 @@ def test_artifact_identity():
 
     p_info = TestPackageInfo(
         url="http://example.org/",
-        raw={},
         a=1,
         b=2,
         length=221837,
