@@ -7,7 +7,7 @@ import datetime
 import logging
 import tempfile
 import os
-
+import sys
 from typing import (
     Any,
     Dict,
@@ -38,7 +38,12 @@ from swh.model.model import (
     Origin,
     OriginVisit,
     OriginVisitStatus,
+    MetadataAuthority,
+    MetadataFetcher,
+    MetadataTargetType,
+    RawExtrinsicMetadata,
 )
+from swh.model.identifiers import SWHID
 from swh.storage import get_storage
 from swh.storage.utils import now
 from swh.storage.algos.snapshot import snapshot_get_latest
@@ -66,6 +71,19 @@ class BasePackageInfo:
     url = attr.ib(type=str)
     filename = attr.ib(type=Optional[str])
 
+    # The following attribute has kw_only=True in order to allow subclasses
+    # to add attributes. Without kw_only, attributes without default values cannot
+    # go after attributes with default values.
+    # See <https://github.com/python-attrs/attrs/issues/38>
+
+    revision_extrinsic_metadata = attr.ib(
+        type=List[Tuple[datetime.datetime, str, bytes]], default=[], kw_only=True,
+    )
+    """Tuple elements are respectively the 'discovery_date', 'format',
+    and 'metadata' fields of RawExtrinsicMetadata"""
+
+    # TODO: add support for metadata for origins, directories, and contents
+
     @property
     def ID_KEYS(self):
         raise NotImplementedError(f"{self.__class__.__name__} is missing ID_KEYS")
@@ -80,6 +98,11 @@ TPackageInfo = TypeVar("TPackageInfo", bound=BasePackageInfo)
 class PackageLoader(Generic[TPackageInfo]):
     # Origin visit type (str) set by the loader
     visit_type = ""
+
+    DEFAULT_CONFIG = {
+        "create_authorities": ("bool", True),
+        "create_fetchers": ("bool", True),
+    }
 
     def __init__(self, url):
         """Loader's constructor. This raises exception if the minimal required
@@ -367,6 +390,8 @@ class PackageLoader(Generic[TPackageInfo]):
                 if revision_id is None:
                     try:
                         revision_id = self._load_revision(p_info, origin)
+                        if revision_id:
+                            self._load_extrinsic_revision_metadata(p_info, revision_id)
                         self.storage.flush()
                         status_load = "eventful"
                     except Exception as e:
@@ -517,3 +542,97 @@ class PackageLoader(Generic[TPackageInfo]):
         self.storage.snapshot_add([snapshot])
 
         return snapshot
+
+    def get_loader_name(self) -> str:
+        """Returns a fully qualified name of this loader."""
+        return f"{self.__class__.__module__}.{self.__class__.__name__}"
+
+    def get_loader_version(self) -> str:
+        """Returns the version of the current loader."""
+        module_name = self.__class__.__module__ or ""
+        module_name_parts = module_name.split(".")
+
+        # Iterate rootward through the package hierarchy until we find a parent of this
+        # loader's module with a __version__ attribute.
+        for prefix_size in range(len(module_name_parts), 0, -1):
+            package_name = ".".join(module_name_parts[0:prefix_size])
+            module = sys.modules[package_name]
+            if hasattr(module, "__version__"):
+                return module.__version__  # type: ignore
+
+        # If this loader's class has no parent package with a __version__,
+        # it should implement it itself.
+        raise NotImplementedError(
+            f"Could not dynamically find the version of {self.get_loader_name()}."
+        )
+
+    def get_metadata_fetcher(self) -> MetadataFetcher:
+        """Returns a MetadataFetcher instance representing this package loader;
+        which is used to for adding provenance information to extracted
+        extrinsic metadata, if any."""
+        return MetadataFetcher(
+            name=self.get_loader_name(), version=self.get_loader_version(), metadata={},
+        )
+
+    def get_metadata_authority(self) -> MetadataAuthority:
+        """For package loaders that get extrinsic metadata, returns the authority
+        the metadata are coming from.
+        """
+        raise NotImplementedError("get_metadata_authority")
+
+    def build_extrinsic_revision_metadata(
+        self, p_info: TPackageInfo, revision_id: Sha1Git
+    ) -> List[RawExtrinsicMetadata]:
+        if not p_info.revision_extrinsic_metadata:
+            # If this package loader doesn't write metadata, no need to require
+            # an implementation for get_metadata_authority.
+            return []
+
+        authority = self.get_metadata_authority()
+        fetcher = self.get_metadata_fetcher()
+
+        metadata_objects = []
+
+        for (discovery_date, format, metadata) in p_info.revision_extrinsic_metadata:
+            metadata_objects.append(
+                RawExtrinsicMetadata(
+                    type=MetadataTargetType.REVISION,
+                    id=SWHID(object_type="revision", object_id=revision_id),
+                    discovery_date=discovery_date,
+                    authority=authority,
+                    fetcher=fetcher,
+                    format=format,
+                    metadata=metadata,
+                    origin=self.url,
+                )
+            )
+
+        return metadata_objects
+
+    def _load_extrinsic_revision_metadata(
+        self, p_info: TPackageInfo, revision_id: Sha1Git
+    ) -> None:
+        metadata_objects = self.build_extrinsic_revision_metadata(p_info, revision_id)
+
+        authorities = {
+            (
+                metadata_object.authority.type,
+                metadata_object.authority.url,
+            ): metadata_object.authority
+            for metadata_object in metadata_objects
+        }
+        if authorities:
+            self.storage.metadata_authority_add(authorities.values())
+
+        fetchers = {
+            (
+                metadata_object.fetcher.name,
+                metadata_object.fetcher.version,
+            ): metadata_object.fetcher
+            for metadata_object in metadata_objects
+        }
+        if fetchers:
+            self.storage.metadata_fetcher_add(fetchers.values())
+
+        if metadata_objects:
+            self.storage.object_metadata_add(metadata_objects)
