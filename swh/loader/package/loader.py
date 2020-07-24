@@ -55,6 +55,18 @@ logger = logging.getLogger(__name__)
 
 
 @attr.s
+class RawExtrinsicMetadataCore:
+    """Contains the core of the metadata extracted by a loader, that will be
+    used to build a full RawExtrinsicMetadata object by adding object identifier,
+    context, and provenance information."""
+
+    format = attr.ib(type=str)
+    metadata = attr.ib(type=bytes)
+    discovery_date = attr.ib(type=Optional[datetime.datetime])
+    """Defaults to the visit date."""
+
+
+@attr.s
 class BasePackageInfo:
     """Compute the primary key for a dict using the id_keys as primary key
        composite.
@@ -77,12 +89,8 @@ class BasePackageInfo:
     # See <https://github.com/python-attrs/attrs/issues/38>
 
     revision_extrinsic_metadata = attr.ib(
-        type=List[Tuple[Optional[datetime.datetime], str, bytes]],
-        default=[],
-        kw_only=True,
+        type=List[RawExtrinsicMetadataCore], default=[], kw_only=True,
     )
-    """Tuple elements are respectively the 'discovery_date' (which defaults to the
-    visit date), 'format', and 'metadata' fields of RawExtrinsicMetadata"""
 
     # TODO: add support for metadata for origins, directories, and contents
 
@@ -595,16 +603,16 @@ class PackageLoader(Generic[TPackageInfo]):
 
         metadata_objects = []
 
-        for (discovery_date, format, metadata) in p_info.revision_extrinsic_metadata:
+        for item in p_info.revision_extrinsic_metadata:
             metadata_objects.append(
                 RawExtrinsicMetadata(
                     type=MetadataTargetType.REVISION,
                     id=SWHID(object_type="revision", object_id=revision_id),
-                    discovery_date=discovery_date or self.visit_date,
+                    discovery_date=item.discovery_date or self.visit_date,
                     authority=authority,
                     fetcher=fetcher,
-                    format=format,
-                    metadata=metadata,
+                    format=item.format,
+                    metadata=item.metadata,
                     origin=self.url,
                 )
             )

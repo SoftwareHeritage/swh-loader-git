@@ -25,7 +25,11 @@ from swh.model.model import (
     MetadataTargetType,
     RawExtrinsicMetadata,
 )
-from swh.loader.package.loader import PackageLoader, BasePackageInfo
+from swh.loader.package.loader import (
+    BasePackageInfo,
+    PackageLoader,
+    RawExtrinsicMetadataCore,
+)
 from swh.loader.package.utils import download
 
 
@@ -81,7 +85,11 @@ class DepositPackageInfo(BasePackageInfo):
             revision_parents=tuple(hash_to_bytes(p) for p in depo["revision_parents"]),
             raw_info=metadata,
             revision_extrinsic_metadata=[
-                (None, "sword-v2-atom-codemeta-v2-in-json", raw_metadata_from_origin,),
+                RawExtrinsicMetadataCore(
+                    format="sword-v2-atom-codemeta-v2-in-json",
+                    metadata=raw_metadata_from_origin,
+                    discovery_date=None,
+                ),
             ],
         )
 

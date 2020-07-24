@@ -8,7 +8,11 @@ from typing import Iterator, Optional, Sequence, Tuple
 
 import attr
 
-from swh.loader.package.loader import BasePackageInfo, PackageLoader
+from swh.loader.package.loader import (
+    BasePackageInfo,
+    PackageLoader,
+    RawExtrinsicMetadataCore,
+)
 from swh.model.hashutil import hash_to_bytes
 from swh.model.identifiers import SWHID
 from swh.model.model import (
@@ -81,8 +85,8 @@ class MetadataTestLoader(PackageLoader[BasePackageInfo]):
             url=ORIGIN_URL,
             filename="archive.tgz",
             revision_extrinsic_metadata=[
-                (m0.discovery_date, m0.format, m0.metadata),
-                (m1.discovery_date, m1.format, m1.metadata),
+                RawExtrinsicMetadataCore(m0.format, m0.metadata, m0.discovery_date),
+                RawExtrinsicMetadataCore(m1.format, m1.metadata, m1.discovery_date),
             ],
         )
 
