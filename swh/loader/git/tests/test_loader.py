@@ -34,3 +34,24 @@ class GitLoaderTest(TestCase, FullGitLoaderTests):
         self.destination_path = os.path.join(tmp_path, archive_name)
         self.loader = GitLoader(self.repo_url)
         self.repo = dulwich.repo.Repo(self.destination_path)
+
+
+class GitLoader2Test(TestCase, FullGitLoaderTests):
+    """Mostly the same loading scenario but with a base-url different than the repo-url.
+    To walk slightly different paths, the end result should stay the same.
+
+    """
+
+    @pytest.fixture(autouse=True)
+    def init(self, swh_config, datadir, tmp_path):
+        super().setUp()
+        archive_name = "testrepo"
+        archive_path = os.path.join(datadir, f"{archive_name}.tgz")
+        tmp_path = str(tmp_path)
+        self.repo_url = prepare_repository_from_archive(
+            archive_path, archive_name, tmp_path=tmp_path
+        )
+        self.destination_path = os.path.join(tmp_path, archive_name)
+        base_url = f"base://{self.repo_url}"
+        self.loader = GitLoader(self.repo_url, base_url=base_url)
+        self.repo = dulwich.repo.Repo(self.destination_path)

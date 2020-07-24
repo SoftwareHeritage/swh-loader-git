@@ -215,19 +215,15 @@ class GitLoader(DVCSLoader):
     def prepare(self, *args, **kwargs) -> None:
         assert self.origin is not None
 
-        base_origin_url = origin_url = self.origin.url
-
         prev_snapshot: Optional[Snapshot] = None
 
         if not self.ignore_history:
-            prev_snapshot = self.get_full_snapshot(origin_url)
+            prev_snapshot = self.get_full_snapshot(self.origin.url)
 
         if self.base_url and prev_snapshot is None:
-            base_origin = Origin(url=self.base_url)
-            base_origin = self.storage.origin_get(base_origin)
+            base_origin = self.storage.origin_get([self.base_url])[0]
             if base_origin:
-                base_origin_url = base_origin.url
-                prev_snapshot = self.get_full_snapshot(base_origin_url)
+                prev_snapshot = self.get_full_snapshot(base_origin.url)
 
         if prev_snapshot is not None:
             self.base_snapshot = prev_snapshot
