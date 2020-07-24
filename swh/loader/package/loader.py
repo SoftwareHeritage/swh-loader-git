@@ -77,10 +77,12 @@ class BasePackageInfo:
     # See <https://github.com/python-attrs/attrs/issues/38>
 
     revision_extrinsic_metadata = attr.ib(
-        type=List[Tuple[datetime.datetime, str, bytes]], default=[], kw_only=True,
+        type=List[Tuple[Optional[datetime.datetime], str, bytes]],
+        default=[],
+        kw_only=True,
     )
-    """Tuple elements are respectively the 'discovery_date', 'format',
-    and 'metadata' fields of RawExtrinsicMetadata"""
+    """Tuple elements are respectively the 'discovery_date' (which defaults to the
+    visit date), 'format', and 'metadata' fields of RawExtrinsicMetadata"""
 
     # TODO: add support for metadata for origins, directories, and contents
 
@@ -598,7 +600,7 @@ class PackageLoader(Generic[TPackageInfo]):
                 RawExtrinsicMetadata(
                     type=MetadataTargetType.REVISION,
                     id=SWHID(object_type="revision", object_id=revision_id),
-                    discovery_date=discovery_date,
+                    discovery_date=discovery_date or self.visit_date,
                     authority=authority,
                     fetcher=fetcher,
                     format=format,

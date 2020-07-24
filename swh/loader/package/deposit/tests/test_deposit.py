@@ -6,9 +6,11 @@
 import json
 import re
 
+import attr
 import pytest
 
 from swh.model.hashutil import hash_to_bytes, hash_to_hex
+from swh.model.identifiers import SWHID
 from swh.model.model import (
     Snapshot,
     SnapshotBranch,
@@ -203,6 +205,7 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
         url="https://hal-test.archives-ouvertes.fr/",
     )
 
+    # Check origin metadata
     orig_meta = loader.storage.object_metadata_get(
         MetadataTargetType.ORIGIN, url, authority
     )
@@ -211,9 +214,21 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
     assert len(orig_meta["results"]) == 1
     assert orig_meta["next_page_token"] is None
     orig_meta0 = orig_meta["results"][0]
-
     assert orig_meta0.authority == authority
     assert orig_meta0.fetcher == fetcher
+
+    # Check revision metadata
+    revision_swhid = SWHID(object_type="revision", object_id=revision_id)
+    rev_meta = loader.storage.object_metadata_get(
+        MetadataTargetType.REVISION, revision_swhid, authority
+    )
+    assert rev_meta is not None
+    assert isinstance(rev_meta, dict)
+    assert len(rev_meta["results"]) == 1
+    assert rev_meta["next_page_token"] is None
+    rev_meta0 = rev_meta["results"][0]
+    assert rev_meta0.authority == authority
+    assert rev_meta0.fetcher == fetcher
 
     # Retrieve the information for deposit status update query to the deposit
     urls = [
@@ -326,7 +341,7 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
         url="https://hal-test.archives-ouvertes.fr/",
     )
 
-    # Check the metadata swh side
+    # Check the origin metadata swh side
     orig_meta = loader.storage.object_metadata_get(
         MetadataTargetType.ORIGIN, url, authority
     )
@@ -339,9 +354,9 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
 
     orig_meta0 = orig_meta["results"][0]
 
-    assert orig_meta0 == RawExtrinsicMetadata(
+    expected_metadata = RawExtrinsicMetadata(
         type=MetadataTargetType.ORIGIN,
-        id="https://hal-test.archives-ouvertes.fr/some-external-id",
+        id=url,
         discovery_date=orig_meta0.discovery_date,
         metadata=json.dumps(
             {
@@ -356,6 +371,29 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
         format="sword-v2-atom-codemeta-v2-in-json",
         authority=authority,
         fetcher=fetcher,
+    )
+
+    assert orig_meta0 == expected_metadata
+
+    # Check the revision metadata swh side
+    revision_swhid = SWHID(object_type="revision", object_id=revision_id)
+    rev_meta = loader.storage.object_metadata_get(
+        MetadataTargetType.REVISION, revision_swhid, authority
+    )
+    assert rev_meta is not None
+    assert isinstance(rev_meta, dict)
+    assert len(rev_meta["results"]) == 1
+    assert rev_meta["next_page_token"] is None
+
+    assert len(rev_meta["results"]) == 1
+
+    rev_meta0 = rev_meta["results"][0]
+
+    assert rev_meta0 == attr.evolve(
+        expected_metadata,
+        type=MetadataTargetType.REVISION,
+        id=revision_swhid,
+        origin=url,
     )
 
     # Retrieve the information for deposit status update query to the deposit

@@ -61,6 +61,9 @@ class DepositPackageInfo(BasePackageInfo):
         # which computes itself the values. The loader needs to use those to create the
         # revision.
 
+        raw_metadata_from_origin = json.dumps(
+            metadata["origin_metadata"]["metadata"]
+        ).encode()
         metadata = metadata.copy()
         # FIXME: this removes information from 'raw' metadata
         depo = metadata.pop("deposit")
@@ -77,6 +80,9 @@ class DepositPackageInfo(BasePackageInfo):
             committer=parse_author(depo["committer"]),
             revision_parents=tuple(hash_to_bytes(p) for p in depo["revision_parents"]),
             raw_info=metadata,
+            revision_extrinsic_metadata=[
+                (None, "sword-v2-atom-codemeta-v2-in-json", raw_metadata_from_origin,),
+            ],
         )
 
 
@@ -106,6 +112,24 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
         # only 1 branch 'HEAD' with no alias since we only have 1 snapshot
         # branch
         return ["HEAD"]
+
+    def get_metadata_authority(self) -> MetadataAuthority:
+        provider = self.metadata["origin_metadata"]["provider"]
+        assert provider["provider_type"] == "deposit_client"
+        return MetadataAuthority(
+            type=MetadataAuthorityType.DEPOSIT_CLIENT,
+            url=provider["provider_url"],
+            metadata={
+                "name": provider["provider_name"],
+                **(provider["metadata"] or {}),
+            },
+        )
+
+    def get_metadata_fetcher(self) -> MetadataFetcher:
+        tool = self.metadata["origin_metadata"]["tool"]
+        return MetadataFetcher(
+            name=tool["name"], version=tool["version"], metadata=tool["configuration"],
+        )
 
     def get_package_info(
         self, version: str
@@ -165,24 +189,10 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
             origin_metadata = self.metadata["origin_metadata"]
             logger.debug("origin_metadata: %s", origin_metadata)
 
-            provider = origin_metadata["provider"]
-            assert provider["provider_type"] == "deposit_client"
-            authority = MetadataAuthority(
-                type=MetadataAuthorityType.DEPOSIT_CLIENT,
-                url=provider["provider_url"],
-                metadata={
-                    "name": provider["provider_name"],
-                    **(provider["metadata"] or {}),
-                },
-            )
+            authority = self.get_metadata_authority()
             self.storage.metadata_authority_add([authority])
 
-            tool = origin_metadata["tool"]
-            fetcher = MetadataFetcher(
-                name=tool["name"],
-                version=tool["version"],
-                metadata=tool["configuration"],
-            )
+            fetcher = self.get_metadata_fetcher()
             self.storage.metadata_fetcher_add([fetcher])
 
             self.storage.object_metadata_add(
