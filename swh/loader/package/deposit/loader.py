@@ -22,8 +22,6 @@ from swh.model.model import (
     MetadataAuthority,
     MetadataAuthorityType,
     MetadataFetcher,
-    MetadataTargetType,
-    RawExtrinsicMetadata,
 )
 from swh.loader.package.loader import (
     BasePackageInfo,
@@ -181,6 +179,16 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
             },
         )
 
+    def get_extrinsic_origin_metadata(self) -> List[RawExtrinsicMetadataCore]:
+        origin_metadata = self.metadata["origin_metadata"]
+        return [
+            RawExtrinsicMetadataCore(
+                format="sword-v2-atom-codemeta-v2-in-json",
+                metadata=json.dumps(origin_metadata["metadata"]).encode(),
+                discovery_date=None,
+            )
+        ]
+
     def load(self) -> Dict:
         # First making sure the deposit is known prior to trigger a loading
         try:
@@ -191,31 +199,6 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
         # Then usual loading
         r = super().load()
         success = r["status"] != "failed"
-
-        if success:
-            # Update archive with metadata information
-            origin_metadata = self.metadata["origin_metadata"]
-            logger.debug("origin_metadata: %s", origin_metadata)
-
-            authority = self.get_metadata_authority()
-            self.storage.metadata_authority_add([authority])
-
-            fetcher = self.get_metadata_fetcher()
-            self.storage.metadata_fetcher_add([fetcher])
-
-            self.storage.object_metadata_add(
-                [
-                    RawExtrinsicMetadata(
-                        type=MetadataTargetType.ORIGIN,
-                        id=self.url,
-                        discovery_date=self.visit_date,
-                        authority=authority,
-                        fetcher=fetcher,
-                        format="sword-v2-atom-codemeta-v2-in-json",
-                        metadata=json.dumps(origin_metadata["metadata"]).encode(),
-                    )
-                ]
-            )
 
         # Update deposit status
         try:

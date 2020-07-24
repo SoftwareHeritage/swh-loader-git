@@ -4,7 +4,7 @@
 # See top-level LICENSE file for more information
 
 import datetime
-from typing import Iterator, Optional, Sequence, Tuple
+from typing import Iterator, List, Optional, Sequence, Tuple
 
 import attr
 
@@ -44,7 +44,7 @@ FETCHER = MetadataFetcher(
     version=__version__,
 )
 
-METADATA = [
+REVISION_METADATA = [
     RawExtrinsicMetadata(
         type=MetadataTargetType.REVISION,
         id=REVISION_SWHID,
@@ -67,6 +67,18 @@ METADATA = [
     ),
 ]
 
+ORIGIN_METADATA = [
+    RawExtrinsicMetadata(
+        type=MetadataTargetType.ORIGIN,
+        id=ORIGIN_URL,
+        discovery_date=datetime.datetime.now(),
+        authority=AUTHORITY,
+        fetcher=FETCHER,
+        format="test-format3",
+        metadata=b"baz qux",
+    ),
+]
+
 
 class MetadataTestLoader(PackageLoader[BasePackageInfo]):
     def get_versions(self) -> Sequence[str]:
@@ -79,8 +91,8 @@ class MetadataTestLoader(PackageLoader[BasePackageInfo]):
         return attr.evolve(AUTHORITY, metadata={})
 
     def get_package_info(self, version: str) -> Iterator[Tuple[str, BasePackageInfo]]:
-        m0 = METADATA[0]
-        m1 = METADATA[1]
+        m0 = REVISION_METADATA[0]
+        m1 = REVISION_METADATA[1]
         p_info = BasePackageInfo(
             url=ORIGIN_URL,
             filename="archive.tgz",
@@ -92,8 +104,12 @@ class MetadataTestLoader(PackageLoader[BasePackageInfo]):
 
         yield (version, p_info)
 
+    def get_extrinsic_origin_metadata(self) -> List[RawExtrinsicMetadataCore]:
+        m = ORIGIN_METADATA[0]
+        return [RawExtrinsicMetadataCore(m.format, m.metadata, m.discovery_date)]
 
-def test_load_revision_metadata(swh_config, caplog):
+
+def test_load_metadata(swh_config, caplog):
     storage = get_storage("memory")
 
     loader = MetadataTestLoader(ORIGIN_URL)
@@ -109,7 +125,13 @@ def test_load_revision_metadata(swh_config, caplog):
         MetadataTargetType.REVISION, REVISION_SWHID, AUTHORITY,
     )
     assert result["next_page_token"] is None
-    assert result["results"] == METADATA
+    assert result["results"] == REVISION_METADATA
+
+    result = storage.object_metadata_get(
+        MetadataTargetType.ORIGIN, ORIGIN_URL, AUTHORITY,
+    )
+    assert result["next_page_token"] is None
+    assert result["results"] == ORIGIN_METADATA
 
     assert caplog.text == ""
 
@@ -133,7 +155,7 @@ def test_existing_authority(swh_config, caplog):
         MetadataTargetType.REVISION, REVISION_SWHID, AUTHORITY,
     )
     assert result["next_page_token"] is None
-    assert result["results"] == METADATA
+    assert result["results"] == REVISION_METADATA
 
     assert caplog.text == ""
 
@@ -157,6 +179,6 @@ def test_existing_fetcher(swh_config, caplog):
         MetadataTargetType.REVISION, REVISION_SWHID, AUTHORITY,
     )
     assert result["next_page_token"] is None
-    assert result["results"] == METADATA
+    assert result["results"] == REVISION_METADATA
 
     assert caplog.text == ""

@@ -13,6 +13,7 @@ from typing import (
     Dict,
     Iterator,
     Generic,
+    Iterable,
     List,
     Mapping,
     Optional,
@@ -92,7 +93,7 @@ class BasePackageInfo:
         type=List[RawExtrinsicMetadataCore], default=[], kw_only=True,
     )
 
-    # TODO: add support for metadata for origins, directories, and contents
+    # TODO: add support for metadata for directories and contents
 
     @property
     def ID_KEYS(self):
@@ -438,9 +439,18 @@ class PackageLoader(Generic[TPackageInfo]):
             snapshot = self._load_snapshot(
                 default_version, tmp_revisions, extra_branches
             )
-
+            self.storage.flush()
         except Exception as e:
             logger.exception("Failed to build snapshot for origin %s", self.url)
+            sentry_sdk.capture_exception(e)
+            status_visit = "partial"
+            status_load = "failed"
+
+        try:
+            metadata_objects = self.build_extrinsic_origin_metadata()
+            self._load_metadata_objects(metadata_objects)
+        except Exception as e:
+            logger.exception("Failed to extrinsic origin metadata for %s", self.url)
             sentry_sdk.capture_exception(e)
             status_visit = "partial"
             status_load = "failed"
@@ -590,6 +600,39 @@ class PackageLoader(Generic[TPackageInfo]):
         """
         raise NotImplementedError("get_metadata_authority")
 
+    def get_extrinsic_origin_metadata(self) -> List[RawExtrinsicMetadataCore]:
+        """Returns metadata items, used by build_extrinsic_origin_metadata."""
+        return []
+
+    def build_extrinsic_origin_metadata(self) -> List[RawExtrinsicMetadata]:
+        """Builds a list of full RawExtrinsicMetadata objects, using
+        metadata returned by get_extrinsic_origin_metadata."""
+        metadata_items = self.get_extrinsic_origin_metadata()
+        if not metadata_items:
+            # If this package loader doesn't write metadata, no need to require
+            # an implementation for get_metadata_authority.
+            return []
+
+        authority = self.get_metadata_authority()
+        fetcher = self.get_metadata_fetcher()
+
+        metadata_objects = []
+
+        for item in metadata_items:
+            metadata_objects.append(
+                RawExtrinsicMetadata(
+                    type=MetadataTargetType.ORIGIN,
+                    id=self.url,
+                    discovery_date=item.discovery_date or self.visit_date,
+                    authority=authority,
+                    fetcher=fetcher,
+                    format=item.format,
+                    metadata=item.metadata,
+                )
+            )
+
+        return metadata_objects
+
     def build_extrinsic_revision_metadata(
         self, p_info: TPackageInfo, revision_id: Sha1Git
     ) -> List[RawExtrinsicMetadata]:
@@ -623,26 +666,31 @@ class PackageLoader(Generic[TPackageInfo]):
         self, p_info: TPackageInfo, revision_id: Sha1Git
     ) -> None:
         metadata_objects = self.build_extrinsic_revision_metadata(p_info, revision_id)
+        self._load_metadata_objects(metadata_objects)
 
-        authorities = {
-            (
-                metadata_object.authority.type,
-                metadata_object.authority.url,
-            ): metadata_object.authority
-            for metadata_object in metadata_objects
+    def _load_metadata_objects(
+        self, metadata_objects: List[RawExtrinsicMetadata]
+    ) -> None:
+        if not metadata_objects:
+            # If this package loader doesn't write metadata, no need to require
+            # an implementation for get_metadata_authority.
+            return
+
+        self._create_authorities(mo.authority for mo in metadata_objects)
+        self._create_fetchers(mo.fetcher for mo in metadata_objects)
+
+        self.storage.object_metadata_add(metadata_objects)
+
+    def _create_authorities(self, authorities: Iterable[MetadataAuthority]) -> None:
+        deduplicated_authorities = {
+            (authority.type, authority.url): authority for authority in authorities
         }
         if authorities:
-            self.storage.metadata_authority_add(authorities.values())
+            self.storage.metadata_authority_add(deduplicated_authorities.values())
 
-        fetchers = {
-            (
-                metadata_object.fetcher.name,
-                metadata_object.fetcher.version,
-            ): metadata_object.fetcher
-            for metadata_object in metadata_objects
+    def _create_fetchers(self, fetchers: Iterable[MetadataFetcher]) -> None:
+        deduplicated_fetchers = {
+            (fetcher.name, fetcher.version): fetcher for fetcher in fetchers
         }
         if fetchers:
-            self.storage.metadata_fetcher_add(fetchers.values())
-
-        if metadata_objects:
-            self.storage.object_metadata_add(metadata_objects)
+            self.storage.metadata_fetcher_add(deduplicated_fetchers.values())
