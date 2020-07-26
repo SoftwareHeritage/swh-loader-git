@@ -1,0 +1,195 @@
+Design considerations
+=====================
+
+# Goal
+
+Load the representation of a git, svn, csv, tarball, et al. repository in
+software heritage's backend.
+
+# Nomenclature
+
+cf. swh-sql/swh.sql comments
+-> FIXME: find a means to compute docs from sql
+
+From this point on, `signatures` means:
+- the git sha1s, the sha1 and sha256 the object's content for object of type
+content
+- the git sha1s for all other object types (directories, contents, revisions,
+occurrences, releases)
+
+A worker is one instance running swh-loader-git to parse and load a repository
+in the backend. It is not distributed.
+
+The backend api discuss with one or many workers.
+It is distributed.
+
+# Scenario
+
+In the following, we will describe with different granularities what will
+happen between 1 worker and the backend api.
+
+## 1
+
+A worker parses a repository.
+It sends the parsing result to the backend in muliple requests/responses.
+The worker sends list of sha1s (git sha1s) encountered.
+The server responds with an unknowns sha1s list.
+The worker sends those sha1s and their associated data to the server.
+The server store what it receives.
+
+## 2
+
+01. Worker parses local repository and build a memory model of it.
+
+02. HAVE:  Worker sends repository's contents signatures to the backend for it
+to filter what it knows.
+03. WANT:  Backend replies with unknown contents sha1s.
+04. SAVE:  Worker sends all `content` data through 1 (or more) request(s).
+05. SAVED: Backend stores them and finish the transaction(s).
+
+06. HAVE:  Worker sends repository's directories' signatures to the backend for
+it to filter.
+07. WANT:  Backend replies with unknown directory sha1s.
+08. SAVE:  Worker sends all `directory`s' data through 1 (or more) request(s).
+09. SAVED: Backend stores them and finish the transaction(s).
+
+10. HAVE:  Worker sends repository's revisions' signatures to the backend.
+11. WANT:  Backend replies with unknown revisions' sha1s.
+12. SAVE:  Worker sends the `revision`s' data through 1 (or more) request(s).
+13. SAVED: Backend stores them and finish the transaction(s).
+
+14. SAVE:  Worker sends repository's occurrences for the backend to save what it
+does not know yet.
+15. SAVE:  Worker sends repository's releases for the backend to save what it
+does not know yet.
+16. Worker is done.
+
+## 3
+
+01. Worker parses repository and builds a data memory model.
+The data memory model has the following structure for each possible type:
+- signatures list
+- map indexed by git sha1, object representation.
+Type of object; content, directory, revision, release, occurrence is kept.
+
+02. Worker sends in the api backend's protocol the sha1s.
+
+03. Api Backend receives the list of sha1s, filters out
+unknown sha1s and replies to the worker.
+
+04. Worker receives the list of unknown sha1s.
+The worker builds the unknowns `content`s' list.
+
+A list of contents, for each content:
+- git's sha1 (when parsing git repository)
+- sha1 content (as per content's sha1)
+- sha256 content
+- content's size
+- content
+
+And sends it to the api's backend.
+
+05. Backend receives the data and:
+- computes from the `content` the signatures (sha1, sha256).  FIXME: Not implemented yet
+- checks the signatures match the client's data               FIXME: Not Implemented yet
+- Stores the content on the file storage
+- Persist in the db the received data
+If any errors is detected during the process (checksum do not match, writing
+error, ...), the db transaction is rollbacked and a failure is sent to the
+client.
+Otherwise, the db transaction is committed and a success is sent back  to the
+client.
+
+*Note* Optimization possible: slice in multiple queries.
+
+06. Worker receives the result from the api.
+If failure, worker stops. The task is done.
+Otherwise, the worker continues by sending the list of `directory` structure.
+
+A list of directories, for each directory:
+- sha1
+- directory's content
+- list of directory entries:
+  - name     : relative path to parent entry or root
+  - sha1     : pointer to the object this directory points to
+  - type     : whether entry is a file or a dir
+  - perms    : unix-like permissions
+  - atime    : time of last access         FIXME: Not the right time yet
+  - mtime    : time of last modification   FIXME: Not the right time yet
+  - ctime    : time of last status change  FIXME: Not the right time yet
+  - directory: parent directory sha1
+
+And sends it to the api's backend.
+
+*Note* Optimization possible: slice in multiple queries.
+
+07. Api backend receives the data.
+Persists the directory's content on the file storage.
+Persist the directory and directory entries on the db's side in respect to the
+previous directories and contents stored.
+
+If any error is raised, the transaction is rollbacked and an error is sent back
+to the client (worker).
+Otherwise, the transaction is committed and the success is sent back to the
+client.
+
+08. Worker receives the result from the api.
+If failure, worker stops. The task is done.
+Otherwise, the worker continues by building the list of unknown `revision`s.
+
+A list of revisions, for each revision:
+- sha1, the revision's sha1
+- revision's parent sha1s, the list of revision parents
+- content, the revision's content
+- revision's date
+- directory id the revision points to
+- message, the revision's message
+- author
+- committer
+
+And sends it to the api's backend.
+
+*Note* Optimization possible: slice in multiple queries.
+
+09. Api backend receives data.
+Persists the revisions' content on the file storage.
+Persist the directory and directory entries on the db's side in respect to the
+previous directories and contents stored.
+
+If any error is raised, the transaction is rollbacked and an error is sent back
+to the client (worker).
+Otherwise, the transaction is committed and the success is sent back to the
+client.
+
+10. Worker receives the result. Worker sends the complete occurrences list.
+
+A list of occurrences, for each occurrence:
+- sha1, the sha1 the occurrences points to
+- reference, the occurrence's name
+- url-origin, the origin of the repository
+
+
+11. The backend receives the list of occurrences and persist only what it does
+not know. Acks the result to the backend.
+
+12. Worker sends the complete releases list.
+
+A list of releases, for each release:
+- sha1, the release sha1
+- content, the content of the appointed commit
+- revision, the sha1 the release points to
+- name, the release's name
+- date, the release's date  # FIXME: find the tag's date,
+- author,  the release's author information
+- comment, the release's message
+
+13. The backend receives the list of releases and persists only what it does
+not know. Acks the result to the backend.
+
+14. Worker received the result and stops anyway. The task is done.
+
+## Protocol details
+
+- worker serializes the content's payload (python data structure) as pickle
+format
+- backend unserializes the request's payload as python data structure
