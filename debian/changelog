@@ -1,8 +1,32 @@
-swh-loader-git (0.3.1-1~swh1~bpo10+1) buster-swh; urgency=medium
+swh-loader-git (0.3.4-1~swh1) unstable-swh; urgency=medium
 
-  * Rebuild for buster-swh
+  * New upstream release 0.3.4     - (tagged by Antoine R. Dumont
+    (@ardumont) <ardumont@softwareheritage.org> on 2020-07-26 05:55:34
+    +0200)
+  * Upstream changes:     - v0.3.4     - setup.py: Migrate from
+    vcversioner to setuptools-scm     - MANIFEST: Add missing conftest
+    requirement
 
- -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Wed, 08 Jul 2020 14:41:32 +0000
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Sun, 26 Jul 2020 03:57:36 +0000
+
+swh-loader-git (0.3.3-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 0.3.3     - (tagged by Antoine R. Dumont
+    (@ardumont) <ardumont@softwareheritage.org> on 2020-07-17 15:29:21
+    +0200)
+  * Upstream changes:     - v0.3.3     - tests: Reuse pytest fixtures
+    from swh.loader.core     - tests: Check against snapshot model
+    object
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Fri, 17 Jul 2020 13:30:55 +0000
+
+swh-loader-git (0.3.2-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 0.3.2     - (tagged by David Douard
+    <david.douard@sdfa3.org> on 2020-07-16 10:46:20 +0200)
+  * Upstream changes:     - v0.3.2
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Thu, 16 Jul 2020 08:49:36 +0000
 
 swh-loader-git (0.3.1-1~swh1) unstable-swh; urgency=medium
 

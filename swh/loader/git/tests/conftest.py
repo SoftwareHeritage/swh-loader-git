@@ -3,15 +3,9 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import os
-import yaml
-
 import pytest
 
 from typing import Any, Dict
-
-from swh.scheduler.tests.conftest import *  # noqa
-from swh.storage.tests.conftest import *  # noqa
 
 
 @pytest.fixture
@@ -39,19 +33,3 @@ def swh_loader_config(swh_storage_backend_config) -> Dict[str, Any]:
         "pack_size_bytes": 4 * 1024 * 1024 * 1024,
         "save_data": False,
     }
-
-
-@pytest.fixture
-def swh_config(swh_loader_config, monkeypatch, tmp_path):
-    conffile = os.path.join(str(tmp_path), "loader.yml")
-    with open(conffile, "w") as f:
-        f.write(yaml.dump(swh_loader_config))
-    monkeypatch.setenv("SWH_CONFIG_FILENAME", conffile)
-    return conffile
-
-
-@pytest.fixture(scope="session")  # type: ignore  # expected redefinition
-def celery_includes():
-    return [
-        "swh.loader.git.tasks",
-    ]

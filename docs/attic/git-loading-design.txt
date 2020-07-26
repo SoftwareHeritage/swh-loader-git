@@ -1,0 +1,136 @@
+Design considerations
+=====================
+
+* **Caching**: our storage contains two main parts: a file storage, and a git
+  object storage. Both parts are accessible as key-value storage. Whenever
+  possible we want to avoid checking in content that is provably already in
+  there.
+
+* **Concurrency**: our storage will be accessed concurrently for both read and
+  write purposes. In particular for writing, it is possible that multiple
+  workers will be in the process, at the same time, of loading into our storage
+  different git repositories that have a lot of overlap, if not completely
+  identical. Whenever possible they should be able to benefit from each other's
+  work, collaborating *de facto*.
+
+* **Robustness**: workers that load content into our storage might crash before
+  completion. Wherever possible, the work done before completion should be
+  preserved by the storage. Eventually another worker (possibly the same as
+  before) will pickup the same git repository, try it again, and drive it to
+  completion.
+
+* **Ctime and Atimes**: for every piece of content we are interested in both
+  creation time ("ctime", i.e., the first time we have seen a given content and
+  added it to our storage) and access times ("atime", i.e., every time we see
+  the same content *elsewhere* we want to be able to store the fact we have
+  seen it *again*, and again, and again...).
+
+* **Transactionality**: every content addition should be transactional: only
+  after having stored the content in full will we tell the world (and other
+  workers) that the content is available. (Without locking, which is desirable)
+  This might result in temporary races where multiple workers trying to add the
+  same content without knowing of each other---this situation should be handled
+  gracefully.
+
+  Transactionality should apply across different storage media: in particular
+  the filesystem used to store file content and the DB used to store the
+  corresponding metadata should cooperate. It is OK for the filesystem to have
+  content that is not indexed in the DB; but for all purposes that should be
+  equivalent to not having stored the content *at all*.
+
+
+Git traversal
+=============
+
+To load the whole content of a git repo in our storage we need to traverse the
+git object graph, and inject every single version of every single file we find.
+We discuss below how we should traverse the git graph to that end.
+
+For the sake of conciseness we do not distinguish git object types. The actual
+code does need to treat differently different kind of git objects though (and
+in particular commits -> trees -> and blobs); see the implementation for
+details about this.
+
+
+Top-down
+--------
+
+* Top-down, topological (latest first) traversal of the git object graph
+  starting from the current refs is optimal from the point of view of caching.
+  Once a given object is found in the cache we know that we have already loaded
+  it in the storage and we do not need to treat its parents any further.
+
+* Top-down however is not good for robustness. If we store the current node
+  before its parents and the loading fails to complete, in the future we
+  will believe to have stored all its parents whereas we have not.
+  FAIL.
+
+Conclusion: pure top-down traversal is bad for us.
+
+
+Bottom-up
+---------
+
+* Bottom-up, topological traversal is good for robustness. Once we reach the
+  top we know we have stored all its parents, so in the future we can
+  benefit from caching.
+
+* However, bottom-up is bad for caching. If we always treat parents before
+  descendants, we will benefit from caching only at the level of individual
+  objects, and never at the level of whole subgraphs.
+
+Conclusion: pure bottom-up traversal is OK, but does not allow to benefit from
+subgraph caching.
+
+
+Mixed top-down/bottom-up
+------------------------
+
+To get the best of both worlds we need a mixed approach, something like
+(pseudocode):
+
+    let rec load_git_graph node =
+        if not (node in storage) then
+	        for parent in parents(node)
+		        load_git_graph(parent)
+            add_to_storage(node, storage)
+
+Note: non tail-recursive.
+
+Conclusion: the above offers both robustness w.r.t. loading crashes and
+subgraph caching.
+
+
+Atime maintenance
+-----------------
+
+Bad news: with the mixed approach it's easy to maintain ctimes, but atimes
+cannot be maintained (because we do not visit at all subgraphs). More
+generally: subgraph caching or atime maintenance <- choose one.
+
+If we do want to maintain atimes (at this level---as opposed to, say, do that
+separately from git repo loading) we need to give up on subgraph caching. If we
+do that, top-down vs bottom-up doesn't really matter.
+
+
+Cross file system + DB transactions
+===================================
+
+To ensure file system DB transaction, to add a single file to our storage we
+proceed as follows, where KEY is the key of the file to be added, and WORKER_ID
+the unique identifier of the worker that is updating the storage:
+
+1. BEGIN TRANSACTION
+2. create file KEY.WORKER_ID, overwriting destination if needed
+3. write file content to KEY.WORKER_ID
+4. rename(KEY.WORKER_ID, KEY), overwriting destination if needed
+5. INSERT KEY INTO ...
+6. COMMIT
+
+any error in the above would cause a transaction ABORT.
+
+Failure scenarios (that should all be handled properly by the above protocol):
+
+* worker crash, at any moment during the above
+* parallel execution, resulting in one worker failing due to key duplication
+  upon step (5) or (6)

@@ -4,11 +4,11 @@
 # See top-level LICENSE file for more information
 
 
-def test_git_loader(mocker, swh_app, celery_session_worker):
+def test_git_loader(mocker, swh_scheduler_celery_app, swh_scheduler_celery_worker):
     mock_loader = mocker.patch("swh.loader.git.loader.GitLoader.load")
     mock_loader.return_value = {"status": "eventful"}
 
-    res = swh_app.send_task(
+    res = swh_scheduler_celery_app.send_task(
         "swh.loader.git.tasks.UpdateGitRepository", kwargs={"url": "origin_url",}
     )
     assert res
@@ -19,11 +19,13 @@ def test_git_loader(mocker, swh_app, celery_session_worker):
     mock_loader.assert_called_once_with()
 
 
-def test_git_loader_from_disk(mocker, swh_app, celery_session_worker):
+def test_git_loader_from_disk(
+    mocker, swh_scheduler_celery_app, swh_scheduler_celery_worker
+):
     mock_loader = mocker.patch("swh.loader.git.from_disk.GitLoaderFromDisk.load")
     mock_loader.return_value = {"status": "uneventful"}
 
-    res = swh_app.send_task(
+    res = swh_scheduler_celery_app.send_task(
         "swh.loader.git.tasks.LoadDiskGitRepository",
         kwargs={
             "url": "origin_url2",
@@ -39,12 +41,14 @@ def test_git_loader_from_disk(mocker, swh_app, celery_session_worker):
     mock_loader.assert_called_once_with()
 
 
-def test_git_loader_from_archive(mocker, swh_app, celery_session_worker):
+def test_git_loader_from_archive(
+    mocker, swh_scheduler_celery_app, swh_scheduler_celery_worker
+):
     mock_loader = mocker.patch("swh.loader.git.from_disk.GitLoaderFromArchive.load")
 
     mock_loader.return_value = {"status": "failed"}
 
-    res = swh_app.send_task(
+    res = swh_scheduler_celery_app.send_task(
         "swh.loader.git.tasks.UncompressAndLoadDiskGitRepository",
         kwargs={
             "url": "origin_url3",

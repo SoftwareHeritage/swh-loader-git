@@ -24,34 +24,34 @@ from swh.loader.tests import (
 )
 
 
-SNAPSHOT_ID = "a23699280a82a043f8c0994cf1631b568f716f95"
-
-SNAPSHOT1 = {
-    "id": SNAPSHOT_ID,
-    "branches": {
-        "HEAD": {"target": "refs/heads/master", "target_type": "alias",},
-        "refs/heads/master": {
-            "target": "2f01f5ca7e391a2f08905990277faf81e709a649",
-            "target_type": "revision",
-        },
-        "refs/heads/branch1": {
-            "target": "b0a77609903f767a2fd3d769904ef9ef68468b87",
-            "target_type": "revision",
-        },
-        "refs/heads/branch2": {
-            "target": "bd746cd1913721b269b395a56a97baf6755151c2",
-            "target_type": "revision",
-        },
-        "refs/tags/branch2-after-delete": {
-            "target": "bd746cd1913721b269b395a56a97baf6755151c2",
-            "target_type": "revision",
-        },
-        "refs/tags/branch2-before-delete": {
-            "target": "1135e94ccf73b5f9bd6ef07b3fa2c5cc60bba69b",
-            "target_type": "revision",
-        },
+SNAPSHOT1 = Snapshot(
+    id=hash_to_bytes("a23699280a82a043f8c0994cf1631b568f716f95"),
+    branches={
+        b"HEAD": SnapshotBranch(
+            target=b"refs/heads/master", target_type=TargetType.ALIAS,
+        ),
+        b"refs/heads/master": SnapshotBranch(
+            target=hash_to_bytes("2f01f5ca7e391a2f08905990277faf81e709a649"),
+            target_type=TargetType.REVISION,
+        ),
+        b"refs/heads/branch1": SnapshotBranch(
+            target=hash_to_bytes("b0a77609903f767a2fd3d769904ef9ef68468b87"),
+            target_type=TargetType.REVISION,
+        ),
+        b"refs/heads/branch2": SnapshotBranch(
+            target=hash_to_bytes("bd746cd1913721b269b395a56a97baf6755151c2"),
+            target_type=TargetType.REVISION,
+        ),
+        b"refs/tags/branch2-after-delete": SnapshotBranch(
+            target=hash_to_bytes("bd746cd1913721b269b395a56a97baf6755151c2"),
+            target_type=TargetType.REVISION,
+        ),
+        b"refs/tags/branch2-before-delete": SnapshotBranch(
+            target=hash_to_bytes("1135e94ccf73b5f9bd6ef07b3fa2c5cc60bba69b"),
+            target_type=TargetType.REVISION,
+        ),
     },
-}
+)
 
 # directory hashes obtained with:
 # gco b6f40292c4e94a8f7e7b4aff50e6c7429ab98e2a
@@ -108,7 +108,7 @@ class CommonGitLoaderTests:
             self.repo_url,
             status="full",
             type="git",
-            snapshot=hash_to_bytes(SNAPSHOT1["id"]),
+            snapshot=SNAPSHOT1.id,
         )
 
         stats = get_stats(self.loader.storage)
@@ -137,7 +137,7 @@ class CommonGitLoaderTests:
             self.repo_url,
             status="full",
             type="git",
-            snapshot=hash_to_bytes(SNAPSHOT1["id"]),
+            snapshot=SNAPSHOT1.id,
         )
 
         stats0 = get_stats(self.loader.storage)
@@ -167,7 +167,7 @@ class CommonGitLoaderTests:
             self.repo_url,
             status="full",
             type="git",
-            snapshot=hash_to_bytes(SNAPSHOT1["id"]),
+            snapshot=SNAPSHOT1.id,
         )
 
 
@@ -313,21 +313,7 @@ class FullGitLoaderTests(CommonGitLoaderTests):
 
         # Generate the expected snapshot from SNAPSHOT1 (which is the original
         # state of the git repo)...
-        branches = {}
-
-        for branch_name, branch_dict in SNAPSHOT1["branches"].items():
-            target_type_name = branch_dict["target_type"]
-            target_obj = branch_dict["target"]
-
-            if target_type_name != "alias":
-                target = bytes.fromhex(target_obj)
-            else:
-                target = target_obj.encode()
-
-            branch = SnapshotBranch(
-                target=target, target_type=TargetType(target_type_name)
-            )
-            branches[branch_name.encode()] = branch
+        branches = dict(SNAPSHOT1.branches)
 
         # ... and the unfiltered_branches, which are all pointing to the same
         # commit as "refs/heads/master".
@@ -340,6 +326,7 @@ class FullGitLoaderTests(CommonGitLoaderTests):
         res = self.loader.load()
         assert res == {"status": "eventful"}
 
+        check_snapshot(expected_snapshot, self.loader.storage)
         assert_last_visit_matches(
             self.loader.storage,
             self.repo_url,

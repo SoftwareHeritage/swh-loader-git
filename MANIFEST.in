@@ -2,6 +2,7 @@ include README.md
 include Makefile
 include requirements*.txt
 include version.txt
+include conftest.py
 recursive-include swh/loader/git/tests/data *
 recursive-include swh/loader/git/tests/data *.bundle *.tgz
 recursive-include swh py.typed
