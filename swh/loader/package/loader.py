@@ -679,7 +679,7 @@ class PackageLoader(Generic[TPackageInfo]):
         self._create_authorities(mo.authority for mo in metadata_objects)
         self._create_fetchers(mo.fetcher for mo in metadata_objects)
 
-        self.storage.object_metadata_add(metadata_objects)
+        self.storage.raw_extrinsic_metadata_add(metadata_objects)
 
     def _create_authorities(self, authorities: Iterable[MetadataAuthority]) -> None:
         deduplicated_authorities = {

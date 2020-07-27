@@ -206,7 +206,7 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
     )
 
     # Check origin metadata
-    orig_meta = loader.storage.object_metadata_get(
+    orig_meta = loader.storage.raw_extrinsic_metadata_get(
         MetadataTargetType.ORIGIN, url, authority
     )
     assert orig_meta is not None
@@ -219,7 +219,7 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
 
     # Check revision metadata
     revision_swhid = SWHID(object_type="revision", object_id=revision_id)
-    rev_meta = loader.storage.object_metadata_get(
+    rev_meta = loader.storage.raw_extrinsic_metadata_get(
         MetadataTargetType.REVISION, revision_swhid, authority
     )
     assert rev_meta is not None
@@ -342,7 +342,7 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
     )
 
     # Check the origin metadata swh side
-    orig_meta = loader.storage.object_metadata_get(
+    orig_meta = loader.storage.raw_extrinsic_metadata_get(
         MetadataTargetType.ORIGIN, url, authority
     )
     assert orig_meta is not None
@@ -377,7 +377,7 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
 
     # Check the revision metadata swh side
     revision_swhid = SWHID(object_type="revision", object_id=revision_id)
-    rev_meta = loader.storage.object_metadata_get(
+    rev_meta = loader.storage.raw_extrinsic_metadata_get(
         MetadataTargetType.REVISION, revision_swhid, authority
     )
     assert rev_meta is not None

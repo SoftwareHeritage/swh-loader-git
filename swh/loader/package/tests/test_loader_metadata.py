@@ -121,13 +121,13 @@ def test_load_metadata(swh_config, caplog):
         "snapshot_id": FULL_SNAPSHOT_ID,
     }
 
-    result = storage.object_metadata_get(
+    result = storage.raw_extrinsic_metadata_get(
         MetadataTargetType.REVISION, REVISION_SWHID, AUTHORITY,
     )
     assert result["next_page_token"] is None
     assert result["results"] == REVISION_METADATA
 
-    result = storage.object_metadata_get(
+    result = storage.raw_extrinsic_metadata_get(
         MetadataTargetType.ORIGIN, ORIGIN_URL, AUTHORITY,
     )
     assert result["next_page_token"] is None
@@ -151,7 +151,7 @@ def test_existing_authority(swh_config, caplog):
         "snapshot_id": FULL_SNAPSHOT_ID,
     }
 
-    result = storage.object_metadata_get(
+    result = storage.raw_extrinsic_metadata_get(
         MetadataTargetType.REVISION, REVISION_SWHID, AUTHORITY,
     )
     assert result["next_page_token"] is None
@@ -175,7 +175,7 @@ def test_existing_fetcher(swh_config, caplog):
         "snapshot_id": FULL_SNAPSHOT_ID,
     }
 
-    result = storage.object_metadata_get(
+    result = storage.raw_extrinsic_metadata_get(
         MetadataTargetType.REVISION, REVISION_SWHID, AUTHORITY,
     )
     assert result["next_page_token"] is None
