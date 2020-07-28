@@ -6,7 +6,7 @@ swh.core>=0.0.7
 swh.loader.core>=0.5.9
 swh.model>=0.4.0
 swh.scheduler>=0.0.39
-swh.storage>=0.10.0
+swh.storage>=0.11.3
 
 [testing]
 pytest
