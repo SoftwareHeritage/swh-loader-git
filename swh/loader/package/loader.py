@@ -451,7 +451,9 @@ class PackageLoader(Generic[TPackageInfo]):
             metadata_objects = self.build_extrinsic_origin_metadata()
             self._load_metadata_objects(metadata_objects)
         except Exception as e:
-            logger.exception("Failed to extrinsic origin metadata for %s", self.url)
+            logger.exception(
+                "Failed to load extrinsic origin metadata for %s", self.url
+            )
             sentry_sdk.capture_exception(e)
             status_visit = "partial"
             status_load = "failed"
