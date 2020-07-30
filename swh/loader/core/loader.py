@@ -176,12 +176,16 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
             self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
         assert isinstance(self.visit_date, datetime.datetime)
         assert isinstance(self.visit_type, str)
-        self.visit = self.storage.origin_visit_add(
-            [
-                OriginVisit(
-                    origin=self.origin.url, date=self.visit_date, type=self.visit_type,
-                )
-            ]
+        self.visit = list(
+            self.storage.origin_visit_add(
+                [
+                    OriginVisit(
+                        origin=self.origin.url,
+                        date=self.visit_date,
+                        type=self.visit_type,
+                    )
+                ]
+            )
         )[0]
 
     @abstractmethod
@@ -302,6 +306,7 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
         self._store_origin_visit()
 
         assert self.origin
+        assert self.visit.visit
 
         try:
             self.prepare(*args, **kwargs)
@@ -419,11 +424,11 @@ class DVCSLoader(BaseLoader):
             self.storage.skipped_content_add(skipped_contents)
             self.storage.content_add(contents)
         if self.has_directories():
-            self.storage.directory_add(self.get_directories())
+            self.storage.directory_add(list(self.get_directories()))
         if self.has_revisions():
-            self.storage.revision_add(self.get_revisions())
+            self.storage.revision_add(list(self.get_revisions()))
         if self.has_releases():
-            self.storage.release_add(self.get_releases())
+            self.storage.release_add(list(self.get_releases()))
         snapshot = self.get_snapshot()
         self.storage.snapshot_add([snapshot])
         self.flush()
