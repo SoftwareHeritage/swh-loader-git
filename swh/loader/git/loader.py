@@ -221,7 +221,7 @@ class GitLoader(DVCSLoader):
             prev_snapshot = self.get_full_snapshot(self.origin.url)
 
         if self.base_url and prev_snapshot is None:
-            base_origin = self.storage.origin_get([self.base_url])[0]
+            base_origin = list(self.storage.origin_get([self.base_url]))[0]
             if base_origin:
                 prev_snapshot = self.get_full_snapshot(base_origin.url)
 
