@@ -366,12 +366,14 @@ class PackageLoader(Generic[TPackageInfo]):
         origin = Origin(url=self.url)
         try:
             self.storage.origin_add([origin])
-            visit = self.storage.origin_visit_add(
-                [
-                    OriginVisit(
-                        origin=self.url, date=self.visit_date, type=self.visit_type,
-                    )
-                ]
+            visit = list(
+                self.storage.origin_visit_add(
+                    [
+                        OriginVisit(
+                            origin=self.url, date=self.visit_date, type=self.visit_type,
+                        )
+                    ]
+                )
             )[0]
         except Exception as e:
             logger.exception("Failed to initialize origin_visit for %s", self.url)
