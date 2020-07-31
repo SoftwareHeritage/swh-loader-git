@@ -120,9 +120,7 @@ class NpmLoader(PackageLoader[NpmPackageInfo]):
     def get_extrinsic_snapshot_metadata(self):
         return [
             RawExtrinsicMetadataCore(
-                format="replicate-npm-package-json",
-                metadata=self._raw_info,
-                discovery_date=None,
+                format="replicate-npm-package-json", metadata=self._raw_info,
             ),
         ]
 

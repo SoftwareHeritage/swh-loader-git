@@ -64,7 +64,7 @@ class RawExtrinsicMetadataCore:
 
     format = attr.ib(type=str)
     metadata = attr.ib(type=bytes)
-    discovery_date = attr.ib(type=Optional[datetime.datetime])
+    discovery_date = attr.ib(type=Optional[datetime.datetime], default=None)
     """Defaults to the visit date."""
 
 

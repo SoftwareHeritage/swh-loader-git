@@ -89,9 +89,7 @@ class NixGuixLoader(PackageLoader[NixGuixPackageInfo]):
     def get_extrinsic_snapshot_metadata(self):
         return [
             RawExtrinsicMetadataCore(
-                format="nixguix-sources-json",
-                metadata=self.raw_sources,
-                discovery_date=None,
+                format="nixguix-sources-json", metadata=self.raw_sources,
             ),
         ]
 

@@ -86,7 +86,6 @@ class DepositPackageInfo(BasePackageInfo):
                 RawExtrinsicMetadataCore(
                     format="sword-v2-atom-codemeta-v2-in-json",
                     metadata=raw_metadata_from_origin,
-                    discovery_date=None,
                 ),
             ],
         )
@@ -185,7 +184,6 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
             RawExtrinsicMetadataCore(
                 format="sword-v2-atom-codemeta-v2-in-json",
                 metadata=json.dumps(origin_metadata["metadata"]).encode(),
-                discovery_date=None,
             )
         ]
 
