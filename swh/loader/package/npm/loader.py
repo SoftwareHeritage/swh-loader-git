@@ -15,6 +15,8 @@ import chardet
 
 from urllib.parse import quote
 from swh.model.model import (
+    MetadataAuthority,
+    MetadataAuthorityType,
     Person,
     RevisionType,
     Revision,
@@ -22,7 +24,11 @@ from swh.model.model import (
     Sha1Git,
 )
 
-from swh.loader.package.loader import BasePackageInfo, PackageLoader
+from swh.loader.package.loader import (
+    BasePackageInfo,
+    PackageLoader,
+    RawExtrinsicMetadataCore,
+)
 from swh.loader.package.utils import api_info, release_name
 
 
@@ -96,7 +102,8 @@ class NpmLoader(PackageLoader[NpmPackageInfo]):
 
         """
         if not self._info:
-            self._info = json.loads(api_info(self.provider_url))
+            self._raw_info = api_info(self.provider_url)
+            self._info = json.loads(self._raw_info)
         return self._info
 
     def get_versions(self) -> Sequence[str]:
@@ -104,6 +111,20 @@ class NpmLoader(PackageLoader[NpmPackageInfo]):
 
     def get_default_version(self) -> str:
         return self.info["dist-tags"].get("latest", "")
+
+    def get_metadata_authority(self):
+        return MetadataAuthority(
+            type=MetadataAuthorityType.FORGE, url="https://npmjs.com/", metadata={},
+        )
+
+    def get_extrinsic_snapshot_metadata(self):
+        return [
+            RawExtrinsicMetadataCore(
+                format="replicate-npm-package-json",
+                metadata=self._raw_info,
+                discovery_date=None,
+            ),
+        ]
 
     def get_package_info(self, version: str) -> Iterator[Tuple[str, NpmPackageInfo]]:
         p_info = NpmPackageInfo.from_metadata(

@@ -7,9 +7,23 @@ import json
 import os
 import pytest
 
-from swh.model.hashutil import hash_to_bytes
-from swh.model.model import Person, Snapshot, SnapshotBranch, TargetType
+from swh.model.hashutil import hash_to_bytes, hash_to_hex
+from swh.model.identifiers import SWHID
+from swh.model.model import (
+    MetadataAuthority,
+    MetadataAuthorityType,
+    MetadataFetcher,
+    MetadataTargetType,
+    Person,
+    RawExtrinsicMetadata,
+    Snapshot,
+    SnapshotBranch,
+    TargetType,
+)
 
+from swh.storage.interface import PagedResult
+
+from swh.loader.package import __version__
 from swh.loader.package.npm.loader import (
     _author_str,
     NpmLoader,
@@ -22,6 +36,12 @@ from swh.loader.tests import (
     check_snapshot,
     get_stats,
 )
+
+
+@pytest.fixture
+def org_api_info(datadir) -> bytes:
+    with open(os.path.join(datadir, "https_replicate.npmjs.com", "org"), "rb",) as f:
+        return f.read()
 
 
 def test_npm_author_str():
@@ -322,7 +342,7 @@ def test_revision_metadata_structure(swh_config, requests_mock_datadir):
         )
 
 
-def test_npm_loader_first_visit(swh_config, requests_mock_datadir):
+def test_npm_loader_first_visit(swh_config, requests_mock_datadir, org_api_info):
     package = "org"
     url = package_url(package)
     loader = NpmLoader(url)
@@ -386,6 +406,32 @@ def test_npm_loader_first_visit(swh_config, requests_mock_datadir):
         },
     )
     check_snapshot(expected_snapshot, loader.storage)
+
+    snapshot_swhid = SWHID(
+        object_type="snapshot", object_id=hash_to_hex(expected_snapshot_id)
+    )
+    metadata_authority = MetadataAuthority(
+        type=MetadataAuthorityType.FORGE, url="https://npmjs.com/",
+    )
+    expected_metadata = [
+        RawExtrinsicMetadata(
+            type=MetadataTargetType.SNAPSHOT,
+            id=snapshot_swhid,
+            authority=metadata_authority,
+            fetcher=MetadataFetcher(
+                name="swh.loader.package.npm.loader.NpmLoader", version=__version__,
+            ),
+            discovery_date=loader.visit_date,
+            format="replicate-npm-package-json",
+            metadata=org_api_info,
+            origin="https://www.npmjs.com/package/org",
+        )
+    ]
+    assert loader.storage.raw_extrinsic_metadata_get(
+        type=MetadataTargetType.SNAPSHOT,
+        id=snapshot_swhid,
+        authority=metadata_authority,
+    ) == PagedResult(next_page_token=None, results=expected_metadata,)
 
 
 def test_npm_loader_incremental_visit(swh_config, requests_mock_datadir_visits):
