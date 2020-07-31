@@ -13,9 +13,22 @@ from unittest.mock import patch
 
 from swh.core.tarball import uncompress
 from swh.core.pytest_plugin import requests_mock_datadir_factory
-from swh.model.hashutil import hash_to_bytes
-from swh.model.model import Person, Snapshot, SnapshotBranch, TargetType
+from swh.model.hashutil import hash_to_bytes, hash_to_hex
+from swh.model.identifiers import SWHID
+from swh.model.model import (
+    MetadataAuthority,
+    MetadataAuthorityType,
+    MetadataFetcher,
+    MetadataTargetType,
+    Person,
+    RawExtrinsicMetadata,
+    Snapshot,
+    SnapshotBranch,
+    TargetType,
+)
+from swh.storage.interface import PagedResult
 
+from swh.loader.package import __version__
 from swh.loader.package.pypi.loader import (
     PyPILoader,
     pypi_api_url,
@@ -29,6 +42,14 @@ from swh.loader.tests import (
     check_snapshot,
     get_stats,
 )
+
+
+@pytest.fixture
+def _0805nexter_api_info(datadir) -> bytes:
+    with open(
+        os.path.join(datadir, "https_pypi.org", "pypi_0805nexter_json"), "rb",
+    ) as f:
+        return f.read()
 
 
 def test_author_basic():
@@ -313,6 +334,41 @@ def test_revision_metadata_structure(swh_config, requests_mock_datadir):
             original_artifact,
             paths=[("filename", str), ("length", int), ("checksums", dict),],
         )
+
+
+def test_snapshot_metadata(swh_config, requests_mock_datadir, _0805nexter_api_info):
+    url = "https://pypi.org/project/0805nexter"
+    loader = PyPILoader(url)
+
+    actual_load_status = loader.load()
+    assert actual_load_status["status"] == "eventful"
+    assert actual_load_status["snapshot_id"] is not None
+
+    snapshot_swhid = SWHID(
+        object_type="snapshot", object_id=hash_to_hex(actual_load_status["snapshot_id"])
+    )
+    metadata_authority = MetadataAuthority(
+        type=MetadataAuthorityType.FORGE, url="https://pypi.org/",
+    )
+    expected_metadata = [
+        RawExtrinsicMetadata(
+            type=MetadataTargetType.SNAPSHOT,
+            id=snapshot_swhid,
+            authority=metadata_authority,
+            fetcher=MetadataFetcher(
+                name="swh.loader.package.pypi.loader.PyPILoader", version=__version__,
+            ),
+            discovery_date=loader.visit_date,
+            format="pypi-project-json",
+            metadata=_0805nexter_api_info,
+            origin=url,
+        )
+    ]
+    assert loader.storage.raw_extrinsic_metadata_get(
+        type=MetadataTargetType.SNAPSHOT,
+        id=snapshot_swhid,
+        authority=metadata_authority,
+    ) == PagedResult(next_page_token=None, results=expected_metadata,)
 
 
 def test_visit_with_missing_artifact(swh_config, requests_mock_datadir_missing_one):

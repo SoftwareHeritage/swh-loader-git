@@ -13,6 +13,8 @@ import attr
 from pkginfo import UnpackedSDist
 
 from swh.model.model import (
+    MetadataAuthority,
+    MetadataAuthorityType,
     Person,
     Sha1Git,
     TimestampWithTimezone,
@@ -20,7 +22,11 @@ from swh.model.model import (
     RevisionType,
 )
 
-from swh.loader.package.loader import BasePackageInfo, PackageLoader
+from swh.loader.package.loader import (
+    BasePackageInfo,
+    PackageLoader,
+    RawExtrinsicMetadataCore,
+)
 from swh.loader.package.utils import api_info, release_name, EMPTY_AUTHOR
 
 logger = logging.getLogger(__name__)
@@ -64,7 +70,8 @@ class PyPILoader(PackageLoader[PyPIPackageInfo]):
 
         """
         if not self._info:
-            self._info = json.loads(api_info(self.provider_url))
+            self._raw_info = api_info(self.provider_url)
+            self._info = json.loads(self._raw_info)
         return self._info
 
     def get_versions(self) -> Sequence[str]:
@@ -72,6 +79,21 @@ class PyPILoader(PackageLoader[PyPIPackageInfo]):
 
     def get_default_version(self) -> str:
         return self.info["info"]["version"]
+
+    def get_metadata_authority(self):
+        p_url = urlparse(self.url)
+        return MetadataAuthority(
+            type=MetadataAuthorityType.FORGE,
+            url=f"{p_url.scheme}://{p_url.netloc}/",
+            metadata={},
+        )
+
+    def get_extrinsic_snapshot_metadata(self):
+        return [
+            RawExtrinsicMetadataCore(
+                format="pypi-project-json", metadata=self._raw_info,
+            ),
+        ]
 
     def get_package_info(self, version: str) -> Iterator[Tuple[str, PyPIPackageInfo]]:
         res = []
