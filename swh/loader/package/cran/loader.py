@@ -196,7 +196,7 @@ def parse_date(date: Optional[str]) -> Optional[TimestampWithTimezone]:
             # received datetime without timezone: 2001-06-08 00:00:00
             dt = dt.replace(tzinfo=timezone.utc)
     except Exception as e:
-        logger.warning("Fail to parse date %s. Reason: %s", (date, e))
+        logger.warning("Fail to parse date %s. Reason: %s", date, e)
     if dt:
         return TimestampWithTimezone.from_datetime(dt)
     else:
