@@ -209,11 +209,9 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
     orig_meta = loader.storage.raw_extrinsic_metadata_get(
         MetadataTargetType.ORIGIN, url, authority
     )
-    assert orig_meta is not None
-    assert isinstance(orig_meta, dict)
-    assert len(orig_meta["results"]) == 1
-    assert orig_meta["next_page_token"] is None
-    orig_meta0 = orig_meta["results"][0]
+    assert orig_meta.next_page_token is None
+    assert len(orig_meta.results) == 1
+    orig_meta0 = orig_meta.results[0]
     assert orig_meta0.authority == authority
     assert orig_meta0.fetcher == fetcher
 
@@ -222,11 +220,9 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
     rev_meta = loader.storage.raw_extrinsic_metadata_get(
         MetadataTargetType.REVISION, revision_swhid, authority
     )
-    assert rev_meta is not None
-    assert isinstance(rev_meta, dict)
-    assert len(rev_meta["results"]) == 1
-    assert rev_meta["next_page_token"] is None
-    rev_meta0 = rev_meta["results"][0]
+    assert rev_meta.next_page_token is None
+    assert len(rev_meta.results) == 1
+    rev_meta0 = rev_meta.results[0]
     assert rev_meta0.authority == authority
     assert rev_meta0.fetcher == fetcher
 
@@ -345,14 +341,10 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
     orig_meta = loader.storage.raw_extrinsic_metadata_get(
         MetadataTargetType.ORIGIN, url, authority
     )
-    assert orig_meta is not None
-    assert isinstance(orig_meta, dict)
-    assert len(orig_meta["results"]) == 1
-    assert orig_meta["next_page_token"] is None
+    assert orig_meta.next_page_token is None
+    assert len(orig_meta.results) == 1
 
-    assert len(orig_meta["results"]) == 1
-
-    orig_meta0 = orig_meta["results"][0]
+    orig_meta0 = orig_meta.results[0]
 
     expected_metadata = RawExtrinsicMetadata(
         type=MetadataTargetType.ORIGIN,
@@ -380,14 +372,12 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
     rev_meta = loader.storage.raw_extrinsic_metadata_get(
         MetadataTargetType.REVISION, revision_swhid, authority
     )
-    assert rev_meta is not None
-    assert isinstance(rev_meta, dict)
-    assert len(rev_meta["results"]) == 1
-    assert rev_meta["next_page_token"] is None
 
-    assert len(rev_meta["results"]) == 1
+    assert rev_meta.next_page_token is None
 
-    rev_meta0 = rev_meta["results"][0]
+    assert len(rev_meta.results) == 1
+
+    rev_meta0 = rev_meta.results[0]
 
     assert rev_meta0 == attr.evolve(
         expected_metadata,

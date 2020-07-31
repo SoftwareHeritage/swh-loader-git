@@ -124,14 +124,14 @@ def test_load_metadata(swh_config, caplog):
     result = storage.raw_extrinsic_metadata_get(
         MetadataTargetType.REVISION, REVISION_SWHID, AUTHORITY,
     )
-    assert result["next_page_token"] is None
-    assert result["results"] == REVISION_METADATA
+    assert result.next_page_token is None
+    assert result.results == REVISION_METADATA
 
     result = storage.raw_extrinsic_metadata_get(
         MetadataTargetType.ORIGIN, ORIGIN_URL, AUTHORITY,
     )
-    assert result["next_page_token"] is None
-    assert result["results"] == ORIGIN_METADATA
+    assert result.next_page_token is None
+    assert result.results == ORIGIN_METADATA
 
     assert caplog.text == ""
 
@@ -154,8 +154,8 @@ def test_existing_authority(swh_config, caplog):
     result = storage.raw_extrinsic_metadata_get(
         MetadataTargetType.REVISION, REVISION_SWHID, AUTHORITY,
     )
-    assert result["next_page_token"] is None
-    assert result["results"] == REVISION_METADATA
+    assert result.next_page_token is None
+    assert result.results == REVISION_METADATA
 
     assert caplog.text == ""
 
@@ -178,7 +178,7 @@ def test_existing_fetcher(swh_config, caplog):
     result = storage.raw_extrinsic_metadata_get(
         MetadataTargetType.REVISION, REVISION_SWHID, AUTHORITY,
     )
-    assert result["next_page_token"] is None
-    assert result["results"] == REVISION_METADATA
+    assert result.next_page_token is None
+    assert result.results == REVISION_METADATA
 
     assert caplog.text == ""
