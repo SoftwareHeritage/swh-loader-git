@@ -96,7 +96,7 @@ class NpmLoader(PackageLoader[NpmPackageInfo]):
 
         """
         if not self._info:
-            self._info = api_info(self.provider_url)
+            self._info = json.loads(api_info(self.provider_url))
         return self._info
 
     def get_versions(self) -> Sequence[str]:

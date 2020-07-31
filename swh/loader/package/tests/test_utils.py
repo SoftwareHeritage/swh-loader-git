@@ -1,12 +1,13 @@
-# Copyright (C) 2019  The Software Heritage developers
+# Copyright (C) 2019-2020  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
 
+import json
 import os
-import pytest
 
+import pytest
 
 import swh.loader.package
 from swh.loader.package.utils import download, api_info, release_name
@@ -144,7 +145,7 @@ def test_api_info(requests_mock):
     """Fetching json info from pypi project should be ok"""
     url = "https://pypi.org/pypi/requests/json"
     requests_mock.get(url, text='{"version": "0.0.1"}')
-    actual_info = api_info(url)
+    actual_info = json.loads(api_info(url))
     assert actual_info == {
         "version": "0.0.1",
     }

@@ -5,7 +5,6 @@
 
 import json
 import logging
-import requests
 from typing import Any, Dict, Iterator, Mapping, Optional, Tuple
 
 import attr
@@ -22,7 +21,7 @@ from swh.model.model import (
     Sha1Git,
 )
 
-from swh.loader.package.utils import EMPTY_AUTHOR
+from swh.loader.package.utils import EMPTY_AUTHOR, api_info
 from swh.loader.package.loader import (
     BasePackageInfo,
     PackageLoader,
@@ -207,11 +206,7 @@ class NixGuixLoader(PackageLoader[NixGuixPackageInfo]):
 
 
 def retrieve_sources(url: str) -> bytes:
-    response = requests.get(url, allow_redirects=True)
-    if response.status_code != 200:
-        raise ValueError("Got %d HTTP code on %s", response.status_code, url)
-
-    return response.content
+    return api_info(url, allow_redirects=True)
 
 
 def parse_sources(raw_sources: bytes) -> Dict[str, Any]:

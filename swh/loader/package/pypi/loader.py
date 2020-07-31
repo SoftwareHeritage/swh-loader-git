@@ -1,10 +1,11 @@
-# Copyright (C) 2019  The Software Heritage developers
+# Copyright (C) 2019-2020  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import os
 import logging
+import json
+import os
 from typing import Any, Dict, Iterator, Optional, Sequence, Tuple
 from urllib.parse import urlparse
 
@@ -63,7 +64,7 @@ class PyPILoader(PackageLoader[PyPIPackageInfo]):
 
         """
         if not self._info:
-            self._info = api_info(self.provider_url)
+            self._info = json.loads(api_info(self.provider_url))
         return self._info
 
     def get_versions(self) -> Sequence[str]:
