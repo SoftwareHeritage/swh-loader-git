@@ -27,7 +27,12 @@ from swh.loader.package.loader import (
     PackageLoader,
     RawExtrinsicMetadataCore,
 )
-from swh.loader.package.utils import api_info, release_name, EMPTY_AUTHOR
+from swh.loader.package.utils import (
+    api_info,
+    cached_method,
+    release_name,
+    EMPTY_AUTHOR,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -61,24 +66,24 @@ class PyPILoader(PackageLoader[PyPIPackageInfo]):
 
     def __init__(self, url):
         super().__init__(url=url)
-        self._info = None
         self.provider_url = pypi_api_url(self.url)
 
-    @property
+    @cached_method
+    def _raw_info(self) -> bytes:
+        return api_info(self.provider_url)
+
+    @cached_method
     def info(self) -> Dict:
         """Return the project metadata information (fetched from pypi registry)
 
         """
-        if not self._info:
-            self._raw_info = api_info(self.provider_url)
-            self._info = json.loads(self._raw_info)
-        return self._info
+        return json.loads(self._raw_info())
 
     def get_versions(self) -> Sequence[str]:
-        return self.info["releases"].keys()
+        return self.info()["releases"].keys()
 
     def get_default_version(self) -> str:
-        return self.info["info"]["version"]
+        return self.info()["info"]["version"]
 
     def get_metadata_authority(self):
         p_url = urlparse(self.url)
@@ -91,13 +96,13 @@ class PyPILoader(PackageLoader[PyPIPackageInfo]):
     def get_extrinsic_snapshot_metadata(self):
         return [
             RawExtrinsicMetadataCore(
-                format="pypi-project-json", metadata=self._raw_info,
+                format="pypi-project-json", metadata=self._raw_info(),
             ),
         ]
 
     def get_package_info(self, version: str) -> Iterator[Tuple[str, PyPIPackageInfo]]:
         res = []
-        for meta in self.info["releases"][version]:
+        for meta in self.info()["releases"][version]:
             if meta["packagetype"] != "sdist":
                 continue
             p_info = PyPIPackageInfo.from_metadata(meta)

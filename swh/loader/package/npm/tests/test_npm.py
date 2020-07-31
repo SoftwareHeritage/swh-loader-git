@@ -463,7 +463,10 @@ def test_npm_loader_incremental_visit(swh_config, requests_mock_datadir_visits):
         "snapshot": 1,
     } == stats
 
-    loader._info = None  # reset loader internal state
+    # reset loader internal state
+    del loader._cached_info
+    del loader._cached__raw_info
+
     actual_load_status2 = loader.load()
     assert actual_load_status2["status"] == "eventful"
     snap_id2 = actual_load_status2["snapshot_id"]

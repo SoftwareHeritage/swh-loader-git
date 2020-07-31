@@ -4,11 +4,12 @@
 # See top-level LICENSE file for more information
 
 import copy
+import functools
 import logging
 import os
 import requests
 
-from typing import Dict, Optional, Tuple
+from typing import Callable, Dict, Optional, Tuple, TypeVar
 
 from swh.model.hashutil import MultiHash, HASH_BLOCK_SIZE
 from swh.model.model import Person
@@ -121,3 +122,23 @@ def release_name(version: str, filename: Optional[str] = None) -> str:
     if filename:
         return "releases/%s/%s" % (version, filename)
     return "releases/%s" % version
+
+
+TReturn = TypeVar("TReturn")
+TSelf = TypeVar("TSelf")
+
+_UNDEFINED = object()
+
+
+def cached_method(f: Callable[[TSelf], TReturn]) -> Callable[[TSelf], TReturn]:
+    cache_name = f"_cached_{f.__name__}"
+
+    @functools.wraps(f)
+    def newf(self):
+        value = getattr(self, cache_name, _UNDEFINED)
+        if value is _UNDEFINED:
+            value = f(self)
+            setattr(self, cache_name, value)
+        return value
+
+    return newf

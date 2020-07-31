@@ -638,12 +638,13 @@ def test_incremental_visit(swh_config, requests_mock_datadir_visits):
     } == visit1_stats
 
     # Reset internal state
-    loader._info = None
+    del loader._cached__raw_info
+    del loader._cached_info
 
     visit2_actual_load_status = loader.load()
     visit2_stats = get_stats(loader.storage)
 
-    assert visit2_actual_load_status["status"] == "eventful"
+    assert visit2_actual_load_status["status"] == "eventful", visit2_actual_load_status
     expected_snapshot_id2 = hash_to_bytes("2e5149a7b0725d18231a37b342e9b7c4e121f283")
     assert visit2_actual_load_status == {
         "status": "eventful",

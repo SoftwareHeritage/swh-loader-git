@@ -28,7 +28,7 @@ from swh.loader.package.loader import (
     PackageLoader,
     RawExtrinsicMetadataCore,
 )
-from swh.loader.package.utils import download
+from swh.loader.package.utils import cached_method, download
 
 
 logger = logging.getLogger(__name__)
@@ -111,7 +111,6 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
         config_deposit = self.config["deposit"]
         self.deposit_id = deposit_id
         self.client = ApiClient(url=config_deposit["url"], auth=config_deposit["auth"])
-        self.metadata: Dict[str, Any] = {}
 
     def get_versions(self) -> Sequence[str]:
         # only 1 branch 'HEAD' with no alias since we only have 1 snapshot
@@ -119,7 +118,7 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
         return ["HEAD"]
 
     def get_metadata_authority(self) -> MetadataAuthority:
-        provider = self.metadata["origin_metadata"]["provider"]
+        provider = self.metadata()["origin_metadata"]["provider"]
         assert provider["provider_type"] == "deposit_client"
         return MetadataAuthority(
             type=MetadataAuthorityType.DEPOSIT_CLIENT,
@@ -131,7 +130,7 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
         )
 
     def get_metadata_fetcher(self) -> MetadataFetcher:
-        tool = self.metadata["origin_metadata"]["tool"]
+        tool = self.metadata()["origin_metadata"]["tool"]
         return MetadataFetcher(
             name=tool["name"], version=tool["version"], metadata=tool["configuration"],
         )
@@ -140,7 +139,7 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
         self, version: str
     ) -> Iterator[Tuple[str, DepositPackageInfo]]:
         p_info = DepositPackageInfo.from_metadata(
-            self.metadata, url=self.url, filename="archive.zip",
+            self.metadata(), url=self.url, filename="archive.zip",
         )
         yield "HEAD", p_info
 
@@ -179,7 +178,7 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
         )
 
     def get_extrinsic_origin_metadata(self) -> List[RawExtrinsicMetadataCore]:
-        origin_metadata = self.metadata["origin_metadata"]
+        origin_metadata = self.metadata()["origin_metadata"]
         return [
             RawExtrinsicMetadataCore(
                 format="sword-v2-atom-codemeta-v2-in-json",
@@ -187,10 +186,15 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
             )
         ]
 
+    @cached_method
+    def metadata(self):
+        """Returns metadata from the deposit server"""
+        return self.client.metadata_get(self.deposit_id)
+
     def load(self) -> Dict:
         # First making sure the deposit is known prior to trigger a loading
         try:
-            self.metadata = self.client.metadata_get(self.deposit_id)
+            self.metadata()
         except ValueError:
             logger.error(f"Unknown deposit {self.deposit_id}, ignoring")
             return {"status": "failed"}
