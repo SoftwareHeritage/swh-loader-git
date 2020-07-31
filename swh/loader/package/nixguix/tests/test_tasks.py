@@ -3,6 +3,8 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import json
+
 
 def test_nixguix_loader(
     mocker, swh_scheduler_celery_app, swh_scheduler_celery_worker, swh_config
@@ -13,11 +15,9 @@ def test_nixguix_loader(
     mock_retrieve_sources = mocker.patch(
         "swh.loader.package.nixguix.loader.retrieve_sources"
     )
-    mock_retrieve_sources.return_value = {
-        "version": 1,
-        "sources": [],
-        "revision": "some-revision",
-    }
+    mock_retrieve_sources.return_value = json.dumps(
+        {"version": 1, "sources": [], "revision": "some-revision",}
+    ).encode()
 
     res = swh_scheduler_celery_app.send_task(
         "swh.loader.package.nixguix.tasks.LoadNixguix", kwargs=dict(url="some-url")

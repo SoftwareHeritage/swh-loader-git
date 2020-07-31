@@ -12,6 +12,8 @@ import attr
 
 from swh.model import hashutil
 from swh.model.model import (
+    MetadataAuthority,
+    MetadataAuthorityType,
     Revision,
     RevisionType,
     TargetType,
@@ -21,7 +23,11 @@ from swh.model.model import (
 )
 
 from swh.loader.package.utils import EMPTY_AUTHOR
-from swh.loader.package.loader import BasePackageInfo, PackageLoader
+from swh.loader.package.loader import (
+    BasePackageInfo,
+    PackageLoader,
+    RawExtrinsicMetadataCore,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -55,8 +61,8 @@ class NixGuixLoader(PackageLoader[NixGuixPackageInfo]):
 
     def __init__(self, url):
         super().__init__(url=url)
-        raw = retrieve_sources(url)
-        clean = clean_sources(raw)
+        self.raw_sources = retrieve_sources(url)
+        clean = clean_sources(parse_sources(self.raw_sources))
         self.sources = clean["sources"]
         self.provider_url = url
 
@@ -75,6 +81,20 @@ class NixGuixLoader(PackageLoader[NixGuixPackageInfo]):
 
         """
         return self._integrityByUrl.keys()
+
+    def get_metadata_authority(self):
+        return MetadataAuthority(
+            type=MetadataAuthorityType.FORGE, url=self.url, metadata={},
+        )
+
+    def get_extrinsic_snapshot_metadata(self):
+        return [
+            RawExtrinsicMetadataCore(
+                format="nixguix-sources-json",
+                metadata=self.raw_sources,
+                discovery_date=None,
+            ),
+        ]
 
     # Note: this could be renamed get_artifact_info in the PackageLoader
     # base class.
@@ -186,12 +206,16 @@ class NixGuixLoader(PackageLoader[NixGuixPackageInfo]):
         )
 
 
-def retrieve_sources(url: str) -> Dict[str, Any]:
+def retrieve_sources(url: str) -> bytes:
     response = requests.get(url, allow_redirects=True)
     if response.status_code != 200:
         raise ValueError("Got %d HTTP code on %s", response.status_code, url)
 
-    return json.loads(response.content.decode("utf-8"))
+    return response.content
+
+
+def parse_sources(raw_sources: bytes) -> Dict[str, Any]:
+    return json.loads(raw_sources.decode("utf-8"))
 
 
 def clean_sources(sources: Dict[str, Any]) -> Dict[str, Any]:

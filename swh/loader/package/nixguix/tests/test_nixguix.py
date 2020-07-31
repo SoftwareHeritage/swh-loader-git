@@ -15,11 +15,22 @@ from typing import Dict, Optional, Tuple
 
 from unittest.mock import patch
 
-from swh.model.model import Snapshot, SnapshotBranch, TargetType
+from swh.model.identifiers import SWHID
+from swh.model.model import (
+    MetadataAuthority,
+    MetadataAuthorityType,
+    MetadataFetcher,
+    MetadataTargetType,
+    RawExtrinsicMetadata,
+    Snapshot,
+    SnapshotBranch,
+    TargetType,
+)
 from swh.loader.package.archive.loader import ArchiveLoader
 from swh.loader.package.nixguix.loader import (
     NixGuixPackageInfo,
     NixGuixLoader,
+    parse_sources,
     retrieve_sources,
     clean_sources,
 )
@@ -27,6 +38,10 @@ from swh.loader.package.nixguix.loader import (
 from swh.loader.package.utils import download
 from swh.model.hashutil import hash_to_bytes, hash_to_hex
 from swh.storage.exc import HashCollision
+from swh.storage.algos.origin import origin_get_latest_visit_status
+from swh.storage.interface import PagedResult
+
+from swh.loader.package import __version__
 
 from swh.loader.tests import (
     assert_last_visit_matches,
@@ -36,6 +51,17 @@ from swh.loader.tests import (
 
 
 sources_url = "https://nix-community.github.io/nixpkgs-swh/sources.json"
+
+
+@pytest.fixture
+def raw_sources(datadir) -> bytes:
+    with open(
+        os.path.join(
+            datadir, "https_nix-community.github.io", "nixpkgs-swh_sources.json"
+        ),
+        "rb",
+    ) as f:
+        return f.read()
 
 
 SNAPSHOT1 = Snapshot(
@@ -80,7 +106,7 @@ def check_snapshot(snapshot: Snapshot, storage: StorageInterface):
 
 
 def test_retrieve_sources(swh_config, requests_mock_datadir):
-    j = retrieve_sources(sources_url)
+    j = parse_sources(retrieve_sources(sources_url))
     assert "sources" in j.keys()
     assert len(j["sources"]) == 2
 
@@ -136,7 +162,7 @@ def test_clean_sources_invalid_sources(swh_config, requests_mock_datadir):
     assert len(clean["sources"]) == 1
 
 
-def test_loader_one_visit(swh_config, requests_mock_datadir):
+def test_loader_one_visit(swh_config, requests_mock_datadir, raw_sources):
     loader = NixGuixLoader(sources_url)
     res = loader.load()
     assert res["status"] == "eventful"
@@ -159,6 +185,34 @@ def test_loader_one_visit(swh_config, requests_mock_datadir):
     assert_last_visit_matches(
         loader.storage, sources_url, status="partial", type="nixguix"
     )
+
+    (_, visit_status) = origin_get_latest_visit_status(loader.storage, sources_url)
+    snapshot_swhid = SWHID(
+        object_type="snapshot", object_id=hash_to_hex(visit_status.snapshot)
+    )
+    metadata_authority = MetadataAuthority(
+        type=MetadataAuthorityType.FORGE, url=sources_url,
+    )
+    expected_metadata = [
+        RawExtrinsicMetadata(
+            type=MetadataTargetType.SNAPSHOT,
+            id=snapshot_swhid,
+            authority=metadata_authority,
+            fetcher=MetadataFetcher(
+                name="swh.loader.package.nixguix.loader.NixGuixLoader",
+                version=__version__,
+            ),
+            discovery_date=loader.visit_date,
+            format="nixguix-sources-json",
+            metadata=raw_sources,
+            origin=sources_url,
+        )
+    ]
+    assert loader.storage.raw_extrinsic_metadata_get(
+        type=MetadataTargetType.SNAPSHOT,
+        id=snapshot_swhid,
+        authority=metadata_authority,
+    ) == PagedResult(next_page_token=None, results=expected_metadata,)
 
 
 def test_uncompress_failure(swh_config, requests_mock_datadir):
@@ -305,7 +359,7 @@ def test_loader_two_visits(swh_config, requests_mock_datadir_visits):
     } == stats
 
 
-def test_resolve_revision_from(swh_config, requests_mock_datadir):
+def test_resolve_revision_from(swh_config, requests_mock_datadir, datadir):
     loader = NixGuixLoader(sources_url)
 
     known_artifacts = {

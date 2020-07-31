@@ -449,6 +449,18 @@ class PackageLoader(Generic[TPackageInfo]):
             status_visit = "partial"
             status_load = "failed"
 
+        if snapshot:
+            try:
+                metadata_objects = self.build_extrinsic_snapshot_metadata(snapshot.id)
+                self._load_metadata_objects(metadata_objects)
+            except Exception as e:
+                logger.exception(
+                    "Failed to load extrinsic snapshot metadata for %s", self.url
+                )
+                sentry_sdk.capture_exception(e)
+                status_visit = "partial"
+                status_load = "failed"
+
         try:
             metadata_objects = self.build_extrinsic_origin_metadata()
             self._load_metadata_objects(metadata_objects)
@@ -633,6 +645,42 @@ class PackageLoader(Generic[TPackageInfo]):
                     fetcher=fetcher,
                     format=item.format,
                     metadata=item.metadata,
+                )
+            )
+
+        return metadata_objects
+
+    def get_extrinsic_snapshot_metadata(self) -> List[RawExtrinsicMetadataCore]:
+        """Returns metadata items, used by build_extrinsic_snapshot_metadata."""
+        return []
+
+    def build_extrinsic_snapshot_metadata(
+        self, snapshot_id: Sha1Git
+    ) -> List[RawExtrinsicMetadata]:
+        """Builds a list of full RawExtrinsicMetadata objects, using
+        metadata returned by get_extrinsic_snapshot_metadata."""
+        metadata_items = self.get_extrinsic_snapshot_metadata()
+        if not metadata_items:
+            # If this package loader doesn't write metadata, no need to require
+            # an implementation for get_metadata_authority.
+            return []
+
+        authority = self.get_metadata_authority()
+        fetcher = self.get_metadata_fetcher()
+
+        metadata_objects = []
+
+        for item in metadata_items:
+            metadata_objects.append(
+                RawExtrinsicMetadata(
+                    type=MetadataTargetType.SNAPSHOT,
+                    id=SWHID(object_type="snapshot", object_id=snapshot_id),
+                    discovery_date=item.discovery_date or self.visit_date,
+                    authority=authority,
+                    fetcher=fetcher,
+                    format=item.format,
+                    metadata=item.metadata,
+                    origin=self.url,
                 )
             )
 

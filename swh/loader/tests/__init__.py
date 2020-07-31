@@ -59,6 +59,7 @@ def assert_last_visit_matches(
             f"Visit_status points to snapshot {visit_status.snapshot.hex()} "
             f"instead of {snapshot.hex()}"
         )
+
     return visit_status
 
 
