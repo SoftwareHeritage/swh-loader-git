@@ -89,7 +89,9 @@ class ArchiveLoader(PackageLoader[ArchivePackageInfo]):
 
                - **url**: the artifact url to retrieve filename
 
-               - **artifact's filename version**: artifact's version length
+               - **filename**: optionally, the file's name
+
+               - **version**: artifact's version
 
                - **length**: artifact's length
 
