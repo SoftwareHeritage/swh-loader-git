@@ -229,7 +229,7 @@ def clean_sources(sources: Dict[str, Any]) -> Dict[str, Any]:
 
     if missing_keys != []:
         raise ValueError(
-            "sources structure invalid, missing: %s", ",".join(missing_keys)
+            f"sources structure invalid, missing: {','.join(missing_keys)}"
         )
 
     # Only the version 1 is currently supported
