@@ -212,12 +212,22 @@ def parse_sources(raw_sources: bytes) -> Dict[str, Any]:
 
 
 def clean_sources(sources: Dict[str, Any]) -> Dict[str, Any]:
-    """Validate and clean the sources structure. First, it ensures all top
-    level keys are presents. Then, it walks on the sources list
-    and removes sources that don't contain required keys.
+    """Validate and clean the sources structure. First, ensure all top level keys are
+    present. Then, walk the sources list and remove sources that do not contain required
+    keys.
+
+    Filter out source entries whose:
+    - required keys are missing
+    - source type is not supported
+    - urls attribute type is not a list
 
     Raises:
-      ValueError: if a top level key is missing
+        ValueError if:
+        - a required top level key is missing
+        - top-level version is not 1
+
+    Returns:
+        Dict sources
 
     """
     # Required top level keys
