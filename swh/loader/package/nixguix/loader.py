@@ -236,7 +236,7 @@ def clean_sources(sources: Dict[str, Any]) -> Dict[str, Any]:
     version = int(sources["version"])
     if version != 1:
         raise ValueError(
-            "The sources structure version '%d' is not supported", sources["version"]
+            f"The sources structure version '{sources['version']}' is not supported"
         )
 
     # If a source doesn't contain required attributes, this source is
