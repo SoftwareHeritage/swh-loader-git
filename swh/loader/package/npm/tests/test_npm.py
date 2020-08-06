@@ -372,9 +372,9 @@ def test_npm_loader_first_visit(swh_config, requests_mock_datadir, org_api_info)
         "snapshot": 1,
     } == stats
 
-    assert len(
-        list(loader.storage.content_get(_expected_new_contents_first_visit))
-    ) == len(_expected_new_contents_first_visit)
+    contents_d = loader.storage.content_get_metadata(_expected_new_contents_first_visit)
+    count = sum(1 if len(contents) > 0 else 0 for contents in contents_d.values())
+    assert count == len(_expected_new_contents_first_visit)
 
     assert (
         list(loader.storage.directory_missing(_expected_new_directories_first_visit))
