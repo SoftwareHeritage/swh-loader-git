@@ -180,6 +180,7 @@ def check_snapshot(
             )
         # retrieve information from revision
         for rev in revisions:
+            assert rev is not None
             objects_by_target_type[TargetType.DIRECTORY].append(rev["directory"])
             object_to_branch[rev["directory"]] = rev["id"]
 

@@ -99,6 +99,7 @@ def check_snapshot(snapshot: Snapshot, storage: StorageInterface):
 
     revisions = storage.revision_get(revision_ids)
     for rev in revisions:
+        assert rev is not None
         metadata = rev["metadata"]
         raw = metadata["extrinsic"]["raw"]
         assert "url" in raw

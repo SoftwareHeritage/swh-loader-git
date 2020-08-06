@@ -8,7 +8,6 @@ import json
 import logging
 import requests
 from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, Tuple, Union
-import types
 
 import attr
 
@@ -209,17 +208,22 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
                 return r
 
             snapshot_id = hash_to_bytes(r["snapshot_id"])
-            branches = self.storage.snapshot_get(snapshot_id)["branches"]
+            snapshot = self.storage.snapshot_get(snapshot_id)
+            if not snapshot:
+                return r
+            branches = snapshot["branches"]
             logger.debug("branches: %s", branches)
             if not branches:
                 return r
             rev_id = branches[b"HEAD"]["target"]
 
-            revisions = self.storage.revision_get([rev_id])
-            # FIXME: inconsistency between tests and production code
-            if isinstance(revisions, types.GeneratorType):
-                revisions = list(revisions)
+            revisions = list(self.storage.revision_get([rev_id]))
+            if not revisions:
+                return r
+
             revision = revisions[0]
+            if not revision:
+                return r
 
             # Retrieve the revision identifier
             dir_id = revision["directory"]
