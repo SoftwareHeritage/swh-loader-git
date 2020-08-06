@@ -372,8 +372,8 @@ def test_npm_loader_first_visit(swh_config, requests_mock_datadir, org_api_info)
         "snapshot": 1,
     } == stats
 
-    contents_d = loader.storage.content_get_metadata(_expected_new_contents_first_visit)
-    count = sum(1 if len(contents) > 0 else 0 for contents in contents_d.values())
+    contents = loader.storage.content_get(_expected_new_contents_first_visit)
+    count = sum(0 if content is None else 1 for content in contents)
     assert count == len(_expected_new_contents_first_visit)
 
     assert (
