@@ -309,7 +309,7 @@ class GitLoader(DVCSLoader):
     def get_contents(self) -> Iterable[BaseContent]:
         """Format the blobs from the git repository as swh contents"""
         missing_contents = set(
-            self.storage.content_missing(self.get_content_ids(), "sha1_git")
+            self.storage.content_missing(list(self.get_content_ids()), "sha1_git")
         )
 
         for raw_obj in self.get_inflater():
