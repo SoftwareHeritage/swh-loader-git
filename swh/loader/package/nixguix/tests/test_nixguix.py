@@ -142,17 +142,20 @@ def test_clean_sources_invalid_version(swh_config, requests_mock_datadir):
 
 
 def test_clean_sources_invalid_sources(swh_config, requests_mock_datadir):
+    valid_sources = [
+        # 1 valid source
+        {"type": "url", "urls": ["my-url.tar.gz"], "integrity": "my-integrity"},
+    ]
     sources = {
         "version": 1,
-        "sources": [
-            # Valid source
-            {"type": "url", "urls": ["my-url"], "integrity": "my-integrity"},
+        "sources": valid_sources
+        + [
             # integrity is missing
-            {"type": "url", "urls": ["my-url"],},
+            {"type": "url", "urls": ["my-url.tgz"],},
             # urls is not a list
-            {"type": "url", "urls": "my-url", "integrity": "my-integrity"},
+            {"type": "url", "urls": "my-url.zip", "integrity": "my-integrity"},
             # type is not url
-            {"type": "git", "urls": ["my-url"], "integrity": "my-integrity"},
+            {"type": "git", "urls": ["my-url.zip"], "integrity": "my-integrity"},
             # missing fields which got double-checked nonetheless...
             {"integrity": "my-integrity"},
         ],
@@ -160,7 +163,65 @@ def test_clean_sources_invalid_sources(swh_config, requests_mock_datadir):
     }
     clean = clean_sources(sources)
 
-    assert len(clean["sources"]) == 1
+    assert len(clean["sources"]) == len(valid_sources)
+
+
+def test_clean_sources_unsupported_artifacts(swh_config, requests_mock_datadir):
+    supported_sources = [
+        {
+            "type": "url",
+            "urls": [f"https://server.org/my-url.{ext}"],
+            "integrity": "my-integrity",
+        }
+        for ext in [
+            "known-unknown-but-ok",  # this is fine as well with the current approach
+            "zip",
+            "tar.gz",
+            "tgz",
+            "tar.bz2",
+            "tbz",
+            "tbz2",
+            "tar.xz",
+            "tar",
+            "zip",
+            "7z",
+            "Z",
+        ]
+    ]
+
+    unsupported_sources = [
+        {
+            "type": "url",
+            "urls": [f"https://server.org/my-url.{ext}"],
+            "integrity": "my-integrity",
+        }
+        for ext in [
+            "iso",
+            "whl",
+            "gem",
+            "pom",
+            "msi",
+            "pod",
+            "png",
+            "rock",
+            "ttf",
+            "jar",
+            "c",
+            "rpm",
+            "diff",
+            "patch",
+        ]
+    ]
+
+    sources = {
+        "version": 1,
+        "sources": supported_sources + unsupported_sources,
+        "revision": "my-revision",
+    }
+
+    clean = clean_sources(sources)
+
+    assert len(clean["sources"]) == len(supported_sources)
 
 
 def test_loader_one_visit(swh_config, requests_mock_datadir, raw_sources):

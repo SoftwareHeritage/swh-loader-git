@@ -3,11 +3,14 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import attr
+import copy
 import json
 import logging
-from typing import Any, Dict, Iterator, Mapping, Optional, Tuple
+import re
 
-import attr
+from typing import Any, Dict, List, Iterator, Mapping, Optional, Tuple
+
 
 from swh.model import hashutil
 from swh.model.model import (
@@ -211,6 +214,12 @@ def parse_sources(raw_sources: bytes) -> Dict[str, Any]:
     return json.loads(raw_sources.decode("utf-8"))
 
 
+# Known unsupported archive so far
+PATTERN_KNOWN_UNSUPPORTED_ARCHIVE = re.compile(
+    r".*\.(iso|whl|gem|pom|msi|pod|png|rock|ttf|jar|c|rpm|diff|patch)$", re.DOTALL
+)
+
+
 def clean_sources(sources: Dict[str, Any]) -> Dict[str, Any]:
     """Validate and clean the sources structure. First, ensure all top level keys are
     present. Then, walk the sources list and remove sources that do not contain required
@@ -258,23 +267,42 @@ def clean_sources(sources: Dict[str, Any]) -> Dict[str, Any]:
         for required_key in required_keys:
             if required_key not in source:
                 logger.info(
-                    "Skip source '%s' because key '%s' is missing", source, required_key
+                    f"Skip source '{source}' because key '{required_key}' is missing",
                 )
                 valid = False
+
         if valid and source["type"] != "url":
             logger.info(
-                "Skip source '%s' because the type %s is not supported",
-                source,
-                source["type"],
+                f"Skip source '{source}' because the type {source['type']} "
+                "is not supported",
             )
             valid = False
+
         if valid and not isinstance(source["urls"], list):
             logger.info(
-                "Skip source '%s' because the urls attribute is not a list", source
+                f"Skip source {source} because the urls attribute is not a list"
             )
             valid = False
-        if valid:
-            verified_sources.append(source)
+
+        if valid and len(source["urls"]) > 0:  # Filter out unsupported archives
+            supported_sources: List[str] = []
+            for source_url in source["urls"]:
+                if PATTERN_KNOWN_UNSUPPORTED_ARCHIVE.match(source_url):
+                    logger.info(f"Skip unsupported artifact url {source_url}")
+                    continue
+                supported_sources.append(source_url)
+
+            if len(supported_sources) == 0:
+                logger.info(
+                    f"Skip source {source} because urls only reference "
+                    "unsupported artifacts. Unsupported "
+                    f"artifacts so far: {PATTERN_KNOWN_UNSUPPORTED_ARCHIVE}"
+                )
+                continue
+
+            new_source = copy.deepcopy(source)
+            new_source["urls"] = supported_sources
+            verified_sources.append(new_source)
 
     sources["sources"] = verified_sources
     return sources
