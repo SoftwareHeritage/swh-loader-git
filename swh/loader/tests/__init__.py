@@ -15,6 +15,7 @@ from swh.model.hashutil import hash_to_bytes
 
 from swh.storage.interface import StorageInterface
 from swh.storage.algos.origin import origin_get_latest_visit_status
+from swh.storage.algos.snapshot import snapshot_get_all_branches
 
 
 def assert_last_visit_matches(
@@ -118,7 +119,7 @@ def check_snapshot(
     snapshot: Snapshot,
     storage: StorageInterface,
     allowed_empty: Iterable[Tuple[TargetType, bytes]] = [],
-):
+) -> Snapshot:
     """Check that:
     - snapshot exists in the storage and match
     - each object reference up to the revision/release targets exists
@@ -139,19 +140,15 @@ def check_snapshot(
     if not isinstance(snapshot, Snapshot):
         raise AssertionError(f"variable 'snapshot' must be a snapshot: {snapshot!r}")
 
-    snapshot_dict = storage.snapshot_get(snapshot.id)
-    if snapshot_dict is None:
+    expected_snapshot = snapshot_get_all_branches(storage, snapshot.id)
+    if expected_snapshot is None:
         raise AssertionError(f"Snapshot {snapshot.id.hex()} is not found")
 
-    snapshot_dict.pop("next_branch")
-    actual_snaphot = Snapshot.from_dict(snapshot_dict)
-    assert isinstance(actual_snaphot, Snapshot)
-
-    assert snapshot == actual_snaphot
+    assert snapshot == expected_snapshot
 
     objects_by_target_type = defaultdict(list)
     object_to_branch = {}
-    for branch, target in actual_snaphot.branches.items():
+    for branch, target in expected_snapshot.branches.items():
         if (target.target_type, branch) in allowed_empty:
             # safe for those elements to not be checked for existence
             continue
@@ -161,10 +158,10 @@ def check_snapshot(
     # check that alias references target something that exists, otherwise raise
     aliases: List[bytes] = objects_by_target_type.get(TargetType.ALIAS, [])
     for alias in aliases:
-        if alias not in actual_snaphot.branches:
+        if alias not in expected_snapshot.branches:
             raise InconsistentAliasBranchError(
                 f"Alias branch {alias.decode('utf-8')} "
-                f"should be in {list(actual_snaphot.branches)}"
+                f"should be in {list(expected_snapshot.branches)}"
             )
 
     revs = objects_by_target_type.get(TargetType.REVISION)
@@ -241,8 +238,7 @@ def check_snapshot(
             )
             raise InexistentObjectsError(f"Missing contents {missing_objs}")
 
-    # for retro compat, returned the dict, remove when clients are migrated
-    return snapshot_dict
+    return snapshot
 
 
 def get_stats(storage) -> Dict:
