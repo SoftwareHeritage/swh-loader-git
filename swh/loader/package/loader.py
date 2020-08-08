@@ -332,6 +332,7 @@ class PackageLoader(Generic[TPackageInfo]):
         status_visit = "full"  # either: partial, full
         tmp_revisions = {}  # type: Dict[str, List]
         snapshot = None
+        failed_branches: List[str] = []
 
         def finalize_visit() -> Dict[str, Any]:
             """Finalize the visit:
@@ -360,6 +361,10 @@ class PackageLoader(Generic[TPackageInfo]):
             }
             if snapshot_id:
                 result["snapshot_id"] = hash_to_hex(snapshot_id)
+            if failed_branches:
+                logger.warning(
+                    "%d failed branches: %s", len(failed_branches), failed_branches,
+                )
             return result
 
         # Prepare origin and origin_visit
@@ -415,6 +420,7 @@ class PackageLoader(Generic[TPackageInfo]):
                         logger.exception(
                             "Failed loading branch %s for %s", branch_name, self.url
                         )
+                        failed_branches.append(branch_name)
                         continue
 
                     if revision_id is None:
