@@ -63,8 +63,11 @@ class NixGuixLoader(PackageLoader[NixGuixPackageInfo]):
 
     def __init__(self, url):
         super().__init__(url=url)
+        unsupported_file_extensions = self.config.get("unsupported_file_extensions", [])
         self.raw_sources = retrieve_sources(url)
-        clean = clean_sources(parse_sources(self.raw_sources))
+        clean = clean_sources(
+            parse_sources(self.raw_sources), unsupported_file_extensions
+        )
         self.sources = clean["sources"]
         self.provider_url = url
 
@@ -214,13 +217,19 @@ def parse_sources(raw_sources: bytes) -> Dict[str, Any]:
     return json.loads(raw_sources.decode("utf-8"))
 
 
-# Known unsupported archive so far
-PATTERN_KNOWN_UNSUPPORTED_ARCHIVE = re.compile(
-    r".*\.(iso|whl|gem|pom|msi|pod|png|rock|ttf|jar|c|rpm|diff|patch)$", re.DOTALL
-)
+def make_pattern_unsupported_file_extension(unsupported_file_extensions: List[str],):
+    """Make a regexp pattern for unsupported file extension out of a list
+    of unsupported archive extension list.
+
+    """
+    return re.compile(
+        rf".*\.({'|'.join(map(re.escape, unsupported_file_extensions))})$", re.DOTALL
+    )
 
 
-def clean_sources(sources: Dict[str, Any]) -> Dict[str, Any]:
+def clean_sources(
+    sources: Dict[str, Any], unsupported_file_extensions=[]
+) -> Dict[str, Any]:
     """Validate and clean the sources structure. First, ensure all top level keys are
     present. Then, walk the sources list and remove sources that do not contain required
     keys.
@@ -229,6 +238,7 @@ def clean_sources(sources: Dict[str, Any]) -> Dict[str, Any]:
     - required keys are missing
     - source type is not supported
     - urls attribute type is not a list
+    - extension is known not to be supported by the loader
 
     Raises:
         ValueError if:
@@ -236,9 +246,12 @@ def clean_sources(sources: Dict[str, Any]) -> Dict[str, Any]:
         - top-level version is not 1
 
     Returns:
-        Dict sources
+        source Dict cleaned up
 
     """
+    pattern_unsupported_file = make_pattern_unsupported_file_extension(
+        unsupported_file_extensions
+    )
     # Required top level keys
     required_keys = ["version", "revision", "sources"]
     missing_keys = []
@@ -287,7 +300,7 @@ def clean_sources(sources: Dict[str, Any]) -> Dict[str, Any]:
         if valid and len(source["urls"]) > 0:  # Filter out unsupported archives
             supported_sources: List[str] = []
             for source_url in source["urls"]:
-                if PATTERN_KNOWN_UNSUPPORTED_ARCHIVE.match(source_url):
+                if pattern_unsupported_file.match(source_url):
                     logger.info(f"Skip unsupported artifact url {source_url}")
                     continue
                 supported_sources.append(source_url)
@@ -296,7 +309,7 @@ def clean_sources(sources: Dict[str, Any]) -> Dict[str, Any]:
                 logger.info(
                     f"Skip source {source} because urls only reference "
                     "unsupported artifacts. Unsupported "
-                    f"artifacts so far: {PATTERN_KNOWN_UNSUPPORTED_ARCHIVE}"
+                    f"artifacts so far: {pattern_unsupported_file}"
                 )
                 continue
 

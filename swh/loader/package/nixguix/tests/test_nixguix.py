@@ -33,6 +33,7 @@ from swh.loader.package.nixguix.loader import (
     parse_sources,
     retrieve_sources,
     clean_sources,
+    make_pattern_unsupported_file_extension,
 )
 
 from swh.loader.package.utils import download
@@ -166,7 +167,45 @@ def test_clean_sources_invalid_sources(swh_config, requests_mock_datadir):
     assert len(clean["sources"]) == len(valid_sources)
 
 
+def test_make_pattern_unsupported_file_extension():
+    unsupported_extensions = ["el", "c", "txt"]
+    supported_extensions = ["Z", "7z"]  # for test
+
+    actual_unsupported_pattern = make_pattern_unsupported_file_extension(
+        unsupported_extensions
+    )
+
+    for supported_ext in supported_extensions:
+        assert supported_ext not in unsupported_extensions
+
+        supported_filepath = f"anything.{supported_ext}"
+        actual_match = actual_unsupported_pattern.match(supported_filepath)
+        assert not actual_match
+
+    for unsupported_ext in unsupported_extensions:
+        unsupported_filepath = f"something.{unsupported_ext}"
+        actual_match = actual_unsupported_pattern.match(unsupported_filepath)
+        assert actual_match
+
+
 def test_clean_sources_unsupported_artifacts(swh_config, requests_mock_datadir):
+    unsupported_file_extensions = [
+        "iso",
+        "whl",
+        "gem",
+        "pom",
+        "msi",
+        "pod",
+        "png",
+        "rock",
+        "ttf",
+        "jar",
+        "c",
+        "el",
+        "rpm",
+        "diff",
+        "patch",
+    ]
     supported_sources = [
         {
             "type": "url",
@@ -195,22 +234,7 @@ def test_clean_sources_unsupported_artifacts(swh_config, requests_mock_datadir):
             "urls": [f"https://server.org/my-url.{ext}"],
             "integrity": "my-integrity",
         }
-        for ext in [
-            "iso",
-            "whl",
-            "gem",
-            "pom",
-            "msi",
-            "pod",
-            "png",
-            "rock",
-            "ttf",
-            "jar",
-            "c",
-            "rpm",
-            "diff",
-            "patch",
-        ]
+        for ext in unsupported_file_extensions
     ]
 
     sources = {
@@ -219,7 +243,7 @@ def test_clean_sources_unsupported_artifacts(swh_config, requests_mock_datadir):
         "revision": "my-revision",
     }
 
-    clean = clean_sources(sources)
+    clean = clean_sources(sources, unsupported_file_extensions)
 
     assert len(clean["sources"]) == len(supported_sources)
 
