@@ -14,7 +14,7 @@ from unittest import TestCase
 
 from swh.model.model import Snapshot, SnapshotBranch, TargetType
 from swh.model.hashutil import hash_to_bytes
-from swh.loader.git.from_disk import GitLoaderFromDisk, GitLoaderFromArchive
+from swh.storage.algos.snapshot import snapshot_get_all_branches
 
 from swh.loader.tests import (
     assert_last_visit_matches,
@@ -22,6 +22,8 @@ from swh.loader.tests import (
     get_stats,
     prepare_repository_from_archive,
 )
+
+from swh.loader.git.from_disk import GitLoaderFromDisk, GitLoaderFromArchive
 
 
 SNAPSHOT1 = Snapshot(
@@ -235,16 +237,14 @@ class FullGitLoaderTests(CommonGitLoaderTests):
         assert visit_status.snapshot is not None
 
         snapshot_id = visit_status.snapshot
-        snapshot = self.loader.storage.snapshot_get(snapshot_id)
-        branches = snapshot["branches"]
-        assert branches[b"HEAD"] == {
-            "target": b"refs/heads/master",
-            "target_type": "alias",
-        }
-        assert branches[b"refs/heads/master"] == {
-            "target": hash_to_bytes(new_revision),
-            "target_type": "revision",
-        }
+        snapshot = snapshot_get_all_branches(self.loader.storage, snapshot_id)
+        branches = snapshot.branches
+        assert branches[b"HEAD"] == SnapshotBranch(
+            target=b"refs/heads/master", target_type=TargetType.ALIAS,
+        )
+        assert branches[b"refs/heads/master"] == SnapshotBranch(
+            target=hash_to_bytes(new_revision), target_type=TargetType.REVISION,
+        )
 
         # Merge branch1 into HEAD.
 
@@ -291,16 +291,17 @@ class FullGitLoaderTests(CommonGitLoaderTests):
         merge_snapshot_id = visit_status.snapshot
         assert merge_snapshot_id != snapshot_id
 
-        merge_snapshot = self.loader.storage.snapshot_get(merge_snapshot_id)
-        merge_branches = merge_snapshot["branches"]
-        assert merge_branches[b"HEAD"] == {
-            "target": b"refs/heads/master",
-            "target_type": "alias",
-        }
-        assert merge_branches[b"refs/heads/master"] == {
-            "target": hash_to_bytes(merge_commit.decode()),
-            "target_type": "revision",
-        }
+        merge_snapshot = snapshot_get_all_branches(
+            self.loader.storage, merge_snapshot_id
+        )
+        merge_branches = merge_snapshot.branches
+        assert merge_branches[b"HEAD"] == SnapshotBranch(
+            target=b"refs/heads/master", target_type=TargetType.ALIAS,
+        )
+        assert merge_branches[b"refs/heads/master"] == SnapshotBranch(
+            target=hash_to_bytes(merge_commit.decode()),
+            target_type=TargetType.REVISION,
+        )
 
     def test_load_filter_branches(self):
         filtered_branches = {b"refs/pull/42/merge"}
@@ -348,13 +349,12 @@ class FullGitLoaderTests(CommonGitLoaderTests):
         snapshot_id = visit_status.snapshot
         assert snapshot_id is not None
 
-        snapshot = self.loader.storage.snapshot_get(snapshot_id)
-        branches = snapshot["branches"]
+        snapshot = snapshot_get_all_branches(self.loader.storage, snapshot_id)
+        branches = snapshot.branches
 
-        assert branches[b"HEAD"] == {
-            "target": b"refs/heads/dangling-branch",
-            "target_type": "alias",
-        }
+        assert branches[b"HEAD"] == SnapshotBranch(
+            target=b"refs/heads/dangling-branch", target_type=TargetType.ALIAS,
+        )
         assert branches[b"refs/heads/dangling-branch"] is None
 
         stats = get_stats(self.loader.storage)
