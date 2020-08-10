@@ -28,6 +28,7 @@ from swh.loader.package.loader import (
     RawExtrinsicMetadataCore,
 )
 from swh.loader.package.utils import cached_method, download
+from swh.storage.algos.snapshot import snapshot_get_all_branches
 
 
 logger = logging.getLogger(__name__)
@@ -208,14 +209,14 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
                 return r
 
             snapshot_id = hash_to_bytes(r["snapshot_id"])
-            snapshot = self.storage.snapshot_get(snapshot_id)
+            snapshot = snapshot_get_all_branches(self.storage, snapshot_id)
             if not snapshot:
                 return r
-            branches = snapshot["branches"]
+            branches = snapshot.branches
             logger.debug("branches: %s", branches)
             if not branches:
                 return r
-            rev_id = branches[b"HEAD"]["target"]
+            rev_id = branches[b"HEAD"].target
 
             revisions = list(self.storage.revision_get([rev_id]))
             if not revisions:

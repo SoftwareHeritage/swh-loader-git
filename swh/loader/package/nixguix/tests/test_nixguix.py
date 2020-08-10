@@ -10,6 +10,7 @@ import logging
 from typing import Dict, Optional, Tuple
 from unittest.mock import patch
 
+import attr
 import pytest
 
 from swh.loader.package.archive.loader import ArchiveLoader
@@ -36,6 +37,7 @@ from swh.model.model import (
 from swh.model.hashutil import hash_to_bytes, hash_to_hex
 from swh.storage.exc import HashCollision
 from swh.storage.algos.origin import origin_get_latest_visit_status
+from swh.storage.algos.snapshot import snapshot_get_all_branches
 from swh.storage.interface import PagedResult, StorageInterface
 
 from swh.loader.package import __version__
@@ -573,11 +575,11 @@ def test_load_nixguix_one_common_artifact_from_other_loader(
         archive_loader.storage, gnu_url, status="full", type="tar"
     )
 
-    gnu_snapshot = archive_loader.storage.snapshot_get(
-        hash_to_bytes(expected_snapshot_id)
+    gnu_snapshot: Snapshot = snapshot_get_all_branches(
+        archive_loader.storage, hash_to_bytes(expected_snapshot_id)
     )
 
-    first_revision = gnu_snapshot["branches"][f"releases/{release}".encode("utf-8")]
+    first_revision = gnu_snapshot.branches[f"releases/{release}".encode("utf-8")]
 
     # 2. Then ingest with the nixguix loader which lists the same artifact within its
     # sources.json
@@ -606,8 +608,8 @@ def test_load_nixguix_one_common_artifact_from_other_loader(
     )
 
     snapshot_id = actual_load_status2["snapshot_id"]
-    snapshot = loader.storage.snapshot_get(hash_to_bytes(snapshot_id))
-    snapshot.pop("next_branch")  # snapshot_get endpoint detail to drop
+    snapshot = snapshot_get_all_branches(loader.storage, hash_to_bytes(snapshot_id))
+    assert snapshot
 
     # simulate a snapshot already seen with a revision with the wrong metadata structure
     # This revision should be skipped, thus making the artifact being ingested again.
@@ -616,19 +618,25 @@ def test_load_nixguix_one_common_artifact_from_other_loader(
     ) as last_snapshot:
         # mutate the snapshot to target a revision with the wrong metadata structure
         # snapshot["branches"][artifact_url.encode("utf-8")] = first_revision
-        old_revision = next(loader.storage.revision_get([first_revision["target"]]))
+        old_revision = next(loader.storage.revision_get([first_revision.target]))
         # assert that revision is not in the right format
         assert old_revision["metadata"]["extrinsic"]["raw"].get("integrity", {}) == {}
 
         # mutate snapshot to create a clash
-        snapshot["branches"][artifact_url.encode("utf-8")] = {
-            "target_type": "revision",
-            "target": hash_to_bytes(old_revision["id"]),
-        }
+        snapshot = attr.evolve(
+            snapshot,
+            branches={
+                **snapshot.branches,
+                artifact_url.encode("utf-8"): SnapshotBranch(
+                    target_type=TargetType.REVISION,
+                    target=hash_to_bytes(old_revision["id"]),
+                ),
+            },
+        )
 
         # modify snapshot to actually change revision metadata structure so we simulate
         # a revision written by somebody else (structure different)
-        last_snapshot.return_value = Snapshot.from_dict(snapshot)
+        last_snapshot.return_value = snapshot
 
         loader = NixGuixLoader(sources_url)
         actual_load_status3 = loader.load()
@@ -642,13 +650,13 @@ def test_load_nixguix_one_common_artifact_from_other_loader(
         new_snapshot_id = "32ff641e510aceefc3a6d0dcbf208b2854d2e965"
         assert actual_load_status3["snapshot_id"] == new_snapshot_id
 
-        last_snapshot = loader.storage.snapshot_get(hash_to_bytes(new_snapshot_id))
-        new_revision_branch = last_snapshot["branches"][artifact_url.encode("utf-8")]
-        assert new_revision_branch["target_type"] == "revision"
-
-        new_revision = next(
-            loader.storage.revision_get([new_revision_branch["target"]])
+        last_snapshot = snapshot_get_all_branches(
+            loader.storage, hash_to_bytes(new_snapshot_id)
         )
+        new_revision_branch = last_snapshot.branches[artifact_url.encode("utf-8")]
+        assert new_revision_branch.target_type == TargetType.REVISION
+
+        new_revision = next(loader.storage.revision_get([new_revision_branch.target]))
 
         # the new revision has the correct structure,  so it got ingested alright by the
         # new run
