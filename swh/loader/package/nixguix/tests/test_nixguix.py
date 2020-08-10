@@ -5,16 +5,23 @@
 
 import os
 import json
+from json.decoder import JSONDecodeError
 import logging
+from typing import Dict, Optional, Tuple
+from unittest.mock import patch
 
 import pytest
 
-from json.decoder import JSONDecodeError
-from swh.storage.interface import StorageInterface
-from typing import Dict, Optional, Tuple
-
-from unittest.mock import patch
-
+from swh.loader.package.archive.loader import ArchiveLoader
+from swh.loader.package.nixguix.loader import (
+    NixGuixPackageInfo,
+    NixGuixLoader,
+    parse_sources,
+    retrieve_sources,
+    clean_sources,
+    make_pattern_unsupported_file_extension,
+)
+from swh.loader.package.utils import download
 from swh.model.identifiers import SWHID
 from swh.model.model import (
     MetadataAuthority,
@@ -26,21 +33,10 @@ from swh.model.model import (
     SnapshotBranch,
     TargetType,
 )
-from swh.loader.package.archive.loader import ArchiveLoader
-from swh.loader.package.nixguix.loader import (
-    NixGuixPackageInfo,
-    NixGuixLoader,
-    parse_sources,
-    retrieve_sources,
-    clean_sources,
-    make_pattern_unsupported_file_extension,
-)
-
-from swh.loader.package.utils import download
 from swh.model.hashutil import hash_to_bytes, hash_to_hex
 from swh.storage.exc import HashCollision
 from swh.storage.algos.origin import origin_get_latest_visit_status
-from swh.storage.interface import PagedResult
+from swh.storage.interface import PagedResult, StorageInterface
 
 from swh.loader.package import __version__
 
