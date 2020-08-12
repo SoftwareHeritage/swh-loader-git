@@ -25,6 +25,8 @@ from typing import (
 import attr
 import sentry_sdk
 
+from itertools import islice
+
 from swh.core.tarball import uncompress
 from swh.core.config import SWHConfig
 from swh.model import from_disk
@@ -362,9 +364,11 @@ class PackageLoader(Generic[TPackageInfo]):
             if snapshot_id:
                 result["snapshot_id"] = hash_to_hex(snapshot_id)
             if failed_branches:
-                logger.warning(
-                    "%d failed branches: %s", len(failed_branches), failed_branches,
-                )
+                logger.warning("%d failed branches", len(failed_branches))
+                for i, urls in enumerate(islice(failed_branches, 50)):
+                    prefix_url = "Failed branches: " if i == 0 else ""
+                    logger.warning("%s%s", prefix_url, urls)
+
             return result
 
         # Prepare origin and origin_visit
