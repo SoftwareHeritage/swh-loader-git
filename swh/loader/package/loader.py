@@ -484,6 +484,29 @@ class PackageLoader(Generic[TPackageInfo]):
 
         return finalize_visit()
 
+    def _load_directory(
+        self, dl_artifacts: List[Tuple[str, Mapping[str, Any]]], tmpdir: str
+    ) -> Tuple[str, from_disk.Directory]:
+        uncompressed_path = self.uncompress(dl_artifacts, dest=tmpdir)
+        logger.debug("uncompressed_path: %s", uncompressed_path)
+
+        directory = from_disk.Directory.from_disk(
+            path=uncompressed_path.encode("utf-8"),
+            max_content_length=self.max_content_size,
+        )
+
+        contents, skipped_contents, directories = from_disk.iter_directory(directory)
+
+        logger.debug("Number of skipped contents: %s", len(skipped_contents))
+        self.storage.skipped_content_add(skipped_contents)
+        logger.debug("Number of contents: %s", len(contents))
+        self.storage.content_add(contents)
+
+        logger.debug("Number of directories: %s", len(directories))
+        self.storage.directory_add(directories)
+
+        return (uncompressed_path, directory)
+
     def _load_revision(self, p_info: TPackageInfo, origin) -> Optional[Sha1Git]:
         """Does all the loading of a revision itself:
 
@@ -499,25 +522,7 @@ class PackageLoader(Generic[TPackageInfo]):
         with tempfile.TemporaryDirectory() as tmpdir:
             dl_artifacts = self.download_package(p_info, tmpdir)
 
-            uncompressed_path = self.uncompress(dl_artifacts, dest=tmpdir)
-            logger.debug("uncompressed_path: %s", uncompressed_path)
-
-            directory = from_disk.Directory.from_disk(
-                path=uncompressed_path.encode("utf-8"),
-                max_content_length=self.max_content_size,
-            )
-
-            contents, skipped_contents, directories = from_disk.iter_directory(
-                directory
-            )
-
-            logger.debug("Number of skipped contents: %s", len(skipped_contents))
-            self.storage.skipped_content_add(skipped_contents)
-            logger.debug("Number of contents: %s", len(contents))
-            self.storage.content_add(contents)
-
-            logger.debug("Number of directories: %s", len(directories))
-            self.storage.directory_add(directories)
+            (uncompressed_path, directory) = self._load_directory(dl_artifacts, tmpdir)
 
             # FIXME: This should be release. cf. D409
             revision = self.build_revision(
