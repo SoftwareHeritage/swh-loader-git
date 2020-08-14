@@ -4,7 +4,7 @@
 # See top-level LICENSE file for more information
 
 import datetime
-from typing import Iterator, List, Optional, Sequence, Tuple
+from typing import Iterator, List, Sequence, Tuple
 
 import attr
 
@@ -20,7 +20,10 @@ from swh.model.model import (
     MetadataAuthorityType,
     MetadataFetcher,
     MetadataTargetType,
+    Person,
     RawExtrinsicMetadata,
+    Revision,
+    RevisionType,
     Sha1Git,
 )
 from swh.storage import get_storage
@@ -86,8 +89,29 @@ class MetadataTestLoader(PackageLoader[BasePackageInfo]):
     def get_versions(self) -> Sequence[str]:
         return ["v1.0.0"]
 
-    def _load_revision(self, p_info: BasePackageInfo, origin) -> Optional[Sha1Git]:
-        return REVISION_ID
+    def _load_directory(self, dl_artifacts, tmpdir):
+        class directory:
+            hash = None
+
+        return (None, directory)  # just enough for _load_revision to work
+
+    def download_package(self, p_info: BasePackageInfo, tmpdir: str):
+        return [("path", {"artifact_key": "value", "length": 0})]
+
+    def build_revision(
+        self, p_info: BasePackageInfo, uncompressed_path: str, directory: Sha1Git
+    ):
+        return Revision(
+            id=REVISION_ID,
+            message=b"",
+            author=Person.from_fullname(b""),
+            committer=Person.from_fullname(b""),
+            date=None,
+            committer_date=None,
+            type=RevisionType.TAR,
+            directory=b"foo",
+            synthetic=False,
+        )
 
     def get_metadata_authority(self):
         return attr.evolve(AUTHORITY, metadata={})
@@ -109,6 +133,39 @@ class MetadataTestLoader(PackageLoader[BasePackageInfo]):
     def get_extrinsic_origin_metadata(self) -> List[RawExtrinsicMetadataCore]:
         m = ORIGIN_METADATA[0]
         return [RawExtrinsicMetadataCore(m.format, m.metadata, m.discovery_date)]
+
+
+def test_load_artifact_metadata(swh_config, caplog):
+    storage = get_storage("memory")
+
+    loader = MetadataTestLoader(ORIGIN_URL)
+    loader.storage = storage
+
+    load_status = loader.load()
+    assert load_status == {
+        "status": "eventful",
+        "snapshot_id": FULL_SNAPSHOT_ID,
+    }
+
+    authority = MetadataAuthority(
+        type=MetadataAuthorityType.REGISTRY, url="https://softwareheritage.org/",
+    )
+
+    result = storage.raw_extrinsic_metadata_get(
+        MetadataTargetType.REVISION, REVISION_SWHID, authority,
+    )
+    assert result.next_page_token is None
+    assert len(result.results) == 1
+    assert result.results[0] == RawExtrinsicMetadata(
+        type=MetadataTargetType.REVISION,
+        id=REVISION_SWHID,
+        discovery_date=result.results[0].discovery_date,
+        authority=authority,
+        fetcher=FETCHER,
+        format="original-artifact-json",
+        metadata=b'[{"artifact_key": "value", "length": 0}]',
+        origin=ORIGIN_URL,
+    )
 
 
 def test_load_metadata(swh_config, caplog):
