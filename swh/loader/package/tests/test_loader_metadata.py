@@ -44,11 +44,13 @@ FETCHER = MetadataFetcher(
     version=__version__,
 )
 
+DISCOVERY_DATE = datetime.datetime.now(tz=datetime.timezone.utc)
+
 REVISION_METADATA = [
     RawExtrinsicMetadata(
         type=MetadataTargetType.REVISION,
         id=REVISION_SWHID,
-        discovery_date=datetime.datetime.now(),
+        discovery_date=DISCOVERY_DATE,
         authority=AUTHORITY,
         fetcher=FETCHER,
         format="test-format1",
@@ -58,7 +60,7 @@ REVISION_METADATA = [
     RawExtrinsicMetadata(
         type=MetadataTargetType.REVISION,
         id=REVISION_SWHID,
-        discovery_date=datetime.datetime.now() + datetime.timedelta(seconds=1),
+        discovery_date=DISCOVERY_DATE + datetime.timedelta(seconds=1),
         authority=AUTHORITY,
         fetcher=FETCHER,
         format="test-format2",
@@ -71,7 +73,7 @@ ORIGIN_METADATA = [
     RawExtrinsicMetadata(
         type=MetadataTargetType.ORIGIN,
         id=ORIGIN_URL,
-        discovery_date=datetime.datetime.now(),
+        discovery_date=datetime.datetime.now(tz=datetime.timezone.utc),
         authority=AUTHORITY,
         fetcher=FETCHER,
         format="test-format3",
