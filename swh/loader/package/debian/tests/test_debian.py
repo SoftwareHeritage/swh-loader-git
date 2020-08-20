@@ -258,6 +258,10 @@ def test_download_package(datadir, tmpdir, requests_mock_datadir):
             },
             "filename": "cicero_0.7.2-3.diff.gz",
             "length": 3964,
+            "url": (
+                "http://deb.debian.org/debian/pool/contrib/c/cicero/"
+                "cicero_0.7.2-3.diff.gz"
+            ),
         },
         "cicero_0.7.2-3.dsc": {
             "checksums": {
@@ -266,6 +270,9 @@ def test_download_package(datadir, tmpdir, requests_mock_datadir):
             },
             "filename": "cicero_0.7.2-3.dsc",
             "length": 1864,
+            "url": (
+                "http://deb.debian.org/debian/pool/contrib/c/cicero/cicero_0.7.2-3.dsc"
+            ),
         },
         "cicero_0.7.2.orig.tar.gz": {
             "checksums": {
@@ -274,6 +281,10 @@ def test_download_package(datadir, tmpdir, requests_mock_datadir):
             },
             "filename": "cicero_0.7.2.orig.tar.gz",
             "length": 96527,
+            "url": (
+                "http://deb.debian.org/debian/pool/contrib/c/cicero/"
+                "cicero_0.7.2.orig.tar.gz"
+            ),
         },
     }
 

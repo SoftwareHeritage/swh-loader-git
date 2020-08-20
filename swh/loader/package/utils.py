@@ -111,6 +111,7 @@ def download(
         "length": length,
         "filename": filename,
         "checksums": computed_hashes,
+        "url": url,
     }
 
     logger.debug("extrinsic_metadata", extrinsic_metadata)

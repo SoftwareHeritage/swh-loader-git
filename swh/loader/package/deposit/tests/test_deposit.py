@@ -326,6 +326,7 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
                 },
                 "filename": "archive.zip",
                 "length": 956830,
+                "url": "https://deposit.softwareheritage.org/1/private/777/raw/",
             }
         ],
     }
