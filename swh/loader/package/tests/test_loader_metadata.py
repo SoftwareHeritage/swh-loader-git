@@ -162,7 +162,7 @@ def test_load_artifact_metadata(swh_config, caplog):
         discovery_date=result.results[0].discovery_date,
         authority=authority,
         fetcher=FETCHER,
-        format="original-artifact-json",
+        format="original-artifacts-json",
         metadata=b'[{"artifact_key": "value", "length": 0}]',
         origin=ORIGIN_URL,
     )

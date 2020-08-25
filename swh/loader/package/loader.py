@@ -565,7 +565,7 @@ class PackageLoader(Generic[TPackageInfo]):
             discovery_date=self.visit_date,
             authority=SWH_METADATA_AUTHORITY,
             fetcher=self.get_metadata_fetcher(),
-            format="original-artifact-json",
+            format="original-artifacts-json",
             metadata=json.dumps(metadata).encode(),
             origin=self.url,
         )
