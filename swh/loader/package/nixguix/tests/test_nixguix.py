@@ -99,7 +99,8 @@ def check_snapshot(snapshot: Snapshot, storage: StorageInterface):
     revisions = storage.revision_get(revision_ids)
     for rev in revisions:
         assert rev is not None
-        metadata = rev["metadata"]
+        metadata = rev.metadata
+        assert metadata is not None
         raw = metadata["extrinsic"]["raw"]
         assert "url" in raw
         assert "integrity" in raw
@@ -618,9 +619,9 @@ def test_load_nixguix_one_common_artifact_from_other_loader(
     ) as last_snapshot:
         # mutate the snapshot to target a revision with the wrong metadata structure
         # snapshot["branches"][artifact_url.encode("utf-8")] = first_revision
-        old_revision = next(loader.storage.revision_get([first_revision.target]))
+        old_revision = loader.storage.revision_get([first_revision.target])[0]
         # assert that revision is not in the right format
-        assert old_revision["metadata"]["extrinsic"]["raw"].get("integrity", {}) == {}
+        assert old_revision.metadata["extrinsic"]["raw"].get("integrity", {}) == {}
 
         # mutate snapshot to create a clash
         snapshot = attr.evolve(
@@ -629,7 +630,7 @@ def test_load_nixguix_one_common_artifact_from_other_loader(
                 **snapshot.branches,
                 artifact_url.encode("utf-8"): SnapshotBranch(
                     target_type=TargetType.REVISION,
-                    target=hash_to_bytes(old_revision["id"]),
+                    target=hash_to_bytes(old_revision.id),
                 ),
             },
         )
@@ -656,11 +657,11 @@ def test_load_nixguix_one_common_artifact_from_other_loader(
         new_revision_branch = last_snapshot.branches[artifact_url.encode("utf-8")]
         assert new_revision_branch.target_type == TargetType.REVISION
 
-        new_revision = next(loader.storage.revision_get([new_revision_branch.target]))
+        new_revision = loader.storage.revision_get([new_revision_branch.target])[0]
 
         # the new revision has the correct structure,  so it got ingested alright by the
         # new run
-        assert new_revision["metadata"]["extrinsic"]["raw"]["integrity"] is not None
+        assert new_revision.metadata["extrinsic"]["raw"]["integrity"] is not None
 
         nb_detections = 0
         actual_detection: Dict
@@ -675,7 +676,7 @@ def test_load_nixguix_one_common_artifact_from_other_loader(
         assert nb_detections == len(all_sources["sources"])
 
         assert actual_detection == {
-            "revision": hash_to_hex(old_revision["id"]),
+            "revision": hash_to_hex(old_revision.id),
             "reason": "'integrity'",
-            "known_artifact": old_revision["metadata"],
+            "known_artifact": old_revision.metadata,
         }

@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Iterator, Mapping, Optional, Tuple
 
 
 from swh.model import hashutil
+from swh.model.collections import ImmutableDict
 from swh.model.model import (
     MetadataAuthority,
     MetadataAuthorityType,
@@ -20,7 +21,6 @@ from swh.model.model import (
     RevisionType,
     TargetType,
     Snapshot,
-    BaseModel,
     Sha1Git,
 )
 
@@ -110,7 +110,9 @@ class NixGuixLoader(PackageLoader[NixGuixPackageInfo]):
         p_info = NixGuixPackageInfo.from_metadata({"url": url, "integrity": integrity})
         yield url, p_info
 
-    def known_artifacts(self, snapshot: Optional[Snapshot]) -> Dict[Sha1Git, BaseModel]:
+    def known_artifacts(
+        self, snapshot: Optional[Snapshot]
+    ) -> Dict[Sha1Git, Optional[ImmutableDict[str, object]]]:
         """Almost same implementation as the default one except it filters out the extra
         "evaluation" branch which does not have the right metadata structure.
 
@@ -134,7 +136,7 @@ class NixGuixLoader(PackageLoader[NixGuixPackageInfo]):
         for revision in known_revisions:
             if not revision:  # revision_get can return None
                 continue
-            ret[revision["id"]] = revision["metadata"]
+            ret[revision.id] = revision.metadata
         return ret
 
     def resolve_revision_from(

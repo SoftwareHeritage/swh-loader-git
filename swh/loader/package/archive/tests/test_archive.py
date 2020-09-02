@@ -122,12 +122,11 @@ def test_check_revision_metadata_structure(swh_config, requests_mock_datadir):
     assert_last_visit_matches(loader.storage, URL, status="full", type="tar")
 
     expected_revision_id = hash_to_bytes("44183488c0774ce3c957fa19ba695cf18a4a42b3")
-    revision = list(loader.storage.revision_get([expected_revision_id]))[0]
-
+    revision = loader.storage.revision_get([expected_revision_id])[0]
     assert revision is not None
 
     check_metadata_paths(
-        revision["metadata"],
+        revision.metadata,
         paths=[
             ("intrinsic", dict),
             ("extrinsic.provider", str),
@@ -137,7 +136,7 @@ def test_check_revision_metadata_structure(swh_config, requests_mock_datadir):
         ],
     )
 
-    for original_artifact in revision["metadata"]["original_artifact"]:
+    for original_artifact in revision.metadata["original_artifact"]:
         check_metadata_paths(
             original_artifact,
             paths=[("filename", str), ("length", int), ("checksums", dict),],

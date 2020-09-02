@@ -129,12 +129,11 @@ def test_revision_metadata_structure(swh_config, requests_mock_datadir):
     assert actual_load_status["status"] == "eventful"
     assert actual_load_status["snapshot_id"] is not None
     expected_revision_id = hash_to_bytes("637318680351f5d78856d13264faebbd91efe9bb")
-    revision = list(loader.storage.revision_get([expected_revision_id]))[0]
-
+    revision = loader.storage.revision_get([expected_revision_id])[0]
     assert revision is not None
 
     check_metadata_paths(
-        revision["metadata"],
+        revision.metadata,
         paths=[
             ("extrinsic.provider", str),
             ("extrinsic.when", str),
@@ -144,9 +143,9 @@ def test_revision_metadata_structure(swh_config, requests_mock_datadir):
     )
 
     # Only 2 top-level keys now
-    assert set(revision["metadata"].keys()) == {"extrinsic", "original_artifact"}
+    assert set(revision.metadata.keys()) == {"extrinsic", "original_artifact"}
 
-    for original_artifact in revision["metadata"]["original_artifact"]:
+    for original_artifact in revision.metadata["original_artifact"]:
         check_metadata_paths(
             original_artifact,
             paths=[("filename", str), ("length", int), ("checksums", dict),],
@@ -193,8 +192,8 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
     )
     check_snapshot(expected_snapshot, storage=loader.storage)
 
-    revision = next(loader.storage.revision_get([revision_id]))
-    assert revision
+    revision = loader.storage.revision_get([revision_id])[0]
+    assert revision is not None
 
     # check metadata
 
@@ -240,7 +239,7 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
     expected_body = {
         "status": "done",
         "revision_id": revision_id_hex,
-        "directory_id": hash_to_hex(revision["directory"]),
+        "directory_id": hash_to_hex(revision.directory),
         "snapshot_id": expected_snapshot_id,
         "origin_url": url,
     }
@@ -282,14 +281,14 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
     # Ensure the date fields are set appropriately in the revision
 
     # Retrieve the revision
-    revision = next(loader.storage.revision_get([hash_to_bytes(revision_id)]))
+    revision = loader.storage.revision_get([hash_to_bytes(revision_id)])[0]
     assert revision
-    assert revision["date"] == raw_meta["deposit"]["author_date"]
-    assert revision["committer_date"] == raw_meta["deposit"]["committer_date"]
+    assert revision.date.to_dict() == raw_meta["deposit"]["author_date"]
+    assert revision.committer_date.to_dict() == raw_meta["deposit"]["committer_date"]
 
     read_api = f"{DEPOSIT_URL}/{deposit_id}/meta/"
 
-    assert revision["metadata"] == {
+    assert revision.metadata == {
         "extrinsic": {
             "provider": read_api,
             "raw": {
@@ -316,7 +315,7 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
                     },
                 },
             },
-            "when": revision["metadata"]["extrinsic"]["when"],  # dynamic
+            "when": revision.metadata["extrinsic"]["when"],  # dynamic
         },
         "original_artifact": [
             {
@@ -401,7 +400,7 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
     expected_body = {
         "status": "done",
         "revision_id": revision_id,
-        "directory_id": hash_to_hex(revision["directory"]),
+        "directory_id": hash_to_hex(revision.directory),
         "snapshot_id": expected_snapshot_id,
         "origin_url": url,
     }

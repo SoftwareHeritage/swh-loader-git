@@ -34,7 +34,6 @@ from swh.model import from_disk
 from swh.model.collections import ImmutableDict
 from swh.model.hashutil import hash_to_hex
 from swh.model.model import (
-    BaseModel,
     Sha1Git,
     Revision,
     TargetType,
@@ -209,7 +208,9 @@ class PackageLoader(Generic[TPackageInfo]):
         """
         return snapshot_get_latest(self.storage, self.url)
 
-    def known_artifacts(self, snapshot: Optional[Snapshot]) -> Dict[Sha1Git, BaseModel]:
+    def known_artifacts(
+        self, snapshot: Optional[Snapshot]
+    ) -> Dict[Sha1Git, Optional[ImmutableDict[str, object]]]:
         """Retrieve the known releases/artifact for the origin.
 
         Args
@@ -229,11 +230,8 @@ class PackageLoader(Generic[TPackageInfo]):
             if rev and rev.target_type == TargetType.REVISION
         ]
         known_revisions = self.storage.revision_get(revs)
-
         return {
-            revision["id"]: revision["metadata"]
-            for revision in known_revisions
-            if revision
+            revision.id: revision.metadata for revision in known_revisions if revision
         }
 
     def resolve_revision_from(

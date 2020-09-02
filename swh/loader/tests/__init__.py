@@ -166,7 +166,7 @@ def check_snapshot(
 
     revs = objects_by_target_type.get(TargetType.REVISION)
     if revs:
-        revisions = list(storage.revision_get(revs))
+        revisions = storage.revision_get(revs)
         not_found = [rev_id for rev_id, rev in zip(revs, revisions) if rev is None]
         if not_found:
             missing_objs = ", ".join(
@@ -176,10 +176,10 @@ def check_snapshot(
                 f"Branch/Revision(s) {missing_objs} should exist in storage"
             )
         # retrieve information from revision
-        for rev in revisions:
-            assert rev is not None
-            objects_by_target_type[TargetType.DIRECTORY].append(rev["directory"])
-            object_to_branch[rev["directory"]] = rev["id"]
+        for revision in revisions:
+            assert revision is not None
+            objects_by_target_type[TargetType.DIRECTORY].append(revision.directory)
+            object_to_branch[revision.directory] = revision.id
 
     rels = objects_by_target_type.get(TargetType.RELEASE)
     if rels:

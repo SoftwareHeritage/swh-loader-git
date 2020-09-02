@@ -218,16 +218,9 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
                 return r
             rev_id = branches[b"HEAD"].target
 
-            revisions = list(self.storage.revision_get([rev_id]))
-            if not revisions:
-                return r
-
-            revision = revisions[0]
+            revision = self.storage.revision_get([rev_id])[0]
             if not revision:
                 return r
-
-            # Retrieve the revision identifier
-            dir_id = revision["directory"]
 
             # update the deposit's status to success with its
             # revision-id and directory-id
@@ -235,7 +228,7 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
                 self.deposit_id,
                 status="done",
                 revision_id=hash_to_hex(rev_id),
-                directory_id=hash_to_hex(dir_id),
+                directory_id=hash_to_hex(revision.directory),
                 snapshot_id=r["snapshot_id"],
                 origin_url=self.url,
             )

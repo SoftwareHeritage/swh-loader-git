@@ -313,12 +313,11 @@ def test_revision_metadata_structure(swh_config, requests_mock_datadir):
     assert actual_load_status["snapshot_id"] is not None
 
     expected_revision_id = hash_to_bytes("e445da4da22b31bfebb6ffc4383dbf839a074d21")
-    revision = list(loader.storage.revision_get([expected_revision_id]))[0]
-
+    revision = loader.storage.revision_get([expected_revision_id])[0]
     assert revision is not None
 
     check_metadata_paths(
-        revision["metadata"],
+        revision.metadata,
         paths=[
             ("intrinsic.tool", str),
             ("intrinsic.raw", dict),
@@ -329,7 +328,7 @@ def test_revision_metadata_structure(swh_config, requests_mock_datadir):
         ],
     )
 
-    for original_artifact in revision["metadata"]["original_artifact"]:
+    for original_artifact in revision.metadata["original_artifact"]:
         check_metadata_paths(
             original_artifact,
             paths=[("filename", str), ("length", int), ("checksums", dict),],
