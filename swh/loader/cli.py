@@ -3,17 +3,16 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import inspect
+# WARNING: do not import unnecessary things here to keep cli startup time under
+# control
 import logging
 
 import click
-import iso8601
 import pkg_resources
 
 from typing import Any
 
 from swh.core.cli import CONTEXT_SETTINGS
-from swh.scheduler.cli.utils import parse_options
 
 
 logger = logging.getLogger(__name__)
@@ -69,6 +68,9 @@ def loader(ctx):
 @click.pass_context
 def run(ctx, type, url, options):
     """Ingest with loader <type> the origin located at <url>"""
+    import iso8601
+    from swh.scheduler.cli.utils import parse_options
+
     (_, kw) = parse_options(options)
     logger.debug(f"kw: {kw}")
     visit_date = kw.get("visit_date")
@@ -86,6 +88,8 @@ def run(ctx, type, url, options):
 @click.pass_context
 def list(ctx, type):
     """List supported loaders and optionally their arguments"""
+    import inspect
+
     if type == "all":
         loaders = ", ".join(SUPPORTED_LOADERS)
         click.echo(f"Supported loaders: {loaders}")
