@@ -6,25 +6,21 @@
 import copy
 import datetime
 import os.path
+from unittest import TestCase
 
 import dulwich.repo
 import pytest
 
-from unittest import TestCase
-
-from swh.model.model import Snapshot, SnapshotBranch, TargetType
-from swh.model.hashutil import hash_to_bytes
-from swh.storage.algos.snapshot import snapshot_get_all_branches
-
+from swh.loader.git.from_disk import GitLoaderFromArchive, GitLoaderFromDisk
 from swh.loader.tests import (
     assert_last_visit_matches,
     check_snapshot,
     get_stats,
     prepare_repository_from_archive,
 )
-
-from swh.loader.git.from_disk import GitLoaderFromDisk, GitLoaderFromArchive
-
+from swh.model.hashutil import hash_to_bytes
+from swh.model.model import Snapshot, SnapshotBranch, TargetType
+from swh.storage.algos.snapshot import snapshot_get_all_branches
 
 SNAPSHOT1 = Snapshot(
     id=hash_to_bytes("a23699280a82a043f8c0994cf1631b568f716f95"),

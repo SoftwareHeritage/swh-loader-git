@@ -17,11 +17,12 @@ try:
 except ImportError:
     # dulwich >= 0.20
     from dulwich.objects import EmptyFileException
+
 import dulwich.repo
 
+from swh.loader.core.loader import DVCSLoader
 from swh.model import hashutil
 from swh.model.model import Origin, Snapshot, SnapshotBranch, TargetType
-from swh.loader.core.loader import DVCSLoader
 from swh.storage.algos.origin import origin_get_latest_visit_status
 
 from . import converters, utils
@@ -388,8 +389,9 @@ class GitLoaderFromArchive(GitLoaderFromDisk):
 
 
 if __name__ == "__main__":
-    import click
     import logging
+
+    import click
 
     logging.basicConfig(
         level=logging.DEBUG, format="%(asctime)s %(process)d %(message)s"

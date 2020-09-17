@@ -4,27 +4,26 @@
 # See top-level LICENSE file for more information
 
 import os
-import pytest
 import shutil
 import subprocess
 import tempfile
 import unittest
 
 import dulwich.repo
+import pytest
 
+import swh.loader.git.converters as converters
 from swh.model.hashutil import bytehex_to_hash, hash_to_bytes
 from swh.model.model import (
     Content,
+    ObjectType,
     Person,
     Release,
     Revision,
     RevisionType,
-    ObjectType,
     Timestamp,
     TimestampWithTimezone,
 )
-
-import swh.loader.git.converters as converters
 
 TEST_DATA = os.path.join(os.path.dirname(__file__), "data")
 GPGSIG = (

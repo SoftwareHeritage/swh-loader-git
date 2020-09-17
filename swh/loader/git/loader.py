@@ -17,19 +17,19 @@ import dulwich.client
 from dulwich.object_store import ObjectStoreGraphWalker
 from dulwich.pack import PackData, PackInflater
 
+from swh.loader.core.loader import DVCSLoader
 from swh.model import hashutil
 from swh.model.model import (
     BaseContent,
     Directory,
     Origin,
-    Revision,
     Release,
+    Revision,
+    Sha1Git,
     Snapshot,
     SnapshotBranch,
     TargetType,
-    Sha1Git,
 )
-from swh.loader.core.loader import DVCSLoader
 from swh.storage.algos.snapshot import snapshot_get_latest
 
 from . import converters, utils
