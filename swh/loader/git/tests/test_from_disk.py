@@ -115,7 +115,6 @@ class CommonGitLoaderTests:
             "directory": 7,
             "origin": 1,
             "origin_visit": 1,
-            "person": 1,
             "release": 0,
             "revision": 7,
             "skipped_content": 0,
@@ -144,7 +143,6 @@ class CommonGitLoaderTests:
             "directory": 7,
             "origin": 1,
             "origin_visit": 1,
-            "person": 1,
             "release": 0,
             "revision": 7,
             "skipped_content": 0,
@@ -189,7 +187,6 @@ class FullGitLoaderTests(CommonGitLoaderTests):
             "directory": 7,
             "origin": 1,
             "origin_visit": 1,
-            "person": 1,
             "release": 0,
             "revision": 7,
             "skipped_content": 0,
@@ -218,7 +215,6 @@ class FullGitLoaderTests(CommonGitLoaderTests):
         # did one new visit
         expected_stats["origin_visit"] += 1
         # with one more of the following objects
-        expected_stats["person"] += 1
         expected_stats["content"] += 1
         expected_stats["directory"] += 1
         expected_stats["revision"] += 1
@@ -359,7 +355,6 @@ class FullGitLoaderTests(CommonGitLoaderTests):
             "directory": 7,
             "origin": 1,
             "origin_visit": 1,
-            "person": 1,
             "release": 0,
             "revision": 7,
             "skipped_content": 0,
