@@ -122,7 +122,6 @@ def test_debian_first_visit(swh_config, requests_mock_datadir):
         "directory": 2,
         "origin": 1,
         "origin_visit": 1,
-        "person": 1,
         "release": 0,
         "revision": 1,  # all artifacts under 1 revision
         "skipped_content": 0,
@@ -166,7 +165,6 @@ def test_debian_first_visit_then_another_visit(swh_config, requests_mock_datadir
         "directory": 2,
         "origin": 1,
         "origin_visit": 1,
-        "person": 1,
         "release": 0,
         "revision": 1,  # all artifacts under 1 revision
         "skipped_content": 0,
@@ -196,7 +194,6 @@ def test_debian_first_visit_then_another_visit(swh_config, requests_mock_datadir
         "directory": 2 + 0,
         "origin": 1,
         "origin_visit": 1 + 1,  # a new visit occurred
-        "person": 1,
         "release": 0,
         "revision": 1,
         "skipped_content": 0,

@@ -252,7 +252,6 @@ def get_stats(storage) -> Dict:
         "directory",
         "origin",
         "origin_visit",
-        "person",
         "release",
         "revision",
         "skipped_content",
