@@ -3,15 +3,20 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import attr
 import copy
 import json
 import logging
 import re
+from typing import Any, Dict, Iterator, List, Mapping, Optional, Tuple
 
-from typing import Any, Dict, List, Iterator, Mapping, Optional, Tuple
+import attr
 
-
+from swh.loader.package.loader import (
+    BasePackageInfo,
+    PackageLoader,
+    RawExtrinsicMetadataCore,
+)
+from swh.loader.package.utils import EMPTY_AUTHOR, api_info
 from swh.model import hashutil
 from swh.model.collections import ImmutableDict
 from swh.model.model import (
@@ -19,18 +24,10 @@ from swh.model.model import (
     MetadataAuthorityType,
     Revision,
     RevisionType,
-    TargetType,
-    Snapshot,
     Sha1Git,
+    Snapshot,
+    TargetType,
 )
-
-from swh.loader.package.utils import EMPTY_AUTHOR, api_info
-from swh.loader.package.loader import (
-    BasePackageInfo,
-    PackageLoader,
-    RawExtrinsicMetadataCore,
-)
-
 
 logger = logging.getLogger(__name__)
 

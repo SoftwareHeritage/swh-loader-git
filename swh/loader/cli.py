@@ -6,14 +6,12 @@
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
 import logging
+from typing import Any
 
 import click
 import pkg_resources
 
-from typing import Any
-
 from swh.core.cli import CONTEXT_SETTINGS
-
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +67,7 @@ def loader(ctx):
 def run(ctx, type, url, options):
     """Ingest with loader <type> the origin located at <url>"""
     import iso8601
+
     from swh.scheduler.cli.utils import parse_options
 
     (_, kw) = parse_options(options)

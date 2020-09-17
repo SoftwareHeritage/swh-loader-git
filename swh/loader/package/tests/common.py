@@ -3,10 +3,8 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-from os import path
-
 import logging
-
+from os import path
 from typing import Dict, List, Tuple
 
 logger = logging.getLogger(__file__)

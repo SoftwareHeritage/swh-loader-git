@@ -9,29 +9,22 @@ import re
 import attr
 import pytest
 
+from swh.core.pytest_plugin import requests_mock_datadir_factory
+from swh.loader.package.deposit.loader import DepositLoader
+from swh.loader.package.tests.common import check_metadata_paths
+from swh.loader.tests import assert_last_visit_matches, check_snapshot, get_stats
 from swh.model.hashutil import hash_to_bytes, hash_to_hex
 from swh.model.identifiers import SWHID
 from swh.model.model import (
-    Snapshot,
-    SnapshotBranch,
-    TargetType,
     MetadataAuthority,
     MetadataAuthorityType,
     MetadataFetcher,
     MetadataTargetType,
     RawExtrinsicMetadata,
+    Snapshot,
+    SnapshotBranch,
+    TargetType,
 )
-from swh.loader.package.deposit.loader import DepositLoader
-
-from swh.loader.package.tests.common import check_metadata_paths
-from swh.loader.tests import (
-    assert_last_visit_matches,
-    check_snapshot,
-    get_stats,
-)
-
-from swh.core.pytest_plugin import requests_mock_datadir_factory
-
 
 DEPOSIT_URL = "https://deposit.softwareheritage.org/1/private"
 

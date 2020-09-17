@@ -4,15 +4,23 @@
 # See top-level LICENSE file for more information
 
 import os
-
 from os import path
+from unittest.mock import patch
 
 import pytest
 
-from unittest.mock import patch
-
-from swh.core.tarball import uncompress
 from swh.core.pytest_plugin import requests_mock_datadir_factory
+from swh.core.tarball import uncompress
+from swh.loader.package import __version__
+from swh.loader.package.pypi.loader import (
+    PyPILoader,
+    artifact_to_revision_id,
+    author,
+    extract_intrinsic_metadata,
+    pypi_api_url,
+)
+from swh.loader.package.tests.common import check_metadata_paths
+from swh.loader.tests import assert_last_visit_matches, check_snapshot, get_stats
 from swh.model.hashutil import hash_to_bytes, hash_to_hex
 from swh.model.identifiers import SWHID
 from swh.model.model import (
@@ -27,21 +35,6 @@ from swh.model.model import (
     TargetType,
 )
 from swh.storage.interface import PagedResult
-
-from swh.loader.package import __version__
-from swh.loader.package.pypi.loader import (
-    PyPILoader,
-    pypi_api_url,
-    author,
-    extract_intrinsic_metadata,
-    artifact_to_revision_id,
-)
-from swh.loader.package.tests.common import check_metadata_paths
-from swh.loader.tests import (
-    assert_last_visit_matches,
-    check_snapshot,
-    get_stats,
-)
 
 
 @pytest.fixture

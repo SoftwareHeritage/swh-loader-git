@@ -7,11 +7,9 @@ import datetime
 import hashlib
 import logging
 
-from swh.model.model import Origin, OriginVisit, Snapshot
-
 from swh.loader.core.loader import BaseLoader, DVCSLoader
 from swh.loader.tests import assert_last_visit_matches
-
+from swh.model.model import Origin, OriginVisit, Snapshot
 
 ORIGIN = Origin(url="some-url")
 

@@ -3,26 +3,15 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+from codecs import BOM_UTF8
 import json
 import logging
 import os
-
-from codecs import BOM_UTF8
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple, Union
+from urllib.parse import quote
 
 import attr
 import chardet
-
-from urllib.parse import quote
-from swh.model.model import (
-    MetadataAuthority,
-    MetadataAuthorityType,
-    Person,
-    RevisionType,
-    Revision,
-    TimestampWithTimezone,
-    Sha1Git,
-)
 
 from swh.loader.package.loader import (
     BasePackageInfo,
@@ -30,7 +19,15 @@ from swh.loader.package.loader import (
     RawExtrinsicMetadataCore,
 )
 from swh.loader.package.utils import api_info, cached_method, release_name
-
+from swh.model.model import (
+    MetadataAuthority,
+    MetadataAuthorityType,
+    Person,
+    Revision,
+    RevisionType,
+    Sha1Git,
+    TimestampWithTimezone,
+)
 
 logger = logging.getLogger(__name__)
 

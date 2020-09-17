@@ -5,10 +5,7 @@
 
 import pytest
 
-from swh.loader.package.tests.common import (
-    check_metadata,
-    check_metadata_paths,
-)
+from swh.loader.package.tests.common import check_metadata, check_metadata_paths
 
 
 def test_check_metadata():

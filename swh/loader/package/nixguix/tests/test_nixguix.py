@@ -3,26 +3,31 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import os
 import json
 from json.decoder import JSONDecodeError
 import logging
+import os
 from typing import Dict, Optional, Tuple
 from unittest.mock import patch
 
 import attr
 import pytest
 
+from swh.loader.package import __version__
 from swh.loader.package.archive.loader import ArchiveLoader
 from swh.loader.package.nixguix.loader import (
-    NixGuixPackageInfo,
     NixGuixLoader,
-    parse_sources,
-    retrieve_sources,
+    NixGuixPackageInfo,
     clean_sources,
     make_pattern_unsupported_file_extension,
+    parse_sources,
+    retrieve_sources,
 )
 from swh.loader.package.utils import download
+from swh.loader.tests import assert_last_visit_matches
+from swh.loader.tests import check_snapshot as check_snapshot_full
+from swh.loader.tests import get_stats
+from swh.model.hashutil import hash_to_bytes, hash_to_hex
 from swh.model.identifiers import SWHID
 from swh.model.model import (
     MetadataAuthority,
@@ -34,20 +39,10 @@ from swh.model.model import (
     SnapshotBranch,
     TargetType,
 )
-from swh.model.hashutil import hash_to_bytes, hash_to_hex
-from swh.storage.exc import HashCollision
 from swh.storage.algos.origin import origin_get_latest_visit_status
 from swh.storage.algos.snapshot import snapshot_get_all_branches
+from swh.storage.exc import HashCollision
 from swh.storage.interface import PagedResult, StorageInterface
-
-from swh.loader.package import __version__
-
-from swh.loader.tests import (
-    assert_last_visit_matches,
-    get_stats,
-    check_snapshot as check_snapshot_full,
-)
-
 
 sources_url = "https://nix-community.github.io/nixpkgs-swh/sources.json"
 

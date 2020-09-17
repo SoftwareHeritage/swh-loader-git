@@ -3,26 +3,25 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+from abc import ABCMeta, abstractmethod
 import datetime
 import hashlib
 import logging
 import os
-
-from abc import ABCMeta, abstractmethod
 from typing import Any, Dict, Iterable, Optional, Tuple
 
 from swh.core import config
 from swh.model.model import (
     BaseContent,
     Content,
-    SkippedContent,
     Directory,
     Origin,
     OriginVisit,
     OriginVisitStatus,
-    Revision,
     Release,
+    Revision,
     Sha1Git,
+    SkippedContent,
     Snapshot,
 )
 from swh.storage import get_storage

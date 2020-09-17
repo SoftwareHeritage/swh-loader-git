@@ -3,28 +3,27 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import dateutil.parser
 import datetime
 from datetime import timezone
+import logging
 import os
 from os import path
-import logging
 import re
 from typing import Any, Dict, Iterator, List, Mapping, Optional, Tuple
 
 import attr
+import dateutil.parser
 from debian.deb822 import Deb822
 
 from swh.loader.package.loader import BasePackageInfo, PackageLoader
 from swh.loader.package.utils import release_name
 from swh.model.model import (
     Person,
-    TimestampWithTimezone,
-    Sha1Git,
     Revision,
     RevisionType,
+    Sha1Git,
+    TimestampWithTimezone,
 )
-
 
 logger = logging.getLogger(__name__)
 

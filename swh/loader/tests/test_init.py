@@ -4,13 +4,22 @@
 # See top-level LICENSE file for more information
 
 import datetime
-import pytest
-
-import attr
 import os
 import subprocess
 
+import attr
+import pytest
+
+from swh.loader.tests import (
+    InconsistentAliasBranchError,
+    InexistentObjectsError,
+    assert_last_visit_matches,
+    check_snapshot,
+    encode_target,
+    prepare_repository_from_archive,
+)
 from swh.model.from_disk import DentryPerms
+from swh.model.hashutil import hash_to_bytes
 from swh.model.model import (
     Content,
     Directory,
@@ -28,17 +37,6 @@ from swh.model.model import (
     Timestamp,
     TimestampWithTimezone,
 )
-from swh.model.hashutil import hash_to_bytes
-
-from swh.loader.tests import (
-    assert_last_visit_matches,
-    encode_target,
-    check_snapshot,
-    prepare_repository_from_archive,
-    InconsistentAliasBranchError,
-    InexistentObjectsError,
-)
-
 
 hash_hex = "43e45d56f88993aae6a0198013efa80716fd8920"
 

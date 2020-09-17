@@ -28,13 +28,12 @@ from debian.deb822 import Dsc
 from swh.loader.package.loader import BasePackageInfo, PackageLoader
 from swh.loader.package.utils import download, release_name
 from swh.model.model import (
-    Sha1Git,
     Person,
     Revision,
     RevisionType,
+    Sha1Git,
     TimestampWithTimezone,
 )
-
 
 logger = logging.getLogger(__name__)
 UPLOADERS_SPLIT = re.compile(r"(?<=\>)\s*,\s*")

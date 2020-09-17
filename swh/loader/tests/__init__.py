@@ -3,19 +3,17 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import os
-import subprocess
-
 from collections import defaultdict
+import os
 from pathlib import PosixPath
+import subprocess
 from typing import Dict, Iterable, List, Optional, Tuple, Union
 
-from swh.model.model import OriginVisitStatus, Snapshot, TargetType
 from swh.model.hashutil import hash_to_bytes
-
-from swh.storage.interface import StorageInterface
+from swh.model.model import OriginVisitStatus, Snapshot, TargetType
 from swh.storage.algos.origin import origin_get_latest_visit_status
 from swh.storage.algos.snapshot import snapshot_get_all_branches
+from swh.storage.interface import StorageInterface
 
 
 def assert_last_visit_matches(

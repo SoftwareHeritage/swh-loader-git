@@ -6,12 +6,10 @@
 """Convert objects to dictionaries suitable for swh.storage"""
 
 import logging
-
 from typing import Dict, Iterable, List, Optional, Tuple
 
 from swh.model.hashutil import hash_to_hex
 from swh.model.model import BaseContent, Content, SkippedContent
-
 
 logger = logging.getLogger(__name__)
 

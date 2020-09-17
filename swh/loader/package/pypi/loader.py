@@ -3,8 +3,8 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import logging
 import json
+import logging
 import os
 from typing import Any, Dict, Iterator, Optional, Sequence, Tuple
 from urllib.parse import urlparse
@@ -12,26 +12,20 @@ from urllib.parse import urlparse
 import attr
 from pkginfo import UnpackedSDist
 
-from swh.model.model import (
-    MetadataAuthority,
-    MetadataAuthorityType,
-    Person,
-    Sha1Git,
-    TimestampWithTimezone,
-    Revision,
-    RevisionType,
-)
-
 from swh.loader.package.loader import (
     BasePackageInfo,
     PackageLoader,
     RawExtrinsicMetadataCore,
 )
-from swh.loader.package.utils import (
-    api_info,
-    cached_method,
-    release_name,
-    EMPTY_AUTHOR,
+from swh.loader.package.utils import EMPTY_AUTHOR, api_info, cached_method, release_name
+from swh.model.model import (
+    MetadataAuthority,
+    MetadataAuthorityType,
+    Person,
+    Revision,
+    RevisionType,
+    Sha1Git,
+    TimestampWithTimezone,
 )
 
 logger = logging.getLogger(__name__)

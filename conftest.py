@@ -5,7 +5,6 @@
 
 import pytest
 
-
 pytest_plugins = [
     "swh.scheduler.pytest_plugin",
     "swh.storage.pytest_plugin",

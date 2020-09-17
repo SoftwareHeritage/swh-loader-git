@@ -3,30 +3,23 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import os
-import pytest
-
 from datetime import datetime, timezone
-from dateutil.tz import tzlocal
-
+import os
 from os import path
 
+from dateutil.tz import tzlocal
+import pytest
+
+from swh.core.tarball import uncompress
 from swh.loader.package.cran.loader import (
-    extract_intrinsic_metadata,
     CRANLoader,
+    extract_intrinsic_metadata,
     parse_date,
     parse_debian_control,
 )
-from swh.core.tarball import uncompress
+from swh.loader.tests import assert_last_visit_matches, check_snapshot, get_stats
 from swh.model.hashutil import hash_to_bytes
 from swh.model.model import Snapshot, SnapshotBranch, TargetType, TimestampWithTimezone
-
-from swh.loader.tests import (
-    assert_last_visit_matches,
-    check_snapshot,
-    get_stats,
-)
-
 
 SNAPSHOT = Snapshot(
     id=hash_to_bytes("920adcccc78aaeedd3cfa4459dd900d8c3431a21"),

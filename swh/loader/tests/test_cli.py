@@ -5,14 +5,12 @@
 
 import datetime
 
-import pytest
-
-
-from swh.loader.cli import run, list, get_loader, SUPPORTED_LOADERS
-from swh.loader.package.loader import PackageLoader
-
 from click.formatting import HelpFormatter
 from click.testing import CliRunner
+import pytest
+
+from swh.loader.cli import SUPPORTED_LOADERS, get_loader, list, run
+from swh.loader.package.loader import PackageLoader
 
 
 def test_get_loader_wrong_input(swh_config):

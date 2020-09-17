@@ -5,17 +5,11 @@
 
 import attr
 
-from swh.model.hashutil import hash_to_bytes
-from swh.model.model import Snapshot, SnapshotBranch, TargetType
-
 from swh.loader.package.archive.loader import ArchiveLoader, ArchivePackageInfo
 from swh.loader.package.tests.common import check_metadata_paths
-from swh.loader.tests import (
-    assert_last_visit_matches,
-    check_snapshot,
-    get_stats,
-)
-
+from swh.loader.tests import assert_last_visit_matches, check_snapshot, get_stats
+from swh.model.hashutil import hash_to_bytes
+from swh.model.model import Snapshot, SnapshotBranch, TargetType
 
 URL = "https://ftp.gnu.org/gnu/8sync/"
 GNU_ARTIFACTS = [

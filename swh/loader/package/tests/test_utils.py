@@ -10,7 +10,7 @@ import os
 import pytest
 
 import swh.loader.package
-from swh.loader.package.utils import download, api_info, release_name
+from swh.loader.package.utils import api_info, download, release_name
 
 
 def test_version_generation():

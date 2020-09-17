@@ -6,30 +6,29 @@
 import datetime
 import json
 import logging
-import requests
 from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, Tuple, Union
 
 import attr
+import requests
 
-from swh.model.hashutil import hash_to_hex, hash_to_bytes
-from swh.model.model import (
-    Person,
-    Revision,
-    RevisionType,
-    TimestampWithTimezone,
-    Sha1Git,
-    MetadataAuthority,
-    MetadataAuthorityType,
-    MetadataFetcher,
-)
 from swh.loader.package.loader import (
     BasePackageInfo,
     PackageLoader,
     RawExtrinsicMetadataCore,
 )
 from swh.loader.package.utils import cached_method, download
+from swh.model.hashutil import hash_to_bytes, hash_to_hex
+from swh.model.model import (
+    MetadataAuthority,
+    MetadataAuthorityType,
+    MetadataFetcher,
+    Person,
+    Revision,
+    RevisionType,
+    Sha1Git,
+    TimestampWithTimezone,
+)
 from swh.storage.algos.snapshot import snapshot_get_all_branches
-
 
 logger = logging.getLogger(__name__)
 

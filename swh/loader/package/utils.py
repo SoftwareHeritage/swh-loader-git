@@ -7,15 +7,13 @@ import copy
 import functools
 import logging
 import os
-import requests
-
 from typing import Callable, Dict, Optional, Tuple, TypeVar
 
-from swh.model.hashutil import MultiHash, HASH_BLOCK_SIZE
-from swh.model.model import Person
+import requests
 
 from swh.loader.package import DEFAULT_PARAMS
-
+from swh.model.hashutil import HASH_BLOCK_SIZE, MultiHash
+from swh.model.model import Person
 
 logger = logging.getLogger(__name__)
 

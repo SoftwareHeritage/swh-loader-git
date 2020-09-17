@@ -4,11 +4,10 @@
 # See top-level LICENSE file for more information
 
 import os
+from typing import Any, Dict
 
 import pytest
 import yaml
-
-from typing import Any, Dict
 
 
 @pytest.fixture

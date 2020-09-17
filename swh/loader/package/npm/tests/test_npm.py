@@ -5,8 +5,18 @@
 
 import json
 import os
+
 import pytest
 
+from swh.loader.package import __version__
+from swh.loader.package.npm.loader import (
+    NpmLoader,
+    _author_str,
+    artifact_to_revision_id,
+    extract_npm_package_author,
+)
+from swh.loader.package.tests.common import check_metadata_paths
+from swh.loader.tests import assert_last_visit_matches, check_snapshot, get_stats
 from swh.model.hashutil import hash_to_bytes, hash_to_hex
 from swh.model.identifiers import SWHID
 from swh.model.model import (
@@ -20,22 +30,7 @@ from swh.model.model import (
     SnapshotBranch,
     TargetType,
 )
-
 from swh.storage.interface import PagedResult
-
-from swh.loader.package import __version__
-from swh.loader.package.npm.loader import (
-    _author_str,
-    NpmLoader,
-    extract_npm_package_author,
-    artifact_to_revision_id,
-)
-from swh.loader.package.tests.common import check_metadata_paths
-from swh.loader.tests import (
-    assert_last_visit_matches,
-    check_snapshot,
-    get_stats,
-)
 
 
 @pytest.fixture

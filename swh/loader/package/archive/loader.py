@@ -11,16 +11,15 @@ from typing import Any, Dict, Iterator, Optional, Sequence, Tuple, Union
 import attr
 import iso8601
 
-from swh.loader.package.loader import PackageLoader, BasePackageInfo
+from swh.loader.package.loader import BasePackageInfo, PackageLoader
 from swh.loader.package.utils import release_name
 from swh.model.model import (
-    Sha1Git,
     Person,
-    TimestampWithTimezone,
     Revision,
     RevisionType,
+    Sha1Git,
+    TimestampWithTimezone,
 )
-
 
 logger = logging.getLogger(__name__)
 SWH_PERSON = Person(

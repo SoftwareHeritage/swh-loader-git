@@ -4,17 +4,18 @@
 # See top-level LICENSE file for more information
 
 import datetime
+from itertools import islice
 import json
 import logging
-import tempfile
 import os
 import sys
+import tempfile
 from typing import (
     Any,
     Dict,
-    Iterator,
     Generic,
     Iterable,
+    Iterator,
     List,
     Mapping,
     Optional,
@@ -26,35 +27,31 @@ from typing import (
 import attr
 import sentry_sdk
 
-from itertools import islice
-
-from swh.core.tarball import uncompress
 from swh.core.config import SWHConfig
+from swh.core.tarball import uncompress
+from swh.loader.package.utils import download
 from swh.model import from_disk
 from swh.model.collections import ImmutableDict
 from swh.model.hashutil import hash_to_hex
+from swh.model.identifiers import SWHID
 from swh.model.model import (
-    Sha1Git,
-    Revision,
-    TargetType,
-    Snapshot,
-    Origin,
-    OriginVisit,
-    OriginVisitStatus,
     MetadataAuthority,
     MetadataAuthorityType,
     MetadataFetcher,
     MetadataTargetType,
+    Origin,
+    OriginVisit,
+    OriginVisitStatus,
     RawExtrinsicMetadata,
+    Revision,
+    Sha1Git,
+    Snapshot,
+    TargetType,
 )
-from swh.model.identifiers import SWHID
 from swh.storage import get_storage
+from swh.storage.algos.snapshot import snapshot_get_latest
 from swh.storage.interface import StorageInterface
 from swh.storage.utils import now
-from swh.storage.algos.snapshot import snapshot_get_latest
-
-from swh.loader.package.utils import download
-
 
 logger = logging.getLogger(__name__)
 

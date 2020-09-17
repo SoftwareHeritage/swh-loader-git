@@ -8,6 +8,7 @@ from typing import Iterator, List, Sequence, Tuple
 
 import attr
 
+from swh.loader.package import __version__
 from swh.loader.package.loader import (
     BasePackageInfo,
     PackageLoader,
@@ -27,8 +28,6 @@ from swh.model.model import (
     Sha1Git,
 )
 from swh.storage import get_storage
-
-from swh.loader.package import __version__
 
 EMPTY_SNAPSHOT_ID = "1a8893e6a86f444e8be8e7bda6cb34fb1735a00e"
 FULL_SNAPSHOT_ID = "4a9b608c9f01860a627237dd2409d1d50ec4b054"

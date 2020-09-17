@@ -4,7 +4,6 @@
 # See top-level LICENSE file for more information
 
 import os
-
 from unittest.mock import patch
 
 from swh.loader.core.utils import clean_dangling_folders
