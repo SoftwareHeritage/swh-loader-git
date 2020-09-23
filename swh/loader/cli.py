@@ -11,7 +11,7 @@ from typing import Any
 import click
 import pkg_resources
 
-from swh.core.cli import CONTEXT_SETTINGS
+from swh.core.cli import CONTEXT_SETTINGS, swh as swh_cli_group
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ def get_loader(name: str, **kwargs) -> Any:
     return loader_cls(**kwargs)
 
 
-@click.group(name="loader", context_settings=CONTEXT_SETTINGS)
+@swh_cli_group.group(name="loader", context_settings=CONTEXT_SETTINGS)
 @click.pass_context
 def loader(ctx):
     """Loader cli tools

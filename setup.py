@@ -52,6 +52,8 @@ setup(
     extras_require={"testing": parse_requirements("test")},
     include_package_data=True,
     entry_points="""
+        [swh.cli.subcommands]
+        loader=swh.loader.cli
         [swh.workers]
         loader.archive=swh.loader.package.archive:register
         loader.cran=swh.loader.package.cran:register
@@ -60,8 +62,6 @@ setup(
         loader.nixguix=swh.loader.package.nixguix:register
         loader.npm=swh.loader.package.npm:register
         loader.pypi=swh.loader.package.pypi:register
-        [swh.cli.subcommands]
-        loader=swh.loader.cli:loader
     """,
     classifiers=[
         "Programming Language :: Python :: 3",
