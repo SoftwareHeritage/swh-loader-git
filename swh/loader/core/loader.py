@@ -304,8 +304,15 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
         self.prepare_origin_visit(*args, **kwargs)
         self._store_origin_visit()
 
-        assert self.origin
-        assert self.visit.visit
+        assert (
+            self.origin
+        ), "The method `prepare_origin_visit` call should set the origin (Origin)"
+        assert (
+            self.visit.visit
+        ), "The method `_store_origin_visit` should set the visit (OriginVisit)"
+        self.log.info(
+            "Load origin '%s' with type '%s'", self.origin.url, self.visit.type
+        )
 
         try:
             self.prepare(*args, **kwargs)
