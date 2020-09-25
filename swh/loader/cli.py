@@ -11,7 +11,8 @@ from typing import Any
 import click
 import pkg_resources
 
-from swh.core.cli import CONTEXT_SETTINGS, swh as swh_cli_group
+from swh.core.cli import CONTEXT_SETTINGS
+from swh.core.cli import swh as swh_cli_group
 
 logger = logging.getLogger(__name__)
 
