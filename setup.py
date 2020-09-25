@@ -50,7 +50,6 @@ setup(
     setup_requires=["setuptools-scm"],
     use_scm_version=True,
     extras_require={"testing": parse_requirements("test")},
-    vcversioner={},
     include_package_data=True,
     entry_points="""
         [swh.workers]
