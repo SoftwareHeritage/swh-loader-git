@@ -4,6 +4,7 @@
 # See top-level LICENSE file for more information
 
 import datetime
+from datetime import timezone
 import json
 import logging
 from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, Tuple, Union
@@ -31,6 +32,10 @@ from swh.model.model import (
 from swh.storage.algos.snapshot import snapshot_get_all_branches
 
 logger = logging.getLogger(__name__)
+
+
+def now() -> datetime.datetime:
+    return datetime.datetime.now(tz=timezone.utc)
 
 
 @attr.s
@@ -62,13 +67,16 @@ class DepositPackageInfo(BasePackageInfo):
         # which computes itself the values. The loader needs to use those to create the
         # revision.
 
-        raw_metadata_from_origin = json.dumps(
-            metadata["origin_metadata"]["metadata"]
-        ).encode()
-        metadata = metadata.copy()
-        # FIXME: this removes information from 'raw' metadata
-        depo = metadata.pop("deposit")
-
+        all_metadata_raw: List[str] = metadata["metadata_raw"]
+        raw_info = {
+            "origin": metadata["origin"],
+            "origin_metadata": {
+                "metadata": json.dumps(metadata["metadata_dict"]),
+                "provider": metadata["provider"],
+                "tool": metadata["tool"],
+            },
+        }
+        depo = metadata["deposit"]
         return cls(
             url=url,
             filename=filename,
@@ -80,12 +88,14 @@ class DepositPackageInfo(BasePackageInfo):
             author=parse_author(depo["author"]),
             committer=parse_author(depo["committer"]),
             revision_parents=tuple(hash_to_bytes(p) for p in depo["revision_parents"]),
-            raw_info=metadata,
+            raw_info=raw_info,
             revision_extrinsic_metadata=[
                 RawExtrinsicMetadataCore(
-                    format="sword-v2-atom-codemeta-v2-in-json",
-                    metadata=raw_metadata_from_origin,
-                ),
+                    discovery_date=now(),
+                    metadata=raw_metadata.encode(),
+                    format="sword-v2-atom-codemeta-v2",
+                )
+                for raw_metadata in all_metadata_raw
             ],
         )
 
@@ -117,8 +127,8 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
         return ["HEAD"]
 
     def get_metadata_authority(self) -> MetadataAuthority:
-        provider = self.metadata()["origin_metadata"]["provider"]
-        assert provider["provider_type"] == "deposit_client"
+        provider = self.metadata()["provider"]
+        assert provider["provider_type"] == MetadataAuthorityType.DEPOSIT_CLIENT.value
         return MetadataAuthority(
             type=MetadataAuthorityType.DEPOSIT_CLIENT,
             url=provider["provider_url"],
@@ -129,7 +139,7 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
         )
 
     def get_metadata_fetcher(self) -> MetadataFetcher:
-        tool = self.metadata()["origin_metadata"]["tool"]
+        tool = self.metadata()["tool"]
         return MetadataFetcher(
             name=tool["name"], version=tool["version"], metadata=tool["configuration"],
         )
@@ -177,11 +187,27 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
         )
 
     def get_extrinsic_origin_metadata(self) -> List[RawExtrinsicMetadataCore]:
-        origin_metadata = self.metadata()["origin_metadata"]
+        metadata = self.metadata()
+        all_metadata_raw: List[str] = metadata["metadata_raw"]
+        origin_metadata = json.dumps(
+            {
+                "metadata": all_metadata_raw,
+                "provider": metadata["provider"],
+                "tool": metadata["tool"],
+            }
+        ).encode()
         return [
             RawExtrinsicMetadataCore(
-                format="sword-v2-atom-codemeta-v2-in-json",
-                metadata=json.dumps(origin_metadata["metadata"]).encode(),
+                discovery_date=now(),
+                metadata=raw_meta.encode(),
+                format="sword-v2-atom-codemeta-v2",
+            )
+            for raw_meta in all_metadata_raw
+        ] + [
+            RawExtrinsicMetadataCore(
+                discovery_date=now(),
+                metadata=origin_metadata,
+                format="original-artifacts-json",
             )
         ]
 

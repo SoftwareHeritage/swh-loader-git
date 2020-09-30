@@ -5,12 +5,14 @@
 
 import json
 import re
+from typing import List
 
 import attr
 import pytest
 
 from swh.core.pytest_plugin import requests_mock_datadir_factory
 from swh.loader.package.deposit.loader import DepositLoader
+from swh.loader.package.loader import now
 from swh.loader.package.tests.common import check_metadata_paths
 from swh.loader.tests import assert_last_visit_matches, check_snapshot, get_stats
 from swh.model.hashutil import hash_to_bytes, hash_to_hex
@@ -199,21 +201,25 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
         MetadataTargetType.ORIGIN, url, authority
     )
     assert orig_meta.next_page_token is None
-    assert len(orig_meta.results) == 1
+    raw_meta = loader.client.metadata_get(deposit_id)
+    all_metadata_raw: List[str] = raw_meta["metadata_raw"]
+    # 2 raw metadata xml + 1 json dict
+    assert len(orig_meta.results) == len(all_metadata_raw) + 1
     orig_meta0 = orig_meta.results[0]
     assert orig_meta0.authority == authority
     assert orig_meta0.fetcher == fetcher
 
     # Check revision metadata
     revision_swhid = SWHID(object_type="revision", object_id=revision_id)
-    rev_meta = loader.storage.raw_extrinsic_metadata_get(
+    actual_rev_meta = loader.storage.raw_extrinsic_metadata_get(
         MetadataTargetType.REVISION, revision_swhid, authority
     )
-    assert rev_meta.next_page_token is None
-    assert len(rev_meta.results) == 1
-    rev_meta0 = rev_meta.results[0]
-    assert rev_meta0.authority == authority
-    assert rev_meta0.fetcher == fetcher
+    assert actual_rev_meta.next_page_token is None
+    assert len(actual_rev_meta.results) == len(all_metadata_raw)
+    for rev_meta in actual_rev_meta.results:
+        assert rev_meta.authority == authority
+        assert rev_meta.fetcher == fetcher
+        assert rev_meta.metadata.decode() in all_metadata_raw
 
     # Retrieve the information for deposit status update query to the deposit
     urls = [
@@ -278,31 +284,26 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
 
     read_api = f"{DEPOSIT_URL}/{deposit_id}/meta/"
 
+    provider = {
+        "provider_name": "hal",
+        "provider_type": "deposit_client",
+        "provider_url": "https://hal-test.archives-ouvertes.fr/",
+        "metadata": None,
+    }
+    tool = {
+        "name": "swh-deposit",
+        "version": "0.0.1",
+        "configuration": {"sword_version": "2"},
+    }
     assert revision.metadata == {
         "extrinsic": {
             "provider": read_api,
             "raw": {
                 "origin": {"type": "deposit", "url": url,},
                 "origin_metadata": {
-                    "metadata": {
-                        "@xmlns": ["http://www.w3.org/2005/Atom"],
-                        "author": ["some awesome author", "another one", "no one",],
-                        "codemeta:dateCreated": "2017-10-07T15:17:08Z",
-                        "codemeta:datePublished": "2017-10-08T15:00:00Z",
-                        "external_identifier": "some-external-id",
-                        "url": url,
-                    },
-                    "provider": {
-                        "metadata": None,
-                        "provider_name": "hal",
-                        "provider_type": "deposit_client",
-                        "provider_url": "https://hal-test.archives-ouvertes.fr/",
-                    },
-                    "tool": {
-                        "configuration": {"sword_version": "2"},
-                        "name": "swh-deposit",
-                        "version": "0.0.1",
-                    },
+                    "metadata": json.dumps(raw_meta["metadata_dict"]),
+                    "provider": provider,
+                    "tool": tool,
                 },
             },
             "when": revision.metadata["extrinsic"]["when"],  # dynamic
@@ -328,53 +329,83 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
     )
 
     # Check the origin metadata swh side
-    orig_meta = loader.storage.raw_extrinsic_metadata_get(
+    origin_extrinsic_metadata = loader.storage.raw_extrinsic_metadata_get(
         MetadataTargetType.ORIGIN, url, authority
     )
-    assert orig_meta.next_page_token is None
-    assert len(orig_meta.results) == 1
+    assert origin_extrinsic_metadata.next_page_token is None
+    all_metadata_raw: List[str] = raw_meta["metadata_raw"]
+    # 1 raw metadata xml + 1 json dict
+    assert len(origin_extrinsic_metadata.results) == len(all_metadata_raw) + 1
 
-    orig_meta0 = orig_meta.results[0]
+    expected_metadata = []
+    for idx, raw_meta in enumerate(all_metadata_raw):
+        origin_meta = origin_extrinsic_metadata.results[idx]
+        expected_metadata.append(
+            RawExtrinsicMetadata(
+                type=MetadataTargetType.ORIGIN,
+                id=url,
+                discovery_date=origin_meta.discovery_date,
+                metadata=raw_meta.encode(),
+                format="sword-v2-atom-codemeta-v2",
+                authority=authority,
+                fetcher=fetcher,
+            )
+        )
 
-    expected_metadata = RawExtrinsicMetadata(
-        type=MetadataTargetType.ORIGIN,
-        id=url,
-        discovery_date=orig_meta0.discovery_date,
-        metadata=json.dumps(
-            {
-                "@xmlns": ["http://www.w3.org/2005/Atom"],
-                "author": ["some awesome author", "another one", "no one"],
-                "codemeta:dateCreated": "2017-10-07T15:17:08Z",
-                "codemeta:datePublished": "2017-10-08T15:00:00Z",
-                "external_identifier": "some-external-id",
-                "url": "https://hal-test.archives-ouvertes.fr/some-external-id",
-            }
-        ).encode(),
-        format="sword-v2-atom-codemeta-v2-in-json",
-        authority=authority,
-        fetcher=fetcher,
+    origin_metadata = {
+        "metadata": all_metadata_raw,
+        "provider": provider,
+        "tool": tool,
+    }
+    expected_metadata.append(
+        RawExtrinsicMetadata(
+            type=MetadataTargetType.ORIGIN,
+            id=url,
+            discovery_date=origin_extrinsic_metadata.results[-1].discovery_date,
+            metadata=json.dumps(origin_metadata).encode(),
+            format="original-artifacts-json",
+            authority=authority,
+            fetcher=fetcher,
+        )
     )
 
-    assert orig_meta0 == expected_metadata
+    assert len(origin_extrinsic_metadata.results) == len(expected_metadata)
+    for orig_meta in origin_extrinsic_metadata.results:
+        assert orig_meta in expected_metadata
 
     # Check the revision metadata swh side
     revision_swhid = SWHID(object_type="revision", object_id=revision_id)
-    rev_meta = loader.storage.raw_extrinsic_metadata_get(
+    actual_revision_metadata = loader.storage.raw_extrinsic_metadata_get(
         MetadataTargetType.REVISION, revision_swhid, authority
     )
 
-    assert rev_meta.next_page_token is None
+    assert actual_revision_metadata.next_page_token is None
+    assert len(actual_revision_metadata.results) == len(all_metadata_raw)
 
-    assert len(rev_meta.results) == 1
-
-    rev_meta0 = rev_meta.results[0]
-
-    assert rev_meta0 == attr.evolve(
-        expected_metadata,
+    rev_metadata_template = RawExtrinsicMetadata(
         type=MetadataTargetType.REVISION,
         id=revision_swhid,
+        format="sword-v2-atom-codemeta-v2",
+        authority=authority,
+        fetcher=fetcher,
         origin=url,
+        # to satisfy the constructor
+        discovery_date=now(),
+        metadata=b"",
     )
+
+    expected_revision_metadata = []
+    for idx, raw_meta in enumerate(all_metadata_raw):
+        rev_metadata = actual_revision_metadata.results[idx]
+        expected_revision_metadata.append(
+            attr.evolve(
+                rev_metadata_template,
+                discovery_date=rev_metadata.discovery_date,
+                metadata=raw_meta.encode(),
+            )
+        )
+
+    assert actual_revision_metadata.results == expected_revision_metadata
 
     # Retrieve the information for deposit status update query to the deposit
     urls = [
