@@ -4,15 +4,13 @@
 # See top-level LICENSE file for more information
 
 import os
-
-import pytest
-import dulwich.repo
-
 from unittest import TestCase
+
+import dulwich.repo
+import pytest
 
 from swh.loader.git.loader import GitLoader
 from swh.loader.git.tests.test_from_disk import FullGitLoaderTests
-
 from swh.loader.tests import prepare_repository_from_archive
 
 
