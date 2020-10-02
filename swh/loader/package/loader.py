@@ -27,7 +27,7 @@ from typing import (
 import attr
 import sentry_sdk
 
-from swh.core.config import SWHConfig
+from swh.core.config import load_from_envvar
 from swh.core.tarball import uncompress
 from swh.loader.package.utils import download
 from swh.model import from_disk
@@ -117,14 +117,16 @@ class BasePackageInfo:
 TPackageInfo = TypeVar("TPackageInfo", bound=BasePackageInfo)
 
 
+DEFAULT_CONFIG = {
+    "max_content_size": 100 * 1024 * 1024,
+    "create_authorities": True,
+    "create_fetchers": True,
+}
+
+
 class PackageLoader(Generic[TPackageInfo]):
     # Origin visit type (str) set by the loader
     visit_type = ""
-
-    DEFAULT_CONFIG = {
-        "create_authorities": ("bool", True),
-        "create_fetchers": ("bool", True),
-    }
 
     def __init__(self, url):
         """Loader's constructor. This raises exception if the minimal required
@@ -135,7 +137,7 @@ class PackageLoader(Generic[TPackageInfo]):
 
         """
         # This expects to use the environment variable SWH_CONFIG_FILENAME
-        self.config = SWHConfig.parse_config_file()
+        self.config = load_from_envvar(DEFAULT_CONFIG)
         self._check_configuration()
         self.storage: StorageInterface = get_storage(**self.config["storage"])
         self.url = url

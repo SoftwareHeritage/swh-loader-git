@@ -3,11 +3,13 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import copy
 import os
 from os import path
 from unittest.mock import patch
 
 import pytest
+import yaml
 
 from swh.core.pytest_plugin import requests_mock_datadir_factory
 from swh.core.tarball import uncompress
@@ -143,13 +145,18 @@ def test_author_malformed_3():
 # configuration error #
 
 
-def test_badly_configured_loader_raise(monkeypatch):
+def test_badly_configured_loader_raise(tmp_path, swh_loader_config, monkeypatch):
     """Badly configured loader should raise"""
-    monkeypatch.delenv("SWH_CONFIG_FILENAME", raising=False)
-    with pytest.raises(ValueError) as e:
-        PyPILoader(url="some-url")
+    wrong_config = copy.deepcopy(swh_loader_config)
+    wrong_config.pop("storage")
 
-    assert "Misconfiguration" in e.value.args[0]
+    conf_path = os.path.join(str(tmp_path), "loader.yml")
+    with open(conf_path, "w") as f:
+        f.write(yaml.dump(wrong_config))
+    monkeypatch.setenv("SWH_CONFIG_FILENAME", conf_path)
+
+    with pytest.raises(ValueError, match="Misconfiguration"):
+        PyPILoader(url="some-url")
 
 
 def test_pypi_api_url():

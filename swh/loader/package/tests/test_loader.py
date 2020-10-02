@@ -4,6 +4,7 @@
 # See top-level LICENSE file for more information
 
 import attr
+import pytest
 
 from swh.loader.package.loader import BasePackageInfo, PackageLoader
 
@@ -66,3 +67,21 @@ def test_artifact_identity():
 
     actual_id = p_info.artifact_identity()
     assert actual_id == [1, 2]
+
+
+def test_no_env_swh_config_filename_raise(monkeypatch):
+    """No SWH_CONFIG_FILENAME environment variable makes package loader init raise
+
+    """
+
+    class DummyPackageLoader(PackageLoader):
+        """A dummy package loader for test purpose"""
+
+        pass
+
+    monkeypatch.delenv("SWH_CONFIG_FILENAME", raising=False)
+
+    with pytest.raises(
+        AssertionError, match="SWH_CONFIG_FILENAME environment variable is undefined"
+    ):
+        DummyPackageLoader(url="some-url")
