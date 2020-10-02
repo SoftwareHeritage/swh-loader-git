@@ -33,12 +33,10 @@ class GitLoaderFromDisk(DVCSLoader):
 
     """
 
-    CONFIG_BASE_FILENAME = "loader/git-disk"
-
     visit_type = "git"
 
-    def __init__(self, url, visit_date=None, directory=None, config=None):
-        super().__init__(logging_class="swh.loader.git.Loader", config=config)
+    def __init__(self, url, visit_date=None, directory=None):
+        super().__init__(logging_class="swh.loader.git.Loader")
         self.origin_url = url
         self.visit_date = visit_date
         self.directory = directory

@@ -17,6 +17,7 @@ import dulwich.client
 from dulwich.object_store import ObjectStoreGraphWalker
 from dulwich.pack import PackData, PackInflater
 
+from swh.core.config import merge_configs
 from swh.loader.core.loader import DVCSLoader
 from swh.model import hashutil
 from swh.model.model import (
@@ -95,14 +96,13 @@ class FetchPackReturn:
     pack_size: int
 
 
+DEFAULT_CONFIG: Dict[str, Any] = {
+    "pack_size_bytes": 4 * 1024 * 1024 * 1024,
+}
+
+
 class GitLoader(DVCSLoader):
     """A bulk loader for a git repository"""
-
-    CONFIG_BASE_FILENAME = "loader/git"
-
-    ADDITIONAL_CONFIG = {
-        "pack_size_bytes": ("int", 4 * 1024 * 1024 * 1024),
-    }
 
     visit_type = "git"
 
@@ -112,7 +112,6 @@ class GitLoader(DVCSLoader):
         base_url: Optional[str] = None,
         ignore_history: bool = False,
         repo_representation: Type[RepoRepresentation] = RepoRepresentation,
-        config: Optional[Dict[str, Any]] = None,
     ):
         """Initialize the bulk updater.
 
@@ -122,10 +121,8 @@ class GitLoader(DVCSLoader):
             data.
 
         """
-        if config is None:
-            config = {}
-
-        super().__init__(logging_class="swh.loader.git.BulkLoader", config=config)
+        super().__init__(logging_class="swh.loader.git.BulkLoader")
+        self.config = merge_configs(DEFAULT_CONFIG, self.config)
         self.origin_url = url
         self.base_url = base_url
         self.ignore_history = ignore_history
