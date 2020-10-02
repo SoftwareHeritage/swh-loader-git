@@ -10,7 +10,7 @@ import logging
 import os
 from typing import Any, Dict, Iterable, Optional, Tuple
 
-from swh.core import config
+from swh.core.config import load_from_envvar
 from swh.model.model import (
     BaseContent,
     Content,
@@ -27,13 +27,20 @@ from swh.model.model import (
 from swh.storage import get_storage
 from swh.storage.utils import now
 
+DEFAULT_CONFIG: Dict[str, Any] = {
+    "max_content_size": 100 * 1024 * 1024,
+    "save_data": False,
+    "save_data_path": "",
+}
 
-class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
+
+class BaseLoader(metaclass=ABCMeta):
     """Mixin base class for loader.
 
     To use this class, you must:
 
     - inherit from this class
+
     - and implement the @abstractmethod methods:
 
       - :func:`prepare`: First step executed by the loader to prepare some
@@ -58,30 +65,14 @@ class BaseLoader(config.SWHConfig, metaclass=ABCMeta):
 
     You can take a look at some example classes:
 
-    - :class:`BaseSvnLoader`
+    - :class:`SvnLoader`
 
     """
 
-    CONFIG_BASE_FILENAME = None  # type: Optional[str]
-
-    DEFAULT_CONFIG = {
-        "storage": ("dict", {"cls": "remote", "url": "http://localhost:5002/",}),
-        "max_content_size": ("int", 100 * 1024 * 1024),
-        "save_data": ("bool", False),
-        "save_data_path": ("str", ""),
-    }  # type: Dict[str, Tuple[str, Any]]
-
-    ADDITIONAL_CONFIG = {}  # type: Dict[str, Tuple[str, Any]]
-
     def __init__(
-        self, logging_class: Optional[str] = None, config: Dict[str, Any] = {}
+        self, logging_class: Optional[str] = None,
     ):
-        if config:
-            self.config = config
-        else:
-            self.config = self.parse_config_file(
-                additional_configs=[self.ADDITIONAL_CONFIG]
-            )
+        self.config = load_from_envvar(DEFAULT_CONFIG)
 
         self.storage = get_storage(**self.config["storage"])
 

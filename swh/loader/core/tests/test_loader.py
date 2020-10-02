@@ -15,6 +15,9 @@ ORIGIN = Origin(url="some-url")
 
 
 class DummyLoader:
+    """Base Loader to overload and simplify the base class (technical: to avoid repetition
+       in other *Loader classes)"""
+
     def cleanup(self):
         pass
 
@@ -40,18 +43,9 @@ class DummyLoader:
 
 
 class DummyDVCSLoader(DummyLoader, DVCSLoader):
-    """Unbuffered loader will send directly to storage new data
+    """DVCS Loader that does nothing in regards to DAG objects.
 
     """
-
-    def parse_config_file(self, *args, **kwargs):
-        return {
-            "max_content_size": 100 * 1024 * 1024,
-            "storage": {
-                "cls": "pipeline",
-                "steps": [{"cls": "retry",}, {"cls": "filter",}, {"cls": "memory",},],
-            },
-        }
 
     def get_contents(self):
         return []
@@ -77,47 +71,23 @@ class DummyBaseLoader(DummyLoader, BaseLoader):
 
     """
 
-    def parse_config_file(self, *args, **kwargs):
-        return {
-            "max_content_size": 100 * 1024 * 1024,
-            "storage": {
-                "cls": "pipeline",
-                "steps": [
-                    {"cls": "retry",},
-                    {"cls": "filter",},
-                    {
-                        "cls": "buffer",
-                        "min_batch_size": {
-                            "content": 2,
-                            "content_bytes": 8,
-                            "directory": 2,
-                            "revision": 2,
-                            "release": 2,
-                        },
-                    },
-                    {"cls": "memory",},
-                ],
-            },
-        }
-
     def store_data(self):
         pass
 
 
-def test_base_loader():
+def test_base_loader(swh_config):
     loader = DummyBaseLoader()
     result = loader.load()
-
     assert result == {"status": "eventful"}
 
 
-def test_dvcs_loader():
+def test_dvcs_loader(swh_config):
     loader = DummyDVCSLoader()
     result = loader.load()
     assert result == {"status": "eventful"}
 
 
-def test_loader_logger_default_name():
+def test_loader_logger_default_name(swh_config):
     loader = DummyBaseLoader()
     assert isinstance(loader.log, logging.Logger)
     assert loader.log.name == "swh.loader.core.tests.test_loader.DummyBaseLoader"
@@ -127,13 +97,13 @@ def test_loader_logger_default_name():
     assert loader.log.name == "swh.loader.core.tests.test_loader.DummyDVCSLoader"
 
 
-def test_loader_logger_with_name():
+def test_loader_logger_with_name(swh_config):
     loader = DummyBaseLoader("some.logger.name")
     assert isinstance(loader.log, logging.Logger)
     assert loader.log.name == "some.logger.name"
 
 
-def test_loader_save_data_path(tmp_path):
+def test_loader_save_data_path(swh_config, tmp_path):
     loader = DummyBaseLoader("some.logger.name.1")
     url = "http://bitbucket.org/something"
     loader.origin = Origin(url=url)
@@ -179,7 +149,7 @@ class DummyDVCSLoaderExc(DummyDVCSLoader):
         raise RuntimeError("Failed to get contents!")
 
 
-def test_dvcs_loader_exc_partial_visit(caplog):
+def test_dvcs_loader_exc_partial_visit(swh_config, caplog):
     logger_name = "dvcsloaderexc"
     caplog.set_level(logging.ERROR, logger=logger_name)
 
@@ -210,7 +180,7 @@ class DummyDVCSLoaderStorageExc(DummyDVCSLoader):
         self.storage = BrokenStorageProxy(self.storage)
 
 
-def test_dvcs_loader_storage_exc_partial_visit(caplog):
+def test_dvcs_loader_storage_exc_partial_visit(swh_config, caplog):
     logger_name = "dvcsloaderexc"
     caplog.set_level(logging.ERROR, logger=logger_name)
 
