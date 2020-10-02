@@ -31,6 +31,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "max_content_size": 100 * 1024 * 1024,
     "save_data": False,
     "save_data_path": "",
+    "storage": {"cls": "memory"},
 }
 
 
@@ -70,9 +71,14 @@ class BaseLoader(metaclass=ABCMeta):
     """
 
     def __init__(
-        self, logging_class: Optional[str] = None,
+        self,
+        logging_class: Optional[str] = None,
+        config: Optional[Dict[str, Any]] = None,
     ):
-        self.config = load_from_envvar(DEFAULT_CONFIG)
+        if config:
+            self.config = config
+        else:
+            self.config = load_from_envvar(DEFAULT_CONFIG)
 
         self.storage = get_storage(**self.config["storage"])
 

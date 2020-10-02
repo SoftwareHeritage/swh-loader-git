@@ -7,7 +7,7 @@ import datetime
 import hashlib
 import logging
 
-from swh.loader.core.loader import BaseLoader, DVCSLoader
+from swh.loader.core.loader import DEFAULT_CONFIG, BaseLoader, DVCSLoader
 from swh.loader.tests import assert_last_visit_matches
 from swh.model.model import Origin, OriginVisit, Snapshot
 
@@ -81,8 +81,20 @@ def test_base_loader(swh_config):
     assert result == {"status": "eventful"}
 
 
+def test_base_loader_with_config(swh_config):
+    loader = DummyBaseLoader("logger-name", DEFAULT_CONFIG)
+    result = loader.load()
+    assert result == {"status": "eventful"}
+
+
 def test_dvcs_loader(swh_config):
     loader = DummyDVCSLoader()
+    result = loader.load()
+    assert result == {"status": "eventful"}
+
+
+def test_dvcs_loader_with_config(swh_config):
+    loader = DummyDVCSLoader("another-logger", DEFAULT_CONFIG)
     result = loader.load()
     assert result == {"status": "eventful"}
 
