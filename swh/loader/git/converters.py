@@ -7,7 +7,7 @@
 
 from typing import Any, Dict, Optional
 
-from swh.model.hashutil import DEFAULT_ALGORITHMS, hash_to_bytes, MultiHash
+from swh.model.hashutil import DEFAULT_ALGORITHMS, MultiHash, hash_to_bytes
 from swh.model.model import (
     BaseContent,
     Content,
@@ -23,7 +23,6 @@ from swh.model.model import (
     Timestamp,
     TimestampWithTimezone,
 )
-
 
 HASH_ALGORITHMS = DEFAULT_ALGORITHMS - {"sha1_git"}
 

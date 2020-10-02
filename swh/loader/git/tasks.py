@@ -3,13 +3,12 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import dateutil.parser
-
 from typing import Any, Dict, Optional
 
 from celery import shared_task
+import dateutil.parser
 
-from swh.loader.git.from_disk import GitLoaderFromDisk, GitLoaderFromArchive
+from swh.loader.git.from_disk import GitLoaderFromArchive, GitLoaderFromDisk
 from swh.loader.git.loader import GitLoader
 
 
