@@ -41,7 +41,7 @@ class GitLoader2Test(TestCase, FullGitLoaderTests):
     """
 
     @pytest.fixture(autouse=True)
-    def init(self, swh_config, datadir, tmp_path):
+    def init(self, swh_loader_config, datadir, tmp_path):
         super().setUp()
         archive_name = "testrepo"
         archive_path = os.path.join(datadir, f"{archive_name}.tgz")
@@ -51,5 +51,7 @@ class GitLoader2Test(TestCase, FullGitLoaderTests):
         )
         self.destination_path = os.path.join(tmp_path, archive_name)
         base_url = f"base://{self.repo_url}"
-        self.loader = GitLoader(self.repo_url, base_url=base_url)
+        self.loader = GitLoader(
+            self.repo_url, base_url=base_url, config=swh_loader_config
+        )
         self.repo = dulwich.repo.Repo(self.destination_path)
