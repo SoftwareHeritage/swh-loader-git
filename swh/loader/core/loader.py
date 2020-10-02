@@ -8,7 +8,7 @@ import datetime
 import hashlib
 import logging
 import os
-from typing import Any, Dict, Iterable, Optional, Tuple
+from typing import Any, Dict, Iterable, Optional
 
 from swh.core.config import load_from_envvar
 from swh.model.model import (
