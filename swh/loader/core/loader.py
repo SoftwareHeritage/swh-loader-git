@@ -357,8 +357,6 @@ class DVCSLoader(BaseLoader):
 
     """
 
-    ADDITIONAL_CONFIG = {}  # type: Dict[str, Tuple[str, Any]]
-
     def cleanup(self) -> None:
         """Clean up an eventual state installed for computations."""
         pass
