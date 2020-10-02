@@ -8,7 +8,7 @@ from collections import defaultdict
 import datetime
 import os
 import shutil
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from dulwich.errors import ObjectFormatException
 
@@ -35,8 +35,14 @@ class GitLoaderFromDisk(DVCSLoader):
 
     visit_type = "git"
 
-    def __init__(self, url, visit_date=None, directory=None):
-        super().__init__(logging_class="swh.loader.git.Loader")
+    def __init__(
+        self,
+        url,
+        visit_date=None,
+        directory=None,
+        config: Optional[Dict[str, Any]] = None,
+    ):
+        super().__init__(logging_class="swh.loader.git.Loader", config=config)
         self.origin_url = url
         self.visit_date = visit_date
         self.directory = directory

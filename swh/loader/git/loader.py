@@ -112,6 +112,7 @@ class GitLoader(DVCSLoader):
         base_url: Optional[str] = None,
         ignore_history: bool = False,
         repo_representation: Type[RepoRepresentation] = RepoRepresentation,
+        config: Optional[Dict[str, Any]] = None,
     ):
         """Initialize the bulk updater.
 
@@ -121,7 +122,7 @@ class GitLoader(DVCSLoader):
             data.
 
         """
-        super().__init__(logging_class="swh.loader.git.BulkLoader")
+        super().__init__(logging_class="swh.loader.git.BulkLoader", config=config)
         self.config = merge_configs(DEFAULT_CONFIG, self.config)
         self.origin_url = url
         self.base_url = base_url
