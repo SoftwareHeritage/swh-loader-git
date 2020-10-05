@@ -69,7 +69,13 @@ class NpmPackageInfo(BasePackageInfo):
             date=date,
             shasum=package_metadata["dist"]["shasum"],
             version=extrinsic_version,
-            raw_info=package_metadata,  # FIXME: loses some of the project metadata
+            raw_info=package_metadata,
+            revision_extrinsic_metadata=[
+                RawExtrinsicMetadataCore(
+                    format="replicate-npm-package-json",
+                    metadata=json.dumps(package_metadata).encode(),
+                )
+            ],
         )
 
 
@@ -114,13 +120,6 @@ class NpmLoader(PackageLoader[NpmPackageInfo]):
         return MetadataAuthority(
             type=MetadataAuthorityType.FORGE, url="https://npmjs.com/", metadata={},
         )
-
-    def get_extrinsic_snapshot_metadata(self):
-        return [
-            RawExtrinsicMetadataCore(
-                format="replicate-npm-package-json", metadata=self._raw_info(),
-            ),
-        ]
 
     def get_package_info(self, version: str) -> Iterator[Tuple[str, NpmPackageInfo]]:
         p_info = NpmPackageInfo.from_metadata(

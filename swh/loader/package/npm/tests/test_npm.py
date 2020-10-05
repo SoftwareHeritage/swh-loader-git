@@ -17,7 +17,7 @@ from swh.loader.package.npm.loader import (
 )
 from swh.loader.package.tests.common import check_metadata_paths
 from swh.loader.tests import assert_last_visit_matches, check_snapshot, get_stats
-from swh.model.hashutil import hash_to_bytes, hash_to_hex
+from swh.model.hashutil import hash_to_bytes
 from swh.model.identifiers import SWHID
 from swh.model.model import (
     MetadataAuthority,
@@ -378,53 +378,56 @@ def test_npm_loader_first_visit(swh_config, requests_mock_datadir, org_api_info)
         list(loader.storage.revision_missing(_expected_new_revisions_first_visit)) == []
     )
 
+    versions = [
+        ("0.0.2", "d8a1c7474d2956ac598a19f0f27d52f7015f117e"),
+        ("0.0.3", "5f9eb78af37ffd12949f235e86fac04898f9f72a"),
+        ("0.0.4", "ba019b192bdb94bd0b5bd68b3a5f92b5acc2239a"),
+    ]
+
     expected_snapshot = Snapshot(
         id=expected_snapshot_id,
         branches={
             b"HEAD": SnapshotBranch(
                 target=b"releases/0.0.4", target_type=TargetType.ALIAS
             ),
-            b"releases/0.0.2": SnapshotBranch(
-                target=hash_to_bytes("d8a1c7474d2956ac598a19f0f27d52f7015f117e"),
-                target_type=TargetType.REVISION,
-            ),
-            b"releases/0.0.3": SnapshotBranch(
-                target=hash_to_bytes("5f9eb78af37ffd12949f235e86fac04898f9f72a"),
-                target_type=TargetType.REVISION,
-            ),
-            b"releases/0.0.4": SnapshotBranch(
-                target=hash_to_bytes("ba019b192bdb94bd0b5bd68b3a5f92b5acc2239a"),
-                target_type=TargetType.REVISION,
-            ),
+            **{
+                b"releases/"
+                + version_name.encode(): SnapshotBranch(
+                    target=hash_to_bytes(version_id), target_type=TargetType.REVISION,
+                )
+                for (version_name, version_id) in versions
+            },
         },
     )
     check_snapshot(expected_snapshot, loader.storage)
 
-    snapshot_swhid = SWHID(
-        object_type="snapshot", object_id=hash_to_hex(expected_snapshot_id)
-    )
     metadata_authority = MetadataAuthority(
         type=MetadataAuthorityType.FORGE, url="https://npmjs.com/",
     )
-    expected_metadata = [
-        RawExtrinsicMetadata(
-            type=MetadataTargetType.SNAPSHOT,
-            id=snapshot_swhid,
+
+    for (version_name, version_id) in versions:
+        revision_swhid = SWHID(object_type="revision", object_id=version_id,)
+        expected_metadata = [
+            RawExtrinsicMetadata(
+                type=MetadataTargetType.REVISION,
+                id=revision_swhid,
+                authority=metadata_authority,
+                fetcher=MetadataFetcher(
+                    name="swh.loader.package.npm.loader.NpmLoader", version=__version__,
+                ),
+                discovery_date=loader.visit_date,
+                format="replicate-npm-package-json",
+                metadata=json.dumps(
+                    json.loads(org_api_info)["versions"][version_name]
+                ).encode(),
+                origin="https://www.npmjs.com/package/org",
+            )
+        ]
+        assert loader.storage.raw_extrinsic_metadata_get(
+            type=MetadataTargetType.REVISION,
+            id=revision_swhid,
             authority=metadata_authority,
-            fetcher=MetadataFetcher(
-                name="swh.loader.package.npm.loader.NpmLoader", version=__version__,
-            ),
-            discovery_date=loader.visit_date,
-            format="replicate-npm-package-json",
-            metadata=org_api_info,
-            origin="https://www.npmjs.com/package/org",
-        )
-    ]
-    assert loader.storage.raw_extrinsic_metadata_get(
-        type=MetadataTargetType.SNAPSHOT,
-        id=snapshot_swhid,
-        authority=metadata_authority,
-    ) == PagedResult(next_page_token=None, results=expected_metadata,)
+        ) == PagedResult(next_page_token=None, results=expected_metadata,)
 
 
 def test_npm_loader_incremental_visit(swh_config, requests_mock_datadir_visits):
