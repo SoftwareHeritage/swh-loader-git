@@ -457,10 +457,16 @@ def get_intrinsic_package_metadata(
             changelog_file.seek(0)
             parsed_changelog = Changelog(changelog_file, encoding="iso-8859-15")
 
+    history: List[Tuple[str, str]] = []
+
+    for block in parsed_changelog:
+        assert block.package is not None
+        history.append((block.package, str(block.version)))
+
     changelog = DebianPackageChangelog(
         person=uid_to_person(parsed_changelog.author),
         date=parse_date(parsed_changelog.date).isoformat(),
-        history=[(block.package, str(block.version)) for block in parsed_changelog][1:],
+        history=history[1:],
     )
 
     maintainers = [
