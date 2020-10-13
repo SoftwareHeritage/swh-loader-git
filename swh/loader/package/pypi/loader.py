@@ -48,6 +48,11 @@ class PyPIPackageInfo(BasePackageInfo):
             comment_text=metadata.get("comment_text"),
             sha256=metadata["digests"]["sha256"],
             upload_time=metadata["upload_time"],
+            revision_extrinsic_metadata=[
+                RawExtrinsicMetadataCore(
+                    format="pypi-project-json", metadata=json.dumps(metadata).encode(),
+                )
+            ],
         )
 
 
@@ -86,13 +91,6 @@ class PyPILoader(PackageLoader[PyPIPackageInfo]):
             url=f"{p_url.scheme}://{p_url.netloc}/",
             metadata={},
         )
-
-    def get_extrinsic_snapshot_metadata(self):
-        return [
-            RawExtrinsicMetadataCore(
-                format="pypi-project-json", metadata=self._raw_info(),
-            ),
-        ]
 
     def get_package_info(self, version: str) -> Iterator[Tuple[str, PyPIPackageInfo]]:
         res = []

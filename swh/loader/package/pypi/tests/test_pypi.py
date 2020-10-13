@@ -4,6 +4,7 @@
 # See top-level LICENSE file for more information
 
 import copy
+import json
 import os
 from os import path
 from unittest.mock import patch
@@ -302,7 +303,9 @@ requests_mock_datadir_missing_one = requests_mock_datadir_factory(
 # {visit partial, status: eventful, 1 snapshot}
 
 
-def test_revision_metadata_structure(swh_config, requests_mock_datadir):
+def test_revision_metadata_structure(
+    swh_config, requests_mock_datadir, _0805nexter_api_info
+):
     url = "https://pypi.org/project/0805nexter"
     loader = PyPILoader(url)
 
@@ -332,38 +335,31 @@ def test_revision_metadata_structure(swh_config, requests_mock_datadir):
             paths=[("filename", str), ("length", int), ("checksums", dict),],
         )
 
-
-def test_snapshot_metadata(swh_config, requests_mock_datadir, _0805nexter_api_info):
-    url = "https://pypi.org/project/0805nexter"
-    loader = PyPILoader(url)
-
-    actual_load_status = loader.load()
-    assert actual_load_status["status"] == "eventful"
-    assert actual_load_status["snapshot_id"] is not None
-
-    snapshot_swhid = SWHID(
-        object_type="snapshot", object_id=hash_to_hex(actual_load_status["snapshot_id"])
+    revision_swhid = SWHID(
+        object_type="revision", object_id=hash_to_hex(expected_revision_id)
     )
     metadata_authority = MetadataAuthority(
         type=MetadataAuthorityType.FORGE, url="https://pypi.org/",
     )
     expected_metadata = [
         RawExtrinsicMetadata(
-            type=MetadataTargetType.SNAPSHOT,
-            id=snapshot_swhid,
+            type=MetadataTargetType.REVISION,
+            id=revision_swhid,
             authority=metadata_authority,
             fetcher=MetadataFetcher(
                 name="swh.loader.package.pypi.loader.PyPILoader", version=__version__,
             ),
             discovery_date=loader.visit_date,
             format="pypi-project-json",
-            metadata=_0805nexter_api_info,
+            metadata=json.dumps(
+                json.loads(_0805nexter_api_info)["releases"]["1.2.0"][0]
+            ).encode(),
             origin=url,
         )
     ]
     assert loader.storage.raw_extrinsic_metadata_get(
-        type=MetadataTargetType.SNAPSHOT,
-        id=snapshot_swhid,
+        type=MetadataTargetType.REVISION,
+        id=revision_swhid,
         authority=metadata_authority,
     ) == PagedResult(next_page_token=None, results=expected_metadata,)
 
