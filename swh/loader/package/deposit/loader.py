@@ -71,7 +71,7 @@ class DepositPackageInfo(BasePackageInfo):
         raw_info = {
             "origin": metadata["origin"],
             "origin_metadata": {
-                "metadata": json.dumps(metadata["metadata_dict"]),
+                "metadata": metadata["metadata_dict"],
                 "provider": metadata["provider"],
                 "tool": metadata["tool"],
             },

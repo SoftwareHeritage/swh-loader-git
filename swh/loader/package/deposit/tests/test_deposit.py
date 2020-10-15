@@ -301,7 +301,7 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
             "raw": {
                 "origin": {"type": "deposit", "url": url,},
                 "origin_metadata": {
-                    "metadata": json.dumps(raw_meta["metadata_dict"]),
+                    "metadata": raw_meta["metadata_dict"],
                     "provider": provider,
                     "tool": tool,
                 },
