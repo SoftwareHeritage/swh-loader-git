@@ -405,12 +405,15 @@ def test_npm_loader_first_visit(swh_config, requests_mock_datadir, org_api_info)
         type=MetadataAuthorityType.FORGE, url="https://npmjs.com/",
     )
 
-    for (version_name, version_id) in versions:
-        revision_swhid = SWHID(object_type="revision", object_id=version_id,)
+    for (version_name, revision_id) in versions:
+        revision = loader.storage.revision_get([hash_to_bytes(revision_id)])[0]
+        directory_id = revision.directory
+        directory_swhid = SWHID(object_type="directory", object_id=directory_id,)
+        revision_swhid = SWHID(object_type="revision", object_id=revision_id,)
         expected_metadata = [
             RawExtrinsicMetadata(
-                type=MetadataTargetType.REVISION,
-                id=revision_swhid,
+                type=MetadataTargetType.DIRECTORY,
+                id=directory_swhid,
                 authority=metadata_authority,
                 fetcher=MetadataFetcher(
                     name="swh.loader.package.npm.loader.NpmLoader", version=__version__,
@@ -421,11 +424,12 @@ def test_npm_loader_first_visit(swh_config, requests_mock_datadir, org_api_info)
                     json.loads(org_api_info)["versions"][version_name]
                 ).encode(),
                 origin="https://www.npmjs.com/package/org",
+                revision=revision_swhid,
             )
         ]
         assert loader.storage.raw_extrinsic_metadata_get(
-            type=MetadataTargetType.REVISION,
-            id=revision_swhid,
+            type=MetadataTargetType.DIRECTORY,
+            id=directory_swhid,
             authority=metadata_authority,
         ) == PagedResult(next_page_token=None, results=expected_metadata,)
 

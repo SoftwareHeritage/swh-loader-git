@@ -100,7 +100,7 @@ class BasePackageInfo:
     # go after attributes with default values.
     # See <https://github.com/python-attrs/attrs/issues/38>
 
-    revision_extrinsic_metadata = attr.ib(
+    directory_extrinsic_metadata = attr.ib(
         type=List[RawExtrinsicMetadataCore], default=[], kw_only=True,
     )
 
@@ -421,9 +421,14 @@ class PackageLoader(Generic[TPackageInfo]):
                 revision_id = self.resolve_revision_from(known_artifacts, p_info)
                 if revision_id is None:
                     try:
-                        revision_id = self._load_revision(p_info, origin)
-                        if revision_id:
-                            self._load_extrinsic_revision_metadata(p_info, revision_id)
+                        res = self._load_revision(p_info, origin)
+                        if res:
+                            (revision_id, directory_id) = res
+                            assert revision_id
+                            assert directory_id
+                            self._load_extrinsic_directory_metadata(
+                                p_info, revision_id, directory_id
+                            )
                         self.storage.flush()
                         status_load = "eventful"
                     except Exception as e:
@@ -516,13 +521,15 @@ class PackageLoader(Generic[TPackageInfo]):
 
         return (uncompressed_path, directory)
 
-    def _load_revision(self, p_info: TPackageInfo, origin) -> Optional[Sha1Git]:
+    def _load_revision(
+        self, p_info: TPackageInfo, origin
+    ) -> Optional[Tuple[Sha1Git, Sha1Git]]:
         """Does all the loading of a revision itself:
 
         * downloads a package and uncompresses it
         * loads it from disk
         * adds contents, directories, and revision to self.storage
-        * returns (revision_id, loaded)
+        * returns (revision_id, directory_id)
 
         Raises
             exception when unable to download or uncompress artifacts
@@ -571,7 +578,8 @@ class PackageLoader(Generic[TPackageInfo]):
         logger.debug("Revision: %s", revision)
 
         self.storage.revision_add([revision])
-        return revision.id
+        assert directory.hash
+        return (revision.id, directory.hash)
 
     def _load_snapshot(
         self,
@@ -725,10 +733,10 @@ class PackageLoader(Generic[TPackageInfo]):
 
         return metadata_objects
 
-    def build_extrinsic_revision_metadata(
-        self, p_info: TPackageInfo, revision_id: Sha1Git
+    def build_extrinsic_directory_metadata(
+        self, p_info: TPackageInfo, revision_id: Sha1Git, directory_id: Sha1Git,
     ) -> List[RawExtrinsicMetadata]:
-        if not p_info.revision_extrinsic_metadata:
+        if not p_info.directory_extrinsic_metadata:
             # If this package loader doesn't write metadata, no need to require
             # an implementation for get_metadata_authority.
             return []
@@ -738,26 +746,31 @@ class PackageLoader(Generic[TPackageInfo]):
 
         metadata_objects = []
 
-        for item in p_info.revision_extrinsic_metadata:
+        for item in p_info.directory_extrinsic_metadata:
             metadata_objects.append(
                 RawExtrinsicMetadata(
-                    type=MetadataTargetType.REVISION,
-                    id=SWHID(object_type="revision", object_id=revision_id),
+                    type=MetadataTargetType.DIRECTORY,
+                    id=SWHID(object_type="directory", object_id=directory_id),
                     discovery_date=item.discovery_date or self.visit_date,
                     authority=authority,
                     fetcher=fetcher,
                     format=item.format,
                     metadata=item.metadata,
                     origin=self.url,
+                    revision=SWHID(
+                        object_type="revision", object_id=hash_to_hex(revision_id)
+                    ),
                 )
             )
 
         return metadata_objects
 
-    def _load_extrinsic_revision_metadata(
-        self, p_info: TPackageInfo, revision_id: Sha1Git
+    def _load_extrinsic_directory_metadata(
+        self, p_info: TPackageInfo, revision_id: Sha1Git, directory_id: Sha1Git,
     ) -> None:
-        metadata_objects = self.build_extrinsic_revision_metadata(p_info, revision_id)
+        metadata_objects = self.build_extrinsic_directory_metadata(
+            p_info, revision_id, directory_id
+        )
         self._load_metadata_objects(metadata_objects)
 
     def _load_metadata_objects(

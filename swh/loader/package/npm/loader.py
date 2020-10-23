@@ -70,7 +70,7 @@ class NpmPackageInfo(BasePackageInfo):
             shasum=package_metadata["dist"]["shasum"],
             version=extrinsic_version,
             raw_info=package_metadata,
-            revision_extrinsic_metadata=[
+            directory_extrinsic_metadata=[
                 RawExtrinsicMetadataCore(
                     format="replicate-npm-package-json",
                     metadata=json.dumps(package_metadata).encode(),

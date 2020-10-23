@@ -209,17 +209,18 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
     assert orig_meta0.authority == authority
     assert orig_meta0.fetcher == fetcher
 
-    # Check revision metadata
-    revision_swhid = SWHID(object_type="revision", object_id=revision_id)
-    actual_rev_meta = loader.storage.raw_extrinsic_metadata_get(
-        MetadataTargetType.REVISION, revision_swhid, authority
+    # Check directory metadata
+    directory_id = hash_to_hex(revision.directory)
+    directory_swhid = SWHID(object_type="directory", object_id=directory_id)
+    actual_dir_meta = loader.storage.raw_extrinsic_metadata_get(
+        MetadataTargetType.DIRECTORY, directory_swhid, authority
     )
-    assert actual_rev_meta.next_page_token is None
-    assert len(actual_rev_meta.results) == len(all_metadata_raw)
-    for rev_meta in actual_rev_meta.results:
-        assert rev_meta.authority == authority
-        assert rev_meta.fetcher == fetcher
-        assert rev_meta.metadata.decode() in all_metadata_raw
+    assert actual_dir_meta.next_page_token is None
+    assert len(actual_dir_meta.results) == len(all_metadata_raw)
+    for dir_meta in actual_dir_meta.results:
+        assert dir_meta.authority == authority
+        assert dir_meta.fetcher == fetcher
+        assert dir_meta.metadata.decode() in all_metadata_raw
 
     # Retrieve the information for deposit status update query to the deposit
     urls = [
@@ -374,38 +375,41 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
         assert orig_meta in expected_metadata
 
     # Check the revision metadata swh side
-    revision_swhid = SWHID(object_type="revision", object_id=revision_id)
-    actual_revision_metadata = loader.storage.raw_extrinsic_metadata_get(
-        MetadataTargetType.REVISION, revision_swhid, authority
+    directory_id = hash_to_hex(revision.directory)
+    directory_swhid = SWHID(object_type="directory", object_id=directory_id)
+    actual_directory_metadata = loader.storage.raw_extrinsic_metadata_get(
+        MetadataTargetType.DIRECTORY, directory_swhid, authority
     )
 
-    assert actual_revision_metadata.next_page_token is None
-    assert len(actual_revision_metadata.results) == len(all_metadata_raw)
+    assert actual_directory_metadata.next_page_token is None
+    assert len(actual_directory_metadata.results) == len(all_metadata_raw)
 
-    rev_metadata_template = RawExtrinsicMetadata(
-        type=MetadataTargetType.REVISION,
-        id=revision_swhid,
+    revision_swhid = SWHID(object_type="revision", object_id=revision_id)
+    dir_metadata_template = RawExtrinsicMetadata(
+        type=MetadataTargetType.DIRECTORY,
+        id=directory_swhid,
         format="sword-v2-atom-codemeta-v2",
         authority=authority,
         fetcher=fetcher,
         origin=url,
+        revision=revision_swhid,
         # to satisfy the constructor
         discovery_date=now(),
         metadata=b"",
     )
 
-    expected_revision_metadata = []
+    expected_directory_metadata = []
     for idx, raw_meta in enumerate(all_metadata_raw):
-        rev_metadata = actual_revision_metadata.results[idx]
-        expected_revision_metadata.append(
+        dir_metadata = actual_directory_metadata.results[idx]
+        expected_directory_metadata.append(
             attr.evolve(
-                rev_metadata_template,
-                discovery_date=rev_metadata.discovery_date,
+                dir_metadata_template,
+                discovery_date=dir_metadata.discovery_date,
                 metadata=raw_meta.encode(),
             )
         )
 
-    assert actual_revision_metadata.results == expected_revision_metadata
+    assert actual_directory_metadata.results == expected_directory_metadata
 
     # Retrieve the information for deposit status update query to the deposit
     urls = [

@@ -39,6 +39,8 @@ ORIGIN_URL = "http://example.org/archive.tgz"
 
 REVISION_ID = hash_to_bytes("8ff44f081d43176474b267de5451f2c2e88089d0")
 REVISION_SWHID = SWHID(object_type="revision", object_id=REVISION_ID)
+DIRECTORY_ID = hash_to_bytes("aa" * 20)
+DIRECTORY_SWHID = SWHID(object_type="directory", object_id=DIRECTORY_ID)
 
 
 FETCHER = MetadataFetcher(
@@ -48,26 +50,28 @@ FETCHER = MetadataFetcher(
 
 DISCOVERY_DATE = datetime.datetime.now(tz=datetime.timezone.utc)
 
-REVISION_METADATA = [
+DIRECTORY_METADATA = [
     RawExtrinsicMetadata(
-        type=MetadataTargetType.REVISION,
-        id=REVISION_SWHID,
+        type=MetadataTargetType.DIRECTORY,
+        id=DIRECTORY_SWHID,
         discovery_date=DISCOVERY_DATE,
         authority=AUTHORITY,
         fetcher=FETCHER,
         format="test-format1",
         metadata=b"foo bar",
         origin=ORIGIN_URL,
+        revision=REVISION_SWHID,
     ),
     RawExtrinsicMetadata(
-        type=MetadataTargetType.REVISION,
-        id=REVISION_SWHID,
+        type=MetadataTargetType.DIRECTORY,
+        id=DIRECTORY_SWHID,
         discovery_date=DISCOVERY_DATE + datetime.timedelta(seconds=1),
         authority=AUTHORITY,
         fetcher=FETCHER,
         format="test-format2",
         metadata=b"bar baz",
         origin=ORIGIN_URL,
+        revision=REVISION_SWHID,
     ),
 ]
 
@@ -90,7 +94,7 @@ class MetadataTestLoader(PackageLoader[BasePackageInfo]):
 
     def _load_directory(self, dl_artifacts, tmpdir):
         class directory:
-            hash = None
+            hash = DIRECTORY_ID
 
         return (None, directory)  # just enough for _load_revision to work
 
@@ -116,12 +120,12 @@ class MetadataTestLoader(PackageLoader[BasePackageInfo]):
         return attr.evolve(AUTHORITY, metadata={})
 
     def get_package_info(self, version: str) -> Iterator[Tuple[str, BasePackageInfo]]:
-        m0 = REVISION_METADATA[0]
-        m1 = REVISION_METADATA[1]
+        m0 = DIRECTORY_METADATA[0]
+        m1 = DIRECTORY_METADATA[1]
         p_info = BasePackageInfo(
             url=ORIGIN_URL,
             filename="archive.tgz",
-            revision_extrinsic_metadata=[
+            directory_extrinsic_metadata=[
                 RawExtrinsicMetadataCore(m0.format, m0.metadata, m0.discovery_date),
                 RawExtrinsicMetadataCore(m1.format, m1.metadata, m1.discovery_date),
             ],
@@ -180,10 +184,10 @@ def test_load_metadata(swh_config, caplog):
     }
 
     result = storage.raw_extrinsic_metadata_get(
-        MetadataTargetType.REVISION, REVISION_SWHID, AUTHORITY,
+        MetadataTargetType.DIRECTORY, DIRECTORY_SWHID, AUTHORITY,
     )
     assert result.next_page_token is None
-    assert result.results == REVISION_METADATA
+    assert result.results == DIRECTORY_METADATA
 
     result = storage.raw_extrinsic_metadata_get(
         MetadataTargetType.ORIGIN, ORIGIN_URL, AUTHORITY,
@@ -210,10 +214,10 @@ def test_existing_authority(swh_config, caplog):
     }
 
     result = storage.raw_extrinsic_metadata_get(
-        MetadataTargetType.REVISION, REVISION_SWHID, AUTHORITY,
+        MetadataTargetType.DIRECTORY, DIRECTORY_SWHID, AUTHORITY,
     )
     assert result.next_page_token is None
-    assert result.results == REVISION_METADATA
+    assert result.results == DIRECTORY_METADATA
 
     assert caplog.text == ""
 
@@ -234,9 +238,9 @@ def test_existing_fetcher(swh_config, caplog):
     }
 
     result = storage.raw_extrinsic_metadata_get(
-        MetadataTargetType.REVISION, REVISION_SWHID, AUTHORITY,
+        MetadataTargetType.DIRECTORY, DIRECTORY_SWHID, AUTHORITY,
     )
     assert result.next_page_token is None
-    assert result.results == REVISION_METADATA
+    assert result.results == DIRECTORY_METADATA
 
     assert caplog.text == ""

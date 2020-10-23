@@ -338,13 +338,16 @@ def test_revision_metadata_structure(
     revision_swhid = SWHID(
         object_type="revision", object_id=hash_to_hex(expected_revision_id)
     )
+    directory_swhid = SWHID(
+        object_type="directory", object_id=hash_to_hex(revision.directory)
+    )
     metadata_authority = MetadataAuthority(
         type=MetadataAuthorityType.FORGE, url="https://pypi.org/",
     )
     expected_metadata = [
         RawExtrinsicMetadata(
-            type=MetadataTargetType.REVISION,
-            id=revision_swhid,
+            type=MetadataTargetType.DIRECTORY,
+            id=directory_swhid,
             authority=metadata_authority,
             fetcher=MetadataFetcher(
                 name="swh.loader.package.pypi.loader.PyPILoader", version=__version__,
@@ -355,11 +358,12 @@ def test_revision_metadata_structure(
                 json.loads(_0805nexter_api_info)["releases"]["1.2.0"][0]
             ).encode(),
             origin=url,
+            revision=revision_swhid,
         )
     ]
     assert loader.storage.raw_extrinsic_metadata_get(
-        type=MetadataTargetType.REVISION,
-        id=revision_swhid,
+        type=MetadataTargetType.DIRECTORY,
+        id=directory_swhid,
         authority=metadata_authority,
     ) == PagedResult(next_page_token=None, results=expected_metadata,)
 

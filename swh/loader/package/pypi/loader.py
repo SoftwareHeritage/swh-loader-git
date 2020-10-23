@@ -48,7 +48,7 @@ class PyPIPackageInfo(BasePackageInfo):
             comment_text=metadata.get("comment_text"),
             sha256=metadata["digests"]["sha256"],
             upload_time=metadata["upload_time"],
-            revision_extrinsic_metadata=[
+            directory_extrinsic_metadata=[
                 RawExtrinsicMetadataCore(
                     format="pypi-project-json", metadata=json.dumps(metadata).encode(),
                 )

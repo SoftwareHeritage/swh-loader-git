@@ -89,7 +89,7 @@ class DepositPackageInfo(BasePackageInfo):
             committer=parse_author(depo["committer"]),
             revision_parents=tuple(hash_to_bytes(p) for p in depo["revision_parents"]),
             raw_info=raw_info,
-            revision_extrinsic_metadata=[
+            directory_extrinsic_metadata=[
                 RawExtrinsicMetadataCore(
                     discovery_date=now(),
                     metadata=raw_metadata.encode(),
