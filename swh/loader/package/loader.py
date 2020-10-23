@@ -564,14 +564,15 @@ class PackageLoader(Generic[TPackageInfo]):
         revision = attr.evolve(revision, metadata=ImmutableDict(full_metadata))
 
         original_artifact_metadata = RawExtrinsicMetadata(
-            type=MetadataTargetType.REVISION,
-            id=SWHID(object_type="revision", object_id=revision.id),
+            type=MetadataTargetType.DIRECTORY,
+            id=SWHID(object_type="directory", object_id=revision.directory),
             discovery_date=self.visit_date,
             authority=SWH_METADATA_AUTHORITY,
             fetcher=self.get_metadata_fetcher(),
             format="original-artifacts-json",
             metadata=json.dumps(metadata).encode(),
             origin=self.url,
+            revision=SWHID(object_type="revision", object_id=revision.id),
         )
         self._load_metadata_objects([original_artifact_metadata])
 

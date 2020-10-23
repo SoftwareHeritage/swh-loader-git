@@ -112,7 +112,7 @@ class MetadataTestLoader(PackageLoader[BasePackageInfo]):
             date=None,
             committer_date=None,
             type=RevisionType.TAR,
-            directory=b"foo",
+            directory=DIRECTORY_ID,
             synthetic=False,
         )
 
@@ -155,19 +155,20 @@ def test_load_artifact_metadata(swh_config, caplog):
     )
 
     result = storage.raw_extrinsic_metadata_get(
-        MetadataTargetType.REVISION, REVISION_SWHID, authority,
+        MetadataTargetType.DIRECTORY, DIRECTORY_SWHID, authority,
     )
     assert result.next_page_token is None
     assert len(result.results) == 1
     assert result.results[0] == RawExtrinsicMetadata(
-        type=MetadataTargetType.REVISION,
-        id=REVISION_SWHID,
+        type=MetadataTargetType.DIRECTORY,
+        id=DIRECTORY_SWHID,
         discovery_date=result.results[0].discovery_date,
         authority=authority,
         fetcher=FETCHER,
         format="original-artifacts-json",
         metadata=b'[{"artifact_key": "value", "length": 0}]',
         origin=ORIGIN_URL,
+        revision=REVISION_SWHID,
     )
 
 
