@@ -22,7 +22,7 @@ def swh_loader_config(swh_storage_postgresql) -> Dict[str, Any]:
                 {
                     "cls": "local",
                     "db": swh_storage_postgresql.dsn,
-                    "objstorage": {"cls": "memory", "args": {}},
+                    "objstorage": {"cls": "memory"},
                 },
             ],
         },
