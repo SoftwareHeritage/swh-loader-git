@@ -288,9 +288,7 @@ def test_loader_one_visit(swh_config, requests_mock_datadir, raw_sources):
         )
     ]
     assert loader.storage.raw_extrinsic_metadata_get(
-        type=MetadataTargetType.SNAPSHOT,
-        id=snapshot_swhid,
-        authority=metadata_authority,
+        MetadataTargetType.SNAPSHOT, snapshot_swhid, metadata_authority,
     ) == PagedResult(next_page_token=None, results=expected_metadata,)
 
 

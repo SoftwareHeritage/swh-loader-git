@@ -428,9 +428,7 @@ def test_npm_loader_first_visit(swh_config, requests_mock_datadir, org_api_info)
             )
         ]
         assert loader.storage.raw_extrinsic_metadata_get(
-            type=MetadataTargetType.DIRECTORY,
-            id=directory_swhid,
-            authority=metadata_authority,
+            MetadataTargetType.DIRECTORY, directory_swhid, metadata_authority,
         ) == PagedResult(next_page_token=None, results=expected_metadata,)
 
 

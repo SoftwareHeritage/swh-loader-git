@@ -362,9 +362,7 @@ def test_revision_metadata_structure(
         )
     ]
     assert loader.storage.raw_extrinsic_metadata_get(
-        type=MetadataTargetType.DIRECTORY,
-        id=directory_swhid,
-        authority=metadata_authority,
+        MetadataTargetType.DIRECTORY, directory_swhid, metadata_authority,
     ) == PagedResult(next_page_token=None, results=expected_metadata,)
 
 
