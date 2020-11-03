@@ -565,7 +565,7 @@ class PackageLoader(Generic[TPackageInfo]):
 
         original_artifact_metadata = RawExtrinsicMetadata(
             type=MetadataTargetType.DIRECTORY,
-            id=SWHID(object_type="directory", object_id=revision.directory),
+            target=SWHID(object_type="directory", object_id=revision.directory),
             discovery_date=self.visit_date,
             authority=SWH_METADATA_AUTHORITY,
             fetcher=self.get_metadata_fetcher(),
@@ -687,7 +687,7 @@ class PackageLoader(Generic[TPackageInfo]):
             metadata_objects.append(
                 RawExtrinsicMetadata(
                     type=MetadataTargetType.ORIGIN,
-                    id=self.url,
+                    target=self.url,
                     discovery_date=item.discovery_date or self.visit_date,
                     authority=authority,
                     fetcher=fetcher,
@@ -722,7 +722,7 @@ class PackageLoader(Generic[TPackageInfo]):
             metadata_objects.append(
                 RawExtrinsicMetadata(
                     type=MetadataTargetType.SNAPSHOT,
-                    id=SWHID(object_type="snapshot", object_id=snapshot_id),
+                    target=SWHID(object_type="snapshot", object_id=snapshot_id),
                     discovery_date=item.discovery_date or self.visit_date,
                     authority=authority,
                     fetcher=fetcher,
@@ -751,7 +751,7 @@ class PackageLoader(Generic[TPackageInfo]):
             metadata_objects.append(
                 RawExtrinsicMetadata(
                     type=MetadataTargetType.DIRECTORY,
-                    id=SWHID(object_type="directory", object_id=directory_id),
+                    target=SWHID(object_type="directory", object_id=directory_id),
                     discovery_date=item.discovery_date or self.visit_date,
                     authority=authority,
                     fetcher=fetcher,

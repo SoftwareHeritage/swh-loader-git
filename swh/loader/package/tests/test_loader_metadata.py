@@ -53,7 +53,7 @@ DISCOVERY_DATE = datetime.datetime.now(tz=datetime.timezone.utc)
 DIRECTORY_METADATA = [
     RawExtrinsicMetadata(
         type=MetadataTargetType.DIRECTORY,
-        id=DIRECTORY_SWHID,
+        target=DIRECTORY_SWHID,
         discovery_date=DISCOVERY_DATE,
         authority=AUTHORITY,
         fetcher=FETCHER,
@@ -64,7 +64,7 @@ DIRECTORY_METADATA = [
     ),
     RawExtrinsicMetadata(
         type=MetadataTargetType.DIRECTORY,
-        id=DIRECTORY_SWHID,
+        target=DIRECTORY_SWHID,
         discovery_date=DISCOVERY_DATE + datetime.timedelta(seconds=1),
         authority=AUTHORITY,
         fetcher=FETCHER,
@@ -78,7 +78,7 @@ DIRECTORY_METADATA = [
 ORIGIN_METADATA = [
     RawExtrinsicMetadata(
         type=MetadataTargetType.ORIGIN,
-        id=ORIGIN_URL,
+        target=ORIGIN_URL,
         discovery_date=datetime.datetime.now(tz=datetime.timezone.utc),
         authority=AUTHORITY,
         fetcher=FETCHER,
@@ -161,7 +161,7 @@ def test_load_artifact_metadata(swh_config, caplog):
     assert len(result.results) == 1
     assert result.results[0] == RawExtrinsicMetadata(
         type=MetadataTargetType.DIRECTORY,
-        id=DIRECTORY_SWHID,
+        target=DIRECTORY_SWHID,
         discovery_date=result.results[0].discovery_date,
         authority=authority,
         fetcher=FETCHER,

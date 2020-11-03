@@ -275,7 +275,7 @@ def test_loader_one_visit(swh_config, requests_mock_datadir, raw_sources):
     expected_metadata = [
         RawExtrinsicMetadata(
             type=MetadataTargetType.SNAPSHOT,
-            id=snapshot_swhid,
+            target=snapshot_swhid,
             authority=metadata_authority,
             fetcher=MetadataFetcher(
                 name="swh.loader.package.nixguix.loader.NixGuixLoader",

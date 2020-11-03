@@ -347,7 +347,7 @@ def test_revision_metadata_structure(
     expected_metadata = [
         RawExtrinsicMetadata(
             type=MetadataTargetType.DIRECTORY,
-            id=directory_swhid,
+            target=directory_swhid,
             authority=metadata_authority,
             fetcher=MetadataFetcher(
                 name="swh.loader.package.pypi.loader.PyPILoader", version=__version__,

@@ -413,7 +413,7 @@ def test_npm_loader_first_visit(swh_config, requests_mock_datadir, org_api_info)
         expected_metadata = [
             RawExtrinsicMetadata(
                 type=MetadataTargetType.DIRECTORY,
-                id=directory_swhid,
+                target=directory_swhid,
                 authority=metadata_authority,
                 fetcher=MetadataFetcher(
                     name="swh.loader.package.npm.loader.NpmLoader", version=__version__,

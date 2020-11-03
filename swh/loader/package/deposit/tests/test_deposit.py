@@ -344,7 +344,7 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
         expected_metadata.append(
             RawExtrinsicMetadata(
                 type=MetadataTargetType.ORIGIN,
-                id=url,
+                target=url,
                 discovery_date=origin_meta.discovery_date,
                 metadata=raw_meta.encode(),
                 format="sword-v2-atom-codemeta-v2",
@@ -361,7 +361,7 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
     expected_metadata.append(
         RawExtrinsicMetadata(
             type=MetadataTargetType.ORIGIN,
-            id=url,
+            target=url,
             discovery_date=origin_extrinsic_metadata.results[-1].discovery_date,
             metadata=json.dumps(origin_metadata).encode(),
             format="original-artifacts-json",
@@ -387,7 +387,7 @@ def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
     revision_swhid = SWHID(object_type="revision", object_id=revision_id)
     dir_metadata_template = RawExtrinsicMetadata(
         type=MetadataTargetType.DIRECTORY,
-        id=directory_swhid,
+        target=directory_swhid,
         format="sword-v2-atom-codemeta-v2",
         authority=authority,
         fetcher=fetcher,
