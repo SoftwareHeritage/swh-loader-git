@@ -5,7 +5,6 @@
 
 
 from collections import defaultdict
-import datetime
 import os
 import shutil
 from typing import Any, Dict, Optional
@@ -390,25 +389,3 @@ class GitLoaderFromArchive(GitLoaderFromDisk):
         self.log.info(
             "Project %s - Done injecting %s" % (self.origin_url, self.repo_path)
         )
-
-
-if __name__ == "__main__":
-    import logging
-
-    import click
-
-    logging.basicConfig(
-        level=logging.DEBUG, format="%(asctime)s %(process)d %(message)s"
-    )
-
-    @click.command()
-    @click.option("--origin-url", help="origin url")
-    @click.option("--git-directory", help="Path to git repository to load")
-    @click.option("--visit-date", default=None, help="Visit date")
-    def main(origin_url, git_directory, visit_date):
-        if not visit_date:
-            visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
-
-        return GitLoaderFromDisk().load(origin_url, git_directory, visit_date)
-
-    main()

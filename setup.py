@@ -54,6 +54,7 @@ setup(
     entry_points="""
         [swh.workers]
         loader.git=swh.loader.git:register
+        loader.git_disk=swh.loader.git:register_from_disk
     """,
     classifiers=[
         "Programming Language :: Python :: 3",
