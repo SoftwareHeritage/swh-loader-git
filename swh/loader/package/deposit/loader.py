@@ -101,7 +101,7 @@ class DepositPackageInfo(BasePackageInfo):
 
 
 class DepositLoader(PackageLoader[DepositPackageInfo]):
-    """Load pypi origin's artifact releases into swh archive.
+    """Load a deposited artifact into swh archive.
 
     """
 
@@ -217,12 +217,14 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
         return self.client.metadata_get(self.deposit_id)
 
     def load(self) -> Dict:
-        # First making sure the deposit is known prior to trigger a loading
+        # First making sure the deposit is known on the deposit's RPC server
+        # prior to trigger a loading
         try:
             self.metadata()
         except ValueError:
             logger.error(f"Unknown deposit {self.deposit_id}, ignoring")
             return {"status": "failed"}
+
         # Then usual loading
         r = super().load()
         success = r["status"] != "failed"
