@@ -12,7 +12,7 @@ from typing import Any, Dict, Optional
 from dulwich.errors import ObjectFormatException
 
 try:
-    from dulwich.errors import EmptyFileException
+    from dulwich.errors import EmptyFileException  # type: ignore
 except ImportError:
     # dulwich >= 0.20
     from dulwich.objects import EmptyFileException
