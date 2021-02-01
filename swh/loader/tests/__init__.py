@@ -44,11 +44,12 @@ def assert_last_visit_matches(
         the visit status for further check during the remaining part of the test.
 
     """
-    visit_and_status = origin_get_latest_visit_status(storage, url)
-    assert visit_and_status is not None, f"Origin {url} has no visits"
-    visit, visit_status = visit_and_status
+    visit_status = origin_get_latest_visit_status(storage, url)
+    assert visit_status is not None, f"Origin {url} has no visits"
     if type:
-        assert visit.type == type, f"Visit has type {visit.type} instead of {type}"
+        assert (
+            visit_status.type == type
+        ), f"Visit has type {visit_status.type} instead of {type}"
     assert (
         visit_status.status == status
     ), f"Visit_status has status {visit_status.status} instead of {status}"

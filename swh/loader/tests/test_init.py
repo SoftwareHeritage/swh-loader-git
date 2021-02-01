@@ -52,6 +52,7 @@ ORIGIN_VISIT = OriginVisit(
 ORIGIN_VISIT_STATUS = OriginVisitStatus(
     origin="some-url",
     visit=1,
+    type="archive",
     date=datetime.datetime.now(tz=datetime.timezone.utc),
     status="full",
     snapshot=hash_to_bytes("d81cc0710eb6cf9efd5b920a8453e1e07157b6cd"),
@@ -165,7 +166,7 @@ SNAPSHOT = Snapshot(
 @pytest.fixture
 def mock_storage(mocker):
     mock_storage = mocker.patch("swh.loader.tests.origin_get_latest_visit_status")
-    mock_storage.return_value = ORIGIN_VISIT, ORIGIN_VISIT_STATUS
+    mock_storage.return_value = ORIGIN_VISIT_STATUS
     return mock_storage
 
 

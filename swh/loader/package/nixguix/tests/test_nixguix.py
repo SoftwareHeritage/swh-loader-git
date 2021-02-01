@@ -265,7 +265,7 @@ def test_loader_one_visit(swh_config, requests_mock_datadir, raw_sources):
         loader.storage, sources_url, status="partial", type="nixguix"
     )
 
-    (_, visit_status) = origin_get_latest_visit_status(loader.storage, sources_url)
+    visit_status = origin_get_latest_visit_status(loader.storage, sources_url)
     snapshot_swhid = SWHID(
         object_type="snapshot", object_id=hash_to_hex(visit_status.snapshot)
     )
