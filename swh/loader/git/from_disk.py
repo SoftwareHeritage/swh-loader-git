@@ -144,14 +144,12 @@ class GitLoaderFromDisk(DVCSLoader):
 
     def fetch_data(self):
         """Fetch the data from the data source"""
-        visit_and_status = origin_get_latest_visit_status(
+        visit_status = origin_get_latest_visit_status(
             self.storage, self.origin_url, require_snapshot=True
         )
-        if visit_and_status is None:
-            self.previous_snapshot_id = None
-        else:
-            _, visit_status = visit_and_status
-            self.previous_snapshot_id = visit_status.snapshot
+        self.previous_snapshot_id = (
+            None if visit_status is None else visit_status.snapshot
+        )
 
         type_to_ids = defaultdict(list)
         for oid in self.iter_objects():
