@@ -1,3 +1,15 @@
+swh-loader-git (0.6.0-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 0.6.0     - (tagged by Antoine R. Dumont
+    (@ardumont) <ardumont@softwareheritage.org> on 2021-02-03 14:31:51
+    +0100)
+  * Upstream changes:     - v0.6.0     - Adapt
+    origin_get_latest_visit_status according to latest api change     -
+    tox.ini: Add swh.core[testing] requirement     - from_disk: Fix mypy
+    error with dulwich >= 0.20.13
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Wed, 03 Feb 2021 13:34:21 +0000
+
 swh-loader-git (0.5.0-1~swh1) unstable-swh; urgency=medium
 
   * New upstream release 0.5.0     - (tagged by Antoine R. Dumont
