@@ -492,14 +492,6 @@ class GitLoader(DVCSLoader):
         self.snapshot = Snapshot(branches=branches)
         return self.snapshot
 
-    def get_fetch_history_result(self) -> Dict[str, int]:
-        return {
-            "contents": len(self.type_to_ids[b"blob"]),
-            "directories": len(self.type_to_ids[b"tree"]),
-            "revisions": len(self.type_to_ids[b"commit"]),
-            "releases": len(self.type_to_ids[b"tag"]),
-        }
-
     def load_status(self) -> Dict[str, Any]:
         """The load was eventful if the current snapshot is different to
            the one we retrieved at the beginning of the run"""
