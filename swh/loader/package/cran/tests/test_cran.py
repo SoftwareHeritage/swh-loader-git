@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2020 The Software Heritage developers
+# Copyright (C) 2019-2021 The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -6,6 +6,7 @@
 from datetime import datetime, timezone
 import os
 from os import path
+from unittest.mock import patch
 
 from dateutil.tz import tzlocal
 import pytest
@@ -309,3 +310,53 @@ def test_parse_debian_control_unicode_issue(datadir):
         "Repository": "CRAN",
         "Date/Publication": "2019-01-31 20:53:50 UTC",
     }
+
+
+@pytest.mark.parametrize(
+    "method_name",
+    ["build_extrinsic_snapshot_metadata", "build_extrinsic_origin_metadata",],
+)
+def test_cran_fail_to_build_or_load_extrinsic_metadata(
+    method_name, swh_config, requests_mock_datadir
+):
+    """problem during loading: {visit: failed, status: failed, no snapshot}
+
+    """
+    version = "2.22-6"
+    base_url = "https://cran.r-project.org"
+    origin_url = f"{base_url}/Packages/Recommended_KernSmooth/index.html"
+    artifact_url = (
+        f"{base_url}/src_contrib_1.4.0_Recommended_KernSmooth_{version}.tar.gz"  # noqa
+    )
+
+    full_method_name = f"swh.loader.package.cran.loader.CRANLoader.{method_name}"
+    with patch(
+        full_method_name,
+        side_effect=ValueError("Fake to fail to build or load extrinsic metadata"),
+    ):
+        loader = CRANLoader(
+            origin_url, artifacts=[{"url": artifact_url, "version": version}]
+        )
+
+        actual_load_status = loader.load()
+
+        assert actual_load_status == {
+            "status": "failed",
+            "snapshot_id": SNAPSHOT.id.hex(),
+        }
+
+        visit_stats = get_stats(loader.storage)
+        assert {
+            "content": 33,
+            "directory": 7,
+            "origin": 1,
+            "origin_visit": 1,
+            "release": 0,
+            "revision": 1,
+            "skipped_content": 0,
+            "snapshot": 1,
+        } == visit_stats
+
+        assert_last_visit_matches(
+            loader.storage, origin_url, status="partial", type="cran"
+        )

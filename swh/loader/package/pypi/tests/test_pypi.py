@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2020 The Software Heritage developers
+# Copyright (C) 2019-2021 The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -251,6 +251,36 @@ def test_no_release_artifact(swh_config, requests_mock_datadir_missing_all):
     assert_last_visit_matches(loader.storage, url, status="partial", type="pypi")
 
 
+def test_pypi_fail__load_snapshot(swh_config, requests_mock_datadir):
+    """problem during loading: {visit: failed, status: failed, no snapshot}
+
+    """
+    url = "https://pypi.org/project/0805nexter"
+    with patch(
+        "swh.loader.package.pypi.loader.PyPILoader._load_snapshot",
+        side_effect=ValueError("Fake problem to fail visit"),
+    ):
+        loader = PyPILoader(url)
+
+        actual_load_status = loader.load()
+        assert actual_load_status == {"status": "failed"}
+
+        stats = get_stats(loader.storage)
+
+        assert {
+            "content": 6,
+            "directory": 4,
+            "origin": 1,
+            "origin_visit": 1,
+            "release": 0,
+            "revision": 2,
+            "skipped_content": 0,
+            "snapshot": 0,
+        } == stats
+
+        assert_last_visit_matches(loader.storage, url, status="failed", type="pypi")
+
+
 # problem during loading:
 # {visit: partial, status: uneventful, no snapshot}
 
@@ -279,7 +309,7 @@ def test_release_with_traceback(swh_config, requests_mock_datadir):
             "snapshot": 0,
         } == stats
 
-        assert_last_visit_matches(loader.storage, url, status="partial", type="pypi")
+        assert_last_visit_matches(loader.storage, url, status="failed", type="pypi")
 
 
 # problem during loading: failure early enough in between swh contents...

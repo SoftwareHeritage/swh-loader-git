@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2020  The Software Heritage developers
+# Copyright (C) 2019-2021  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -340,7 +340,7 @@ class PackageLoader(Generic[TPackageInfo]):
 
         """
         status_load = "uneventful"  # either: eventful, uneventful, failed
-        status_visit = "full"  # either: partial, full
+        status_visit = "full"  # see swh.model.model.OriginVisitStatus
         tmp_revisions = {}  # type: Dict[str, List]
         snapshot = None
         failed_branches: List[str] = []
@@ -407,7 +407,7 @@ class PackageLoader(Generic[TPackageInfo]):
         except Exception as e:
             logger.exception("Failed to get previous state for %s", self.url)
             sentry_sdk.capture_exception(e)
-            status_visit = "partial"
+            status_visit = "failed"
             status_load = "failed"
             return finalize_visit()
 
@@ -452,7 +452,7 @@ class PackageLoader(Generic[TPackageInfo]):
 
         if not tmp_revisions:
             # We could not load any revisions; fail completely
-            status_visit = "partial"
+            status_visit = "failed"
             status_load = "failed"
             return finalize_visit()
 
@@ -471,7 +471,7 @@ class PackageLoader(Generic[TPackageInfo]):
         except Exception as e:
             logger.exception("Failed to build snapshot for origin %s", self.url)
             sentry_sdk.capture_exception(e)
-            status_visit = "partial"
+            status_visit = "failed"
             status_load = "failed"
 
         if snapshot:
