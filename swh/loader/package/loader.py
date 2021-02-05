@@ -362,6 +362,7 @@ class PackageLoader(Generic[TPackageInfo]):
             visit_status = OriginVisitStatus(
                 origin=self.url,
                 visit=visit.visit,
+                type=self.visit_type,
                 date=now(),
                 status=status_visit,
                 snapshot=snapshot_id,
