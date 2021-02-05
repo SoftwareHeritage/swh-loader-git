@@ -1,4 +1,4 @@
-# Copyright (C) 2020  The Software Heritage developers
+# Copyright (C) 2020-2021  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -16,7 +16,7 @@ from swh.loader.package.loader import (
     PackageLoader,
     RawExtrinsicMetadataCore,
 )
-from swh.loader.package.utils import EMPTY_AUTHOR, api_info
+from swh.loader.package.utils import EMPTY_AUTHOR, api_info, cached_method
 from swh.model import hashutil
 from swh.model.collections import ImmutableDict
 from swh.model.model import (
@@ -60,29 +60,31 @@ class NixGuixLoader(PackageLoader[NixGuixPackageInfo]):
 
     def __init__(self, url):
         super().__init__(url=url)
-        unsupported_file_extensions = self.config.get("unsupported_file_extensions", [])
-        self.raw_sources = retrieve_sources(url)
-        clean = clean_sources(
-            parse_sources(self.raw_sources), unsupported_file_extensions
-        )
-        self.sources = clean["sources"]
         self.provider_url = url
-
-        self._integrityByUrl = {s["urls"][0]: s["integrity"] for s in self.sources}
-
-        # The revision used to create the sources.json file. For Nix,
-        # this revision belongs to the github.com/nixos/nixpkgs
-        # repository
-        self.revision = clean["revision"]
 
     # Note: this could be renamed get_artifacts in the PackageLoader
     # base class.
-    def get_versions(self):
+    @cached_method
+    def raw_sources(self):
+        return retrieve_sources(self.url)
+
+    @cached_method
+    def supported_sources(self):
+        raw_sources = self.raw_sources()
+        unsupported_file_extensions = self.config.get("unsupported_file_extensions", [])
+        return clean_sources(parse_sources(raw_sources), unsupported_file_extensions)
+
+    @cached_method
+    def integrity_by_url(self) -> Dict[str, Any]:
+        sources = self.supported_sources()
+        return {s["urls"][0]: s["integrity"] for s in sources["sources"]}
+
+    def get_versions(self) -> List[str]:
         """The first mirror of the mirror list is used as branch name in the
         snapshot.
 
         """
-        return self._integrityByUrl.keys()
+        return list(self.integrity_by_url().keys())
 
     def get_metadata_authority(self):
         return MetadataAuthority(
@@ -92,7 +94,7 @@ class NixGuixLoader(PackageLoader[NixGuixPackageInfo]):
     def get_extrinsic_snapshot_metadata(self):
         return [
             RawExtrinsicMetadataCore(
-                format="nixguix-sources-json", metadata=self.raw_sources,
+                format="nixguix-sources-json", metadata=self.raw_sources(),
             ),
         ]
 
@@ -103,7 +105,7 @@ class NixGuixLoader(PackageLoader[NixGuixPackageInfo]):
         # can be fetched from several urls, called mirrors. We
         # currently only use the first one, but if the first one
         # fails, we should try the second one and so on.
-        integrity = self._integrityByUrl[url]
+        integrity = self.integrity_by_url()[url]
         p_info = NixGuixPackageInfo.from_metadata({"url": url, "integrity": integrity})
         yield url, p_info
 
@@ -178,10 +180,14 @@ class NixGuixLoader(PackageLoader[NixGuixPackageInfo]):
         a Nix/Guix evaluation.
 
         """
+        # The revision used to create the sources.json file. For Nix,
+        # this revision belongs to the github.com/nixos/nixpkgs
+        # repository
+        revision = self.supported_sources()["revision"]
         return {
             b"evaluation": {
                 "target_type": "revision",
-                "target": hashutil.hash_to_bytes(self.revision),
+                "target": hashutil.hash_to_bytes(revision),
             }
         }
 
@@ -209,6 +215,7 @@ class NixGuixLoader(PackageLoader[NixGuixPackageInfo]):
 
 
 def retrieve_sources(url: str) -> bytes:
+    """Retrieve sources. Potentially raise NotFound error."""
     return api_info(url, allow_redirects=True)
 
 

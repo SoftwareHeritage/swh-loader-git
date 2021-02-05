@@ -1,4 +1,4 @@
-# Copyright (C) 2019  The Software Heritage developers
+# Copyright (C) 2019-2021  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -11,6 +11,7 @@ from typing import Callable, Dict, Optional, Tuple, TypeVar
 
 import requests
 
+from swh.loader.exception import NotFound
 from swh.loader.package import DEFAULT_PARAMS
 from swh.model.hashutil import HASH_BLOCK_SIZE, MultiHash
 from swh.model.model import Person
@@ -32,7 +33,7 @@ def api_info(url: str, **extra_params) -> bytes:
         url (str): The api url (e.g PyPI, npm, etc...)
 
     Raises:
-        ValueError in case of query failures (for some reasons: 404, ...)
+        NotFound in case of query failures (for some reasons: 404, ...)
 
     Returns:
         The associated response's information
@@ -40,7 +41,7 @@ def api_info(url: str, **extra_params) -> bytes:
     """
     response = requests.get(url, **{**DEFAULT_PARAMS, **extra_params})
     if response.status_code != 200:
-        raise ValueError("Fail to query '%s'. Reason: %s" % (url, response.status_code))
+        raise NotFound(f"Fail to query '{url}'. Reason: {response.status_code}")
     return response.content
 
 

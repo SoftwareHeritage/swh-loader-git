@@ -1,10 +1,9 @@
-# Copyright (C) 2020 The Software Heritage developers
+# Copyright (C) 2020-2021 The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
 import json
-from json.decoder import JSONDecodeError
 import logging
 import os
 from typing import Dict, Optional, Tuple
@@ -107,14 +106,33 @@ def test_retrieve_sources(swh_config, requests_mock_datadir):
     assert len(j["sources"]) == 2
 
 
-def test_retrieve_non_existing(swh_config, requests_mock_datadir):
-    with pytest.raises(ValueError):
-        NixGuixLoader("https://non-existing-url")
+def test_nixguix_url_not_found(swh_config, requests_mock_datadir):
+    """When failing to read from the url, the visit is marked as not_found.
+
+    """
+    unknown_url = "https://non-existing-url"
+    loader = NixGuixLoader(unknown_url)
+    # during the retrieval step
+    load_status = loader.load()
+
+    assert load_status == {"status": "failed"}
+
+    assert_last_visit_matches(
+        loader.storage, unknown_url, status="not_found", type="nixguix", snapshot=None
+    )
 
 
-def test_retrieve_non_json(swh_config, requests_mock_datadir):
-    with pytest.raises(JSONDecodeError):
-        NixGuixLoader("https://example.com/file.txt")
+def test_nixguix_url_with_decoding_error(swh_config, requests_mock_datadir):
+    """Other errors during communication with the url, the visit is marked as failed"""
+    sources_url = "https://example.com/file.txt"
+    loader = NixGuixLoader(sources_url)
+    load_status = loader.load()
+
+    assert load_status == {"status": "failed"}
+
+    assert_last_visit_matches(
+        loader.storage, sources_url, status="failed", type="nixguix", snapshot=None
+    )
 
 
 def test_clean_sources_invalid_schema(swh_config, requests_mock_datadir):
@@ -304,7 +322,8 @@ def test_uncompress_failure(swh_config, requests_mock_datadir):
     loader = NixGuixLoader(sources_url)
     loader_status = loader.load()
 
-    urls = [s["urls"][0] for s in loader.sources]
+    sources = loader.supported_sources()["sources"]
+    urls = [s["urls"][0] for s in sources]
     assert "https://example.com/file.txt" in urls
     assert loader_status["status"] == "eventful"
 

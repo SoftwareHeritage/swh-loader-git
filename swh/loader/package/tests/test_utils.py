@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2020  The Software Heritage developers
+# Copyright (C) 2019-2021  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -9,6 +9,7 @@ import os
 
 import pytest
 
+from swh.loader.exception import NotFound
 import swh.loader.package
 from swh.loader.package.utils import api_info, download, release_name
 
@@ -135,7 +136,7 @@ def test_api_info_failure(requests_mock):
     status_code = 400
     requests_mock.get(url, status_code=status_code)
 
-    with pytest.raises(ValueError) as e0:
+    with pytest.raises(NotFound) as e0:
         api_info(url)
 
     assert e0.value.args[0] == "Fail to query '%s'. Reason: %s" % (url, status_code)

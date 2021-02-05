@@ -29,6 +29,7 @@ import sentry_sdk
 
 from swh.core.config import load_from_envvar
 from swh.core.tarball import uncompress
+from swh.loader.exception import NotFound
 from swh.loader.package.utils import download
 from swh.model import from_disk
 from swh.model.collections import ImmutableDict
@@ -156,6 +157,10 @@ class PackageLoader(Generic[TPackageInfo]):
 
     def get_versions(self) -> Sequence[str]:
         """Return the list of all published package versions.
+
+        Raises:
+           `class:swh.loader.exception.NotFound` error when failing to read the
+            published package versions.
 
         Returns:
             Sequence of published versions
@@ -413,7 +418,18 @@ class PackageLoader(Generic[TPackageInfo]):
 
         load_exceptions: List[Exception] = []
 
-        for version in self.get_versions():  # for each
+        try:
+            versions = self.get_versions()
+        except NotFound:
+            status_visit = "not_found"
+            status_load = "failed"
+            return finalize_visit()
+        except Exception:
+            status_visit = "failed"
+            status_load = "failed"
+            return finalize_visit()
+
+        for version in versions:
             logger.debug("version: %s", version)
             tmp_revisions[version] = []
             # `p_` stands for `package_`

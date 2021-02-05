@@ -904,3 +904,14 @@ def test_pypi_artifact_with_no_intrinsic_metadata(swh_config, requests_mock_data
     assert_last_visit_matches(
         loader.storage, url, status="full", type="pypi", snapshot=expected_snapshot.id
     )
+
+
+def test_pypi_origin_not_found(swh_config, requests_mock_datadir):
+    url = "https://pypi.org/project/unknown"
+    loader = PyPILoader(url)
+
+    assert loader.load() == {"status": "failed"}
+
+    assert_last_visit_matches(
+        loader.storage, url, status="not_found", type="pypi", snapshot=None
+    )

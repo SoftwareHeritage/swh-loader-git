@@ -701,3 +701,14 @@ def test_npm_no_artifact(swh_config, requests_mock_datadir):
     }
 
     assert_last_visit_matches(loader.storage, url, status="failed", type="npm")
+
+
+def test_npm_origin_not_found(swh_config, requests_mock_datadir):
+    url = package_url("non-existent-url")
+    loader = NpmLoader(url)
+
+    assert loader.load() == {"status": "failed"}
+
+    assert_last_visit_matches(
+        loader.storage, url, status="not_found", type="npm", snapshot=None
+    )
