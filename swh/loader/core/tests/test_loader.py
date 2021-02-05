@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020  The Software Heritage developers
+# Copyright (C) 2018-2021  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -9,6 +9,7 @@ import logging
 
 from swh.loader.core.loader import DEFAULT_CONFIG, BaseLoader, DVCSLoader
 from swh.loader.tests import assert_last_visit_matches
+from swh.model.hashutil import hash_to_bytes
 from swh.model.model import Origin, OriginVisit, Snapshot
 
 ORIGIN = Origin(url="some-url")
@@ -131,7 +132,7 @@ def test_loader_save_data_path(swh_config, tmp_path):
     assert save_path == expected_save_path
 
 
-def _check_load_failure(caplog, loader, exc_class, exc_text):
+def _check_load_failure(caplog, loader, exc_class, exc_text, status="partial"):
     """Check whether a failed load properly logged its exception, and that the
     snapshot didn't get referenced in storage"""
     for record in caplog.records:
@@ -146,12 +147,12 @@ def _check_load_failure(caplog, loader, exc_class, exc_text):
     # Check that the get_snapshot operation would have succeeded
     assert loader.get_snapshot() is not None
 
-    # But that the snapshot didn't get loaded
-    assert loader.loaded_snapshot_id is None
-
     # And confirm that the visit doesn't reference a snapshot
-    visit = assert_last_visit_matches(loader.storage, ORIGIN.url, status="partial")
-    assert visit.snapshot is None
+    visit = assert_last_visit_matches(loader.storage, ORIGIN.url, status)
+    if status != "partial":
+        assert visit.snapshot is None
+        # But that the snapshot didn't get loaded
+        assert loader.loaded_snapshot_id is None
 
 
 class DummyDVCSLoaderExc(DummyDVCSLoader):
@@ -166,11 +167,19 @@ def test_dvcs_loader_exc_partial_visit(swh_config, caplog):
     caplog.set_level(logging.ERROR, logger=logger_name)
 
     loader = DummyDVCSLoaderExc(logging_class=logger_name)
+    # fake the loading ending up in a snapshot
+    loader.loaded_snapshot_id = hash_to_bytes(
+        "9e4dd2b40d1b46b70917c0949aa2195c823a648e"
+    )
     result = loader.load()
 
+    # loading failed
     assert result == {"status": "failed"}
 
-    _check_load_failure(caplog, loader, RuntimeError, "Failed to get contents!")
+    # still resulted in a partial visit with a snapshot (somehow)
+    _check_load_failure(
+        caplog, loader, RuntimeError, "Failed to get contents!",
+    )
 
 
 class BrokenStorageProxy:
@@ -192,7 +201,7 @@ class DummyDVCSLoaderStorageExc(DummyDVCSLoader):
         self.storage = BrokenStorageProxy(self.storage)
 
 
-def test_dvcs_loader_storage_exc_partial_visit(swh_config, caplog):
+def test_dvcs_loader_storage_exc_failed_visit(swh_config, caplog):
     logger_name = "dvcsloaderexc"
     caplog.set_level(logging.ERROR, logger=logger_name)
 
@@ -201,4 +210,6 @@ def test_dvcs_loader_storage_exc_partial_visit(swh_config, caplog):
 
     assert result == {"status": "failed"}
 
-    _check_load_failure(caplog, loader, RuntimeError, "Failed to add snapshot!")
+    _check_load_failure(
+        caplog, loader, RuntimeError, "Failed to add snapshot!", status="failed"
+    )

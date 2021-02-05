@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2020  The Software Heritage developers
+# Copyright (C) 2015-2021  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -332,8 +332,10 @@ class BaseLoader(metaclass=ABCMeta):
             self.storage.origin_visit_status_add([visit_status])
             self.post_load()
         except Exception:
+            status = "partial" if self.loaded_snapshot_id else "failed"
             self.log.exception(
-                "Loading failure, updating to `partial` status",
+                "Loading failure, updating to `%s` status",
+                status,
                 extra={"swh_task_args": args, "swh_task_kwargs": kwargs,},
             )
             visit_status = OriginVisitStatus(
@@ -341,7 +343,7 @@ class BaseLoader(metaclass=ABCMeta):
                 visit=self.visit.visit,
                 type=self.visit_type,
                 date=now(),
-                status="partial",
+                status=status,
                 snapshot=self.loaded_snapshot_id,
             )
             self.storage.origin_visit_status_add([visit_status])
