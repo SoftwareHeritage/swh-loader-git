@@ -11,6 +11,7 @@ import os
 from typing import Any, Dict, Iterable, Optional
 
 from swh.core.config import load_from_envvar
+from swh.loader.exception import NotFound
 from swh.model.model import (
     BaseContent,
     Content,
@@ -189,6 +190,9 @@ class BaseLoader(metaclass=ABCMeta):
         """Second step executed by the loader to prepare some state needed by
            the loader.
 
+        Raises
+           NotFound exception if the origin to ingest is not found.
+
         """
         pass
 
@@ -331,8 +335,14 @@ class BaseLoader(metaclass=ABCMeta):
             )
             self.storage.origin_visit_status_add([visit_status])
             self.post_load()
-        except Exception:
-            status = "partial" if self.loaded_snapshot_id else "failed"
+        except Exception as e:
+            if isinstance(e, NotFound):
+                status = "not_found"
+                task_status = "uneventful"
+            else:
+                status = "partial" if self.loaded_snapshot_id else "failed"
+                task_status = "failed"
+
             self.log.exception(
                 "Loading failure, updating to `%s` status",
                 status,
@@ -348,7 +358,7 @@ class BaseLoader(metaclass=ABCMeta):
             )
             self.storage.origin_visit_status_add([visit_status])
             self.post_load(success=False)
-            return {"status": "failed"}
+            return {"status": task_status}
         finally:
             self.flush()
             self.cleanup()

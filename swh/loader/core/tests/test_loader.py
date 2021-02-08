@@ -8,6 +8,7 @@ import hashlib
 import logging
 
 from swh.loader.core.loader import DEFAULT_CONFIG, BaseLoader, DVCSLoader
+from swh.loader.exception import NotFound
 from swh.loader.tests import assert_last_visit_matches
 from swh.model.hashutil import hash_to_bytes
 from swh.model.model import Origin, OriginVisit, Snapshot
@@ -135,6 +136,7 @@ def test_loader_save_data_path(swh_config, tmp_path):
 def _check_load_failure(caplog, loader, exc_class, exc_text, status="partial"):
     """Check whether a failed load properly logged its exception, and that the
     snapshot didn't get referenced in storage"""
+    assert isinstance(loader, DVCSLoader)  # was implicit so far
     for record in caplog.records:
         if record.levelname != "ERROR":
             continue
@@ -213,3 +215,26 @@ def test_dvcs_loader_storage_exc_failed_visit(swh_config, caplog):
     _check_load_failure(
         caplog, loader, RuntimeError, "Failed to add snapshot!", status="failed"
     )
+
+
+class DummyDVCSLoaderNotFound(DummyDVCSLoader, BaseLoader):
+    """A loader which raises a not_found exception during the prepare method call
+
+    """
+
+    def prepare(*args, **kwargs):
+        raise NotFound("Unknown origin!")
+
+    def load_status(self):
+        return {
+            "status": "uneventful",
+        }
+
+
+def test_loader_not_found(swh_config, caplog):
+    loader = DummyDVCSLoaderNotFound()
+    result = loader.load()
+
+    assert result == {"status": "uneventful"}
+
+    _check_load_failure(caplog, loader, NotFound, "Unknown origin!", status="not_found")
