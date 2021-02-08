@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2020  The Software Heritage developers
+# Copyright (C) 2019-2021  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -25,11 +25,11 @@ class FakeStorage2(FakeStorage):
         raise ValueError("We refuse to add an origin visit")
 
 
-def test_loader_origin_visit_failure(swh_config):
+def test_loader_origin_visit_failure(swh_storage):
     """Failure to add origin or origin visit should failed immediately
 
     """
-    loader = PackageLoader("some-url")
+    loader = PackageLoader(swh_storage, "some-url")
     loader.storage = FakeStorage()
 
     actual_load_status = loader.load()
@@ -84,4 +84,4 @@ def test_no_env_swh_config_filename_raise(monkeypatch):
     with pytest.raises(
         AssertionError, match="SWH_CONFIG_FILENAME environment variable is undefined"
     ):
-        DummyPackageLoader(url="some-url")
+        DummyPackageLoader.from_configfile(url="some-url")

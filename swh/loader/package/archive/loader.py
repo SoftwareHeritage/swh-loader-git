@@ -1,4 +1,4 @@
-# Copyright (C) 2019  The Software Heritage developers
+# Copyright (C) 2019-2021  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -20,6 +20,7 @@ from swh.model.model import (
     Sha1Git,
     TimestampWithTimezone,
 )
+from swh.storage.interface import StorageInterface
 
 logger = logging.getLogger(__name__)
 SWH_PERSON = Person(
@@ -71,9 +72,11 @@ class ArchiveLoader(PackageLoader[ArchivePackageInfo]):
 
     def __init__(
         self,
+        storage: StorageInterface,
         url: str,
         artifacts: Sequence[Dict[str, Any]],
         identity_artifact_keys: Optional[Sequence[str]] = None,
+        max_content_size: Optional[int] = None,
     ):
         """Loader constructor.
 
@@ -98,7 +101,7 @@ class ArchiveLoader(PackageLoader[ArchivePackageInfo]):
                 "identity" of an artifact
 
         """
-        super().__init__(url=url)
+        super().__init__(storage=storage, url=url, max_content_size=max_content_size)
         self.artifacts = artifacts  # assume order is enforced in the lister
         self.identity_artifact_keys = identity_artifact_keys
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2020  The Software Heritage developers
+# Copyright (C) 2019-2021  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -12,6 +12,8 @@ from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, Tuple
 import attr
 import requests
 
+from swh.core.config import load_from_envvar
+from swh.loader.core.loader import DEFAULT_CONFIG
 from swh.loader.package.loader import (
     BasePackageInfo,
     PackageLoader,
@@ -30,6 +32,7 @@ from swh.model.model import (
     TimestampWithTimezone,
 )
 from swh.storage.algos.snapshot import snapshot_get_all_branches
+from swh.storage.interface import StorageInterface
 
 logger = logging.getLogger(__name__)
 
@@ -107,19 +110,41 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
 
     visit_type = "deposit"
 
-    def __init__(self, url: str, deposit_id: str):
+    def __init__(
+        self,
+        storage: StorageInterface,
+        url: str,
+        deposit_id: str,
+        deposit_client: "ApiClient",
+        max_content_size: Optional[int] = None,
+    ):
         """Constructor
 
         Args:
             url: Origin url to associate the artifacts/metadata to
             deposit_id: Deposit identity
+            deposit_client: Deposit api client
 
         """
-        super().__init__(url=url)
+        super().__init__(storage=storage, url=url, max_content_size=max_content_size)
 
-        config_deposit = self.config["deposit"]
         self.deposit_id = deposit_id
-        self.client = ApiClient(url=config_deposit["url"], auth=config_deposit["auth"])
+        self.client = deposit_client
+
+    @classmethod
+    def from_configfile(cls, **kwargs: Any):
+        """Instantiate a loader from the configuration loaded from the
+        SWH_CONFIG_FILENAME envvar, with potential extra keyword arguments if their
+        value is not None.
+
+        Args:
+            kwargs: kwargs passed to the loader instantiation
+
+        """
+        config = dict(load_from_envvar(DEFAULT_CONFIG))
+        config.update({k: v for k, v in kwargs.items() if v is not None})
+        deposit_client = ApiClient(**config.pop("deposit"))
+        return cls.from_config(deposit_client=deposit_client, **config)
 
     def get_versions(self) -> Sequence[str]:
         # only 1 branch 'HEAD' with no alias since we only have 1 snapshot

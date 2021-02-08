@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2020  The Software Heritage developers
+# Copyright (C) 2019-2021  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -99,12 +99,15 @@ PACKAGES_PER_VERSION = {
 }
 
 
-def test_debian_first_visit(swh_config, requests_mock_datadir):
+def test_debian_first_visit(swh_storage, requests_mock_datadir):
     """With no prior visit, load a gnu project ends up with 1 snapshot
 
     """
     loader = DebianLoader(
-        url=URL, date="2019-10-12T05:58:09.165557+00:00", packages=PACKAGE_PER_VERSION,
+        swh_storage,
+        URL,
+        date="2019-10-12T05:58:09.165557+00:00",
+        packages=PACKAGE_PER_VERSION,
     )
 
     actual_load_status = loader.load()
@@ -114,9 +117,9 @@ def test_debian_first_visit(swh_config, requests_mock_datadir):
         "snapshot_id": expected_snapshot_id,
     }
 
-    assert_last_visit_matches(loader.storage, URL, status="full", type="deb")
+    assert_last_visit_matches(swh_storage, URL, status="full", type="deb")
 
-    stats = get_stats(loader.storage)
+    stats = get_stats(swh_storage)
     assert {
         "content": 42,
         "directory": 2,
@@ -138,15 +141,18 @@ def test_debian_first_visit(swh_config, requests_mock_datadir):
         },
     )  # different than the previous loader as no release is done
 
-    check_snapshot(expected_snapshot, loader.storage)
+    check_snapshot(expected_snapshot, swh_storage)
 
 
-def test_debian_first_visit_then_another_visit(swh_config, requests_mock_datadir):
+def test_debian_first_visit_then_another_visit(swh_storage, requests_mock_datadir):
     """With no prior visit, load a debian project ends up with 1 snapshot
 
     """
     loader = DebianLoader(
-        url=URL, date="2019-10-12T05:58:09.165557+00:00", packages=PACKAGE_PER_VERSION
+        swh_storage,
+        URL,
+        date="2019-10-12T05:58:09.165557+00:00",
+        packages=PACKAGE_PER_VERSION,
     )
 
     actual_load_status = loader.load()
@@ -157,9 +163,9 @@ def test_debian_first_visit_then_another_visit(swh_config, requests_mock_datadir
         "snapshot_id": expected_snapshot_id,
     }
 
-    assert_last_visit_matches(loader.storage, URL, status="full", type="deb")
+    assert_last_visit_matches(swh_storage, URL, status="full", type="deb")
 
-    stats = get_stats(loader.storage)
+    stats = get_stats(swh_storage)
     assert {
         "content": 42,
         "directory": 2,
@@ -181,14 +187,14 @@ def test_debian_first_visit_then_another_visit(swh_config, requests_mock_datadir
         },
     )  # different than the previous loader as no release is done
 
-    check_snapshot(expected_snapshot, loader.storage)
+    check_snapshot(expected_snapshot, swh_storage)
 
     # No change in between load
     actual_load_status2 = loader.load()
     assert actual_load_status2["status"] == "uneventful"
-    assert_last_visit_matches(loader.storage, URL, status="full", type="deb")
+    assert_last_visit_matches(swh_storage, URL, status="full", type="deb")
 
-    stats2 = get_stats(loader.storage)
+    stats2 = get_stats(swh_storage)
     assert {
         "content": 42 + 0,
         "directory": 2 + 0,
@@ -209,7 +215,7 @@ def test_debian_first_visit_then_another_visit(swh_config, requests_mock_datadir
     assert len(urls) == len(set(urls))
 
 
-def test_uid_to_person():
+def test_debian_uid_to_person():
     uid = "Someone Name <someone@orga.org>"
     actual_person = uid_to_person(uid)
 
@@ -220,7 +226,7 @@ def test_uid_to_person():
     }
 
 
-def test_prepare_person():
+def test_debian_prepare_person():
     actual_author = prepare_person(
         {
             "name": "Someone Name",
@@ -236,7 +242,7 @@ def test_prepare_person():
     )
 
 
-def test_download_package(datadir, tmpdir, requests_mock_datadir):
+def test_debian_download_package(datadir, tmpdir, requests_mock_datadir):
     tmpdir = str(tmpdir)  # py3.5 work around (LocalPath issue)
     p_info = DebianPackageInfo.from_metadata(PACKAGE_FILES, url=URL)
     all_hashes = download_package(p_info, tmpdir)
@@ -279,7 +285,7 @@ def test_download_package(datadir, tmpdir, requests_mock_datadir):
     }
 
 
-def test_dsc_information_ok():
+def test_debian_dsc_information_ok():
     fname = "cicero_0.7.2-3.dsc"
     p_info = DebianPackageInfo.from_metadata(PACKAGE_FILES, url=URL)
     dsc_url, dsc_name = dsc_information(p_info)
@@ -288,7 +294,7 @@ def test_dsc_information_ok():
     assert dsc_name == PACKAGE_FILES["files"][fname]["name"]
 
 
-def test_dsc_information_not_found():
+def test_debian_dsc_information_not_found():
     fname = "cicero_0.7.2-3.dsc"
     p_info = DebianPackageInfo.from_metadata(PACKAGE_FILES, url=URL)
     p_info.files.pop(fname)
@@ -299,7 +305,7 @@ def test_dsc_information_not_found():
     assert dsc_name is None
 
 
-def test_dsc_information_too_many_dsc_entries():
+def test_debian_dsc_information_too_many_dsc_entries():
     # craft an extra dsc file
     fname = "cicero_0.7.2-3.dsc"
     p_info = DebianPackageInfo.from_metadata(PACKAGE_FILES, url=URL)
@@ -315,7 +321,9 @@ def test_dsc_information_too_many_dsc_entries():
         dsc_information(p_info)
 
 
-def test_get_intrinsic_package_metadata(requests_mock_datadir, datadir, tmp_path):
+def test_debian_get_intrinsic_package_metadata(
+    requests_mock_datadir, datadir, tmp_path
+):
     tmp_path = str(tmp_path)  # py3.5 compat.
     p_info = DebianPackageInfo.from_metadata(PACKAGE_FILES, url=URL)
 
@@ -372,9 +380,12 @@ def test_get_intrinsic_package_metadata(requests_mock_datadir, datadir, tmp_path
     )
 
 
-def test_debian_multiple_packages(swh_config, requests_mock_datadir):
+def test_debian_multiple_packages(swh_storage, requests_mock_datadir):
     loader = DebianLoader(
-        url=URL, date="2019-10-12T05:58:09.165557+00:00", packages=PACKAGES_PER_VERSION
+        swh_storage,
+        URL,
+        date="2019-10-12T05:58:09.165557+00:00",
+        packages=PACKAGES_PER_VERSION,
     )
 
     actual_load_status = loader.load()
@@ -384,7 +395,7 @@ def test_debian_multiple_packages(swh_config, requests_mock_datadir):
         "snapshot_id": expected_snapshot_id,
     }
 
-    assert_last_visit_matches(loader.storage, URL, status="full", type="deb")
+    assert_last_visit_matches(swh_storage, URL, status="full", type="deb")
 
     expected_snapshot = Snapshot(
         id=hash_to_bytes(expected_snapshot_id),
@@ -400,10 +411,10 @@ def test_debian_multiple_packages(swh_config, requests_mock_datadir):
         },
     )
 
-    check_snapshot(expected_snapshot, loader.storage)
+    check_snapshot(expected_snapshot, swh_storage)
 
 
-def test_resolve_revision_from_edge_cases():
+def test_debian_resolve_revision_from_edge_cases():
     """Solving revision with empty data will result in unknown revision
 
     """
@@ -435,7 +446,7 @@ def test_resolve_revision_from_edge_cases():
     )
 
 
-def test_resolve_revision_from_edge_cases_hit_and_miss():
+def test_debian_resolve_revision_from_edge_cases_hit_and_miss():
     """Solving revision with inconsistent data will result in unknown revision
 
     """
@@ -456,7 +467,7 @@ def test_resolve_revision_from_edge_cases_hit_and_miss():
     assert actual_revision is None
 
 
-def test_resolve_revision_from():
+def test_debian_resolve_revision_from():
     """Solving revision with consistent data will solve the revision
 
     """

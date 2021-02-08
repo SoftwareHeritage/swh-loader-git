@@ -11,4 +11,5 @@ from swh.loader.package.debian.loader import DebianLoader
 @shared_task(name=__name__ + ".LoadDebian")
 def load_deb_package(*, url, date, packages):
     """Load Debian package"""
-    return DebianLoader(url, date, packages).load()
+    loader = DebianLoader.from_configfile(url=url, date=date, packages=packages)
+    return loader.load()

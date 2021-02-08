@@ -121,7 +121,7 @@ def test_cran_parse_date():
 
 
 @pytest.mark.fs
-def test_extract_intrinsic_metadata(tmp_path, datadir):
+def test_cran_extract_intrinsic_metadata(tmp_path, datadir):
     """Parsing existing archive's PKG-INFO should yield results"""
     uncompressed_archive_path = str(tmp_path)
     # sample url
@@ -152,7 +152,7 @@ def test_extract_intrinsic_metadata(tmp_path, datadir):
 
 
 @pytest.mark.fs
-def test_extract_intrinsic_metadata_failures(tmp_path):
+def test_cran_extract_intrinsic_metadata_failures(tmp_path):
     """Parsing inexistent path/archive/PKG-INFO yield None"""
     # inexistent first level path
     assert extract_intrinsic_metadata("/something-inexistent") == {}
@@ -164,7 +164,7 @@ def test_extract_intrinsic_metadata_failures(tmp_path):
     assert extract_intrinsic_metadata(tmp_path) == {}
 
 
-def test_cran_one_visit(swh_config, requests_mock_datadir):
+def test_cran_one_visit(swh_storage, requests_mock_datadir):
     version = "2.22-6"
     base_url = "https://cran.r-project.org"
     origin_url = f"{base_url}/Packages/Recommended_KernSmooth/index.html"
@@ -172,7 +172,7 @@ def test_cran_one_visit(swh_config, requests_mock_datadir):
         f"{base_url}/src_contrib_1.4.0_Recommended_KernSmooth_{version}.tar.gz"  # noqa
     )
     loader = CRANLoader(
-        origin_url, artifacts=[{"url": artifact_url, "version": version,}]
+        swh_storage, origin_url, artifacts=[{"url": artifact_url, "version": version,}]
     )
 
     actual_load_status = loader.load()
@@ -182,11 +182,11 @@ def test_cran_one_visit(swh_config, requests_mock_datadir):
         "snapshot_id": SNAPSHOT.id.hex(),
     }
 
-    check_snapshot(SNAPSHOT, loader.storage)
+    check_snapshot(SNAPSHOT, swh_storage)
 
-    assert_last_visit_matches(loader.storage, origin_url, status="full", type="cran")
+    assert_last_visit_matches(swh_storage, origin_url, status="full", type="cran")
 
-    visit_stats = get_stats(loader.storage)
+    visit_stats = get_stats(swh_storage)
     assert {
         "content": 33,
         "directory": 7,
@@ -207,7 +207,7 @@ def test_cran_one_visit(swh_config, requests_mock_datadir):
     assert len(urls) == 1
 
 
-def test_cran_2_visits_same_origin(swh_config, requests_mock_datadir):
+def test_cran_2_visits_same_origin(swh_storage, requests_mock_datadir):
     """Multiple visits on the same origin, only 1 archive fetch"""
     version = "2.22-6"
     base_url = "https://cran.r-project.org"
@@ -216,7 +216,7 @@ def test_cran_2_visits_same_origin(swh_config, requests_mock_datadir):
         f"{base_url}/src_contrib_1.4.0_Recommended_KernSmooth_{version}.tar.gz"  # noqa
     )
     loader = CRANLoader(
-        origin_url, artifacts=[{"url": artifact_url, "version": version}]
+        swh_storage, origin_url, artifacts=[{"url": artifact_url, "version": version}]
     )
 
     # first visit
@@ -228,11 +228,11 @@ def test_cran_2_visits_same_origin(swh_config, requests_mock_datadir):
         "snapshot_id": SNAPSHOT.id.hex(),
     }
 
-    check_snapshot(SNAPSHOT, loader.storage)
+    check_snapshot(SNAPSHOT, swh_storage)
 
-    assert_last_visit_matches(loader.storage, origin_url, status="full", type="cran")
+    assert_last_visit_matches(swh_storage, origin_url, status="full", type="cran")
 
-    visit_stats = get_stats(loader.storage)
+    visit_stats = get_stats(swh_storage)
     assert {
         "content": 33,
         "directory": 7,
@@ -252,9 +252,9 @@ def test_cran_2_visits_same_origin(swh_config, requests_mock_datadir):
         "snapshot_id": expected_snapshot_id,
     }
 
-    assert_last_visit_matches(loader.storage, origin_url, status="full", type="cran")
+    assert_last_visit_matches(swh_storage, origin_url, status="full", type="cran")
 
-    visit_stats2 = get_stats(loader.storage)
+    visit_stats2 = get_stats(swh_storage)
     visit_stats["origin_visit"] += 1
     assert visit_stats2 == visit_stats, "same stats as 1st visit, +1 visit"
 
@@ -266,7 +266,7 @@ def test_cran_2_visits_same_origin(swh_config, requests_mock_datadir):
     assert len(urls) == 1, "visited one time artifact url (across 2 visits)"
 
 
-def test_parse_debian_control(datadir):
+def test_cran_parse_debian_control(datadir):
     description_file = os.path.join(datadir, "description", "acepack")
 
     actual_metadata = parse_debian_control(description_file)
@@ -287,7 +287,7 @@ def test_parse_debian_control(datadir):
     }
 
 
-def test_parse_debian_control_unicode_issue(datadir):
+def test_cran_parse_debian_control_unicode_issue(datadir):
     # iso-8859-1 caused failure, now fixed
     description_file = os.path.join(datadir, "description", "KnownBR")
 
@@ -317,7 +317,7 @@ def test_parse_debian_control_unicode_issue(datadir):
     ["build_extrinsic_snapshot_metadata", "build_extrinsic_origin_metadata",],
 )
 def test_cran_fail_to_build_or_load_extrinsic_metadata(
-    method_name, swh_config, requests_mock_datadir
+    method_name, swh_storage, requests_mock_datadir
 ):
     """problem during loading: {visit: failed, status: failed, no snapshot}
 
@@ -335,7 +335,9 @@ def test_cran_fail_to_build_or_load_extrinsic_metadata(
         side_effect=ValueError("Fake to fail to build or load extrinsic metadata"),
     ):
         loader = CRANLoader(
-            origin_url, artifacts=[{"url": artifact_url, "version": version}]
+            swh_storage,
+            origin_url,
+            artifacts=[{"url": artifact_url, "version": version}],
         )
 
         actual_load_status = loader.load()
@@ -345,7 +347,7 @@ def test_cran_fail_to_build_or_load_extrinsic_metadata(
             "snapshot_id": SNAPSHOT.id.hex(),
         }
 
-        visit_stats = get_stats(loader.storage)
+        visit_stats = get_stats(swh_storage)
         assert {
             "content": 33,
             "directory": 7,
@@ -358,5 +360,5 @@ def test_cran_fail_to_build_or_load_extrinsic_metadata(
         } == visit_stats
 
         assert_last_visit_matches(
-            loader.storage, origin_url, status="partial", type="cran"
+            swh_storage, origin_url, status="partial", type="cran"
         )

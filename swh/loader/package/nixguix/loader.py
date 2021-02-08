@@ -28,6 +28,7 @@ from swh.model.model import (
     Snapshot,
     TargetType,
 )
+from swh.storage.interface import StorageInterface
 
 logger = logging.getLogger(__name__)
 
@@ -58,9 +59,15 @@ class NixGuixLoader(PackageLoader[NixGuixPackageInfo]):
 
     visit_type = "nixguix"
 
-    def __init__(self, url):
-        super().__init__(url=url)
+    def __init__(
+        self,
+        storage: StorageInterface,
+        url: str,
+        unsupported_file_extensions: List[str] = [],
+    ):
+        super().__init__(storage=storage, url=url)
         self.provider_url = url
+        self.unsupported_file_extensions = unsupported_file_extensions
 
     # Note: this could be renamed get_artifacts in the PackageLoader
     # base class.
@@ -71,8 +78,9 @@ class NixGuixLoader(PackageLoader[NixGuixPackageInfo]):
     @cached_method
     def supported_sources(self):
         raw_sources = self.raw_sources()
-        unsupported_file_extensions = self.config.get("unsupported_file_extensions", [])
-        return clean_sources(parse_sources(raw_sources), unsupported_file_extensions)
+        return clean_sources(
+            parse_sources(raw_sources), self.unsupported_file_extensions
+        )
 
     @cached_method
     def integrity_by_url(self) -> Dict[str, Any]:

@@ -100,13 +100,13 @@ def check_snapshot(snapshot: Snapshot, storage: StorageInterface):
         assert "integrity" in raw
 
 
-def test_retrieve_sources(swh_config, requests_mock_datadir):
+def test_retrieve_sources(swh_storage, requests_mock_datadir):
     j = parse_sources(retrieve_sources(sources_url))
     assert "sources" in j.keys()
     assert len(j["sources"]) == 2
 
 
-def test_nixguix_url_not_found(swh_config, requests_mock_datadir):
+def test_nixguix_url_not_found(swh_storage, requests_mock_datadir):
     """When failing to read from the url, the visit is marked as not_found.
 
     Here the sources url does not exist, so requests_mock_datadir returns a 404.
@@ -117,21 +117,21 @@ def test_nixguix_url_not_found(swh_config, requests_mock_datadir):
 
     """
     unknown_url = "https://non-existing-url/"
-    loader = NixGuixLoader(unknown_url)
+    loader = NixGuixLoader(swh_storage, unknown_url)
     # during the retrieval step
     load_status = loader.load()
 
     assert load_status == {"status": "failed"}
 
     assert_last_visit_matches(
-        loader.storage, unknown_url, status="not_found", type="nixguix", snapshot=None
+        swh_storage, unknown_url, status="not_found", type="nixguix", snapshot=None
     )
 
     assert len(requests_mock_datadir.request_history) == 1
     assert requests_mock_datadir.request_history[0].url == unknown_url
 
 
-def test_nixguix_url_with_decoding_error(swh_config, requests_mock_datadir):
+def test_nixguix_url_with_decoding_error(swh_storage, requests_mock_datadir):
     """Other errors during communication with the url, the visit is marked as failed
 
     requests_mock_datadir will intercept the requests to sources_url. Since the file
@@ -140,26 +140,26 @@ def test_nixguix_url_with_decoding_error(swh_config, requests_mock_datadir):
 
     """
     sources_url = "https://example.com/file.txt"
-    loader = NixGuixLoader(sources_url)
+    loader = NixGuixLoader(swh_storage, sources_url)
     load_status = loader.load()
 
     assert load_status == {"status": "failed"}
 
     assert_last_visit_matches(
-        loader.storage, sources_url, status="failed", type="nixguix", snapshot=None
+        swh_storage, sources_url, status="failed", type="nixguix", snapshot=None
     )
 
     assert len(requests_mock_datadir.request_history) == 1
     assert requests_mock_datadir.request_history[0].url == sources_url
 
 
-def test_clean_sources_invalid_schema(swh_config, requests_mock_datadir):
+def test_clean_sources_invalid_schema(swh_storage, requests_mock_datadir):
     sources = {}
     with pytest.raises(ValueError, match="sources structure invalid, missing: .*"):
         clean_sources(sources)
 
 
-def test_clean_sources_invalid_version(swh_config, requests_mock_datadir):
+def test_clean_sources_invalid_version(swh_storage, requests_mock_datadir):
     for version_ok in [1, "1"]:  # Check those versions are fine
         clean_sources({"version": version_ok, "sources": [], "revision": "my-revision"})
 
@@ -172,7 +172,7 @@ def test_clean_sources_invalid_version(swh_config, requests_mock_datadir):
             )
 
 
-def test_clean_sources_invalid_sources(swh_config, requests_mock_datadir):
+def test_clean_sources_invalid_sources(swh_storage, requests_mock_datadir):
     valid_sources = [
         # 1 valid source
         {"type": "url", "urls": ["my-url.tar.gz"], "integrity": "my-integrity"},
@@ -218,7 +218,7 @@ def test_make_pattern_unsupported_file_extension():
         assert actual_match
 
 
-def test_clean_sources_unsupported_artifacts(swh_config, requests_mock_datadir):
+def test_clean_sources_unsupported_artifacts(swh_storage, requests_mock_datadir):
     unsupported_file_extensions = [
         "iso",
         "whl",
@@ -278,12 +278,12 @@ def test_clean_sources_unsupported_artifacts(swh_config, requests_mock_datadir):
     assert len(clean["sources"]) == len(supported_sources)
 
 
-def test_loader_one_visit(swh_config, requests_mock_datadir, raw_sources):
-    loader = NixGuixLoader(sources_url)
+def test_loader_one_visit(swh_storage, requests_mock_datadir, raw_sources):
+    loader = NixGuixLoader(swh_storage, sources_url)
     res = loader.load()
     assert res["status"] == "eventful"
 
-    stats = get_stats(loader.storage)
+    stats = get_stats(swh_storage)
     assert {
         "content": 1,
         "directory": 3,
@@ -298,10 +298,10 @@ def test_loader_one_visit(swh_config, requests_mock_datadir, raw_sources):
     # The visit is partial because urls pointing to non tarball file
     # are not handled yet
     assert_last_visit_matches(
-        loader.storage, sources_url, status="partial", type="nixguix"
+        swh_storage, sources_url, status="partial", type="nixguix"
     )
 
-    visit_status = origin_get_latest_visit_status(loader.storage, sources_url)
+    visit_status = origin_get_latest_visit_status(swh_storage, sources_url)
     snapshot_swhid = SWHID(
         object_type="snapshot", object_id=hash_to_hex(visit_status.snapshot)
     )
@@ -323,12 +323,12 @@ def test_loader_one_visit(swh_config, requests_mock_datadir, raw_sources):
             origin=sources_url,
         )
     ]
-    assert loader.storage.raw_extrinsic_metadata_get(
+    assert swh_storage.raw_extrinsic_metadata_get(
         MetadataTargetType.SNAPSHOT, snapshot_swhid, metadata_authority,
     ) == PagedResult(next_page_token=None, results=expected_metadata,)
 
 
-def test_uncompress_failure(swh_config, requests_mock_datadir):
+def test_uncompress_failure(swh_storage, requests_mock_datadir):
     """Non tarball files are currently not supported and the uncompress
     function fails on such kind of files.
 
@@ -337,7 +337,7 @@ def test_uncompress_failure(swh_config, requests_mock_datadir):
     created (with a status partial since all files are not archived).
 
     """
-    loader = NixGuixLoader(sources_url)
+    loader = NixGuixLoader(swh_storage, sources_url)
     loader_status = loader.load()
 
     sources = loader.supported_sources()["sources"]
@@ -348,30 +348,30 @@ def test_uncompress_failure(swh_config, requests_mock_datadir):
     # The visit is partial because urls pointing to non tarball files
     # are not handled yet
     assert_last_visit_matches(
-        loader.storage, sources_url, status="partial", type="nixguix"
+        swh_storage, sources_url, status="partial", type="nixguix"
     )
 
 
-def test_loader_incremental(swh_config, requests_mock_datadir):
+def test_loader_incremental(swh_storage, requests_mock_datadir):
     """Ensure a second visit do not download artifact already
     downloaded by the previous visit.
 
     """
-    loader = NixGuixLoader(sources_url)
+    loader = NixGuixLoader(swh_storage, sources_url)
     load_status = loader.load()
 
     loader.load()
     assert load_status == {"status": "eventful", "snapshot_id": SNAPSHOT1.id.hex()}
 
     assert_last_visit_matches(
-        loader.storage,
+        swh_storage,
         sources_url,
         status="partial",
         type="nixguix",
         snapshot=SNAPSHOT1.id,
     )
 
-    check_snapshot(SNAPSHOT1, storage=loader.storage)
+    check_snapshot(SNAPSHOT1, storage=swh_storage)
 
     urls = [
         m.url
@@ -384,7 +384,7 @@ def test_loader_incremental(swh_config, requests_mock_datadir):
     assert len(urls) == 1
 
 
-def test_loader_two_visits(swh_config, requests_mock_datadir_visits):
+def test_loader_two_visits(swh_storage, requests_mock_datadir_visits):
     """To ensure there is only one origin, but two visits, two revisions
     and two snapshots are created.
 
@@ -393,21 +393,21 @@ def test_loader_two_visits(swh_config, requests_mock_datadir_visits):
     another tarball.
 
     """
-    loader = NixGuixLoader(sources_url)
+    loader = NixGuixLoader(swh_storage, sources_url)
     load_status = loader.load()
     assert load_status == {"status": "eventful", "snapshot_id": SNAPSHOT1.id.hex()}
 
     assert_last_visit_matches(
-        loader.storage,
+        swh_storage,
         sources_url,
         status="partial",
         type="nixguix",
         snapshot=SNAPSHOT1.id,
     )
 
-    check_snapshot(SNAPSHOT1, storage=loader.storage)
+    check_snapshot(SNAPSHOT1, storage=swh_storage)
 
-    stats = get_stats(loader.storage)
+    stats = get_stats(swh_storage)
     assert {
         "content": 1,
         "directory": 3,
@@ -419,7 +419,7 @@ def test_loader_two_visits(swh_config, requests_mock_datadir_visits):
         "snapshot": 1,
     } == stats
 
-    loader = NixGuixLoader(sources_url)
+    loader = NixGuixLoader(swh_storage, sources_url)
     load_status = loader.load()
     expected_snapshot_id_hex = "b0bfa75cbd0cc90aac3b9e95fb0f59c731176d97"
     expected_snapshot_id = hash_to_bytes(expected_snapshot_id_hex)
@@ -429,7 +429,7 @@ def test_loader_two_visits(swh_config, requests_mock_datadir_visits):
     }
 
     assert_last_visit_matches(
-        loader.storage,
+        swh_storage,
         sources_url,
         status="partial",
         type="nixguix",
@@ -456,9 +456,9 @@ def test_loader_two_visits(swh_config, requests_mock_datadir_visits):
             ),
         },
     )
-    check_snapshot(expected_snapshot, storage=loader.storage)
+    check_snapshot(expected_snapshot, storage=swh_storage)
 
-    stats = get_stats(loader.storage)
+    stats = get_stats(swh_storage)
     assert {
         "content": 2,
         "directory": 5,
@@ -471,8 +471,8 @@ def test_loader_two_visits(swh_config, requests_mock_datadir_visits):
     } == stats
 
 
-def test_resolve_revision_from(swh_config, requests_mock_datadir, datadir):
-    loader = NixGuixLoader(sources_url)
+def test_resolve_revision_from(swh_storage, requests_mock_datadir, datadir):
+    loader = NixGuixLoader(swh_storage, sources_url)
 
     known_artifacts = {
         "id1": {"extrinsic": {"raw": {"url": "url1", "integrity": "integrity1"}}},
@@ -489,23 +489,23 @@ def test_resolve_revision_from(swh_config, requests_mock_datadir, datadir):
     assert loader.resolve_revision_from(known_artifacts, p_info) == None  # noqa
 
 
-def test_evaluation_branch(swh_config, requests_mock_datadir):
-    loader = NixGuixLoader(sources_url)
+def test_evaluation_branch(swh_storage, requests_mock_datadir):
+    loader = NixGuixLoader(swh_storage, sources_url)
     res = loader.load()
     assert res["status"] == "eventful"
 
     assert_last_visit_matches(
-        loader.storage,
+        swh_storage,
         sources_url,
         status="partial",
         type="nixguix",
         snapshot=SNAPSHOT1.id,
     )
 
-    check_snapshot(SNAPSHOT1, storage=loader.storage)
+    check_snapshot(SNAPSHOT1, storage=swh_storage)
 
 
-def test_eoferror(swh_config, requests_mock_datadir):
+def test_eoferror(swh_storage, requests_mock_datadir):
     """Load a truncated archive which is invalid to make the uncompress
     function raising the exception EOFError. We then check if a
     snapshot is created, meaning this error is well managed.
@@ -514,7 +514,7 @@ def test_eoferror(swh_config, requests_mock_datadir):
     sources = (
         "https://nix-community.github.io/nixpkgs-swh/sources-EOFError.json"  # noqa
     )
-    loader = NixGuixLoader(sources)
+    loader = NixGuixLoader(swh_storage, sources)
     loader.load()
 
     expected_snapshot = Snapshot(
@@ -527,7 +527,7 @@ def test_eoferror(swh_config, requests_mock_datadir):
         },
     )
 
-    check_snapshot(expected_snapshot, storage=loader.storage)
+    check_snapshot(expected_snapshot, storage=swh_storage)
 
 
 def fake_download(
@@ -550,11 +550,11 @@ def fake_download(
     return download(url, dest, hashes, filename, auth)
 
 
-def test_raise_exception(swh_config, requests_mock_datadir, mocker):
+def test_raise_exception(swh_storage, requests_mock_datadir, mocker):
     mock_download = mocker.patch("swh.loader.package.loader.download")
     mock_download.side_effect = fake_download
 
-    loader = NixGuixLoader(sources_url)
+    loader = NixGuixLoader(swh_storage, sources_url)
     res = loader.load()
 
     assert res == {
@@ -562,18 +562,18 @@ def test_raise_exception(swh_config, requests_mock_datadir, mocker):
         "snapshot_id": SNAPSHOT1.id.hex(),
     }
 
-    check_snapshot(SNAPSHOT1, storage=loader.storage)
+    check_snapshot(SNAPSHOT1, storage=swh_storage)
 
     assert len(mock_download.mock_calls) == 2
 
     # The visit is partial because some artifact downloads failed
     assert_last_visit_matches(
-        loader.storage, sources_url, status="partial", type="nixguix"
+        swh_storage, sources_url, status="partial", type="nixguix"
     )
 
 
 def test_load_nixguix_one_common_artifact_from_other_loader(
-    swh_config, datadir, requests_mock_datadir_visits, caplog
+    swh_storage, datadir, requests_mock_datadir_visits, caplog
 ):
     """Misformatted revision should be caught and logged, then loading continues
 
@@ -593,7 +593,7 @@ def test_load_nixguix_one_common_artifact_from_other_loader(
             "version": release,
         }
     ]
-    archive_loader = ArchiveLoader(url=gnu_url, artifacts=gnu_artifacts)
+    archive_loader = ArchiveLoader(swh_storage, url=gnu_url, artifacts=gnu_artifacts)
     actual_load_status = archive_loader.load()
     expected_snapshot_id = "c419397fd912039825ebdbea378bc6283f006bf5"
     assert actual_load_status["status"] == "eventful"
@@ -627,16 +627,14 @@ def test_load_nixguix_one_common_artifact_from_other_loader(
 
     # first visit with a snapshot, ok
     sources_url = "https://nix-community.github.io/nixpkgs-swh/sources_special.json"
-    loader = NixGuixLoader(sources_url)
+    loader = NixGuixLoader(swh_storage, sources_url)
     actual_load_status2 = loader.load()
     assert actual_load_status2["status"] == "eventful"
 
-    assert_last_visit_matches(
-        loader.storage, sources_url, status="full", type="nixguix"
-    )
+    assert_last_visit_matches(swh_storage, sources_url, status="full", type="nixguix")
 
     snapshot_id = actual_load_status2["snapshot_id"]
-    snapshot = snapshot_get_all_branches(loader.storage, hash_to_bytes(snapshot_id))
+    snapshot = snapshot_get_all_branches(swh_storage, hash_to_bytes(snapshot_id))
     assert snapshot
 
     # simulate a snapshot already seen with a revision with the wrong metadata structure
@@ -646,7 +644,7 @@ def test_load_nixguix_one_common_artifact_from_other_loader(
     ) as last_snapshot:
         # mutate the snapshot to target a revision with the wrong metadata structure
         # snapshot["branches"][artifact_url.encode("utf-8")] = first_revision
-        old_revision = loader.storage.revision_get([first_revision.target])[0]
+        old_revision = swh_storage.revision_get([first_revision.target])[0]
         # assert that revision is not in the right format
         assert old_revision.metadata["extrinsic"]["raw"].get("integrity", {}) == {}
 
@@ -666,25 +664,25 @@ def test_load_nixguix_one_common_artifact_from_other_loader(
         # a revision written by somebody else (structure different)
         last_snapshot.return_value = snapshot
 
-        loader = NixGuixLoader(sources_url)
+        loader = NixGuixLoader(swh_storage, sources_url)
         actual_load_status3 = loader.load()
         assert last_snapshot.called
         assert actual_load_status3["status"] == "eventful"
 
         assert_last_visit_matches(
-            loader.storage, sources_url, status="full", type="nixguix"
+            swh_storage, sources_url, status="full", type="nixguix"
         )
 
         new_snapshot_id = "32ff641e510aceefc3a6d0dcbf208b2854d2e965"
         assert actual_load_status3["snapshot_id"] == new_snapshot_id
 
         last_snapshot = snapshot_get_all_branches(
-            loader.storage, hash_to_bytes(new_snapshot_id)
+            swh_storage, hash_to_bytes(new_snapshot_id)
         )
         new_revision_branch = last_snapshot.branches[artifact_url.encode("utf-8")]
         assert new_revision_branch.target_type == TargetType.REVISION
 
-        new_revision = loader.storage.revision_get([new_revision_branch.target])[0]
+        new_revision = swh_storage.revision_get([new_revision_branch.target])[0]
 
         # the new revision has the correct structure,  so it got ingested alright by the
         # new run

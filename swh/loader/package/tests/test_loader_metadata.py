@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2020  The Software Heritage developers
+# Copyright (C) 2019-2021  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -27,7 +27,6 @@ from swh.model.model import (
     RevisionType,
     Sha1Git,
 )
-from swh.storage import get_storage
 
 EMPTY_SNAPSHOT_ID = "1a8893e6a86f444e8be8e7bda6cb34fb1735a00e"
 FULL_SNAPSHOT_ID = "4a9b608c9f01860a627237dd2409d1d50ec4b054"
@@ -138,11 +137,8 @@ class MetadataTestLoader(PackageLoader[BasePackageInfo]):
         return [RawExtrinsicMetadataCore(m.format, m.metadata, m.discovery_date)]
 
 
-def test_load_artifact_metadata(swh_config, caplog):
-    storage = get_storage("memory")
-
-    loader = MetadataTestLoader(ORIGIN_URL)
-    loader.storage = storage
+def test_load_artifact_metadata(swh_storage, caplog):
+    loader = MetadataTestLoader(swh_storage, ORIGIN_URL)
 
     load_status = loader.load()
     assert load_status == {
@@ -154,7 +150,7 @@ def test_load_artifact_metadata(swh_config, caplog):
         type=MetadataAuthorityType.REGISTRY, url="https://softwareheritage.org/",
     )
 
-    result = storage.raw_extrinsic_metadata_get(
+    result = swh_storage.raw_extrinsic_metadata_get(
         MetadataTargetType.DIRECTORY, DIRECTORY_SWHID, authority,
     )
     assert result.next_page_token is None
@@ -172,11 +168,8 @@ def test_load_artifact_metadata(swh_config, caplog):
     )
 
 
-def test_load_metadata(swh_config, caplog):
-    storage = get_storage("memory")
-
-    loader = MetadataTestLoader(ORIGIN_URL)
-    loader.storage = storage
+def test_load_metadata(swh_storage, caplog):
+    loader = MetadataTestLoader(swh_storage, ORIGIN_URL)
 
     load_status = loader.load()
     assert load_status == {
@@ -184,13 +177,13 @@ def test_load_metadata(swh_config, caplog):
         "snapshot_id": FULL_SNAPSHOT_ID,
     }
 
-    result = storage.raw_extrinsic_metadata_get(
+    result = swh_storage.raw_extrinsic_metadata_get(
         MetadataTargetType.DIRECTORY, DIRECTORY_SWHID, AUTHORITY,
     )
     assert result.next_page_token is None
     assert result.results == DIRECTORY_METADATA
 
-    result = storage.raw_extrinsic_metadata_get(
+    result = swh_storage.raw_extrinsic_metadata_get(
         MetadataTargetType.ORIGIN, ORIGIN_URL, AUTHORITY,
     )
     assert result.next_page_token is None
@@ -199,14 +192,8 @@ def test_load_metadata(swh_config, caplog):
     assert caplog.text == ""
 
 
-def test_existing_authority(swh_config, caplog):
-    storage = get_storage("memory")
-
-    loader = MetadataTestLoader(ORIGIN_URL)
-    loader.storage = storage
-    loader.config["create_authorities"] = False
-
-    storage.metadata_authority_add([attr.evolve(AUTHORITY, metadata={})])
+def test_existing_authority(swh_storage, caplog):
+    loader = MetadataTestLoader(swh_storage, ORIGIN_URL)
 
     load_status = loader.load()
     assert load_status == {
@@ -214,7 +201,7 @@ def test_existing_authority(swh_config, caplog):
         "snapshot_id": FULL_SNAPSHOT_ID,
     }
 
-    result = storage.raw_extrinsic_metadata_get(
+    result = swh_storage.raw_extrinsic_metadata_get(
         MetadataTargetType.DIRECTORY, DIRECTORY_SWHID, AUTHORITY,
     )
     assert result.next_page_token is None
@@ -223,14 +210,8 @@ def test_existing_authority(swh_config, caplog):
     assert caplog.text == ""
 
 
-def test_existing_fetcher(swh_config, caplog):
-    storage = get_storage("memory")
-
-    loader = MetadataTestLoader(ORIGIN_URL)
-    loader.storage = storage
-    loader.config["create_fetchers"] = False
-
-    storage.metadata_fetcher_add([attr.evolve(FETCHER, metadata={})])
+def test_existing_fetcher(swh_storage, caplog):
+    loader = MetadataTestLoader(swh_storage, ORIGIN_URL)
 
     load_status = loader.load()
     assert load_status == {
@@ -238,7 +219,7 @@ def test_existing_fetcher(swh_config, caplog):
         "snapshot_id": FULL_SNAPSHOT_ID,
     }
 
-    result = storage.raw_extrinsic_metadata_get(
+    result = swh_storage.raw_extrinsic_metadata_get(
         MetadataTargetType.DIRECTORY, DIRECTORY_SWHID, AUTHORITY,
     )
     assert result.next_page_token is None

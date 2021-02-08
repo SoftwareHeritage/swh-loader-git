@@ -3,14 +3,12 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import copy
 import json
 import os
 from os import path
 from unittest.mock import patch
 
 import pytest
-import yaml
 
 from swh.core.pytest_plugin import requests_mock_datadir_factory
 from swh.core.tarball import uncompress
@@ -48,7 +46,7 @@ def _0805nexter_api_info(datadir) -> bytes:
         return f.read()
 
 
-def test_author_basic():
+def test_pypi_author_basic():
     data = {
         "author": "i-am-groot",
         "author_email": "iam@groot.org",
@@ -64,7 +62,7 @@ def test_author_basic():
     assert actual_author == expected_author
 
 
-def test_author_empty_email():
+def test_pypi_author_empty_email():
     data = {
         "author": "i-am-groot",
         "author_email": "",
@@ -76,7 +74,7 @@ def test_author_empty_email():
     assert actual_author == expected_author
 
 
-def test_author_empty_name():
+def test_pypi_author_empty_name():
     data = {
         "author": "",
         "author_email": "iam@groot.org",
@@ -90,7 +88,7 @@ def test_author_empty_name():
     assert actual_author == expected_author
 
 
-def test_author_malformed():
+def test_pypi_author_malformed():
     data = {
         "author": "['pierre', 'paul', 'jacques']",
         "author_email": None,
@@ -107,7 +105,7 @@ def test_author_malformed():
     assert actual_author == expected_author
 
 
-def test_author_malformed_2():
+def test_pypi_author_malformed_2():
     data = {
         "author": "[marie, jeanne]",
         "author_email": "[marie@some, jeanne@thing]",
@@ -124,7 +122,7 @@ def test_author_malformed_2():
     assert actual_author == expected_author
 
 
-def test_author_malformed_3():
+def test_pypi_author_malformed_3():
     data = {
         "author": "[marie, jeanne, pierre]",
         "author_email": "[marie@somewhere.org, jeanne@somewhere.org]",
@@ -146,20 +144,6 @@ def test_author_malformed_3():
 # configuration error #
 
 
-def test_badly_configured_loader_raise(tmp_path, swh_loader_config, monkeypatch):
-    """Badly configured loader should raise"""
-    wrong_config = copy.deepcopy(swh_loader_config)
-    wrong_config.pop("storage")
-
-    conf_path = os.path.join(str(tmp_path), "loader.yml")
-    with open(conf_path, "w") as f:
-        f.write(yaml.dump(wrong_config))
-    monkeypatch.setenv("SWH_CONFIG_FILENAME", conf_path)
-
-    with pytest.raises(ValueError, match="Misconfiguration"):
-        PyPILoader(url="some-url")
-
-
 def test_pypi_api_url():
     """Compute pypi api url from the pypi project url should be ok"""
     url = pypi_api_url("https://pypi.org/project/requests")
@@ -173,7 +157,7 @@ def test_pypi_api_url_with_slash():
 
 
 @pytest.mark.fs
-def test_extract_intrinsic_metadata(tmp_path, datadir):
+def test_pypi_extract_intrinsic_metadata(tmp_path, datadir):
     """Parsing existing archive's PKG-INFO should yield results"""
     uncompressed_archive_path = str(tmp_path)
     archive_path = path.join(
@@ -197,7 +181,7 @@ def test_extract_intrinsic_metadata(tmp_path, datadir):
 
 
 @pytest.mark.fs
-def test_extract_intrinsic_metadata_failures(tmp_path):
+def test_pypi_extract_intrinsic_metadata_failures(tmp_path):
     """Parsing inexistent path/archive/PKG-INFO yield None"""
     tmp_path = str(tmp_path)  # py3.5 work around (PosixPath issue)
     # inexistent first level path
@@ -225,18 +209,18 @@ requests_mock_datadir_missing_all = requests_mock_datadir_factory(
 )
 
 
-def test_no_release_artifact(swh_config, requests_mock_datadir_missing_all):
+def test_pypi_no_release_artifact(swh_storage, requests_mock_datadir_missing_all):
     """Load a pypi project with all artifacts missing ends up with no snapshot
 
     """
     url = "https://pypi.org/project/0805nexter"
-    loader = PyPILoader(url)
+    loader = PyPILoader(swh_storage, url)
 
     actual_load_status = loader.load()
     assert actual_load_status["status"] == "uneventful"
     assert actual_load_status["snapshot_id"] is not None
 
-    stats = get_stats(loader.storage)
+    stats = get_stats(swh_storage)
     assert {
         "content": 0,
         "directory": 0,
@@ -248,10 +232,10 @@ def test_no_release_artifact(swh_config, requests_mock_datadir_missing_all):
         "snapshot": 1,
     } == stats
 
-    assert_last_visit_matches(loader.storage, url, status="partial", type="pypi")
+    assert_last_visit_matches(swh_storage, url, status="partial", type="pypi")
 
 
-def test_pypi_fail__load_snapshot(swh_config, requests_mock_datadir):
+def test_pypi_fail__load_snapshot(swh_storage, requests_mock_datadir):
     """problem during loading: {visit: failed, status: failed, no snapshot}
 
     """
@@ -260,7 +244,7 @@ def test_pypi_fail__load_snapshot(swh_config, requests_mock_datadir):
         "swh.loader.package.pypi.loader.PyPILoader._load_snapshot",
         side_effect=ValueError("Fake problem to fail visit"),
     ):
-        loader = PyPILoader(url)
+        loader = PyPILoader(swh_storage, url)
 
         actual_load_status = loader.load()
         assert actual_load_status == {"status": "failed"}
@@ -278,25 +262,25 @@ def test_pypi_fail__load_snapshot(swh_config, requests_mock_datadir):
             "snapshot": 0,
         } == stats
 
-        assert_last_visit_matches(loader.storage, url, status="failed", type="pypi")
+        assert_last_visit_matches(swh_storage, url, status="failed", type="pypi")
 
 
 # problem during loading:
 # {visit: partial, status: uneventful, no snapshot}
 
 
-def test_release_with_traceback(swh_config, requests_mock_datadir):
+def test_pypi_release_with_traceback(swh_storage, requests_mock_datadir):
     url = "https://pypi.org/project/0805nexter"
     with patch(
         "swh.loader.package.pypi.loader.PyPILoader.last_snapshot",
         side_effect=ValueError("Fake problem to fail the visit"),
     ):
-        loader = PyPILoader(url)
+        loader = PyPILoader(swh_storage, url)
 
         actual_load_status = loader.load()
         assert actual_load_status == {"status": "failed"}
 
-        stats = get_stats(loader.storage)
+        stats = get_stats(swh_storage)
 
         assert {
             "content": 0,
@@ -309,7 +293,7 @@ def test_release_with_traceback(swh_config, requests_mock_datadir):
             "snapshot": 0,
         } == stats
 
-        assert_last_visit_matches(loader.storage, url, status="failed", type="pypi")
+        assert_last_visit_matches(swh_storage, url, status="failed", type="pypi")
 
 
 # problem during loading: failure early enough in between swh contents...
@@ -333,18 +317,18 @@ requests_mock_datadir_missing_one = requests_mock_datadir_factory(
 # {visit partial, status: eventful, 1 snapshot}
 
 
-def test_revision_metadata_structure(
-    swh_config, requests_mock_datadir, _0805nexter_api_info
+def test_pypi_revision_metadata_structure(
+    swh_storage, requests_mock_datadir, _0805nexter_api_info
 ):
     url = "https://pypi.org/project/0805nexter"
-    loader = PyPILoader(url)
+    loader = PyPILoader(swh_storage, url)
 
     actual_load_status = loader.load()
     assert actual_load_status["status"] == "eventful"
     assert actual_load_status["snapshot_id"] is not None
 
     expected_revision_id = hash_to_bytes("e445da4da22b31bfebb6ffc4383dbf839a074d21")
-    revision = loader.storage.revision_get([expected_revision_id])[0]
+    revision = swh_storage.revision_get([expected_revision_id])[0]
     assert revision is not None
 
     check_metadata_paths(
@@ -391,17 +375,19 @@ def test_revision_metadata_structure(
             revision=revision_swhid,
         )
     ]
-    assert loader.storage.raw_extrinsic_metadata_get(
+    assert swh_storage.raw_extrinsic_metadata_get(
         MetadataTargetType.DIRECTORY, directory_swhid, metadata_authority,
     ) == PagedResult(next_page_token=None, results=expected_metadata,)
 
 
-def test_visit_with_missing_artifact(swh_config, requests_mock_datadir_missing_one):
+def test_pypi_visit_with_missing_artifact(
+    swh_storage, requests_mock_datadir_missing_one
+):
     """Load a pypi project with some missing artifacts ends up with 1 snapshot
 
     """
     url = "https://pypi.org/project/0805nexter"
-    loader = PyPILoader(url)
+    loader = PyPILoader(swh_storage, url)
 
     actual_load_status = loader.load()
     expected_snapshot_id = hash_to_bytes("dd0e4201a232b1c104433741dbf45895b8ac9355")
@@ -410,7 +396,7 @@ def test_visit_with_missing_artifact(swh_config, requests_mock_datadir_missing_o
         "snapshot_id": expected_snapshot_id.hex(),
     }
 
-    stats = get_stats(loader.storage)
+    stats = get_stats(swh_storage)
 
     assert {
         "content": 3,
@@ -432,7 +418,7 @@ def test_visit_with_missing_artifact(swh_config, requests_mock_datadir_missing_o
         ],
     )
 
-    assert list(loader.storage.content_missing_per_sha1(expected_contents)) == []
+    assert list(swh_storage.content_missing_per_sha1(expected_contents)) == []
 
     expected_dirs = map(
         hash_to_bytes,
@@ -442,7 +428,7 @@ def test_visit_with_missing_artifact(swh_config, requests_mock_datadir_missing_o
         ],
     )
 
-    assert list(loader.storage.directory_missing(expected_dirs)) == []
+    assert list(swh_storage.directory_missing(expected_dirs)) == []
 
     # {revision hash: directory hash}
     expected_revs = {
@@ -450,7 +436,7 @@ def test_visit_with_missing_artifact(swh_config, requests_mock_datadir_missing_o
             "b178b66bd22383d5f16f4f5c923d39ca798861b4"
         ),  # noqa
     }
-    assert list(loader.storage.revision_missing(expected_revs)) == []
+    assert list(swh_storage.revision_missing(expected_revs)) == []
 
     expected_snapshot = Snapshot(
         id=hash_to_bytes(expected_snapshot_id),
@@ -464,23 +450,19 @@ def test_visit_with_missing_artifact(swh_config, requests_mock_datadir_missing_o
             ),
         },
     )
-    check_snapshot(expected_snapshot, storage=loader.storage)
+    check_snapshot(expected_snapshot, storage=swh_storage)
 
     assert_last_visit_matches(
-        loader.storage,
-        url,
-        status="partial",
-        type="pypi",
-        snapshot=expected_snapshot_id,
+        swh_storage, url, status="partial", type="pypi", snapshot=expected_snapshot_id,
     )
 
 
-def test_visit_with_1_release_artifact(swh_config, requests_mock_datadir):
+def test_pypi_visit_with_1_release_artifact(swh_storage, requests_mock_datadir):
     """With no prior visit, load a pypi project ends up with 1 snapshot
 
     """
     url = "https://pypi.org/project/0805nexter"
-    loader = PyPILoader(url)
+    loader = PyPILoader(swh_storage, url)
 
     actual_load_status = loader.load()
     expected_snapshot_id = hash_to_bytes("ba6e158ada75d0b3cfb209ffdf6daa4ed34a227a")
@@ -489,7 +471,7 @@ def test_visit_with_1_release_artifact(swh_config, requests_mock_datadir):
         "snapshot_id": expected_snapshot_id.hex(),
     }
 
-    stats = get_stats(loader.storage)
+    stats = get_stats(swh_storage)
     assert {
         "content": 6,
         "directory": 4,
@@ -513,7 +495,7 @@ def test_visit_with_1_release_artifact(swh_config, requests_mock_datadir):
         ],
     )
 
-    assert list(loader.storage.content_missing_per_sha1(expected_contents)) == []
+    assert list(swh_storage.content_missing_per_sha1(expected_contents)) == []
 
     expected_dirs = map(
         hash_to_bytes,
@@ -525,7 +507,7 @@ def test_visit_with_1_release_artifact(swh_config, requests_mock_datadir):
         ],
     )
 
-    assert list(loader.storage.directory_missing(expected_dirs)) == []
+    assert list(swh_storage.directory_missing(expected_dirs)) == []
 
     # {revision hash: directory hash}
     expected_revs = {
@@ -536,7 +518,7 @@ def test_visit_with_1_release_artifact(swh_config, requests_mock_datadir):
             "b178b66bd22383d5f16f4f5c923d39ca798861b4"
         ),  # noqa
     }
-    assert list(loader.storage.revision_missing(expected_revs)) == []
+    assert list(swh_storage.revision_missing(expected_revs)) == []
 
     expected_snapshot = Snapshot(
         id=expected_snapshot_id,
@@ -554,19 +536,19 @@ def test_visit_with_1_release_artifact(swh_config, requests_mock_datadir):
             ),
         },
     )
-    check_snapshot(expected_snapshot, loader.storage)
+    check_snapshot(expected_snapshot, swh_storage)
 
     assert_last_visit_matches(
-        loader.storage, url, status="full", type="pypi", snapshot=expected_snapshot_id
+        swh_storage, url, status="full", type="pypi", snapshot=expected_snapshot_id
     )
 
 
-def test_multiple_visits_with_no_change(swh_config, requests_mock_datadir):
+def test_pypi_multiple_visits_with_no_change(swh_storage, requests_mock_datadir):
     """Multiple visits with no changes results in 1 same snapshot
 
     """
     url = "https://pypi.org/project/0805nexter"
-    loader = PyPILoader(url)
+    loader = PyPILoader(swh_storage, url)
 
     actual_load_status = loader.load()
     snapshot_id = hash_to_bytes("ba6e158ada75d0b3cfb209ffdf6daa4ed34a227a")
@@ -575,10 +557,10 @@ def test_multiple_visits_with_no_change(swh_config, requests_mock_datadir):
         "snapshot_id": snapshot_id.hex(),
     }
     assert_last_visit_matches(
-        loader.storage, url, status="full", type="pypi", snapshot=snapshot_id
+        swh_storage, url, status="full", type="pypi", snapshot=snapshot_id
     )
 
-    stats = get_stats(loader.storage)
+    stats = get_stats(swh_storage)
 
     assert {
         "content": 6,
@@ -607,7 +589,7 @@ def test_multiple_visits_with_no_change(swh_config, requests_mock_datadir):
             ),
         },
     )
-    check_snapshot(expected_snapshot, loader.storage)
+    check_snapshot(expected_snapshot, swh_storage)
 
     actual_load_status2 = loader.load()
     assert actual_load_status2 == {
@@ -616,10 +598,10 @@ def test_multiple_visits_with_no_change(swh_config, requests_mock_datadir):
     }
 
     visit_status2 = assert_last_visit_matches(
-        loader.storage, url, status="full", type="pypi"
+        swh_storage, url, status="full", type="pypi"
     )
 
-    stats2 = get_stats(loader.storage)
+    stats2 = get_stats(swh_storage)
     expected_stats2 = stats.copy()
     expected_stats2["origin_visit"] = 1 + 1
     assert expected_stats2 == stats2
@@ -628,15 +610,15 @@ def test_multiple_visits_with_no_change(swh_config, requests_mock_datadir):
     assert visit_status2.snapshot == snapshot_id
 
 
-def test_incremental_visit(swh_config, requests_mock_datadir_visits):
+def test_pypi_incremental_visit(swh_storage, requests_mock_datadir_visits):
     """With prior visit, 2nd load will result with a different snapshot
 
     """
     url = "https://pypi.org/project/0805nexter"
-    loader = PyPILoader(url)
+    loader = PyPILoader(swh_storage, url)
 
     visit1_actual_load_status = loader.load()
-    visit1_stats = get_stats(loader.storage)
+    visit1_stats = get_stats(swh_storage)
     expected_snapshot_id = hash_to_bytes("ba6e158ada75d0b3cfb209ffdf6daa4ed34a227a")
     assert visit1_actual_load_status == {
         "status": "eventful",
@@ -644,7 +626,7 @@ def test_incremental_visit(swh_config, requests_mock_datadir_visits):
     }
 
     assert_last_visit_matches(
-        loader.storage, url, status="full", type="pypi", snapshot=expected_snapshot_id
+        swh_storage, url, status="full", type="pypi", snapshot=expected_snapshot_id
     )
 
     assert {
@@ -663,7 +645,7 @@ def test_incremental_visit(swh_config, requests_mock_datadir_visits):
     del loader._cached_info
 
     visit2_actual_load_status = loader.load()
-    visit2_stats = get_stats(loader.storage)
+    visit2_stats = get_stats(swh_storage)
 
     assert visit2_actual_load_status["status"] == "eventful", visit2_actual_load_status
     expected_snapshot_id2 = hash_to_bytes("2e5149a7b0725d18231a37b342e9b7c4e121f283")
@@ -673,7 +655,7 @@ def test_incremental_visit(swh_config, requests_mock_datadir_visits):
     }
 
     assert_last_visit_matches(
-        loader.storage, url, status="full", type="pypi", snapshot=expected_snapshot_id2
+        swh_storage, url, status="full", type="pypi", snapshot=expected_snapshot_id2
     )
 
     assert {
@@ -700,7 +682,7 @@ def test_incremental_visit(swh_config, requests_mock_datadir_visits):
         ],
     )
 
-    assert list(loader.storage.content_missing_per_sha1(expected_contents)) == []
+    assert list(swh_storage.content_missing_per_sha1(expected_contents)) == []
 
     expected_dirs = map(
         hash_to_bytes,
@@ -714,7 +696,7 @@ def test_incremental_visit(swh_config, requests_mock_datadir_visits):
         ],
     )
 
-    assert list(loader.storage.directory_missing(expected_dirs)) == []
+    assert list(swh_storage.directory_missing(expected_dirs)) == []
 
     # {revision hash: directory hash}
     expected_revs = {
@@ -729,7 +711,7 @@ def test_incremental_visit(swh_config, requests_mock_datadir_visits):
         ),  # noqa
     }
 
-    assert list(loader.storage.revision_missing(expected_revs)) == []
+    assert list(swh_storage.revision_missing(expected_revs)) == []
 
     expected_snapshot = Snapshot(
         id=expected_snapshot_id2,
@@ -752,10 +734,10 @@ def test_incremental_visit(swh_config, requests_mock_datadir_visits):
         },
     )
 
-    check_snapshot(expected_snapshot, loader.storage)
+    check_snapshot(expected_snapshot, swh_storage)
 
     assert_last_visit_matches(
-        loader.storage, url, status="full", type="pypi", snapshot=expected_snapshot.id
+        swh_storage, url, status="full", type="pypi", snapshot=expected_snapshot.id
     )
 
     urls = [
@@ -778,12 +760,12 @@ def test_incremental_visit(swh_config, requests_mock_datadir_visits):
 # snapshot branch output is different
 
 
-def test_visit_1_release_with_2_artifacts(swh_config, requests_mock_datadir):
+def test_pypi_visit_1_release_with_2_artifacts(swh_storage, requests_mock_datadir):
     """With no prior visit, load a pypi project ends up with 1 snapshot
 
     """
     url = "https://pypi.org/project/nexter"
-    loader = PyPILoader(url)
+    loader = PyPILoader(swh_storage, url)
 
     actual_load_status = loader.load()
     expected_snapshot_id = hash_to_bytes("a27e638a4dad6fbfa273c6ebec1c4bf320fb84c6")
@@ -805,10 +787,10 @@ def test_visit_1_release_with_2_artifacts(swh_config, requests_mock_datadir):
             ),
         },
     )
-    check_snapshot(expected_snapshot, loader.storage)
+    check_snapshot(expected_snapshot, swh_storage)
 
     assert_last_visit_matches(
-        loader.storage, url, status="full", type="pypi", snapshot=expected_snapshot.id
+        swh_storage, url, status="full", type="pypi", snapshot=expected_snapshot.id
     )
 
 
@@ -883,12 +865,12 @@ def test_pypi_artifact_to_revision_id_current_loader_version():
     )
 
 
-def test_pypi_artifact_with_no_intrinsic_metadata(swh_config, requests_mock_datadir):
+def test_pypi_artifact_with_no_intrinsic_metadata(swh_storage, requests_mock_datadir):
     """Skip artifact with no intrinsic metadata during ingestion
 
     """
     url = "https://pypi.org/project/upymenu"
-    loader = PyPILoader(url)
+    loader = PyPILoader(swh_storage, url)
 
     actual_load_status = loader.load()
     expected_snapshot_id = hash_to_bytes("1a8893e6a86f444e8be8e7bda6cb34fb1735a00e")
@@ -899,19 +881,19 @@ def test_pypi_artifact_with_no_intrinsic_metadata(swh_config, requests_mock_data
 
     # no branch as one artifact without any intrinsic metadata
     expected_snapshot = Snapshot(id=expected_snapshot_id, branches={})
-    check_snapshot(expected_snapshot, loader.storage)
+    check_snapshot(expected_snapshot, swh_storage)
 
     assert_last_visit_matches(
-        loader.storage, url, status="full", type="pypi", snapshot=expected_snapshot.id
+        swh_storage, url, status="full", type="pypi", snapshot=expected_snapshot.id
     )
 
 
-def test_pypi_origin_not_found(swh_config, requests_mock_datadir):
+def test_pypi_origin_not_found(swh_storage, requests_mock_datadir):
     url = "https://pypi.org/project/unknown"
-    loader = PyPILoader(url)
+    loader = PyPILoader(swh_storage, url)
 
     assert loader.load() == {"status": "failed"}
 
     assert_last_visit_matches(
-        loader.storage, url, status="not_found", type="pypi", snapshot=None
+        swh_storage, url, status="not_found", type="pypi", snapshot=None
     )

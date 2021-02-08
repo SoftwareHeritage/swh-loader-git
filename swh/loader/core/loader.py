@@ -3,7 +3,6 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-from abc import ABCMeta, abstractmethod
 import datetime
 import hashlib
 import logging
@@ -26,24 +25,82 @@ from swh.model.model import (
     Snapshot,
 )
 from swh.storage import get_storage
+from swh.storage.interface import StorageInterface
 from swh.storage.utils import now
 
 DEFAULT_CONFIG: Dict[str, Any] = {
     "max_content_size": 100 * 1024 * 1024,
-    "save_data": False,
-    "save_data_path": "",
-    "storage": {"cls": "memory"},
 }
 
 
-class BaseLoader(metaclass=ABCMeta):
-    """Mixin base class for loader.
+class Loader:
+    """The base class for a Software Heritage Loader.
 
-    To use this class, you must:
+    A loader retrieves origin information (git/mercurial/svn repositories, pypi/npm/...
+    package artifacts), ingests the contents/directories/revisions/releases/snapshot to
+    the storage backend.
+
+    For now, this just exposes 2 static methods (from_config, from_configfile) to
+    centralize and ease the loader instantiation.
+
+    Args:
+      storage: the instance of the Storage being used to register the
+        origin information
+
+    """
+
+    def __init__(
+        self, storage: StorageInterface, max_content_size: Optional[int] = None,
+    ):
+        self.storage = storage
+        self.max_content_size = int(max_content_size) if max_content_size else None
+
+    @classmethod
+    def from_config(cls, storage: Dict[str, Any], **config: Any):
+        """Instantiate a loader from a configuration dict.
+
+        This is basically a backwards-compatibility shim for the CLI.
+
+        Args:
+          storage: instantiation config for the storage
+          config: the configuration dict for the loader, with the following keys:
+            - credentials (optional): credentials list for the scheduler
+            - any other kwargs passed to the loader.
+
+        Returns:
+          the instantiated loader
+        """
+        # Drop the legacy config keys which aren't used for this generation of loader.
+        for legacy_key in ("storage", "celery"):
+            config.pop(legacy_key, None)
+
+        # Instantiate the storage
+        storage_instance = get_storage(**storage)
+        return cls(storage=storage_instance, **config)
+
+    @classmethod
+    def from_configfile(cls, **kwargs: Any):
+        """Instantiate a loader from the configuration loaded from the
+        SWH_CONFIG_FILENAME envvar, with potential extra keyword arguments if their
+        value is not None.
+
+        Args:
+            kwargs: kwargs passed to the loader instantiation
+
+        """
+        config = dict(load_from_envvar(DEFAULT_CONFIG))
+        config.update({k: v for k, v in kwargs.items() if v is not None})
+        return cls.from_config(**config)
+
+
+class BaseLoader(Loader):
+    """Mixin base class for (D)VCS loaders (e.g svn, git, mercurial, ...).
+
+    To define such loaders, you must:
 
     - inherit from this class
 
-    - and implement the @abstractmethod methods:
+    - and implement following methods:
 
       - :func:`prepare`: First step executed by the loader to prepare some
         state needed by the `func`:load method.
@@ -73,15 +130,12 @@ class BaseLoader(metaclass=ABCMeta):
 
     def __init__(
         self,
+        storage: StorageInterface,
         logging_class: Optional[str] = None,
-        config: Optional[Dict[str, Any]] = None,
+        save_data_path: Optional[str] = None,
+        max_content_size: Optional[int] = None,
     ):
-        if config:
-            self.config = config
-        else:
-            self.config = load_from_envvar(DEFAULT_CONFIG)
-
-        self.storage = get_storage(**self.config["storage"])
+        super().__init__(storage=storage, max_content_size=max_content_size)
 
         if logging_class is None:
             logging_class = "%s.%s" % (
@@ -93,27 +147,23 @@ class BaseLoader(metaclass=ABCMeta):
         _log = logging.getLogger("requests.packages.urllib3.connectionpool")
         _log.setLevel(logging.WARN)
 
-        self.max_content_size = self.config["max_content_size"]
-
         # possibly overridden in self.prepare method
         self.visit_date: Optional[datetime.datetime] = None
-
         self.origin: Optional[Origin] = None
 
         if not hasattr(self, "visit_type"):
             self.visit_type: Optional[str] = None
 
         self.origin_metadata: Dict[str, Any] = {}
-
         self.loaded_snapshot_id: Optional[Sha1Git] = None
 
-        # Make sure the config is sane
-        save_data = self.config.get("save_data")
-        if save_data:
-            path = self.config["save_data_path"]
+        if save_data_path:
+            path = save_data_path
             os.stat(path)
             if not os.access(path, os.R_OK | os.W_OK):
                 raise PermissionError("Permission denied: %r" % path)
+
+        self.save_data_path = save_data_path
 
     def save_data(self) -> None:
         """Save the data associated to the current load"""
@@ -129,7 +179,7 @@ class BaseLoader(metaclass=ABCMeta):
             origin_url_hash = hashlib.sha1(url).hexdigest()
 
             path = "%s/sha1:%s/%s/%s" % (
-                self.config["save_data_path"],
+                self.save_data_path,
                 origin_url_hash[0:2],
                 origin_url_hash,
                 year,
@@ -146,21 +196,19 @@ class BaseLoader(metaclass=ABCMeta):
         """
         self.storage.flush()
 
-    @abstractmethod
     def cleanup(self) -> None:
         """Last step executed by the loader.
 
         """
-        pass
+        raise NotImplementedError
 
-    @abstractmethod
     def prepare_origin_visit(self, *args, **kwargs) -> None:
         """First step executed by the loader to prepare origin and visit
            references. Set/update self.origin, and
            optionally self.origin_url, self.visit_date.
 
         """
-        pass
+        raise NotImplementedError
 
     def _store_origin_visit(self) -> None:
         """Store origin and visit references. Sets the self.visit references.
@@ -185,7 +233,6 @@ class BaseLoader(metaclass=ABCMeta):
             )
         )[0]
 
-    @abstractmethod
     def prepare(self, *args, **kwargs) -> None:
         """Second step executed by the loader to prepare some state needed by
            the loader.
@@ -194,7 +241,7 @@ class BaseLoader(metaclass=ABCMeta):
            NotFound exception if the origin to ingest is not found.
 
         """
-        pass
+        raise NotImplementedError
 
     def get_origin(self) -> Origin:
         """Get the origin that is currently being loaded.
@@ -207,7 +254,6 @@ class BaseLoader(metaclass=ABCMeta):
         assert self.origin
         return self.origin
 
-    @abstractmethod
     def fetch_data(self) -> bool:
         """Fetch the data from the source the loader is currently loading
            (ex: git/hg/svn/... repository).
@@ -217,16 +263,15 @@ class BaseLoader(metaclass=ABCMeta):
             to be called again to complete loading.
 
         """
-        pass
+        raise NotImplementedError
 
-    @abstractmethod
     def store_data(self):
         """Store fetched data in the database.
 
         Should call the :func:`maybe_load_xyz` methods, which handle the
         bundles sent to storage, rather than send directly.
         """
-        pass
+        raise NotImplementedError
 
     def store_metadata(self) -> None:
         """Store fetched metadata in the database.
@@ -423,7 +468,7 @@ class DVCSLoader(BaseLoader):
 
     def store_data(self) -> None:
         assert self.origin
-        if self.config.get("save_data"):
+        if self.save_data_path:
             self.save_data()
 
         if self.has_contents():

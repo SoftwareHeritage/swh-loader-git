@@ -28,6 +28,7 @@ from swh.model.model import (
     Sha1Git,
     TimestampWithTimezone,
 )
+from swh.storage.interface import StorageInterface
 
 logger = logging.getLogger(__name__)
 
@@ -86,13 +87,18 @@ class NpmLoader(PackageLoader[NpmPackageInfo]):
 
     visit_type = "npm"
 
-    def __init__(self, url: str):
+    def __init__(
+        self,
+        storage: StorageInterface,
+        url: str,
+        max_content_size: Optional[int] = None,
+    ):
         """Constructor
 
         Args
             str: origin url (e.g. https://www.npmjs.com/package/<package-name>)
         """
-        super().__init__(url=url)
+        super().__init__(storage=storage, url=url, max_content_size=max_content_size)
         package_name = url.split("https://www.npmjs.com/package/")[1]
         safe_name = quote(package_name, safe="")
         self.provider_url = f"https://replicate.npmjs.com/{safe_name}/"

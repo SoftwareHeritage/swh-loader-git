@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2020  The Software Heritage developers
+# Copyright (C) 2019-2021  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -24,6 +24,7 @@ from swh.model.model import (
     Sha1Git,
     TimestampWithTimezone,
 )
+from swh.storage.interface import StorageInterface
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,13 @@ class CRANPackageInfo(BasePackageInfo):
 class CRANLoader(PackageLoader[CRANPackageInfo]):
     visit_type = "cran"
 
-    def __init__(self, url: str, artifacts: List[Dict]):
+    def __init__(
+        self,
+        storage: StorageInterface,
+        url: str,
+        artifacts: List[Dict],
+        max_content_size: Optional[int] = None,
+    ):
         """Loader constructor.
 
         Args:
@@ -60,7 +67,7 @@ class CRANLoader(PackageLoader[CRANPackageInfo]):
             artifacts: List of associated artifact for the origin url
 
         """
-        super().__init__(url=url)
+        super().__init__(storage=storage, url=url, max_content_size=max_content_size)
         # explicit what we consider the artifact identity
         self.artifacts = artifacts
 

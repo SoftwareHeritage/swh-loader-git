@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2020  The Software Heritage developers
+# Copyright (C) 2019-2021  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -11,7 +11,7 @@ import attr
 import pytest
 
 from swh.core.pytest_plugin import requests_mock_datadir_factory
-from swh.loader.package.deposit.loader import DepositLoader
+from swh.loader.package.deposit.loader import ApiClient, DepositLoader
 from swh.loader.package.loader import now
 from swh.loader.package.tests.common import check_metadata_paths
 from swh.loader.tests import assert_last_visit_matches, check_snapshot, get_stats
@@ -41,17 +41,30 @@ def requests_mock_datadir(requests_mock_datadir):
     return requests_mock_datadir
 
 
-def test_deposit_init_ok(swh_config, swh_loader_config):
+def test_deposit_init_ok(swh_storage, deposit_client, swh_loader_config):
     url = "some-url"
     deposit_id = 999
-    loader = DepositLoader(url, deposit_id)  # Something that does not exist
+    loader = DepositLoader(
+        swh_storage, url, deposit_id, deposit_client
+    )  # Something that does not exist
 
     assert loader.url == url
     assert loader.client is not None
     assert loader.client.base_url == swh_loader_config["deposit"]["url"]
 
 
-def test_deposit_loading_unknown_deposit(swh_config, requests_mock_datadir):
+def test_deposit_from_configfile(swh_config):
+    """Ensure the deposit instantiation is ok
+
+    """
+    loader = DepositLoader.from_configfile(url="some-url", deposit_id="666")
+
+    assert isinstance(loader.client, ApiClient)
+
+
+def test_deposit_loading_unknown_deposit(
+    swh_storage, deposit_client, requests_mock_datadir
+):
     """Loading an unknown deposit should fail
 
     no origin, no visit, no snapshot
@@ -59,7 +72,9 @@ def test_deposit_loading_unknown_deposit(swh_config, requests_mock_datadir):
     # private api url form: 'https://deposit.s.o/1/private/hal/666/raw/'
     url = "some-url"
     unknown_deposit_id = 667
-    loader = DepositLoader(url, unknown_deposit_id)  # does not exist
+    loader = DepositLoader(
+        swh_storage, url, unknown_deposit_id, deposit_client
+    )  # does not exist
 
     actual_load_status = loader.load()
     assert actual_load_status == {"status": "failed"}
@@ -84,7 +99,7 @@ requests_mock_datadir_missing_one = requests_mock_datadir_factory(
 
 
 def test_deposit_loading_failure_to_retrieve_1_artifact(
-    swh_config, requests_mock_datadir_missing_one
+    swh_storage, deposit_client, requests_mock_datadir_missing_one
 ):
     """Deposit with missing artifact ends up with an uneventful/partial visit
 
@@ -92,7 +107,7 @@ def test_deposit_loading_failure_to_retrieve_1_artifact(
     # private api url form: 'https://deposit.s.o/1/private/hal/666/raw/'
     url = "some-url-2"
     deposit_id = 666
-    loader = DepositLoader(url, deposit_id)
+    loader = DepositLoader(swh_storage, url, deposit_id, deposit_client)
 
     actual_load_status = loader.load()
     assert actual_load_status["status"] == "uneventful"
@@ -113,10 +128,12 @@ def test_deposit_loading_failure_to_retrieve_1_artifact(
     } == stats
 
 
-def test_revision_metadata_structure(swh_config, requests_mock_datadir):
+def test_deposit_revision_metadata_structure(
+    swh_storage, deposit_client, requests_mock_datadir
+):
     url = "https://hal-test.archives-ouvertes.fr/some-external-id"
     deposit_id = 666
-    loader = DepositLoader(url, deposit_id)
+    loader = DepositLoader(swh_storage, url, deposit_id, deposit_client)
 
     actual_load_status = loader.load()
     assert actual_load_status["status"] == "eventful"
@@ -145,10 +162,10 @@ def test_revision_metadata_structure(swh_config, requests_mock_datadir):
         )
 
 
-def test_deposit_loading_ok(swh_config, requests_mock_datadir):
+def test_deposit_loading_ok(swh_storage, deposit_client, requests_mock_datadir):
     url = "https://hal-test.archives-ouvertes.fr/some-external-id"
     deposit_id = 666
-    loader = DepositLoader(url, deposit_id)
+    loader = DepositLoader(swh_storage, url, deposit_id, deposit_client)
 
     actual_load_status = loader.load()
     expected_snapshot_id = "b2b327b33dc85818bd23c3ccda8b7e675a66ecbd"
@@ -244,14 +261,14 @@ def test_deposit_loading_ok(swh_config, requests_mock_datadir):
     assert body == expected_body
 
 
-def test_deposit_loading_ok_2(swh_config, requests_mock_datadir):
+def test_deposit_loading_ok_2(swh_storage, deposit_client, requests_mock_datadir):
     """Field dates should be se appropriately
 
     """
     external_id = "some-external-id"
     url = f"https://hal-test.archives-ouvertes.fr/{external_id}"
     deposit_id = 777
-    loader = DepositLoader(url, deposit_id)
+    loader = DepositLoader(swh_storage, url, deposit_id, deposit_client)
 
     actual_load_status = loader.load()
     expected_snapshot_id = "3e68440fdd7c81d283f8f3aebb6f0c8657864192"

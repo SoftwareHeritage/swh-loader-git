@@ -66,7 +66,7 @@ def test_npm_author_str():
         assert _author_str(author) == expected_author
 
 
-def test_extract_npm_package_author(datadir):
+def test_npm_extract_npm_package_author(datadir):
     package_metadata_filepath = os.path.join(
         datadir, "https_replicate.npmjs.com", "org_visit1"
     )
@@ -305,16 +305,16 @@ def package_metadata_url(package):
     return "https://replicate.npmjs.com/%s/" % package
 
 
-def test_revision_metadata_structure(swh_config, requests_mock_datadir):
+def test_npm_revision_metadata_structure(swh_storage, requests_mock_datadir):
     package = "org"
-    loader = NpmLoader(package_url(package))
+    loader = NpmLoader(swh_storage, package_url(package))
 
     actual_load_status = loader.load()
     assert actual_load_status["status"] == "eventful"
     assert actual_load_status["snapshot_id"] is not None
 
     expected_revision_id = hash_to_bytes("d8a1c7474d2956ac598a19f0f27d52f7015f117e")
-    revision = loader.storage.revision_get([expected_revision_id])[0]
+    revision = swh_storage.revision_get([expected_revision_id])[0]
     assert revision is not None
 
     check_metadata_paths(
@@ -336,10 +336,10 @@ def test_revision_metadata_structure(swh_config, requests_mock_datadir):
         )
 
 
-def test_npm_loader_first_visit(swh_config, requests_mock_datadir, org_api_info):
+def test_npm_loader_first_visit(swh_storage, requests_mock_datadir, org_api_info):
     package = "org"
     url = package_url(package)
-    loader = NpmLoader(url)
+    loader = NpmLoader(swh_storage, url)
 
     actual_load_status = loader.load()
     expected_snapshot_id = hash_to_bytes("d0587e1195aed5a8800411a008f2f2d627f18e2d")
@@ -349,10 +349,10 @@ def test_npm_loader_first_visit(swh_config, requests_mock_datadir, org_api_info)
     }
 
     assert_last_visit_matches(
-        loader.storage, url, status="full", type="npm", snapshot=expected_snapshot_id
+        swh_storage, url, status="full", type="npm", snapshot=expected_snapshot_id
     )
 
-    stats = get_stats(loader.storage)
+    stats = get_stats(swh_storage)
 
     assert {
         "content": len(_expected_new_contents_first_visit),
@@ -365,18 +365,15 @@ def test_npm_loader_first_visit(swh_config, requests_mock_datadir, org_api_info)
         "snapshot": 1,
     } == stats
 
-    contents = loader.storage.content_get(_expected_new_contents_first_visit)
+    contents = swh_storage.content_get(_expected_new_contents_first_visit)
     count = sum(0 if content is None else 1 for content in contents)
     assert count == len(_expected_new_contents_first_visit)
 
     assert (
-        list(loader.storage.directory_missing(_expected_new_directories_first_visit))
-        == []
+        list(swh_storage.directory_missing(_expected_new_directories_first_visit)) == []
     )
 
-    assert (
-        list(loader.storage.revision_missing(_expected_new_revisions_first_visit)) == []
-    )
+    assert list(swh_storage.revision_missing(_expected_new_revisions_first_visit)) == []
 
     versions = [
         ("0.0.2", "d8a1c7474d2956ac598a19f0f27d52f7015f117e"),
@@ -399,14 +396,14 @@ def test_npm_loader_first_visit(swh_config, requests_mock_datadir, org_api_info)
             },
         },
     )
-    check_snapshot(expected_snapshot, loader.storage)
+    check_snapshot(expected_snapshot, swh_storage)
 
     metadata_authority = MetadataAuthority(
         type=MetadataAuthorityType.FORGE, url="https://npmjs.com/",
     )
 
     for (version_name, revision_id) in versions:
-        revision = loader.storage.revision_get([hash_to_bytes(revision_id)])[0]
+        revision = swh_storage.revision_get([hash_to_bytes(revision_id)])[0]
         directory_id = revision.directory
         directory_swhid = SWHID(object_type="directory", object_id=directory_id,)
         revision_swhid = SWHID(object_type="revision", object_id=revision_id,)
@@ -427,15 +424,15 @@ def test_npm_loader_first_visit(swh_config, requests_mock_datadir, org_api_info)
                 revision=revision_swhid,
             )
         ]
-        assert loader.storage.raw_extrinsic_metadata_get(
+        assert swh_storage.raw_extrinsic_metadata_get(
             MetadataTargetType.DIRECTORY, directory_swhid, metadata_authority,
         ) == PagedResult(next_page_token=None, results=expected_metadata,)
 
 
-def test_npm_loader_incremental_visit(swh_config, requests_mock_datadir_visits):
+def test_npm_loader_incremental_visit(swh_storage, requests_mock_datadir_visits):
     package = "org"
     url = package_url(package)
-    loader = NpmLoader(url)
+    loader = NpmLoader(swh_storage, url)
 
     expected_snapshot_id = hash_to_bytes("d0587e1195aed5a8800411a008f2f2d627f18e2d")
     actual_load_status = loader.load()
@@ -444,10 +441,10 @@ def test_npm_loader_incremental_visit(swh_config, requests_mock_datadir_visits):
         "snapshot_id": expected_snapshot_id.hex(),
     }
     assert_last_visit_matches(
-        loader.storage, url, status="full", type="npm", snapshot=expected_snapshot_id
+        swh_storage, url, status="full", type="npm", snapshot=expected_snapshot_id
     )
 
-    stats = get_stats(loader.storage)
+    stats = get_stats(swh_storage)
 
     assert {
         "content": len(_expected_new_contents_first_visit),
@@ -470,9 +467,9 @@ def test_npm_loader_incremental_visit(swh_config, requests_mock_datadir_visits):
     assert snap_id2 is not None
     assert snap_id2 != actual_load_status["snapshot_id"]
 
-    assert_last_visit_matches(loader.storage, url, status="full", type="npm")
+    assert_last_visit_matches(swh_storage, url, status="full", type="npm")
 
-    stats = get_stats(loader.storage)
+    stats = get_stats(swh_storage)
 
     assert {  # 3 new releases artifacts
         "content": len(_expected_new_contents_first_visit) + 14,
@@ -494,10 +491,10 @@ def test_npm_loader_incremental_visit(swh_config, requests_mock_datadir_visits):
 
 
 @pytest.mark.usefixtures("requests_mock_datadir")
-def test_npm_loader_version_divergence(swh_config):
+def test_npm_loader_version_divergence(swh_storage):
     package = "@aller_shared"
     url = package_url(package)
-    loader = NpmLoader(url)
+    loader = NpmLoader(swh_storage, url)
 
     actual_load_status = loader.load()
     expected_snapshot_id = hash_to_bytes("b11ebac8c9d0c9e5063a2df693a18e3aba4b2f92")
@@ -506,10 +503,10 @@ def test_npm_loader_version_divergence(swh_config):
         "snapshot_id": expected_snapshot_id.hex(),
     }
     assert_last_visit_matches(
-        loader.storage, url, status="full", type="npm", snapshot=expected_snapshot_id
+        swh_storage, url, status="full", type="npm", snapshot=expected_snapshot_id
     )
 
-    stats = get_stats(loader.storage)
+    stats = get_stats(swh_storage)
 
     assert {  # 1 new releases artifacts
         "content": 534,
@@ -538,7 +535,7 @@ def test_npm_loader_version_divergence(swh_config):
             ),
         },
     )
-    check_snapshot(expected_snapshot, loader.storage)
+    check_snapshot(expected_snapshot, swh_storage)
 
 
 def test_npm_artifact_to_revision_id_none():
@@ -602,13 +599,13 @@ def test_npm_artifact_to_revision_id_current_loader_version():
     )
 
 
-def test_npm_artifact_with_no_intrinsic_metadata(swh_config, requests_mock_datadir):
+def test_npm_artifact_with_no_intrinsic_metadata(swh_storage, requests_mock_datadir):
     """Skip artifact with no intrinsic metadata during ingestion
 
     """
     package = "nativescript-telerik-analytics"
     url = package_url(package)
-    loader = NpmLoader(url)
+    loader = NpmLoader(swh_storage, url)
 
     actual_load_status = loader.load()
     # no branch as one artifact without any intrinsic metadata
@@ -620,20 +617,20 @@ def test_npm_artifact_with_no_intrinsic_metadata(swh_config, requests_mock_datad
         "snapshot_id": expected_snapshot.id.hex(),
     }
 
-    check_snapshot(expected_snapshot, loader.storage)
+    check_snapshot(expected_snapshot, swh_storage)
 
     assert_last_visit_matches(
-        loader.storage, url, status="full", type="npm", snapshot=expected_snapshot.id
+        swh_storage, url, status="full", type="npm", snapshot=expected_snapshot.id
     )
 
 
-def test_npm_artifact_with_no_upload_time(swh_config, requests_mock_datadir):
+def test_npm_artifact_with_no_upload_time(swh_storage, requests_mock_datadir):
     """With no time upload, artifact is skipped
 
     """
     package = "jammit-no-time"
     url = package_url(package)
-    loader = NpmLoader(url)
+    loader = NpmLoader(swh_storage, url)
 
     actual_load_status = loader.load()
     # no branch as one artifact without any intrinsic metadata
@@ -645,20 +642,20 @@ def test_npm_artifact_with_no_upload_time(swh_config, requests_mock_datadir):
         "snapshot_id": expected_snapshot.id.hex(),
     }
 
-    check_snapshot(expected_snapshot, loader.storage)
+    check_snapshot(expected_snapshot, swh_storage)
 
     assert_last_visit_matches(
-        loader.storage, url, status="partial", type="npm", snapshot=expected_snapshot.id
+        swh_storage, url, status="partial", type="npm", snapshot=expected_snapshot.id
     )
 
 
-def test_npm_artifact_use_mtime_if_no_time(swh_config, requests_mock_datadir):
+def test_npm_artifact_use_mtime_if_no_time(swh_storage, requests_mock_datadir):
     """With no time upload, artifact is skipped
 
     """
     package = "jammit-express"
     url = package_url(package)
-    loader = NpmLoader(url)
+    loader = NpmLoader(swh_storage, url)
 
     actual_load_status = loader.load()
     expected_snapshot_id = hash_to_bytes("d6e08e19159f77983242877c373c75222d5ae9dd")
@@ -681,34 +678,34 @@ def test_npm_artifact_use_mtime_if_no_time(swh_config, requests_mock_datadir):
             ),
         },
     )
-    check_snapshot(expected_snapshot, loader.storage)
+    check_snapshot(expected_snapshot, swh_storage)
 
     assert_last_visit_matches(
-        loader.storage, url, status="full", type="npm", snapshot=expected_snapshot.id
+        swh_storage, url, status="full", type="npm", snapshot=expected_snapshot.id
     )
 
 
-def test_npm_no_artifact(swh_config, requests_mock_datadir):
+def test_npm_no_artifact(swh_storage, requests_mock_datadir):
     """If no artifacts at all is found for origin, the visit fails completely
 
     """
     package = "catify"
     url = package_url(package)
-    loader = NpmLoader(url)
+    loader = NpmLoader(swh_storage, url)
     actual_load_status = loader.load()
     assert actual_load_status == {
         "status": "failed",
     }
 
-    assert_last_visit_matches(loader.storage, url, status="failed", type="npm")
+    assert_last_visit_matches(swh_storage, url, status="failed", type="npm")
 
 
-def test_npm_origin_not_found(swh_config, requests_mock_datadir):
+def test_npm_origin_not_found(swh_storage, requests_mock_datadir):
     url = package_url("non-existent-url")
-    loader = NpmLoader(url)
+    loader = NpmLoader(swh_storage, url)
 
     assert loader.load() == {"status": "failed"}
 
     assert_last_visit_matches(
-        loader.storage, url, status="not_found", type="npm", snapshot=None
+        swh_storage, url, status="not_found", type="npm", snapshot=None
     )

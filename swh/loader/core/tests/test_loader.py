@@ -7,7 +7,7 @@ import datetime
 import hashlib
 import logging
 
-from swh.loader.core.loader import DEFAULT_CONFIG, BaseLoader, DVCSLoader
+from swh.loader.core.loader import BaseLoader, DVCSLoader
 from swh.loader.exception import NotFound
 from swh.loader.tests import assert_last_visit_matches
 from swh.model.hashutil import hash_to_bytes
@@ -77,54 +77,51 @@ class DummyBaseLoader(DummyLoader, BaseLoader):
         pass
 
 
-def test_base_loader(swh_config):
-    loader = DummyBaseLoader()
+def test_base_loader(swh_storage):
+    loader = DummyBaseLoader(swh_storage)
     result = loader.load()
     assert result == {"status": "eventful"}
 
 
-def test_base_loader_with_config(swh_config):
-    loader = DummyBaseLoader("logger-name", DEFAULT_CONFIG)
+def test_base_loader_with_config(swh_storage):
+    loader = DummyBaseLoader(swh_storage, "logger-name")
     result = loader.load()
     assert result == {"status": "eventful"}
 
 
-def test_dvcs_loader(swh_config):
-    loader = DummyDVCSLoader()
+def test_dvcs_loader(swh_storage):
+    loader = DummyDVCSLoader(swh_storage)
     result = loader.load()
     assert result == {"status": "eventful"}
 
 
-def test_dvcs_loader_with_config(swh_config):
-    loader = DummyDVCSLoader("another-logger", DEFAULT_CONFIG)
+def test_dvcs_loader_with_config(swh_storage):
+    loader = DummyDVCSLoader(swh_storage, "another-logger")
     result = loader.load()
     assert result == {"status": "eventful"}
 
 
-def test_loader_logger_default_name(swh_config):
-    loader = DummyBaseLoader()
+def test_loader_logger_default_name(swh_storage):
+    loader = DummyBaseLoader(swh_storage)
     assert isinstance(loader.log, logging.Logger)
     assert loader.log.name == "swh.loader.core.tests.test_loader.DummyBaseLoader"
 
-    loader = DummyDVCSLoader()
+    loader = DummyDVCSLoader(swh_storage)
     assert isinstance(loader.log, logging.Logger)
     assert loader.log.name == "swh.loader.core.tests.test_loader.DummyDVCSLoader"
 
 
-def test_loader_logger_with_name(swh_config):
-    loader = DummyBaseLoader("some.logger.name")
+def test_loader_logger_with_name(swh_storage):
+    loader = DummyBaseLoader(swh_storage, "some.logger.name")
     assert isinstance(loader.log, logging.Logger)
     assert loader.log.name == "some.logger.name"
 
 
-def test_loader_save_data_path(swh_config, tmp_path):
-    loader = DummyBaseLoader("some.logger.name.1")
+def test_loader_save_data_path(swh_storage, tmp_path):
+    loader = DummyBaseLoader(swh_storage, "some.logger.name.1", save_data_path=tmp_path)
     url = "http://bitbucket.org/something"
     loader.origin = Origin(url=url)
     loader.visit_date = datetime.datetime(year=2019, month=10, day=1)
-    loader.config = {
-        "save_data_path": tmp_path,
-    }
 
     hash_url = hashlib.sha1(url.encode("utf-8")).hexdigest()
     expected_save_path = "%s/sha1:%s/%s/2019" % (str(tmp_path), hash_url[0:2], hash_url)
@@ -164,11 +161,11 @@ class DummyDVCSLoaderExc(DummyDVCSLoader):
         raise RuntimeError("Failed to get contents!")
 
 
-def test_dvcs_loader_exc_partial_visit(swh_config, caplog):
+def test_dvcs_loader_exc_partial_visit(swh_storage, caplog):
     logger_name = "dvcsloaderexc"
     caplog.set_level(logging.ERROR, logger=logger_name)
 
-    loader = DummyDVCSLoaderExc(logging_class=logger_name)
+    loader = DummyDVCSLoaderExc(swh_storage, logging_class=logger_name)
     # fake the loading ending up in a snapshot
     loader.loaded_snapshot_id = hash_to_bytes(
         "9e4dd2b40d1b46b70917c0949aa2195c823a648e"
@@ -203,11 +200,11 @@ class DummyDVCSLoaderStorageExc(DummyDVCSLoader):
         self.storage = BrokenStorageProxy(self.storage)
 
 
-def test_dvcs_loader_storage_exc_failed_visit(swh_config, caplog):
+def test_dvcs_loader_storage_exc_failed_visit(swh_storage, caplog):
     logger_name = "dvcsloaderexc"
     caplog.set_level(logging.ERROR, logger=logger_name)
 
-    loader = DummyDVCSLoaderStorageExc(logging_class=logger_name)
+    loader = DummyDVCSLoaderStorageExc(swh_storage, logging_class=logger_name)
     result = loader.load()
 
     assert result == {"status": "failed"}
@@ -231,8 +228,8 @@ class DummyDVCSLoaderNotFound(DummyDVCSLoader, BaseLoader):
         }
 
 
-def test_loader_not_found(swh_config, caplog):
-    loader = DummyDVCSLoaderNotFound()
+def test_loader_not_found(swh_storage, caplog):
+    loader = DummyDVCSLoaderNotFound(swh_storage)
     result = loader.load()
 
     assert result == {"status": "uneventful"}

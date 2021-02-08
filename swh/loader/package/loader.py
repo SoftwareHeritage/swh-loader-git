@@ -27,8 +27,8 @@ from typing import (
 import attr
 import sentry_sdk
 
-from swh.core.config import load_from_envvar
 from swh.core.tarball import uncompress
+from swh.loader.core.loader import Loader
 from swh.loader.exception import NotFound
 from swh.loader.package.utils import download
 from swh.model import from_disk
@@ -49,7 +49,6 @@ from swh.model.model import (
     Snapshot,
     TargetType,
 )
-from swh.storage import get_storage
 from swh.storage.algos.snapshot import snapshot_get_latest
 from swh.storage.interface import StorageInterface
 from swh.storage.utils import now
@@ -118,42 +117,27 @@ class BasePackageInfo:
 TPackageInfo = TypeVar("TPackageInfo", bound=BasePackageInfo)
 
 
-DEFAULT_CONFIG = {
-    "max_content_size": 100 * 1024 * 1024,
-    "create_authorities": True,
-    "create_fetchers": True,
-}
-
-
-class PackageLoader(Generic[TPackageInfo]):
+class PackageLoader(Loader, Generic[TPackageInfo]):
     # Origin visit type (str) set by the loader
     visit_type = ""
 
-    def __init__(self, url):
+    def __init__(
+        self,
+        storage: StorageInterface,
+        url: str,
+        max_content_size: Optional[int] = None,
+    ):
         """Loader's constructor. This raises exception if the minimal required
            configuration is missing (cf. fn:`check` method).
 
         Args:
-            url (str): Origin url to load data from
+            storage: Storage instance
+            url: Origin url to load data from
 
         """
-        # This expects to use the environment variable SWH_CONFIG_FILENAME
-        self.config = load_from_envvar(DEFAULT_CONFIG)
-        self._check_configuration()
-        self.storage: StorageInterface = get_storage(**self.config["storage"])
+        super().__init__(storage=storage, max_content_size=max_content_size)
         self.url = url
         self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
-        self.max_content_size = self.config["max_content_size"]
-
-    def _check_configuration(self):
-        """Checks the minimal configuration required is set for the loader.
-
-        If some required configuration is missing, exception detailing the
-        issue is raised.
-
-        """
-        if "storage" not in self.config:
-            raise ValueError("Misconfiguration, at least the storage key should be set")
 
     def get_versions(self) -> Sequence[str]:
         """Return the list of all published package versions.

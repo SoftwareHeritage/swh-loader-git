@@ -27,6 +27,7 @@ from swh.model.model import (
     Sha1Git,
     TimestampWithTimezone,
 )
+from swh.storage.interface import StorageInterface
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +64,13 @@ class PyPILoader(PackageLoader[PyPIPackageInfo]):
 
     visit_type = "pypi"
 
-    def __init__(self, url):
-        super().__init__(url=url)
+    def __init__(
+        self,
+        storage: StorageInterface,
+        url: str,
+        max_content_size: Optional[int] = None,
+    ):
+        super().__init__(storage=storage, url=url, max_content_size=max_content_size)
         self.provider_url = pypi_api_url(self.url)
 
     @cached_method

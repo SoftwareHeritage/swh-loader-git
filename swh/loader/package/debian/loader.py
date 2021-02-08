@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2019  The Software Heritage developers
+# Copyright (C) 2017-2021  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -34,6 +34,7 @@ from swh.model.model import (
     Sha1Git,
     TimestampWithTimezone,
 )
+from swh.storage.interface import StorageInterface
 
 logger = logging.getLogger(__name__)
 UPLOADERS_SPLIT = re.compile(r"(?<=\>)\s*,\s*")
@@ -103,7 +104,14 @@ class DebianLoader(PackageLoader[DebianPackageInfo]):
 
     visit_type = "deb"
 
-    def __init__(self, url: str, date: str, packages: Mapping[str, Any]):
+    def __init__(
+        self,
+        storage: StorageInterface,
+        url: str,
+        date: str,
+        packages: Mapping[str, Any],
+        max_content_size: Optional[int] = None,
+    ):
         """Debian Loader implementation.
 
         Args:
@@ -143,7 +151,7 @@ class DebianLoader(PackageLoader[DebianPackageInfo]):
               }
 
         """
-        super().__init__(url=url)
+        super().__init__(storage=storage, url=url, max_content_size=max_content_size)
         self.packages = packages
 
     def get_versions(self) -> Sequence[str]:
