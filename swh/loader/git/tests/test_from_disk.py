@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020  The Software Heritage developers
+# Copyright (C) 2018-2021  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -164,6 +164,45 @@ class CommonGitLoaderTests:
             status="full",
             type="git",
             snapshot=SNAPSHOT1.id,
+        )
+
+    def test_load_visit_without_snapshot_so_status_failed(self):
+        # unfortunately, monkey-patch the hard way, self.loader is already instantiated
+        # (patching won't work self.loader is already instantiated)
+        # Make get_contents fail for some reason
+        self.loader.get_contents = None
+
+        res = self.loader.load()
+        assert res == {"status": "failed"}
+
+        assert_last_visit_matches(
+            self.loader.storage,
+            self.repo_url,
+            status="failed",
+            type="git",
+            snapshot=None,
+        )
+
+    def test_load_visit_with_snapshot_so_status_partial(self):
+        # unfortunately, monkey-patch the hard way, self.loader is already instantiated
+        # (patching won't work self.loader is already instantiated)
+        # fake store_metadata raising for some reason, so we could have a snapshot id
+        # at this point in time
+        self.loader.store_metadata = None
+        # fake having a snapshot so the visit status is partial
+        self.loader.loaded_snapshot_id = hash_to_bytes(
+            "a23699280a82a043f8c0994cf1631b568f716f95"
+        )
+
+        res = self.loader.load()
+        assert res == {"status": "failed"}
+
+        assert_last_visit_matches(
+            self.loader.storage,
+            self.repo_url,
+            status="partial",
+            type="git",
+            snapshot=None,
         )
 
 
