@@ -109,8 +109,14 @@ def test_retrieve_sources(swh_config, requests_mock_datadir):
 def test_nixguix_url_not_found(swh_config, requests_mock_datadir):
     """When failing to read from the url, the visit is marked as not_found.
 
+    Here the sources url does not exist, so requests_mock_datadir returns a 404.
+    Resulting in a NotFound raised within the package loader's main loop.
+
+    This results in the task with status failed and a visit_status with status
+    "not_found".
+
     """
-    unknown_url = "https://non-existing-url"
+    unknown_url = "https://non-existing-url/"
     loader = NixGuixLoader(unknown_url)
     # during the retrieval step
     load_status = loader.load()
@@ -121,9 +127,18 @@ def test_nixguix_url_not_found(swh_config, requests_mock_datadir):
         loader.storage, unknown_url, status="not_found", type="nixguix", snapshot=None
     )
 
+    assert len(requests_mock_datadir.request_history) == 1
+    assert requests_mock_datadir.request_history[0].url == unknown_url
+
 
 def test_nixguix_url_with_decoding_error(swh_config, requests_mock_datadir):
-    """Other errors during communication with the url, the visit is marked as failed"""
+    """Other errors during communication with the url, the visit is marked as failed
+
+    requests_mock_datadir will intercept the requests to sources_url. Since the file
+    exists, returns a 200 with the requested content of the query. As file.txt is no
+    json, fails do decode and raises a JSONDecodeError. In effect failing the visit.
+
+    """
     sources_url = "https://example.com/file.txt"
     loader = NixGuixLoader(sources_url)
     load_status = loader.load()
@@ -133,6 +148,9 @@ def test_nixguix_url_with_decoding_error(swh_config, requests_mock_datadir):
     assert_last_visit_matches(
         loader.storage, sources_url, status="failed", type="nixguix", snapshot=None
     )
+
+    assert len(requests_mock_datadir.request_history) == 1
+    assert requests_mock_datadir.request_history[0].url == sources_url
 
 
 def test_clean_sources_invalid_schema(swh_config, requests_mock_datadir):
