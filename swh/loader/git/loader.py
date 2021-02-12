@@ -1,4 +1,4 @@
-# Copyright (C) 2016-2020 The Software Heritage developers
+# Copyright (C) 2016-2021 The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -14,11 +14,13 @@ import sys
 from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Type
 
 import dulwich.client
+from dulwich.errors import GitProtocolError, NotGitRepository
 from dulwich.object_store import ObjectStoreGraphWalker
 from dulwich.pack import PackData, PackInflater
 
 from swh.core.config import merge_configs
 from swh.loader.core.loader import DVCSLoader
+from swh.loader.exception import NotFound
 from swh.model import hashutil
 from swh.model.model import (
     BaseContent,
@@ -235,9 +237,24 @@ class GitLoader(DVCSLoader):
             sys.stderr.buffer.write(msg)
             sys.stderr.flush()
 
-        fetch_info = self.fetch_pack_from_origin(
-            self.origin.url, self.base_snapshot, do_progress
-        )
+        try:
+            fetch_info = self.fetch_pack_from_origin(
+                self.origin.url, self.base_snapshot, do_progress
+            )
+        except NotGitRepository as e:
+            raise NotFound(e)
+        except GitProtocolError as e:
+            # unfortunately, that kind of error is not specific to a not found
+            # scenario... It depends on the value of message within the exception.
+            for msg in [
+                "Repository unavailable",  # e.g DMCA takedown
+                "Repository not found",
+                "unexpected http resp 401",
+            ]:
+                if msg in e.args[0]:
+                    raise NotFound(e)
+            # otherwise transmit the error
+            raise
 
         self.pack_buffer = fetch_info.pack_buffer
         self.pack_size = fetch_info.pack_size

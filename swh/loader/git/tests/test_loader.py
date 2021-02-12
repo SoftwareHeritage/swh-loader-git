@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020  The Software Heritage developers
+# Copyright (C) 2018-2021  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -6,15 +6,84 @@
 import os
 from unittest import TestCase
 
+from dulwich.errors import GitProtocolError, NotGitRepository, ObjectFormatException
 import dulwich.repo
 import pytest
 
 from swh.loader.git.loader import GitLoader
 from swh.loader.git.tests.test_from_disk import FullGitLoaderTests
-from swh.loader.tests import prepare_repository_from_archive
+from swh.loader.tests import assert_last_visit_matches, prepare_repository_from_archive
 
 
-class GitLoaderTest(TestCase, FullGitLoaderTests):
+class CommonGitLoaderNotFound:
+    @pytest.fixture(autouse=True)
+    def __inject_fixtures(self, mocker):
+        """Inject required fixtures in unittest.TestCase class
+
+        """
+        self.mocker = mocker
+
+    def test_load_visit_not_found(self):
+        """Ingesting an unknown url result in a visit with not_found status
+
+        """
+        for failure_exception in [
+            GitProtocolError("Repository unavailable"),  # e.g DMCA takedown
+            GitProtocolError("Repository not found"),
+            GitProtocolError("unexpected http resp 401"),
+            NotGitRepository("not a git repo"),
+        ]:
+            with self.subTest(failure_exception=failure_exception):
+                # simulate an initial communication error (e.g no repository found, ...)
+                mock = self.mocker.patch(
+                    "swh.loader.git.loader.GitLoader.fetch_pack_from_origin"
+                )
+                mock.side_effect = failure_exception
+
+                res = self.loader.load()
+                assert res == {"status": "uneventful"}
+
+                assert_last_visit_matches(
+                    self.loader.storage,
+                    self.repo_url,
+                    status="not_found",
+                    type="git",
+                    snapshot=None,
+                )
+
+    def test_load_visit_failure(self):
+        """Failing during the fetch pack step result in failing visit
+
+        """
+        for failure_exception in [
+            IOError,
+            ObjectFormatException,
+            OSError,
+            ValueError,
+            GitProtocolError,
+        ]:
+            with self.subTest(failure_exception=failure_exception):
+                # simulate a fetch communication error after the initial connection
+                # server error (e.g IOError, ObjectFormatException, ...)
+                mock = self.mocker.patch(
+                    "swh.loader.git.loader.GitLoader.fetch_pack_from_origin"
+                )
+
+                mock.side_effect = failure_exception("failure")
+
+                res = self.loader.load()
+                assert res == {"status": "failed"}
+
+                assert_last_visit_matches(
+                    self.loader.storage,
+                    self.repo_url,
+                    status="failed",
+                    type="git",
+                    snapshot=None,
+                )
+
+
+class GitLoaderTest(TestCase, FullGitLoaderTests, CommonGitLoaderNotFound):
     """Prepare a git directory repository to be loaded through a GitLoader.
     This tests all git loader scenario.
 
@@ -34,7 +103,7 @@ class GitLoaderTest(TestCase, FullGitLoaderTests):
         self.repo = dulwich.repo.Repo(self.destination_path)
 
 
-class GitLoader2Test(TestCase, FullGitLoaderTests):
+class GitLoader2Test(TestCase, FullGitLoaderTests, CommonGitLoaderNotFound):
     """Mostly the same loading scenario but with a base-url different than the repo-url.
     To walk slightly different paths, the end result should stay the same.
 
