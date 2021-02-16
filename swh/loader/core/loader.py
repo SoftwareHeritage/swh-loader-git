@@ -33,27 +33,66 @@ DEFAULT_CONFIG: Dict[str, Any] = {
 }
 
 
-class Loader:
-    """The base class for a Software Heritage Loader.
+class BaseLoader:
+    """Base class for (D)VCS loaders (e.g Svn, Git, Mercurial, ...) or PackageLoader (e.g
+    PyPI, Npm, CRAN, ...)
 
     A loader retrieves origin information (git/mercurial/svn repositories, pypi/npm/...
-    package artifacts), ingests the contents/directories/revisions/releases/snapshot to
-    the storage backend.
+    package artifacts), ingests the contents/directories/revisions/releases/snapshot
+    read from those artifacts and send them to the archive through the storage backend.
 
-    For now, this just exposes 2 static methods (from_config, from_configfile) to
-    centralize and ease the loader instantiation.
+    The main entry point for the loader is the :func:`load` function.
 
-    Args:
-      storage: the instance of the Storage being used to register the
-        origin information
+    2 static methods (:func:`from_config`, :func:`from_configfile`) centralizes and
+    eases the loader instantiation from either configuration dict or configuration file.
+
+    Some class examples:
+
+    - :class:`SvnLoader`
+    - :class:`GitLoader`
+    - :class:`PyPILoader`
+    - :class:`NpmLoader`
 
     """
 
     def __init__(
-        self, storage: StorageInterface, max_content_size: Optional[int] = None,
+        self,
+        storage: StorageInterface,
+        logging_class: Optional[str] = None,
+        save_data_path: Optional[str] = None,
+        max_content_size: Optional[int] = None,
     ):
+        super().__init__()
         self.storage = storage
         self.max_content_size = int(max_content_size) if max_content_size else None
+
+        if logging_class is None:
+            logging_class = "%s.%s" % (
+                self.__class__.__module__,
+                self.__class__.__name__,
+            )
+        self.log = logging.getLogger(logging_class)
+
+        _log = logging.getLogger("requests.packages.urllib3.connectionpool")
+        _log.setLevel(logging.WARN)
+
+        # possibly overridden in self.prepare method
+        self.visit_date: Optional[datetime.datetime] = None
+        self.origin: Optional[Origin] = None
+
+        if not hasattr(self, "visit_type"):
+            self.visit_type: Optional[str] = None
+
+        self.origin_metadata: Dict[str, Any] = {}
+        self.loaded_snapshot_id: Optional[Sha1Git] = None
+
+        if save_data_path:
+            path = save_data_path
+            os.stat(path)
+            if not os.access(path, os.R_OK | os.W_OK):
+                raise PermissionError("Permission denied: %r" % path)
+
+        self.save_data_path = save_data_path
 
     @classmethod
     def from_config(cls, storage: Dict[str, Any], **config: Any):
@@ -92,79 +131,6 @@ class Loader:
         config.update({k: v for k, v in kwargs.items() if v is not None})
         return cls.from_config(**config)
 
-
-class BaseLoader(Loader):
-    """Mixin base class for (D)VCS loaders (e.g svn, git, mercurial, ...).
-
-    To define such loaders, you must:
-
-    - inherit from this class
-
-    - and implement following methods:
-
-      - :func:`prepare`: First step executed by the loader to prepare some
-        state needed by the `func`:load method.
-
-      - :func:`get_origin`: Retrieve the origin that is currently being loaded.
-
-      - :func:`fetch_data`: Fetch the data is actually the method to implement
-        to compute data to inject in swh (through the store_data method)
-
-      - :func:`store_data`: Store data fetched.
-
-      - :func:`visit_status`: Explicit status of the visit ('partial' or
-        'full')
-
-      - :func:`load_status`: Explicit status of the loading, for use by the
-        scheduler (eventful/uneventful/temporary failure/permanent failure).
-
-      - :func:`cleanup`: Last step executed by the loader.
-
-    The entry point for the resulting loader is :func:`load`.
-
-    You can take a look at some example classes:
-
-    - :class:`SvnLoader`
-
-    """
-
-    def __init__(
-        self,
-        storage: StorageInterface,
-        logging_class: Optional[str] = None,
-        save_data_path: Optional[str] = None,
-        max_content_size: Optional[int] = None,
-    ):
-        super().__init__(storage=storage, max_content_size=max_content_size)
-
-        if logging_class is None:
-            logging_class = "%s.%s" % (
-                self.__class__.__module__,
-                self.__class__.__name__,
-            )
-        self.log = logging.getLogger(logging_class)
-
-        _log = logging.getLogger("requests.packages.urllib3.connectionpool")
-        _log.setLevel(logging.WARN)
-
-        # possibly overridden in self.prepare method
-        self.visit_date: Optional[datetime.datetime] = None
-        self.origin: Optional[Origin] = None
-
-        if not hasattr(self, "visit_type"):
-            self.visit_type: Optional[str] = None
-
-        self.origin_metadata: Dict[str, Any] = {}
-        self.loaded_snapshot_id: Optional[Sha1Git] = None
-
-        if save_data_path:
-            path = save_data_path
-            os.stat(path)
-            if not os.access(path, os.R_OK | os.W_OK):
-                raise PermissionError("Permission denied: %r" % path)
-
-        self.save_data_path = save_data_path
-
     def save_data(self) -> None:
         """Save the data associated to the current load"""
         raise NotImplementedError
@@ -202,7 +168,7 @@ class BaseLoader(Loader):
         """
         raise NotImplementedError
 
-    def prepare_origin_visit(self, *args, **kwargs) -> None:
+    def prepare_origin_visit(self) -> None:
         """First step executed by the loader to prepare origin and visit
            references. Set/update self.origin, and
            optionally self.origin_url, self.visit_date.
@@ -233,7 +199,7 @@ class BaseLoader(Loader):
             )
         )[0]
 
-    def prepare(self, *args, **kwargs) -> None:
+    def prepare(self) -> None:
         """Second step executed by the loader to prepare some state needed by
            the loader.
 
@@ -323,7 +289,7 @@ class BaseLoader(Loader):
         """
         pass
 
-    def load(self, *args, **kwargs) -> Dict[str, str]:
+    def load(self) -> Dict[str, str]:
         r"""Loading logic for the loader to follow:
 
         - 1. Call :meth:`prepare_origin_visit` to prepare the
@@ -347,7 +313,7 @@ class BaseLoader(Loader):
             msg = "Cleaning up dangling data failed! Continue loading."
             self.log.warning(msg)
 
-        self.prepare_origin_visit(*args, **kwargs)
+        self.prepare_origin_visit()
         self._store_origin_visit()
 
         assert (
@@ -361,7 +327,7 @@ class BaseLoader(Loader):
         )
 
         try:
-            self.prepare(*args, **kwargs)
+            self.prepare()
 
             while True:
                 more_data_to_fetch = self.fetch_data()
@@ -391,7 +357,12 @@ class BaseLoader(Loader):
             self.log.exception(
                 "Loading failure, updating to `%s` status",
                 status,
-                extra={"swh_task_args": args, "swh_task_kwargs": kwargs,},
+                extra={
+                    "swh_task_args": [],
+                    "swh_task_kwargs": {
+                        "origin": self.origin.url
+                    },
+                },
             )
             visit_status = OriginVisitStatus(
                 origin=self.origin.url,

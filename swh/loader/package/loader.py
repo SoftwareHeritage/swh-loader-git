@@ -28,7 +28,7 @@ import attr
 import sentry_sdk
 
 from swh.core.tarball import uncompress
-from swh.loader.core.loader import Loader
+from swh.loader.core.loader import BaseLoader
 from swh.loader.exception import NotFound
 from swh.loader.package.utils import download
 from swh.model import from_disk
@@ -117,9 +117,10 @@ class BasePackageInfo:
 TPackageInfo = TypeVar("TPackageInfo", bound=BasePackageInfo)
 
 
-class PackageLoader(Loader, Generic[TPackageInfo]):
+class PackageLoader(BaseLoader, Generic[TPackageInfo]):
     # Origin visit type (str) set by the loader
     visit_type = ""
+    visit_date: datetime.datetime
 
     def __init__(
         self,
