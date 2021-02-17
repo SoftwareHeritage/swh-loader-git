@@ -1,13 +1,13 @@
-# Copyright (C) 2015-2020  The Software Heritage developers
+# Copyright (C) 2015-2021  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-
 from collections import defaultdict
+from datetime import datetime
 import os
 import shutil
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 
 from dulwich.errors import ObjectFormatException
 
@@ -23,6 +23,7 @@ from swh.loader.core.loader import DVCSLoader
 from swh.model import hashutil
 from swh.model.model import Origin, Snapshot, SnapshotBranch, TargetType
 from swh.storage.algos.origin import origin_get_latest_visit_status
+from swh.storage.interface import StorageInterface
 
 from . import converters, utils
 
@@ -36,20 +37,26 @@ class GitLoaderFromDisk(DVCSLoader):
 
     def __init__(
         self,
-        url,
-        visit_date=None,
-        directory=None,
-        config: Optional[Dict[str, Any]] = None,
+        storage: StorageInterface,
+        url: str,
+        visit_date: Optional[datetime] = None,
+        directory: Optional[str] = None,
+        save_data_path: Optional[str] = None,
+        max_content_size: Optional[int] = None,
     ):
-        super().__init__(logging_class="swh.loader.git.Loader", config=config)
+        super().__init__(
+            storage=storage,
+            save_data_path=save_data_path,
+            max_content_size=max_content_size,
+        )
         self.origin_url = url
         self.visit_date = visit_date
         self.directory = directory
 
-    def prepare_origin_visit(self, *args, **kwargs):
+    def prepare_origin_visit(self):
         self.origin = Origin(url=self.origin_url)
 
-    def prepare(self, *args, **kwargs):
+    def prepare(self):
         self.repo = dulwich.repo.Repo(self.directory)
 
     def iter_objects(self):
@@ -358,7 +365,7 @@ class GitLoaderFromArchive(GitLoaderFromDisk):
                 break
         return archive_name
 
-    def prepare(self, *args, **kwargs):
+    def prepare(self):
         """1. Uncompress the archive in temporary location.
            2. Prepare as the GitLoaderFromDisk does
            3. Load as GitLoaderFromDisk does
@@ -376,7 +383,7 @@ class GitLoaderFromArchive(GitLoaderFromDisk):
             self.repo_path,
         )
         self.directory = self.repo_path
-        super().prepare(*args, **kwargs)
+        super().prepare()
 
     def cleanup(self):
         """Cleanup the temporary location (if it exists).

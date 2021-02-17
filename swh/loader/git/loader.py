@@ -18,7 +18,6 @@ from dulwich.errors import GitProtocolError, NotGitRepository
 from dulwich.object_store import ObjectStoreGraphWalker
 from dulwich.pack import PackData, PackInflater
 
-from swh.core.config import merge_configs
 from swh.loader.core.loader import DVCSLoader
 from swh.loader.exception import NotFound
 from swh.model import hashutil
@@ -34,6 +33,7 @@ from swh.model.model import (
     TargetType,
 )
 from swh.storage.algos.snapshot import snapshot_get_latest
+from swh.storage.interface import StorageInterface
 
 from . import converters, utils
 
@@ -98,11 +98,6 @@ class FetchPackReturn:
     pack_size: int
 
 
-DEFAULT_CONFIG: Dict[str, Any] = {
-    "pack_size_bytes": 4 * 1024 * 1024 * 1024,
-}
-
-
 class GitLoader(DVCSLoader):
     """A bulk loader for a git repository"""
 
@@ -110,11 +105,14 @@ class GitLoader(DVCSLoader):
 
     def __init__(
         self,
+        storage: StorageInterface,
         url: str,
         base_url: Optional[str] = None,
         ignore_history: bool = False,
         repo_representation: Type[RepoRepresentation] = RepoRepresentation,
-        config: Optional[Dict[str, Any]] = None,
+        pack_size_bytes: int = 4 * 1024 * 1024 * 1024,
+        save_data_path: Optional[str] = None,
+        max_content_size: Optional[int] = None,
     ):
         """Initialize the bulk updater.
 
@@ -124,13 +122,16 @@ class GitLoader(DVCSLoader):
             data.
 
         """
-        super().__init__(logging_class="swh.loader.git.BulkLoader", config=config)
-        self.config = merge_configs(DEFAULT_CONFIG, self.config)
+        super().__init__(
+            storage=storage,
+            save_data_path=save_data_path,
+            max_content_size=max_content_size,
+        )
         self.origin_url = url
         self.base_url = base_url
         self.ignore_history = ignore_history
         self.repo_representation = repo_representation
-
+        self.pack_size_bytes = pack_size_bytes
         # state initialized in fetch_data
         self.remote_refs: Dict[bytes, bytes] = {}
         self.symbolic_refs: Dict[bytes, bytes] = {}
@@ -154,16 +155,16 @@ class GitLoader(DVCSLoader):
             origin_url, thin_packs=False
         )
 
-        size_limit = self.config["pack_size_bytes"]
+        size_limit = self.pack_size_bytes
 
         def do_pack(data: bytes) -> None:
             cur_size = pack_buffer.tell()
             would_write = len(data)
             if cur_size + would_write > size_limit:
                 raise IOError(
-                    "Pack file too big for repository %s, "
-                    "limit is %d bytes, current size is %d, "
-                    "would write %d" % (origin_url, size_limit, cur_size, would_write)
+                    f"Pack file too big for repository {origin_url}, "
+                    "limit is {size_limit} bytes, current size is {cur_size}, "
+                    "would write {would_write}"
                 )
 
             pack_buffer.write(data)
@@ -205,14 +206,14 @@ class GitLoader(DVCSLoader):
 
         return id_to_type, type_to_ids
 
-    def prepare_origin_visit(self, *args, **kwargs) -> None:
+    def prepare_origin_visit(self) -> None:
         self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
         self.origin = Origin(url=self.origin_url)
 
     def get_full_snapshot(self, origin_url) -> Optional[Snapshot]:
         return snapshot_get_latest(self.storage, origin_url)
 
-    def prepare(self, *args, **kwargs) -> None:
+    def prepare(self) -> None:
         assert self.origin is not None
 
         prev_snapshot: Optional[Snapshot] = None
@@ -528,8 +529,11 @@ if __name__ == "__main__":
         default=False,
     )
     def main(origin_url: str, base_url: str, ignore_history: bool) -> Dict[str, Any]:
+        from swh.storage import get_storage
+
+        storage = get_storage(cls="memory")
         loader = GitLoader(
-            origin_url, base_url=base_url, ignore_history=ignore_history,
+            storage, origin_url, base_url=base_url, ignore_history=ignore_history,
         )
         return loader.load()
 
