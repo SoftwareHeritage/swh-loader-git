@@ -90,7 +90,7 @@ class GitLoaderTest(TestCase, FullGitLoaderTests, CommonGitLoaderNotFound):
     """
 
     @pytest.fixture(autouse=True)
-    def init(self, swh_config, datadir, tmp_path):
+    def init(self, swh_storage, datadir, tmp_path):
         super().setUp()
         archive_name = "testrepo"
         archive_path = os.path.join(datadir, f"{archive_name}.tgz")
@@ -99,7 +99,7 @@ class GitLoaderTest(TestCase, FullGitLoaderTests, CommonGitLoaderNotFound):
             archive_path, archive_name, tmp_path=tmp_path
         )
         self.destination_path = os.path.join(tmp_path, archive_name)
-        self.loader = GitLoader(self.repo_url)
+        self.loader = GitLoader(swh_storage, self.repo_url)
         self.repo = dulwich.repo.Repo(self.destination_path)
 
 
@@ -110,7 +110,7 @@ class GitLoader2Test(TestCase, FullGitLoaderTests, CommonGitLoaderNotFound):
     """
 
     @pytest.fixture(autouse=True)
-    def init(self, swh_loader_config, datadir, tmp_path):
+    def init(self, swh_storage, datadir, tmp_path):
         super().setUp()
         archive_name = "testrepo"
         archive_path = os.path.join(datadir, f"{archive_name}.tgz")
@@ -120,7 +120,5 @@ class GitLoader2Test(TestCase, FullGitLoaderTests, CommonGitLoaderNotFound):
         )
         self.destination_path = os.path.join(tmp_path, archive_name)
         base_url = f"base://{self.repo_url}"
-        self.loader = GitLoader(
-            self.repo_url, base_url=base_url, config=swh_loader_config
-        )
+        self.loader = GitLoader(swh_storage, self.repo_url, base_url=base_url)
         self.repo = dulwich.repo.Repo(self.destination_path)

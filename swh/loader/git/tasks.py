@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2019  The Software Heritage developers
+# Copyright (C) 2015-2021  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -17,7 +17,7 @@ def load_git(*, url: str, base_url: Optional[str] = None) -> Dict[str, Any]:
     """Import a git repository from a remote location
 
     """
-    loader = GitLoader(url, base_url=base_url)
+    loader = GitLoader.from_configfile(url=url, base_url=base_url)
     return loader.load()
 
 
@@ -30,7 +30,9 @@ def load_git_from_dir(*, url: str, directory: str, date: str) -> Dict[str, Any]:
 
     """
     visit_date = dateutil.parser.parse(date)
-    loader = GitLoaderFromDisk(url, directory=directory, visit_date=visit_date)
+    loader = GitLoaderFromDisk.from_configfile(
+        url=url, directory=directory, visit_date=visit_date
+    )
     return loader.load()
 
 
@@ -44,5 +46,7 @@ def load_git_from_zip(*, url: str, archive_path: str, date: str) -> Dict[str, An
 
     """
     visit_date = dateutil.parser.parse(date)
-    loader = GitLoaderFromArchive(url, archive_path=archive_path, visit_date=visit_date)
+    loader = GitLoaderFromArchive.from_configfile(
+        url=url, archive_path=archive_path, visit_date=visit_date
+    )
     return loader.load()

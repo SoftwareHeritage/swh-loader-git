@@ -408,7 +408,7 @@ class GitLoaderFromDiskTest(TestCase, FullGitLoaderTests):
     """
 
     @pytest.fixture(autouse=True)
-    def init(self, swh_config, datadir, tmp_path):
+    def init(self, swh_storage, datadir, tmp_path):
         archive_name = "testrepo"
         archive_path = os.path.join(datadir, f"{archive_name}.tgz")
         tmp_path = str(tmp_path)
@@ -417,6 +417,7 @@ class GitLoaderFromDiskTest(TestCase, FullGitLoaderTests):
         )
         self.destination_path = os.path.join(tmp_path, archive_name)
         self.loader = GitLoaderFromDisk(
+            swh_storage,
             url=self.repo_url,
             visit_date=datetime.datetime(
                 2016, 5, 3, 15, 16, 32, tzinfo=datetime.timezone.utc
@@ -430,11 +431,12 @@ class GitLoaderFromArchiveTest(TestCase, CommonGitLoaderTests):
     """Tests for GitLoaderFromArchive. Only tests common scenario."""
 
     @pytest.fixture(autouse=True)
-    def init(self, swh_config, datadir, tmp_path):
+    def init(self, swh_storage, datadir, tmp_path):
         archive_name = "testrepo"
         archive_path = os.path.join(datadir, f"{archive_name}.tgz")
         self.repo_url = archive_path
         self.loader = GitLoaderFromArchive(
+            swh_storage,
             url=self.repo_url,
             archive_path=archive_path,
             visit_date=datetime.datetime(
