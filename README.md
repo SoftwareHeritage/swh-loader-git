@@ -5,6 +5,18 @@ The Software Heritage Git Loader is a tool and a library to walk a local
 Git repository and inject into the SWH dataset all contained files that
 weren't known before.
 
+The main entry points are
+
+- :class:`swh.loader.git.loader.GitLoader` for the main loader which ingests a remote git
+  repository's contents.
+
+- :class:`swh.loader.git.from_disk.GitLoaderFromDisk` which ingests a local git clone
+  repository.
+
+- :class:`swh.loader.git.loader.GitLoaderFromArchive` which ingests a git repository
+  wrapped in an archive.
+
+
 License
 -------
 
@@ -45,32 +57,21 @@ Requirements
 -   coding guidelines: conform to PEP8
 -   Git access: via dulwich
 
-Configuration
--------------
+CLI Run
+----------
 
-You can run the loader from a remote origin (*loader*) or from an
-origin on disk (*from_disk*) directly by calling:
-
+You can run the loader from a remote origin (*loader*) or from an origin on disk
+(*from_disk*) directly by calling:
 
 ```
-python3 -m swh.loader.git.{loader,from_disk}
+swh loader -C <config-file> run git <git-repository-url>
 ```
 
-### Location
+or "git_disk".
 
-Both tools expect a configuration file.
+## Configuration sample
 
-Either one of the following location:
-- /etc/softwareheritage/
-- ~/.config/swh/
-- ~/.swh/
-
-Note: Will call that location $SWH_CONFIG_PATH
-
-### Configuration sample
-
-Respectively the loader from a remote (`git.yml`) and the loader from
-a disk (`git-disk.yml`), $SWH_CONFIG_PATH/loader/git{-disk}.yml:
+/tmp/git.yml:
 ```
 storage:
   cls: remote
