@@ -107,6 +107,7 @@ def test_deposit_loading_failure_to_retrieve_1_artifact(
     # private api url form: 'https://deposit.s.o/1/private/hal/666/raw/'
     url = "some-url-2"
     deposit_id = 666
+    requests_mock_datadir_missing_one.put(re.compile("https"))
     loader = DepositLoader(swh_storage, url, deposit_id, deposit_client)
 
     actual_load_status = loader.load()
@@ -126,6 +127,23 @@ def test_deposit_loading_failure_to_retrieve_1_artifact(
         "skipped_content": 0,
         "snapshot": 1,
     } == stats
+
+    # Retrieve the information for deposit status update query to the deposit
+    urls = [
+        m
+        for m in requests_mock_datadir_missing_one.request_history
+        if m.url == f"{DEPOSIT_URL}/{deposit_id}/update/"
+    ]
+
+    assert len(urls) == 1
+    update_query = urls[0]
+
+    body = update_query.json()
+    expected_body = {
+        "status": "failed",
+    }
+
+    assert body == expected_body
 
 
 def test_deposit_revision_metadata_structure(

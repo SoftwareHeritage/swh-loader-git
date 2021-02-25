@@ -289,6 +289,7 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
 
     def finalize_visit(
         self,
+        *,
         snapshot: Optional[Snapshot],
         visit: OriginVisit,
         status_visit: str,

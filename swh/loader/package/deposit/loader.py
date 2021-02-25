@@ -251,8 +251,11 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
             return {"status": "failed"}
 
         # Then usual loading
-        r = super().load()
-        success = r["status"] != "failed"
+        return super().load()
+
+    def finalize_visit(self, status_visit: str, **kwargs) -> Dict[str, Any]:
+        r = super().finalize_visit(status_visit=status_visit, **kwargs)
+        success = status_visit == "full"
 
         # Update deposit status
         try:
