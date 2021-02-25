@@ -153,8 +153,25 @@ class GitLoader(DVCSLoader):
             ignore_history=self.ignore_history,
         )
 
+        # Hardcode the use of the tcp transport (for GitHub origins)
+
+        # Even if the Dulwich API lets us process the packfile in chunks as it's
+        # received, the HTTP transport implementation needs to entirely allocate
+        # the packfile in memory *twice*, once in the HTTP library, and once in
+        # a BytesIO managed by Dulwich, before passing chunks to the `do_pack`
+        # method Overall this triples the memory usage before we can even try to
+        # interrupt the loader before it overruns its memory limit.
+
+        # In contrast, the Dulwich TCP transport just gives us the read handle
+        # on the underlying socket, doing no processing or copying of the bytes.
+        # We can interrupt it as soon as we've received too many bytes.
+
+        transport_url = origin_url
+        if transport_url.startswith("https://github.com/"):
+            transport_url = "git" + transport_url[5:]
+
         client, path = dulwich.client.get_transport_and_path(
-            origin_url, thin_packs=False
+            transport_url, thin_packs=False
         )
 
         size_limit = self.pack_size_bytes
