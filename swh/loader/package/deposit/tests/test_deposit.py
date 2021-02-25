@@ -466,3 +466,26 @@ def test_deposit_loading_ok_2(swh_storage, deposit_client, requests_mock_datadir
     }
 
     assert body == expected_body
+
+
+def test_deposit_loading_ok_3(swh_storage, deposit_client, requests_mock_datadir):
+    """Deposit loading can happen on tarball artifacts as well
+
+    The latest deposit changes introduce the internal change.
+
+    """
+    external_id = "hal-123456"
+    url = f"https://hal-test.archives-ouvertes.fr/{external_id}"
+    deposit_id = 888
+    loader = DepositLoader(
+        swh_storage, url, deposit_id, deposit_client, default_filename="archive.tar"
+    )
+
+    actual_load_status = loader.load()
+    expected_snapshot_id = "0ac7b54c042a026389f2087dc16f1d5c644ed0e4"
+
+    assert actual_load_status == {
+        "status": "eventful",
+        "snapshot_id": expected_snapshot_id,
+    }
+    assert_last_visit_matches(loader.storage, url, status="full", type="deposit")

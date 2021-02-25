@@ -117,6 +117,7 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
         deposit_id: str,
         deposit_client: "ApiClient",
         max_content_size: Optional[int] = None,
+        default_filename: str = "archive.zip",
     ):
         """Constructor
 
@@ -130,6 +131,7 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
 
         self.deposit_id = deposit_id
         self.client = deposit_client
+        self.default_filename = default_filename
 
     @classmethod
     def from_configfile(cls, **kwargs: Any):
@@ -173,7 +175,7 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
         self, version: str
     ) -> Iterator[Tuple[str, DepositPackageInfo]]:
         p_info = DepositPackageInfo.from_metadata(
-            self.metadata(), url=self.url, filename="archive.zip",
+            self.metadata(), url=self.url, filename=self.default_filename,
         )
         yield "HEAD", p_info
 

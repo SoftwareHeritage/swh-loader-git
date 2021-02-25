@@ -1,0 +1,65 @@
+{
+  "origin": {
+    "url": "https://hal-test.archives-ouvertes.fr/hal-123456",
+    "type": "deposit"
+  },
+  "metadata_raw": ["<?xml version=\"1.0\"?><entry xmlns=\"http://www.w3.org/2005/Atom\" xmlns:codemeta=\"https://doi.org/10.5063/SCHEMA/CODEMETA-2.0\"><external_identifier>some-external-id</external_identifier><url>https://hal-test.archives-ouvertes.fr/some-external-id</url><codemeta:dateCreated>2017-10-07T15:17:08Z</codemeta:dateCreated><author>some awesome author</author><author>another one</author><author>no one</author></entry>",
+"<?xml version=\"1.0\"?><entry xmlns=\"http://www.w3.org/2005/Atom\" xmlns:codemeta=\"https://doi.org/10.5063/SCHEMA/CODEMETA-2.0\"><author>someone</author></entry>"
+  ],
+  "metadata_dict": {
+    "author": [
+      "some awesome author",
+      "another one",
+      "no one"
+    ],
+    "codemeta:dateCreated": "2017-10-07T15:17:08Z",
+    "codemeta:datePublished": "2017-10-08T15:00:00Z",
+    "external_identifier": "some-external-id",
+    "url": "https://hal-test.archives-ouvertes.fr/some-external-id"
+  },
+  "provider": {
+    "provider_name": "hal",
+    "provider_type": "deposit_client",
+    "provider_url": "https://hal-test.archives-ouvertes.fr/",
+    "metadata": null
+  },
+  "tool": {
+    "name": "swh-deposit",
+    "version": "0.0.1",
+    "configuration": {
+      "sword_version": "2"
+    }
+  },
+  "deposit": {
+    "id": 888,
+    "client": "hal",
+    "collection": "hal",
+    "author": {
+      "name": "Software Heritage",
+      "fullname": "Software Heritage",
+      "email": "robot@softwareheritage.org"
+    },
+    "author_date": {
+      "timestamp": {
+        "seconds": 1507389428,
+        "microseconds": 0
+      },
+      "offset": 0,
+      "negative_utc": false
+    },
+    "committer": {
+      "name": "Software Heritage",
+      "fullname": "Software Heritage",
+      "email": "robot@softwareheritage.org"
+    },
+    "committer_date": {
+      "timestamp": {
+        "seconds": 1507474800,
+        "microseconds": 0
+      },
+      "offset": 0,
+      "negative_utc": false
+    },
+    "revision_parents": []
+  }
+}
