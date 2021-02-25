@@ -287,6 +287,49 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
         """
         return {}
 
+    def finalize_visit(
+        self,
+        snapshot: Optional[Snapshot],
+        visit: OriginVisit,
+        status_visit: str,
+        status_load: str,
+        failed_branches: List[str],
+    ) -> Dict[str, Any]:
+        """Finalize the visit:
+
+        - flush eventual unflushed data to storage
+        - update origin visit's status
+        - return the task's status
+
+        """
+        self.storage.flush()
+
+        snapshot_id: Optional[bytes] = None
+        if snapshot and snapshot.id:  # to prevent the snapshot.id to b""
+            snapshot_id = snapshot.id
+        assert visit.visit
+        visit_status = OriginVisitStatus(
+            origin=self.url,
+            visit=visit.visit,
+            type=self.visit_type,
+            date=now(),
+            status=status_visit,
+            snapshot=snapshot_id,
+        )
+        self.storage.origin_visit_status_add([visit_status])
+        result: Dict[str, Any] = {
+            "status": status_load,
+        }
+        if snapshot_id:
+            result["snapshot_id"] = hash_to_hex(snapshot_id)
+        if failed_branches:
+            logger.warning("%d failed branches", len(failed_branches))
+            for i, urls in enumerate(islice(failed_branches, 50)):
+                prefix_url = "Failed branches: " if i == 0 else ""
+                logger.warning("%s%s", prefix_url, urls)
+
+        return result
+
     def load(self) -> Dict:
         """Load for a specific origin the associated contents.
 
@@ -335,42 +378,6 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
         snapshot = None
         failed_branches: List[str] = []
 
-        def finalize_visit() -> Dict[str, Any]:
-            """Finalize the visit:
-
-            - flush eventual unflushed data to storage
-            - update origin visit's status
-            - return the task's status
-
-            """
-            self.storage.flush()
-
-            snapshot_id: Optional[bytes] = None
-            if snapshot and snapshot.id:  # to prevent the snapshot.id to b""
-                snapshot_id = snapshot.id
-            assert visit.visit
-            visit_status = OriginVisitStatus(
-                origin=self.url,
-                visit=visit.visit,
-                type=self.visit_type,
-                date=now(),
-                status=status_visit,
-                snapshot=snapshot_id,
-            )
-            self.storage.origin_visit_status_add([visit_status])
-            result: Dict[str, Any] = {
-                "status": status_load,
-            }
-            if snapshot_id:
-                result["snapshot_id"] = hash_to_hex(snapshot_id)
-            if failed_branches:
-                logger.warning("%d failed branches", len(failed_branches))
-                for i, urls in enumerate(islice(failed_branches, 50)):
-                    prefix_url = "Failed branches: " if i == 0 else ""
-                    logger.warning("%s%s", prefix_url, urls)
-
-            return result
-
         # Prepare origin and origin_visit
         origin = Origin(url=self.url)
         try:
@@ -397,22 +404,34 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
         except Exception as e:
             logger.exception("Failed to get previous state for %s", self.url)
             sentry_sdk.capture_exception(e)
-            status_visit = "failed"
-            status_load = "failed"
-            return finalize_visit()
+            return self.finalize_visit(
+                snapshot=snapshot,
+                visit=visit,
+                failed_branches=failed_branches,
+                status_visit="failed",
+                status_load="failed",
+            )
 
         load_exceptions: List[Exception] = []
 
         try:
             versions = self.get_versions()
         except NotFound:
-            status_visit = "not_found"
-            status_load = "failed"
-            return finalize_visit()
+            return self.finalize_visit(
+                snapshot=snapshot,
+                visit=visit,
+                failed_branches=failed_branches,
+                status_visit="not_found",
+                status_load="failed",
+            )
         except Exception:
-            status_visit = "failed"
-            status_load = "failed"
-            return finalize_visit()
+            return self.finalize_visit(
+                snapshot=snapshot,
+                visit=visit,
+                failed_branches=failed_branches,
+                status_visit="failed",
+                status_load="failed",
+            )
 
         for version in versions:
             logger.debug("version: %s", version)
@@ -453,9 +472,13 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
 
         if not tmp_revisions:
             # We could not load any revisions; fail completely
-            status_visit = "failed"
-            status_load = "failed"
-            return finalize_visit()
+            return self.finalize_visit(
+                snapshot=snapshot,
+                visit=visit,
+                failed_branches=failed_branches,
+                status_visit="failed",
+                status_load="failed",
+            )
 
         try:
             # Retrieve the default release version (the "latest" one)
@@ -498,7 +521,13 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
             status_visit = "partial"
             status_load = "failed"
 
-        return finalize_visit()
+        return self.finalize_visit(
+            snapshot=snapshot,
+            visit=visit,
+            failed_branches=failed_branches,
+            status_visit=status_visit,
+            status_load=status_load,
+        )
 
     def _load_directory(
         self, dl_artifacts: List[Tuple[str, Mapping[str, Any]]], tmpdir: str
