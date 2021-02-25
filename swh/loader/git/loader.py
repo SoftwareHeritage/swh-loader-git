@@ -3,7 +3,6 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-from collections import defaultdict
 from dataclasses import dataclass
 import datetime
 from io import BytesIO
@@ -11,11 +10,12 @@ import logging
 import os
 import pickle
 import sys
-from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Type
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Set, Type
 
 import dulwich.client
 from dulwich.errors import GitProtocolError, NotGitRepository
 from dulwich.object_store import ObjectStoreGraphWalker
+from dulwich.objects import ShaFile
 from dulwich.pack import PackData, PackInflater
 
 from swh.loader.core.loader import DVCSLoader
@@ -27,7 +27,6 @@ from swh.model.model import (
     Origin,
     Release,
     Revision,
-    Sha1Git,
     Snapshot,
     SnapshotBranch,
     TargetType,
@@ -36,6 +35,8 @@ from swh.storage.algos.snapshot import snapshot_get_latest
 from swh.storage.interface import StorageInterface
 
 from . import converters, utils
+
+logger = logging.getLogger(__name__)
 
 
 class RepoRepresentation:
@@ -135,6 +136,7 @@ class GitLoader(DVCSLoader):
         # state initialized in fetch_data
         self.remote_refs: Dict[bytes, bytes] = {}
         self.symbolic_refs: Dict[bytes, bytes] = {}
+        self.ref_object_types: Dict[bytes, Optional[TargetType]] = {}
 
     def fetch_pack_from_origin(
         self,
@@ -151,8 +153,25 @@ class GitLoader(DVCSLoader):
             ignore_history=self.ignore_history,
         )
 
+        # Hardcode the use of the tcp transport (for GitHub origins)
+
+        # Even if the Dulwich API lets us process the packfile in chunks as it's
+        # received, the HTTP transport implementation needs to entirely allocate
+        # the packfile in memory *twice*, once in the HTTP library, and once in
+        # a BytesIO managed by Dulwich, before passing chunks to the `do_pack`
+        # method Overall this triples the memory usage before we can even try to
+        # interrupt the loader before it overruns its memory limit.
+
+        # In contrast, the Dulwich TCP transport just gives us the read handle
+        # on the underlying socket, doing no processing or copying of the bytes.
+        # We can interrupt it as soon as we've received too many bytes.
+
+        transport_url = origin_url
+        if transport_url.startswith("https://github.com/"):
+            transport_url = "git" + transport_url[5:]
+
         client, path = dulwich.client.get_transport_and_path(
-            origin_url, thin_packs=False
+            transport_url, thin_packs=False
         )
 
         size_limit = self.pack_size_bytes
@@ -184,27 +203,14 @@ class GitLoader(DVCSLoader):
         pack_size = pack_buffer.tell()
         pack_buffer.seek(0)
 
+        logger.debug("Fetched pack size: %s", pack_size)
+
         return FetchPackReturn(
             remote_refs=utils.filter_refs(remote_refs),
             symbolic_refs=utils.filter_refs(symbolic_refs),
             pack_buffer=pack_buffer,
             pack_size=pack_size,
         )
-
-    def list_pack(
-        self, pack_data, pack_size
-    ) -> Tuple[Dict[bytes, bytes], Dict[bytes, Set[bytes]]]:
-        id_to_type = {}
-        type_to_ids = defaultdict(set)
-
-        inflater = self.get_inflater()
-
-        for obj in inflater:
-            type, id = obj.type_name, obj.id
-            id_to_type[id] = type
-            type_to_ids[type].add(id)
-
-        return id_to_type, type_to_ids
 
     def prepare_origin_visit(self) -> None:
         self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
@@ -261,6 +267,8 @@ class GitLoader(DVCSLoader):
         self.pack_size = fetch_info.pack_size
 
         self.remote_refs = fetch_info.remote_refs
+        self.ref_object_types = {sha1: None for sha1 in self.remote_refs.values()}
+
         self.symbolic_refs = fetch_info.symbolic_refs
 
         self.log.info(
@@ -271,12 +279,6 @@ class GitLoader(DVCSLoader):
                 "swh_num_refs": len(self.remote_refs),
             },
         )
-
-        # We want to load the repository, walk all the objects
-        id_to_type, type_to_ids = self.list_pack(self.pack_buffer, self.pack_size)
-
-        self.id_to_type = id_to_type
-        self.type_to_ids = type_to_ids
 
         # No more data to fetch
         return False
@@ -304,104 +306,47 @@ class GitLoader(DVCSLoader):
         with open(os.path.join(pack_dir, refs_name), "xb") as f:
             pickle.dump(self.remote_refs, f)
 
-    def get_inflater(self) -> PackInflater:
-        """Reset the pack buffer and get an object inflater from it"""
+    def iter_objects(self, object_type: bytes) -> Iterator[ShaFile]:
+        """Read all the objects of type `object_type` from the packfile"""
         self.pack_buffer.seek(0)
-        return PackInflater.for_pack_data(
+        for obj in PackInflater.for_pack_data(
             PackData.from_file(self.pack_buffer, self.pack_size)
-        )
-
-    def has_contents(self) -> bool:
-        return bool(self.type_to_ids[b"blob"])
-
-    def get_content_ids(self) -> Iterable[Dict[str, Any]]:
-        """Get the content identifiers from the git repository"""
-        for raw_obj in self.get_inflater():
-            if raw_obj.type_name != b"blob":
+        ):
+            if obj.type_name != object_type:
                 continue
-
-            yield converters.dulwich_blob_to_content_id(raw_obj)
+            yield obj
 
     def get_contents(self) -> Iterable[BaseContent]:
         """Format the blobs from the git repository as swh contents"""
-        missing_contents = set(
-            self.storage.content_missing(list(self.get_content_ids()), "sha1_git")
-        )
-
-        for raw_obj in self.get_inflater():
-            if raw_obj.type_name != b"blob":
-                continue
-
-            if raw_obj.sha().digest() not in missing_contents:
-                continue
+        for raw_obj in self.iter_objects(b"blob"):
+            if raw_obj.id in self.ref_object_types:
+                self.ref_object_types[raw_obj.id] = TargetType.CONTENT
 
             yield converters.dulwich_blob_to_content(
                 raw_obj, max_content_size=self.max_content_size
             )
 
-    def has_directories(self) -> bool:
-        return bool(self.type_to_ids[b"tree"])
-
-    def get_directory_ids(self) -> Iterable[Sha1Git]:
-        """Get the directory identifiers from the git repository"""
-        return (hashutil.hash_to_bytes(id.decode()) for id in self.type_to_ids[b"tree"])
-
     def get_directories(self) -> Iterable[Directory]:
         """Format the trees as swh directories"""
-        missing_dirs = set(
-            self.storage.directory_missing(sorted(self.get_directory_ids()))
-        )
-
-        for raw_obj in self.get_inflater():
-            if raw_obj.type_name != b"tree":
-                continue
-
-            if raw_obj.sha().digest() not in missing_dirs:
-                continue
+        for raw_obj in self.iter_objects(b"tree"):
+            if raw_obj.id in self.ref_object_types:
+                self.ref_object_types[raw_obj.id] = TargetType.DIRECTORY
 
             yield converters.dulwich_tree_to_directory(raw_obj, log=self.log)
 
-    def has_revisions(self) -> bool:
-        return bool(self.type_to_ids[b"commit"])
-
-    def get_revision_ids(self) -> Iterable[Sha1Git]:
-        """Get the revision identifiers from the git repository"""
-        return (
-            hashutil.hash_to_bytes(id.decode()) for id in self.type_to_ids[b"commit"]
-        )
-
     def get_revisions(self) -> Iterable[Revision]:
         """Format commits as swh revisions"""
-        missing_revs = set(
-            self.storage.revision_missing(sorted(self.get_revision_ids()))
-        )
-
-        for raw_obj in self.get_inflater():
-            if raw_obj.type_name != b"commit":
-                continue
-
-            if raw_obj.sha().digest() not in missing_revs:
-                continue
+        for raw_obj in self.iter_objects(b"commit"):
+            if raw_obj.id in self.ref_object_types:
+                self.ref_object_types[raw_obj.id] = TargetType.REVISION
 
             yield converters.dulwich_commit_to_revision(raw_obj, log=self.log)
 
-    def has_releases(self) -> bool:
-        return bool(self.type_to_ids[b"tag"])
-
-    def get_release_ids(self) -> Iterable[Sha1Git]:
-        """Get the release identifiers from the git repository"""
-        return (hashutil.hash_to_bytes(id.decode()) for id in self.type_to_ids[b"tag"])
-
     def get_releases(self) -> Iterable[Release]:
         """Retrieve all the release objects from the git repository"""
-        missing_rels = set(self.storage.release_missing(sorted(self.get_release_ids())))
-
-        for raw_obj in self.get_inflater():
-            if raw_obj.type_name != b"tag":
-                continue
-
-            if raw_obj.sha().digest() not in missing_rels:
-                continue
+        for raw_obj in self.iter_objects(b"tag"):
+            if raw_obj.id in self.ref_object_types:
+                self.ref_object_types[raw_obj.id] = TargetType.RELEASE
 
             yield converters.dulwich_tag_to_release(raw_obj, log=self.log)
 
@@ -430,11 +375,10 @@ class GitLoader(DVCSLoader):
             if ref_name in self.symbolic_refs:
                 continue
             target = hashutil.hash_to_bytes(ref_object.decode())
-            object_type = self.id_to_type.get(ref_object)
-            if object_type:
+            target_type = self.ref_object_types.get(ref_object)
+            if target_type:
                 branches[ref_name] = SnapshotBranch(
-                    target=target,
-                    target_type=converters.DULWICH_TARGET_TYPES[object_type],
+                    target=target, target_type=target_type
                 )
             else:
                 # The object pointed at by this ref was not fetched, supposedly
@@ -491,14 +435,6 @@ class GitLoader(DVCSLoader):
 
         self.snapshot = Snapshot(branches=branches)
         return self.snapshot
-
-    def get_fetch_history_result(self) -> Dict[str, int]:
-        return {
-            "contents": len(self.type_to_ids[b"blob"]),
-            "directories": len(self.type_to_ids[b"tree"]),
-            "revisions": len(self.type_to_ids[b"commit"]),
-            "releases": len(self.type_to_ids[b"tag"]),
-        }
 
     def load_status(self) -> Dict[str, Any]:
         """The load was eventful if the current snapshot is different to
