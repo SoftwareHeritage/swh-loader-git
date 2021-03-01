@@ -15,12 +15,17 @@ from swh.loader.package.loader import (
     RawExtrinsicMetadataCore,
 )
 from swh.model.hashutil import hash_to_bytes
-from swh.model.identifiers import SWHID
+from swh.model.identifiers import (
+    CoreSWHID,
+    ExtendedObjectType,
+    ExtendedSWHID,
+    ObjectType,
+)
 from swh.model.model import (
     MetadataAuthority,
     MetadataAuthorityType,
     MetadataFetcher,
-    MetadataTargetType,
+    Origin,
     Person,
     RawExtrinsicMetadata,
     Revision,
@@ -35,11 +40,14 @@ AUTHORITY = MetadataAuthority(
     type=MetadataAuthorityType.FORGE, url="http://example.org/",
 )
 ORIGIN_URL = "http://example.org/archive.tgz"
+ORIGIN_SWHID = Origin(ORIGIN_URL).swhid()
 
 REVISION_ID = hash_to_bytes("8ff44f081d43176474b267de5451f2c2e88089d0")
-REVISION_SWHID = SWHID(object_type="revision", object_id=REVISION_ID)
+REVISION_SWHID = CoreSWHID(object_type=ObjectType.REVISION, object_id=REVISION_ID)
 DIRECTORY_ID = hash_to_bytes("aa" * 20)
-DIRECTORY_SWHID = SWHID(object_type="directory", object_id=DIRECTORY_ID)
+DIRECTORY_SWHID = ExtendedSWHID(
+    object_type=ExtendedObjectType.DIRECTORY, object_id=DIRECTORY_ID
+)
 
 
 FETCHER = MetadataFetcher(
@@ -51,7 +59,6 @@ DISCOVERY_DATE = datetime.datetime.now(tz=datetime.timezone.utc)
 
 DIRECTORY_METADATA = [
     RawExtrinsicMetadata(
-        type=MetadataTargetType.DIRECTORY,
         target=DIRECTORY_SWHID,
         discovery_date=DISCOVERY_DATE,
         authority=AUTHORITY,
@@ -62,7 +69,6 @@ DIRECTORY_METADATA = [
         revision=REVISION_SWHID,
     ),
     RawExtrinsicMetadata(
-        type=MetadataTargetType.DIRECTORY,
         target=DIRECTORY_SWHID,
         discovery_date=DISCOVERY_DATE + datetime.timedelta(seconds=1),
         authority=AUTHORITY,
@@ -76,8 +82,7 @@ DIRECTORY_METADATA = [
 
 ORIGIN_METADATA = [
     RawExtrinsicMetadata(
-        type=MetadataTargetType.ORIGIN,
-        target=ORIGIN_URL,
+        target=ORIGIN_SWHID,
         discovery_date=datetime.datetime.now(tz=datetime.timezone.utc),
         authority=AUTHORITY,
         fetcher=FETCHER,
@@ -150,13 +155,10 @@ def test_load_artifact_metadata(swh_storage, caplog):
         type=MetadataAuthorityType.REGISTRY, url="https://softwareheritage.org/",
     )
 
-    result = swh_storage.raw_extrinsic_metadata_get(
-        MetadataTargetType.DIRECTORY, DIRECTORY_SWHID, authority,
-    )
+    result = swh_storage.raw_extrinsic_metadata_get(DIRECTORY_SWHID, authority,)
     assert result.next_page_token is None
     assert len(result.results) == 1
     assert result.results[0] == RawExtrinsicMetadata(
-        type=MetadataTargetType.DIRECTORY,
         target=DIRECTORY_SWHID,
         discovery_date=result.results[0].discovery_date,
         authority=authority,
@@ -177,15 +179,11 @@ def test_load_metadata(swh_storage, caplog):
         "snapshot_id": FULL_SNAPSHOT_ID,
     }
 
-    result = swh_storage.raw_extrinsic_metadata_get(
-        MetadataTargetType.DIRECTORY, DIRECTORY_SWHID, AUTHORITY,
-    )
+    result = swh_storage.raw_extrinsic_metadata_get(DIRECTORY_SWHID, AUTHORITY,)
     assert result.next_page_token is None
     assert result.results == DIRECTORY_METADATA
 
-    result = swh_storage.raw_extrinsic_metadata_get(
-        MetadataTargetType.ORIGIN, ORIGIN_URL, AUTHORITY,
-    )
+    result = swh_storage.raw_extrinsic_metadata_get(ORIGIN_SWHID, AUTHORITY,)
     assert result.next_page_token is None
     assert result.results == ORIGIN_METADATA
 
@@ -201,9 +199,7 @@ def test_existing_authority(swh_storage, caplog):
         "snapshot_id": FULL_SNAPSHOT_ID,
     }
 
-    result = swh_storage.raw_extrinsic_metadata_get(
-        MetadataTargetType.DIRECTORY, DIRECTORY_SWHID, AUTHORITY,
-    )
+    result = swh_storage.raw_extrinsic_metadata_get(DIRECTORY_SWHID, AUTHORITY,)
     assert result.next_page_token is None
     assert result.results == DIRECTORY_METADATA
 
@@ -219,9 +215,7 @@ def test_existing_fetcher(swh_storage, caplog):
         "snapshot_id": FULL_SNAPSHOT_ID,
     }
 
-    result = swh_storage.raw_extrinsic_metadata_get(
-        MetadataTargetType.DIRECTORY, DIRECTORY_SWHID, AUTHORITY,
-    )
+    result = swh_storage.raw_extrinsic_metadata_get(DIRECTORY_SWHID, AUTHORITY,)
     assert result.next_page_token is None
     assert result.results == DIRECTORY_METADATA
 

@@ -16,12 +16,17 @@ from swh.loader.package.loader import now
 from swh.loader.package.tests.common import check_metadata_paths
 from swh.loader.tests import assert_last_visit_matches, check_snapshot, get_stats
 from swh.model.hashutil import hash_to_bytes, hash_to_hex
-from swh.model.identifiers import SWHID
+from swh.model.identifiers import (
+    CoreSWHID,
+    ExtendedObjectType,
+    ExtendedSWHID,
+    ObjectType,
+)
 from swh.model.model import (
     MetadataAuthority,
     MetadataAuthorityType,
     MetadataFetcher,
-    MetadataTargetType,
+    Origin,
     RawExtrinsicMetadata,
     Snapshot,
     SnapshotBranch,
@@ -233,7 +238,7 @@ def test_deposit_loading_ok(swh_storage, deposit_client, requests_mock_datadir):
 
     # Check origin metadata
     orig_meta = loader.storage.raw_extrinsic_metadata_get(
-        MetadataTargetType.ORIGIN, url, authority
+        Origin(url).swhid(), authority
     )
     assert orig_meta.next_page_token is None
     raw_meta = loader.client.metadata_get(deposit_id)
@@ -245,10 +250,11 @@ def test_deposit_loading_ok(swh_storage, deposit_client, requests_mock_datadir):
     assert orig_meta0.fetcher == fetcher
 
     # Check directory metadata
-    directory_id = hash_to_hex(revision.directory)
-    directory_swhid = SWHID(object_type="directory", object_id=directory_id)
+    directory_swhid = CoreSWHID(
+        object_type=ObjectType.DIRECTORY, object_id=revision.directory
+    )
     actual_dir_meta = loader.storage.raw_extrinsic_metadata_get(
-        MetadataTargetType.DIRECTORY, directory_swhid, authority
+        directory_swhid, authority
     )
     assert actual_dir_meta.next_page_token is None
     assert len(actual_dir_meta.results) == len(all_metadata_raw)
@@ -366,20 +372,21 @@ def test_deposit_loading_ok_2(swh_storage, deposit_client, requests_mock_datadir
 
     # Check the origin metadata swh side
     origin_extrinsic_metadata = loader.storage.raw_extrinsic_metadata_get(
-        MetadataTargetType.ORIGIN, url, authority
+        Origin(url).swhid(), authority
     )
     assert origin_extrinsic_metadata.next_page_token is None
     all_metadata_raw: List[str] = raw_meta["metadata_raw"]
     # 1 raw metadata xml + 1 json dict
     assert len(origin_extrinsic_metadata.results) == len(all_metadata_raw) + 1
 
+    origin_swhid = Origin(url).swhid()
+
     expected_metadata = []
     for idx, raw_meta in enumerate(all_metadata_raw):
         origin_meta = origin_extrinsic_metadata.results[idx]
         expected_metadata.append(
             RawExtrinsicMetadata(
-                type=MetadataTargetType.ORIGIN,
-                target=url,
+                target=origin_swhid,
                 discovery_date=origin_meta.discovery_date,
                 metadata=raw_meta.encode(),
                 format="sword-v2-atom-codemeta-v2",
@@ -395,8 +402,7 @@ def test_deposit_loading_ok_2(swh_storage, deposit_client, requests_mock_datadir
     }
     expected_metadata.append(
         RawExtrinsicMetadata(
-            type=MetadataTargetType.ORIGIN,
-            target=url,
+            target=origin_swhid,
             discovery_date=origin_extrinsic_metadata.results[-1].discovery_date,
             metadata=json.dumps(origin_metadata).encode(),
             format="original-artifacts-json",
@@ -410,18 +416,20 @@ def test_deposit_loading_ok_2(swh_storage, deposit_client, requests_mock_datadir
         assert orig_meta in expected_metadata
 
     # Check the revision metadata swh side
-    directory_id = hash_to_hex(revision.directory)
-    directory_swhid = SWHID(object_type="directory", object_id=directory_id)
+    directory_swhid = ExtendedSWHID(
+        object_type=ExtendedObjectType.DIRECTORY, object_id=revision.directory
+    )
     actual_directory_metadata = loader.storage.raw_extrinsic_metadata_get(
-        MetadataTargetType.DIRECTORY, directory_swhid, authority
+        directory_swhid, authority
     )
 
     assert actual_directory_metadata.next_page_token is None
     assert len(actual_directory_metadata.results) == len(all_metadata_raw)
 
-    revision_swhid = SWHID(object_type="revision", object_id=revision_id)
+    revision_swhid = CoreSWHID(
+        object_type=ObjectType.REVISION, object_id=hash_to_bytes(revision_id)
+    )
     dir_metadata_template = RawExtrinsicMetadata(
-        type=MetadataTargetType.DIRECTORY,
         target=directory_swhid,
         format="sword-v2-atom-codemeta-v2",
         authority=authority,

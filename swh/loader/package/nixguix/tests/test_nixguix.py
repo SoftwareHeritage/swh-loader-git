@@ -27,12 +27,11 @@ from swh.loader.tests import assert_last_visit_matches
 from swh.loader.tests import check_snapshot as check_snapshot_full
 from swh.loader.tests import get_stats
 from swh.model.hashutil import hash_to_bytes, hash_to_hex
-from swh.model.identifiers import SWHID
+from swh.model.identifiers import ExtendedObjectType, ExtendedSWHID
 from swh.model.model import (
     MetadataAuthority,
     MetadataAuthorityType,
     MetadataFetcher,
-    MetadataTargetType,
     RawExtrinsicMetadata,
     Snapshot,
     SnapshotBranch,
@@ -302,15 +301,14 @@ def test_loader_one_visit(swh_storage, requests_mock_datadir, raw_sources):
     )
 
     visit_status = origin_get_latest_visit_status(swh_storage, sources_url)
-    snapshot_swhid = SWHID(
-        object_type="snapshot", object_id=hash_to_hex(visit_status.snapshot)
+    snapshot_swhid = ExtendedSWHID(
+        object_type=ExtendedObjectType.SNAPSHOT, object_id=visit_status.snapshot
     )
     metadata_authority = MetadataAuthority(
         type=MetadataAuthorityType.FORGE, url=sources_url,
     )
     expected_metadata = [
         RawExtrinsicMetadata(
-            type=MetadataTargetType.SNAPSHOT,
             target=snapshot_swhid,
             authority=metadata_authority,
             fetcher=MetadataFetcher(
@@ -324,7 +322,7 @@ def test_loader_one_visit(swh_storage, requests_mock_datadir, raw_sources):
         )
     ]
     assert swh_storage.raw_extrinsic_metadata_get(
-        MetadataTargetType.SNAPSHOT, snapshot_swhid, metadata_authority,
+        snapshot_swhid, metadata_authority,
     ) == PagedResult(next_page_token=None, results=expected_metadata,)
 
 

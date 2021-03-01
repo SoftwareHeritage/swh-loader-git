@@ -75,8 +75,9 @@ def test_run_with_configuration_failure(tmp_path):
 
     with pytest.raises(ValueError, match="Missing storage"):
         runner.invoke(
-            loader_cli, ["-C", conf_path, "run", "pypi", "url=https://some-url",],
-            catch_exceptions=False
+            loader_cli,
+            ["-C", conf_path, "run", "pypi", "url=https://some-url",],
+            catch_exceptions=False,
         )
 
 

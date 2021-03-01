@@ -18,12 +18,16 @@ from swh.loader.package.npm.loader import (
 from swh.loader.package.tests.common import check_metadata_paths
 from swh.loader.tests import assert_last_visit_matches, check_snapshot, get_stats
 from swh.model.hashutil import hash_to_bytes
-from swh.model.identifiers import SWHID
+from swh.model.identifiers import (
+    CoreSWHID,
+    ExtendedObjectType,
+    ExtendedSWHID,
+    ObjectType,
+)
 from swh.model.model import (
     MetadataAuthority,
     MetadataAuthorityType,
     MetadataFetcher,
-    MetadataTargetType,
     Person,
     RawExtrinsicMetadata,
     Snapshot,
@@ -405,11 +409,14 @@ def test_npm_loader_first_visit(swh_storage, requests_mock_datadir, org_api_info
     for (version_name, revision_id) in versions:
         revision = swh_storage.revision_get([hash_to_bytes(revision_id)])[0]
         directory_id = revision.directory
-        directory_swhid = SWHID(object_type="directory", object_id=directory_id,)
-        revision_swhid = SWHID(object_type="revision", object_id=revision_id,)
+        directory_swhid = ExtendedSWHID(
+            object_type=ExtendedObjectType.DIRECTORY, object_id=directory_id,
+        )
+        revision_swhid = CoreSWHID(
+            object_type=ObjectType.REVISION, object_id=hash_to_bytes(revision_id),
+        )
         expected_metadata = [
             RawExtrinsicMetadata(
-                type=MetadataTargetType.DIRECTORY,
                 target=directory_swhid,
                 authority=metadata_authority,
                 fetcher=MetadataFetcher(
@@ -425,7 +432,7 @@ def test_npm_loader_first_visit(swh_storage, requests_mock_datadir, org_api_info
             )
         ]
         assert swh_storage.raw_extrinsic_metadata_get(
-            MetadataTargetType.DIRECTORY, directory_swhid, metadata_authority,
+            directory_swhid, metadata_authority,
         ) == PagedResult(next_page_token=None, results=expected_metadata,)
 
 

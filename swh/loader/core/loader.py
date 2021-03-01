@@ -359,9 +359,7 @@ class BaseLoader:
                 status,
                 extra={
                     "swh_task_args": [],
-                    "swh_task_kwargs": {
-                        "origin": self.origin.url
-                    },
+                    "swh_task_kwargs": {"origin": self.origin.url},
                 },
             )
             visit_status = OriginVisitStatus(

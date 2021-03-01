@@ -34,12 +34,16 @@ from swh.loader.package.utils import download
 from swh.model import from_disk
 from swh.model.collections import ImmutableDict
 from swh.model.hashutil import hash_to_hex
-from swh.model.identifiers import SWHID
+from swh.model.identifiers import (
+    CoreSWHID,
+    ExtendedObjectType,
+    ExtendedSWHID,
+    ObjectType,
+)
 from swh.model.model import (
     MetadataAuthority,
     MetadataAuthorityType,
     MetadataFetcher,
-    MetadataTargetType,
     Origin,
     OriginVisit,
     OriginVisitStatus,
@@ -596,15 +600,16 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
         revision = attr.evolve(revision, metadata=ImmutableDict(full_metadata))
 
         original_artifact_metadata = RawExtrinsicMetadata(
-            type=MetadataTargetType.DIRECTORY,
-            target=SWHID(object_type="directory", object_id=revision.directory),
+            target=ExtendedSWHID(
+                object_type=ExtendedObjectType.DIRECTORY, object_id=revision.directory
+            ),
             discovery_date=self.visit_date,
             authority=SWH_METADATA_AUTHORITY,
             fetcher=self.get_metadata_fetcher(),
             format="original-artifacts-json",
             metadata=json.dumps(metadata).encode(),
             origin=self.url,
-            revision=SWHID(object_type="revision", object_id=revision.id),
+            revision=CoreSWHID(object_type=ObjectType.REVISION, object_id=revision.id),
         )
         self._load_metadata_objects([original_artifact_metadata])
 
@@ -718,8 +723,7 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
         for item in metadata_items:
             metadata_objects.append(
                 RawExtrinsicMetadata(
-                    type=MetadataTargetType.ORIGIN,
-                    target=self.url,
+                    target=Origin(self.url).swhid(),
                     discovery_date=item.discovery_date or self.visit_date,
                     authority=authority,
                     fetcher=fetcher,
@@ -753,8 +757,9 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
         for item in metadata_items:
             metadata_objects.append(
                 RawExtrinsicMetadata(
-                    type=MetadataTargetType.SNAPSHOT,
-                    target=SWHID(object_type="snapshot", object_id=snapshot_id),
+                    target=ExtendedSWHID(
+                        object_type=ExtendedObjectType.SNAPSHOT, object_id=snapshot_id
+                    ),
                     discovery_date=item.discovery_date or self.visit_date,
                     authority=authority,
                     fetcher=fetcher,
@@ -782,16 +787,17 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
         for item in p_info.directory_extrinsic_metadata:
             metadata_objects.append(
                 RawExtrinsicMetadata(
-                    type=MetadataTargetType.DIRECTORY,
-                    target=SWHID(object_type="directory", object_id=directory_id),
+                    target=ExtendedSWHID(
+                        object_type=ExtendedObjectType.DIRECTORY, object_id=directory_id
+                    ),
                     discovery_date=item.discovery_date or self.visit_date,
                     authority=authority,
                     fetcher=fetcher,
                     format=item.format,
                     metadata=item.metadata,
                     origin=self.url,
-                    revision=SWHID(
-                        object_type="revision", object_id=hash_to_hex(revision_id)
+                    revision=CoreSWHID(
+                        object_type=ObjectType.REVISION, object_id=revision_id
                     ),
                 )
             )
