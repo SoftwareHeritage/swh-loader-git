@@ -117,7 +117,7 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
         deposit_id: str,
         deposit_client: "ApiClient",
         max_content_size: Optional[int] = None,
-        default_filename: str = "archive.zip",
+        default_filename: str = "archive.tar",
     ):
         """Constructor
 
