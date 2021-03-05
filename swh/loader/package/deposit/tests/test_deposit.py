@@ -7,7 +7,6 @@ import json
 import re
 from typing import List
 
-import attr
 import pytest
 
 from swh.core.pytest_plugin import requests_mock_datadir_factory
@@ -445,10 +444,16 @@ def test_deposit_loading_ok_2(swh_storage, deposit_client, requests_mock_datadir
     for idx, raw_meta in enumerate(all_metadata_raw):
         dir_metadata = actual_directory_metadata.results[idx]
         expected_directory_metadata.append(
-            attr.evolve(
-                dir_metadata_template,
-                discovery_date=dir_metadata.discovery_date,
-                metadata=raw_meta.encode(),
+            RawExtrinsicMetadata.from_dict(
+                {
+                    **{
+                        k: v
+                        for (k, v) in dir_metadata_template.to_dict().items()
+                        if k != "id"
+                    },
+                    "discovery_date": dir_metadata.discovery_date,
+                    "metadata": raw_meta.encode(),
+                }
             )
         )
 
