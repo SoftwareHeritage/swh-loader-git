@@ -49,7 +49,7 @@ def _write_usage(command, args, max_width=80):
 
 
 def test_run_help(swh_config):
-    """Help message should be ok
+    """Usage message should contain list of available loaders
 
     """
     runner = CliRunner()
@@ -58,7 +58,7 @@ def test_run_help(swh_config):
 
     assert result.exit_code == 0
     usage_prefix = _write_usage(
-        "loader", f"run [OPTIONS] [{'|'.join(SUPPORTED_LOADERS)}]\n"
+        "loader run", f"[OPTIONS] [{'|'.join(SUPPORTED_LOADERS)}]\n"
     )
     assert result.output.startswith(usage_prefix)
 
@@ -118,15 +118,16 @@ def test_run_with_visit_date(mocker, swh_config):
 
 
 def test_list_help(mocker, swh_config):
-    """Triggering a load should be ok
+    """Usage message should contain list of available loaders
 
     """
     runner = CliRunner()
     result = runner.invoke(loader_cli, ["list", "--help"])
     assert result.exit_code == 0
-    usage_prefix = _write_usage("loader", "list [OPTIONS]\n")
+    usage_prefix = _write_usage(
+        "loader list", f"[OPTIONS] [[{'|'.join(['all'] + SUPPORTED_LOADERS)}]]"
+    )
     expected_help_msg = f"""{usage_prefix}
-                   [[{'|'.join(['all'] + SUPPORTED_LOADERS)}]]
 
   List supported loaders and optionally their arguments
 
