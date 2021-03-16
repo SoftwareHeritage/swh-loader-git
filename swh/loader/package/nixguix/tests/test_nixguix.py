@@ -6,7 +6,7 @@
 import json
 import logging
 import os
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 from unittest.mock import patch
 
 import attr
@@ -635,6 +635,9 @@ def test_load_nixguix_one_common_artifact_from_other_loader(
     snapshot = snapshot_get_all_branches(swh_storage, hash_to_bytes(snapshot_id))
     assert snapshot
 
+    # 3. Then ingest again with the nixguix loader, with a different snapshot
+    #    and different source
+
     # simulate a snapshot already seen with a revision with the wrong metadata structure
     # This revision should be skipped, thus making the artifact being ingested again.
     with patch(
@@ -686,20 +689,26 @@ def test_load_nixguix_one_common_artifact_from_other_loader(
         # new run
         assert new_revision.metadata["extrinsic"]["raw"]["integrity"] is not None
 
-        nb_detections = 0
-        actual_detection: Dict
+        actual_detections: List[Dict] = []
         for record in caplog.records:
             logtext = record.getMessage()
             if "Unexpected metadata revision structure detected:" in logtext:
-                nb_detections += 1
-                actual_detection = record.args["context"]
+                actual_detections.append(record.args["context"])
 
-        assert actual_detection
+        expected_detections = [
+            {
+                "revision": hash_to_hex(old_revision.id),
+                "reason": "'integrity'",
+                "known_artifact": old_revision.metadata,
+            },
+            {
+                "revision": hash_to_hex(old_revision.id),
+                "reason": "'integrity'",
+                "known_artifact": old_revision.metadata,
+            },
+        ]
+
         # as many calls as there are sources listed in the sources.json
-        assert nb_detections == len(all_sources["sources"])
+        assert len(expected_detections) == len(all_sources["sources"])
 
-        assert actual_detection == {
-            "revision": hash_to_hex(old_revision.id),
-            "reason": "'integrity'",
-            "known_artifact": old_revision.metadata,
-        }
+        assert actual_detections == expected_detections
