@@ -497,3 +497,58 @@ def test_debian_resolve_revision_from():
     actual_revision = resolve_revision_from(known_package_artifacts, p_info)
 
     assert actual_revision == expected_revision_id
+
+
+def test_debian_resolve_revision_from_corrupt_known_artifact():
+    """To many or not enough .dsc files in the known_artifacts dict"""
+    artifact_metadata = PACKAGE_FILES
+    p_info = DebianPackageInfo.from_metadata(artifact_metadata, url=URL)
+    expected_revision_id = (
+        b"(\x07\xf5\xb3\xf8Ch\xb4\x88\x9a\x9a\xe8'\xfe\x85\x85O\xfe\xcf\x07"
+    )
+
+    files = dict(artifact_metadata["files"])
+    package_files = {
+        "name": PACKAGE_FILES["name"],
+        "version": PACKAGE_FILES["version"],
+        "files": files,
+    }
+
+    known_package_artifacts = {
+        expected_revision_id: {
+            "extrinsic": {"raw": package_files,},
+            # ... removed the unnecessary intermediary data
+        }
+    }
+
+    # Too many .dsc
+    files["another.dsc"] = files["cicero_0.7.2-3.dsc"]
+    with pytest.raises(ValueError, match="exactly one known .dsc"):
+        resolve_revision_from(known_package_artifacts, p_info)
+
+    # Not enough .dsc
+    del files["another.dsc"]
+    del files["cicero_0.7.2-3.dsc"]
+    with pytest.raises(ValueError, match="exactly one known .dsc"):
+        resolve_revision_from(known_package_artifacts, p_info)
+
+
+def test_debian_resolve_revision_from_corrupt_new_artifact():
+    artifact_metadata = PACKAGE_FILES
+
+    files = PACKAGE_FILES["files"]
+    files = {**files, "another.dsc": files["cicero_0.7.2-3.dsc"]}
+    artifact_metadata = {**PACKAGE_FILES, "files": files}
+
+    # Too many .dsc
+    files["another.dsc"] = files["cicero_0.7.2-3.dsc"]
+    p_info = DebianPackageInfo.from_metadata(artifact_metadata, url=URL)
+    with pytest.raises(ValueError, match="exactly one new .dsc"):
+        resolve_revision_from(PACKAGE_FILES, p_info)
+
+    # Not enough .dsc
+    del files["another.dsc"]
+    del files["cicero_0.7.2-3.dsc"]
+    p_info = DebianPackageInfo.from_metadata(artifact_metadata, url=URL)
+    with pytest.raises(ValueError, match="exactly one new .dsc"):
+        resolve_revision_from(PACKAGE_FILES, p_info)

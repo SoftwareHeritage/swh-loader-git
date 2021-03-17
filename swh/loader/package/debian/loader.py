@@ -8,17 +8,7 @@ import logging
 from os import path
 import re
 import subprocess
-from typing import (
-    Any,
-    Dict,
-    FrozenSet,
-    Iterator,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    Tuple,
-)
+from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, Tuple
 
 import attr
 from dateutil.parser import parse as parse_date
@@ -253,24 +243,38 @@ def resolve_revision_from(
     if not artifacts_to_fetch:
         return None
 
-    def to_set(data: DebianPackageInfo) -> FrozenSet[Tuple[str, str, int]]:
-        return frozenset(
-            (name, meta.sha256, meta.size) for name, meta in data.files.items()
+    new_dsc_files = [
+        file for (name, file) in p_info.files.items() if name.endswith(".dsc")
+    ]
+
+    if len(new_dsc_files) != 1:
+        raise ValueError(
+            f"Expected exactly one new .dsc file for package {p_info.name}, "
+            f"got {len(new_dsc_files)}"
         )
 
-    # what we want to avoid downloading back if we have them already
-    set_new_artifacts = to_set(p_info)
+    new_dsc_sha256 = new_dsc_files[0].sha256
 
-    known_artifacts_revision_id = {}
     for rev_id, known_artifacts in known_package_artifacts.items():
         extrinsic = known_artifacts.get("extrinsic")
         if not extrinsic:
             continue
 
-        s = to_set(DebianPackageInfo.from_metadata(extrinsic["raw"], url=p_info.url))
-        known_artifacts_revision_id[s] = rev_id
+        known_p_info = DebianPackageInfo.from_metadata(extrinsic["raw"], url=p_info.url)
+        dsc = [
+            file for (name, file) in known_p_info.files.items() if name.endswith(".dsc")
+        ]
 
-    return known_artifacts_revision_id.get(set_new_artifacts)
+        if len(dsc) != 1:
+            raise ValueError(
+                f"Expected exactly one known .dsc file for package {p_info.name}, "
+                f"got {len(dsc)}"
+            )
+
+        if new_dsc_sha256 == dsc[0].sha256:
+            return rev_id
+
+    return None
 
 
 def uid_to_person(uid: str) -> Dict[str, str]:
