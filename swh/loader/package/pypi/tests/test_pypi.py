@@ -867,6 +867,20 @@ def test_pypi_artifact_to_revision_id_current_loader_version():
         "b11ebac8c9d0c9e5063a2df693a18e3aba4b2f92"
     )
 
+    # there should not be more than one artifact
+    with pytest.raises(ValueError):
+        artifact_to_revision_id(
+            {
+                hash_to_bytes("845673bfe8cbd31b1eaf757745a964137e6f9116"): {
+                    "original_artifact": [
+                        {"checksums": {"sha256": artifact_metadata.sha256,},},
+                        {"checksums": {"sha256": artifact_metadata.sha256,},},
+                    ],
+                },
+            },
+            artifact_metadata,
+        )
+
 
 def test_pypi_artifact_with_no_intrinsic_metadata(swh_storage, requests_mock_datadir):
     """Skip artifact with no intrinsic metadata during ingestion

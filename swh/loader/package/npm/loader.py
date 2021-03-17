@@ -212,19 +212,25 @@ def artifact_to_revision_id(
     """
     shasum = p_info.shasum
     for rev_id, known_artifact in known_artifacts.items():
-        known_original_artifact = known_artifact.get("original_artifact")
-        if not known_original_artifact:
-            # previous loader-npm version kept original artifact elsewhere
-            known_original_artifact = known_artifact.get("package_source")
-            if not known_original_artifact:
-                continue
-            original_hash = known_original_artifact["sha1"]
-        else:
-            assert isinstance(known_original_artifact, list)
-            original_hash = known_original_artifact[0]["checksums"]["sha1"]
+        original_hash = _artifact_to_sha1(known_artifact)
         if shasum == original_hash:
             return rev_id
+
     return None
+
+
+def _artifact_to_sha1(known_artifact: Dict) -> Optional[str]:
+    """Returns the sha1 from an NPM 'original_artifact' dict"""
+    known_original_artifact = known_artifact.get("original_artifact")
+    if not known_original_artifact:
+        # previous loader-npm version kept original artifact elsewhere
+        known_original_artifact = known_artifact.get("package_source")
+        if not known_original_artifact:
+            return None
+        return known_original_artifact["sha1"]
+    else:
+        assert isinstance(known_original_artifact, list)
+        return known_original_artifact[0]["checksums"]["sha1"]
 
 
 def _author_str(author_data: Union[Dict, List, str]) -> str:

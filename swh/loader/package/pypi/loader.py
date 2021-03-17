@@ -188,20 +188,31 @@ def artifact_to_revision_id(
     """
     sha256 = p_info.sha256
     for rev_id, known_artifact in known_artifacts.items():
-        original_artifact = known_artifact["original_artifact"]
-        if isinstance(original_artifact, dict):
-            # previous loader-pypi version stored metadata as dict
-            original_sha256 = original_artifact["sha256"]
-            if sha256 == original_sha256:
-                return rev_id
-            continue
-        # new pypi loader actually store metadata dict differently...
-        assert isinstance(original_artifact, list)
-        # current loader-pypi stores metadata as list of dict
-        for original_artifact in known_artifact["original_artifact"]:
-            if sha256 == original_artifact["checksums"]["sha256"]:
-                return rev_id
+        original_sha256 = _artifact_to_sha256(known_artifact)
+        if sha256 == original_sha256:
+            return rev_id
+
     return None
+
+
+def _artifact_to_sha256(known_artifact: Dict) -> Optional[str]:
+    """Returns the sha256 from a PyPI 'original_artifact' dict"""
+    original_artifact = known_artifact["original_artifact"]
+    if isinstance(original_artifact, dict):
+        # previous loader-pypi version stored metadata as dict
+        return original_artifact["sha256"]
+    # new pypi loader actually store metadata dict differently...
+    assert isinstance(original_artifact, list)
+    # current loader-pypi stores metadata as list of dict
+    if len(known_artifact["original_artifact"]) == 0:
+        return None
+    elif len(known_artifact["original_artifact"]) == 1:
+        return original_artifact[0]["checksums"]["sha256"]
+    else:
+        raise ValueError(
+            f"Expected exactly one PyPI original_artifact, got "
+            f"{len(known_artifact['original_artifact'])}"
+        )
 
 
 def pypi_api_url(url: str) -> str:
