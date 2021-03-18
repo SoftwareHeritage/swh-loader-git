@@ -256,25 +256,28 @@ def resolve_revision_from(
     new_dsc_sha256 = new_dsc_files[0].sha256
 
     for rev_id, known_artifacts in known_package_artifacts.items():
-        extrinsic = known_artifacts.get("extrinsic")
-        if not extrinsic:
-            continue
 
-        known_p_info = DebianPackageInfo.from_metadata(extrinsic["raw"], url=p_info.url)
-        dsc = [
-            file for (name, file) in known_p_info.files.items() if name.endswith(".dsc")
-        ]
-
-        if len(dsc) != 1:
-            raise ValueError(
-                f"Expected exactly one known .dsc file for package {p_info.name}, "
-                f"got {len(dsc)}"
-            )
-
-        if new_dsc_sha256 == dsc[0].sha256:
+        if new_dsc_sha256 == _artifact_to_dsc_sha256(known_artifacts, p_info.url):
             return rev_id
 
     return None
+
+
+def _artifact_to_dsc_sha256(known_artifacts: Dict, url: str) -> Optional[str]:
+    extrinsic = known_artifacts.get("extrinsic")
+    if not extrinsic:
+        return None
+
+    known_p_info = DebianPackageInfo.from_metadata(extrinsic["raw"], url=url)
+    dsc = [file for (name, file) in known_p_info.files.items() if name.endswith(".dsc")]
+
+    if len(dsc) != 1:
+        raise ValueError(
+            f"Expected exactly one known .dsc file for package {known_p_info.name}, "
+            f"got {len(dsc)}"
+        )
+
+    return dsc[0].sha256
 
 
 def uid_to_person(uid: str) -> Dict[str, str]:
