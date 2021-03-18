@@ -147,30 +147,34 @@ class NixGuixLoader(PackageLoader[NixGuixPackageInfo]):
             ret[revision.id] = revision.metadata
         return ret
 
+    def _get_integrity_from_artifact(
+        self, known_artifact: Dict, rev_id: bytes
+    ) -> Optional[str]:
+        try:
+            return known_artifact["extrinsic"]["raw"]["integrity"]
+        except KeyError as e:
+            logger.exception(
+                "Unexpected metadata revision structure detected: %(context)s",
+                {
+                    "context": {
+                        "revision": hashutil.hash_to_hex(rev_id),
+                        "reason": str(e),
+                        "known_artifact": known_artifact,
+                    }
+                },
+            )
+            # metadata field for the revision is not as expected by the loader
+            # nixguix. We consider this not the right revision and continue checking
+            # the other revisions
+            return None
+
     def resolve_revision_from(
         self, known_artifacts: Dict, p_info: NixGuixPackageInfo,
     ) -> Optional[bytes]:
         for rev_id, known_artifact in known_artifacts.items():
-            try:
-                known_integrity = known_artifact["extrinsic"]["raw"]["integrity"]
-            except KeyError as e:
-                logger.exception(
-                    "Unexpected metadata revision structure detected: %(context)s",
-                    {
-                        "context": {
-                            "revision": hashutil.hash_to_hex(rev_id),
-                            "reason": str(e),
-                            "known_artifact": known_artifact,
-                        }
-                    },
-                )
-                # metadata field for the revision is not as expected by the loader
-                # nixguix. We consider this not the right revision and continue checking
-                # the other revisions
-                continue
-            else:
-                if p_info.integrity == known_integrity:
-                    return rev_id
+            known_integrity = self._get_integrity_from_artifact(known_artifact, rev_id)
+            if p_info.integrity == known_integrity:
+                return rev_id
         return None
 
     def extra_branches(self) -> Dict[bytes, Mapping[str, Any]]:
