@@ -26,7 +26,7 @@ from swh.loader.package.utils import download
 from swh.loader.tests import assert_last_visit_matches
 from swh.loader.tests import check_snapshot as check_snapshot_full
 from swh.loader.tests import get_stats
-from swh.model.hashutil import hash_to_bytes, hash_to_hex
+from swh.model.hashutil import hash_to_bytes
 from swh.model.identifiers import ExtendedObjectType, ExtendedSWHID
 from swh.model.model import (
     MetadataAuthority,
@@ -696,16 +696,8 @@ def test_load_nixguix_one_common_artifact_from_other_loader(
                 actual_detections.append(record.args["context"])
 
         expected_detections = [
-            {
-                "revision": hash_to_hex(old_revision.id),
-                "reason": "'integrity'",
-                "known_artifact": old_revision.metadata,
-            },
-            {
-                "revision": hash_to_hex(old_revision.id),
-                "reason": "'integrity'",
-                "known_artifact": old_revision.metadata,
-            },
+            {"reason": "'integrity'", "known_artifact": old_revision.metadata,},
+            {"reason": "'integrity'", "known_artifact": old_revision.metadata,},
         ]
 
         # as many calls as there are sources listed in the sources.json

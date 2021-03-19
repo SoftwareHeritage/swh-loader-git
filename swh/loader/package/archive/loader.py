@@ -139,21 +139,14 @@ class ArchiveLoader(PackageLoader[ArchivePackageInfo]):
                 # versioned package
                 yield release_name(version), p_info
 
-    def extid_from_reference_artifact(self, reference_artifact: Dict) -> bytes:
-        reference_artifact_info = ArchivePackageInfo.from_metadata(reference_artifact)
-        return reference_artifact_info.extid(manifest_format=self.extid_manifest_format)
+    def new_packageinfo_to_extid(self, p_info: ArchivePackageInfo) -> Optional[bytes]:
+        return p_info.extid(manifest_format=self.extid_manifest_format)
 
-    def resolve_revision_from(
-        self, known_artifacts: Dict, p_info: ArchivePackageInfo
-    ) -> Optional[bytes]:
-        extid = p_info.extid(manifest_format=self.extid_manifest_format)
-        for rev_id, known_artifact in known_artifacts.items():
-            logging.debug("known_artifact: %s", known_artifact)
-            reference_artifact = known_artifact["extrinsic"]["raw"]
-            known_extid = self.extid_from_reference_artifact(reference_artifact)
-            if extid == known_extid:
-                return rev_id
-        return None
+    def known_artifact_to_extid(self, known_artifact: Dict) -> Optional[bytes]:
+        known_artifact_info = ArchivePackageInfo.from_metadata(
+            known_artifact["extrinsic"]["raw"]
+        )
+        return known_artifact_info.extid(manifest_format=self.extid_manifest_format)
 
     def build_revision(
         self, p_info: ArchivePackageInfo, uncompressed_path: str, directory: Sha1Git

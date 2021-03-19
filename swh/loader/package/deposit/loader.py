@@ -102,6 +102,11 @@ class DepositPackageInfo(BasePackageInfo):
             ],
         )
 
+    def extid(self) -> None:
+        # For now, we don't try to deduplicate deposits. There is little point anyway,
+        # as it only happens when the exact same tarball was deposited twice.
+        return None
+
 
 class DepositLoader(PackageLoader[DepositPackageInfo]):
     """Load a deposited artifact into swh archive.

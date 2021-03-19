@@ -101,6 +101,10 @@ class BasePackageInfo:
     url = attr.ib(type=str)
     filename = attr.ib(type=Optional[str])
 
+    MANIFEST_FORMAT: Optional[string.Template] = None
+    """If not None, used by the default extid() implementation to format a manifest,
+    before hashing it to produce an ExtID."""
+
     # The following attribute has kw_only=True in order to allow subclasses
     # to add attributes. Without kw_only, attributes without default values cannot
     # go after attributes with default values.
@@ -112,21 +116,18 @@ class BasePackageInfo:
 
     # TODO: add support for metadata for directories and contents
 
-    @property
-    def MANIFEST_FORMAT(self) -> string.Template:
-        """A string.Template object used to format a manifest, which is hashed
-        to get the extid of this package info object"""
-        raise NotImplementedError(
-            f"{self.__class__.__name__} is missing MANIFEST_FORMAT "
-            f"or an override of extid()"
-        )
-
-    def extid(self) -> bytes:
-        """Returns a unique intrinsic identifier of this package info"""
-        manifest = self.MANIFEST_FORMAT.substitute(
-            {k: str(v) for (k, v) in attr.asdict(self).items()}
-        )
-        return hashlib.sha256(manifest.encode()).digest()
+    def extid(self) -> Optional[bytes]:
+        """Returns a unique intrinsic identifier of this package info,
+        or None if this package info is not 'deduplicatable' (meaning that
+        we will always load it, instead of checking the ExtID storage
+        to see if we already did)"""
+        if self.MANIFEST_FORMAT is None:
+            return None
+        else:
+            manifest = self.MANIFEST_FORMAT.substitute(
+                {k: str(v) for (k, v) in attr.asdict(self).items()}
+            )
+            return hashlib.sha256(manifest.encode()).digest()
 
 
 TPackageInfo = TypeVar("TPackageInfo", bound=BasePackageInfo)
@@ -238,6 +239,14 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
             revision.id: revision.metadata for revision in known_revisions if revision
         }
 
+    def new_packageinfo_to_extid(self, p_info: TPackageInfo) -> Optional[bytes]:
+        return p_info.extid()
+
+    def known_artifact_to_extid(self, known_artifact: Dict) -> Optional[bytes]:
+        """Returns a unique intrinsic identifier of a downloaded artifact,
+        used to check if a new artifact is the same."""
+        return None
+
     def resolve_revision_from(
         self, known_artifacts: Dict, p_info: TPackageInfo,
     ) -> Optional[bytes]:
@@ -255,6 +264,21 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
             None or revision identifier
 
         """
+        if not known_artifacts:
+            # No known artifact, no need to compute the artifact's extid
+            return None
+
+        new_extid = self.new_packageinfo_to_extid(p_info)
+        if new_extid is None:
+            # This loader does not support deduplication, at least not for this
+            # artifact.
+            return None
+
+        for rev_id, known_artifact in known_artifacts.items():
+            known_extid = self.known_artifact_to_extid(known_artifact)
+            if new_extid == known_extid:
+                return rev_id
+
         return None
 
     def download_package(

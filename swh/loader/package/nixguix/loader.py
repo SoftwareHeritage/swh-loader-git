@@ -50,6 +50,9 @@ class NixGuixPackageInfo(BasePackageInfo):
             raw_info=metadata,
         )
 
+    def extid(self) -> bytes:
+        return self.integrity.encode("ascii")
+
 
 class NixGuixLoader(PackageLoader[NixGuixPackageInfo]):
     """Load sources from a sources.json file. This loader is used to load
@@ -147,35 +150,18 @@ class NixGuixLoader(PackageLoader[NixGuixPackageInfo]):
             ret[revision.id] = revision.metadata
         return ret
 
-    def _get_integrity_from_artifact(
-        self, known_artifact: Dict, rev_id: bytes
-    ) -> Optional[str]:
+    def known_artifact_to_extid(self, known_artifact: Dict) -> Optional[bytes]:
         try:
-            return known_artifact["extrinsic"]["raw"]["integrity"]
+            return known_artifact["extrinsic"]["raw"]["integrity"].encode("ascii")
         except KeyError as e:
             logger.exception(
                 "Unexpected metadata revision structure detected: %(context)s",
-                {
-                    "context": {
-                        "revision": hashutil.hash_to_hex(rev_id),
-                        "reason": str(e),
-                        "known_artifact": known_artifact,
-                    }
-                },
+                {"context": {"reason": str(e), "known_artifact": known_artifact,}},
             )
             # metadata field for the revision is not as expected by the loader
             # nixguix. We consider this not the right revision and continue checking
             # the other revisions
             return None
-
-    def resolve_revision_from(
-        self, known_artifacts: Dict, p_info: NixGuixPackageInfo,
-    ) -> Optional[bytes]:
-        for rev_id, known_artifact in known_artifacts.items():
-            known_integrity = self._get_integrity_from_artifact(known_artifact, rev_id)
-            if p_info.integrity == known_integrity:
-                return rev_id
-        return None
 
     def extra_branches(self) -> Dict[bytes, Mapping[str, Any]]:
         """We add a branch to the snapshot called 'evaluation' pointing to the

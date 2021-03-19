@@ -5,6 +5,7 @@
 
 import hashlib
 import string
+from unittest.mock import MagicMock
 
 import attr
 import pytest
@@ -44,7 +45,52 @@ def test_loader_origin_visit_failure(swh_storage):
     assert actual_load_status2 == {"status": "failed"}
 
 
-def test_extid():
+def test_resolve_revision_from():
+    loader = PackageLoader(None, None)
+    loader.known_artifact_to_extid = MagicMock(
+        wraps=lambda known_artifact: known_artifact["key"].encode()
+    )
+
+    known_artifacts = {
+        b"a" * 40: {"key": "extid-of-aaaa"},
+        b"b" * 40: {"key": "extid-of-bbbb"},
+    }
+
+    p_info = MagicMock()
+
+    # No known artifact -> it would be useless to compute the extid
+    assert loader.resolve_revision_from({}, p_info) is None
+    p_info.extid.assert_not_called()
+    loader.known_artifact_to_extid.assert_not_called()
+
+    p_info.extid.reset_mock()
+
+    # Some artifacts, but the PackageInfo does not support extids
+    p_info.extid.return_value = None
+    assert loader.resolve_revision_from(known_artifacts, p_info) is None
+    p_info.extid.assert_called_once()
+    loader.known_artifact_to_extid.assert_not_called()
+
+    p_info.extid.reset_mock()
+
+    # Some artifacts, and the PackageInfo is not one of them (ie. cache miss)
+    p_info.extid.return_value = b"extid-of-cccc"
+    assert loader.resolve_revision_from(known_artifacts, p_info) is None
+    p_info.extid.assert_called_once()
+    loader.known_artifact_to_extid.assert_any_call({"key": "extid-of-aaaa"})
+    loader.known_artifact_to_extid.assert_any_call({"key": "extid-of-bbbb"})
+
+    p_info.extid.reset_mock()
+    loader.known_artifact_to_extid.reset_mock()
+
+    # Some artifacts, and the PackageInfo is one of them (ie. cache hit)
+    p_info.extid.return_value = b"extid-of-aaaa"
+    assert loader.resolve_revision_from(known_artifacts, p_info) == b"a" * 40
+    p_info.extid.assert_called_once()
+    loader.known_artifact_to_extid.assert_called_once_with({"key": "extid-of-aaaa"})
+
+
+def test_manifest_extid():
     """Compute primary key should return the right identity
 
     """

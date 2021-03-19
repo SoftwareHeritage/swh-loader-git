@@ -17,6 +17,7 @@ from debian.deb822 import Dsc
 
 from swh.loader.package.loader import BasePackageInfo, PackageLoader
 from swh.loader.package.utils import download, release_name
+from swh.model.hashutil import hash_to_bytes
 from swh.model.model import (
     Person,
     Revision,
@@ -28,6 +29,12 @@ from swh.storage.interface import StorageInterface
 
 logger = logging.getLogger(__name__)
 UPLOADERS_SPLIT = re.compile(r"(?<=\>)\s*,\s*")
+
+
+class DscCountError(ValueError):
+    """Raised when an unexpected number of .dsc files is seen"""
+
+    pass
 
 
 @attr.s
@@ -73,6 +80,19 @@ class DebianPackageInfo(BasePackageInfo):
             name=a_metadata["name"],
             version=a_metadata["version"],
         )
+
+    def extid(self) -> Optional[bytes]:
+        dsc_files = [
+            file for (name, file) in self.files.items() if name.endswith(".dsc")
+        ]
+
+        if len(dsc_files) != 1:
+            raise DscCountError(
+                f"Expected exactly one .dsc file for package {self.name}, "
+                f"got {len(dsc_files)}"
+            )
+
+        return hash_to_bytes(dsc_files[0].sha256)
 
 
 @attr.s
@@ -156,10 +176,20 @@ class DebianLoader(PackageLoader[DebianPackageInfo]):
         p_info = DebianPackageInfo.from_metadata(meta, url=self.url)
         yield release_name(version), p_info
 
+    def known_artifact_to_extid(self, known_artifact: Dict) -> Optional[bytes]:
+        sha256 = _artifact_to_dsc_sha256(known_artifact, url=self.url)
+        if sha256 is None:
+            return None
+        return hash_to_bytes(sha256)
+
     def resolve_revision_from(
-        self, known_package_artifacts: Mapping, p_info: DebianPackageInfo
+        self, known_artifacts: Dict, p_info: DebianPackageInfo,
     ) -> Optional[bytes]:
-        return resolve_revision_from(known_package_artifacts, p_info)
+        try:
+            return super().resolve_revision_from(known_artifacts, p_info)
+        except DscCountError:
+            # known_artifacts are corrupted, ignore them instead of crashing
+            return None
 
     def download_package(
         self, p_info: DebianPackageInfo, tmpdir: str
@@ -231,38 +261,6 @@ class DebianLoader(PackageLoader[DebianPackageInfo]):
         )
 
 
-def resolve_revision_from(
-    known_package_artifacts: Mapping, p_info: DebianPackageInfo
-) -> Optional[bytes]:
-    """Given known package artifacts (resolved from the snapshot of previous
-    visit) and the new artifact to fetch, try to solve the corresponding
-    revision.
-
-    """
-    artifacts_to_fetch = p_info.files
-    if not artifacts_to_fetch:
-        return None
-
-    new_dsc_files = [
-        file for (name, file) in p_info.files.items() if name.endswith(".dsc")
-    ]
-
-    if len(new_dsc_files) != 1:
-        raise ValueError(
-            f"Expected exactly one new .dsc file for package {p_info.name}, "
-            f"got {len(new_dsc_files)}"
-        )
-
-    new_dsc_sha256 = new_dsc_files[0].sha256
-
-    for rev_id, known_artifacts in known_package_artifacts.items():
-
-        if new_dsc_sha256 == _artifact_to_dsc_sha256(known_artifacts, p_info.url):
-            return rev_id
-
-    return None
-
-
 def _artifact_to_dsc_sha256(known_artifacts: Dict, url: str) -> Optional[str]:
     extrinsic = known_artifacts.get("extrinsic")
     if not extrinsic:
@@ -272,7 +270,7 @@ def _artifact_to_dsc_sha256(known_artifacts: Dict, url: str) -> Optional[str]:
     dsc = [file for (name, file) in known_p_info.files.items() if name.endswith(".dsc")]
 
     if len(dsc) != 1:
-        raise ValueError(
+        raise DscCountError(
             f"Expected exactly one known .dsc file for package {known_p_info.name}, "
             f"got {len(dsc)}"
         )
@@ -367,7 +365,7 @@ def dsc_information(p_info: DebianPackageInfo) -> Tuple[Optional[str], Optional[
     for filename, fileinfo in p_info.files.items():
         if filename.endswith(".dsc"):
             if dsc_name:
-                raise ValueError(
+                raise DscCountError(
                     "Package %s_%s references several dsc files."
                     % (p_info.name, p_info.version)
                 )

@@ -15,7 +15,6 @@ from swh.core.tarball import uncompress
 from swh.loader.package import __version__
 from swh.loader.package.pypi.loader import (
     PyPILoader,
-    artifact_to_revision_id,
     author,
     extract_intrinsic_metadata,
     pypi_api_url,
@@ -797,88 +796,49 @@ def test_pypi_visit_1_release_with_2_artifacts(swh_storage, requests_mock_datadi
     )
 
 
-def test_pypi_artifact_to_revision_id_none():
-    """Current loader version should stop soon if nothing can be found
-
-    """
-
-    class artifact_metadata:
-        sha256 = "6975816f2c5ad4046acc676ba112f2fff945b01522d63948531f11f11e0892ec"
-
-    assert artifact_to_revision_id({}, artifact_metadata) is None
-
-    known_artifacts = {
-        "b11ebac8c9d0c9e5063a2df693a18e3aba4b2f92": {
-            "original_artifact": {"sha256": "something-irrelevant",},
-        },
-    }
-
-    assert artifact_to_revision_id(known_artifacts, artifact_metadata) is None
-
-
-def test_pypi_artifact_to_revision_id_old_loader_version():
+def test_pypi__known_artifact_to_extid__old_loader_version():
     """Current loader version should solve old metadata scheme
 
     """
-
-    class artifact_metadata:
-        sha256 = "6975816f2c5ad4046acc676ba112f2fff945b01522d63948531f11f11e0892ec"
-
-    known_artifacts = {
-        hash_to_bytes("b11ebac8c9d0c9e5063a2df693a18e3aba4b2f92"): {
-            "original_artifact": {"sha256": "something-wrong",},
-        },
-        hash_to_bytes("845673bfe8cbd31b1eaf757745a964137e6f9116"): {
-            "original_artifact": {
-                "sha256": "6975816f2c5ad4046acc676ba112f2fff945b01522d63948531f11f11e0892ec",  # noqa
-            },
-        },
-    }
-
-    assert artifact_to_revision_id(known_artifacts, artifact_metadata) == hash_to_bytes(
-        "845673bfe8cbd31b1eaf757745a964137e6f9116"
+    assert (
+        PyPILoader.known_artifact_to_extid(
+            {"original_artifact": {"sha256": "something-wrong",},}
+        )
+        is None
     )
 
+    sha256 = "6975816f2c5ad4046acc676ba112f2fff945b01522d63948531f11f11e0892ec"
+    assert PyPILoader.known_artifact_to_extid(
+        {"original_artifact": {"sha256": sha256}}
+    ) == hash_to_bytes(sha256)
 
-def test_pypi_artifact_to_revision_id_current_loader_version():
+
+def test_pypi__known_artifact_to_extid__current_loader_version():
     """Current loader version should be able to solve current metadata scheme
 
     """
+    sha256 = "6975816f2c5ad4046acc676ba112f2fff945b01522d63948531f11f11e0892ec"
 
-    class artifact_metadata:
-        sha256 = "6975816f2c5ad4046acc676ba112f2fff945b01522d63948531f11f11e0892ec"
+    assert PyPILoader.known_artifact_to_extid(
+        {"original_artifact": [{"checksums": {"sha256": sha256,},}],}
+    ) == hash_to_bytes(sha256)
 
-    known_artifacts = {
-        hash_to_bytes("b11ebac8c9d0c9e5063a2df693a18e3aba4b2f92"): {
-            "original_artifact": [
-                {
-                    "checksums": {
-                        "sha256": "6975816f2c5ad4046acc676ba112f2fff945b01522d63948531f11f11e0892ec",  # noqa
-                    },
-                }
-            ],
-        },
-        hash_to_bytes("845673bfe8cbd31b1eaf757745a964137e6f9116"): {
-            "original_artifact": [{"checksums": {"sha256": "something-wrong"},}],
-        },
-    }
-
-    assert artifact_to_revision_id(known_artifacts, artifact_metadata) == hash_to_bytes(
-        "b11ebac8c9d0c9e5063a2df693a18e3aba4b2f92"
+    assert (
+        PyPILoader.known_artifact_to_extid(
+            {"original_artifact": [{"checksums": {"sha256": "something-wrong"},}],},
+        )
+        is None
     )
 
     # there should not be more than one artifact
     with pytest.raises(ValueError):
-        artifact_to_revision_id(
+        PyPILoader.known_artifact_to_extid(
             {
-                hash_to_bytes("845673bfe8cbd31b1eaf757745a964137e6f9116"): {
-                    "original_artifact": [
-                        {"checksums": {"sha256": artifact_metadata.sha256,},},
-                        {"checksums": {"sha256": artifact_metadata.sha256,},},
-                    ],
-                },
-            },
-            artifact_metadata,
+                "original_artifact": [
+                    {"checksums": {"sha256": sha256,},},
+                    {"checksums": {"sha256": sha256,},},
+                ],
+            }
         )
 
 

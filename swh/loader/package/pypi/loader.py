@@ -18,6 +18,7 @@ from swh.loader.package.loader import (
     RawExtrinsicMetadataCore,
 )
 from swh.loader.package.utils import EMPTY_AUTHOR, api_info, cached_method, release_name
+from swh.model.hashutil import hash_to_bytes
 from swh.model.model import (
     MetadataAuthority,
     MetadataAuthorityType,
@@ -55,6 +56,9 @@ class PyPIPackageInfo(BasePackageInfo):
                 )
             ],
         )
+
+    def extid(self) -> bytes:
+        return hash_to_bytes(self.sha256)
 
 
 class PyPILoader(PackageLoader[PyPIPackageInfo]):
@@ -113,10 +117,15 @@ class PyPILoader(PackageLoader[PyPIPackageInfo]):
             for version, p_info in res:
                 yield release_name(version, p_info.filename), p_info
 
-    def resolve_revision_from(
-        self, known_artifacts: Dict, p_info: PyPIPackageInfo
-    ) -> Optional[bytes]:
-        return artifact_to_revision_id(known_artifacts, p_info)
+    @staticmethod
+    def known_artifact_to_extid(known_artifact: Dict) -> Optional[bytes]:
+        extid_str = _artifact_to_sha256(known_artifact)
+        if extid_str is None:
+            return None
+        try:
+            return hash_to_bytes(extid_str) if extid_str else None
+        except ValueError:
+            return None
 
     def build_revision(
         self, p_info: PyPIPackageInfo, uncompressed_path: str, directory: Sha1Git
@@ -155,10 +164,8 @@ class PyPILoader(PackageLoader[PyPIPackageInfo]):
         )
 
 
-def artifact_to_revision_id(
-    known_artifacts: Dict, p_info: PyPIPackageInfo
-) -> Optional[bytes]:
-    """Given metadata artifact, solves the associated revision id.
+def _artifact_to_sha256(known_artifact: Dict) -> Optional[str]:
+    """Returns the sha256 from a PyPI 'original_artifact' dict
 
     The following code allows to deal with 2 metadata formats (column metadata
     in 'revision')
@@ -186,17 +193,6 @@ def artifact_to_revision_id(
         }
 
     """
-    sha256 = p_info.sha256
-    for rev_id, known_artifact in known_artifacts.items():
-        original_sha256 = _artifact_to_sha256(known_artifact)
-        if sha256 == original_sha256:
-            return rev_id
-
-    return None
-
-
-def _artifact_to_sha256(known_artifact: Dict) -> Optional[str]:
-    """Returns the sha256 from a PyPI 'original_artifact' dict"""
     original_artifact = known_artifact["original_artifact"]
     if isinstance(original_artifact, dict):
         # previous loader-pypi version stored metadata as dict
