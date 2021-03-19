@@ -9,6 +9,7 @@ import logging
 import os
 from os import path
 import re
+import string
 from typing import Any, Dict, Iterator, List, Mapping, Optional, Tuple
 
 import attr
@@ -37,7 +38,7 @@ class CRANPackageInfo(BasePackageInfo):
     raw_info = attr.ib(type=Dict[str, Any])
     version = attr.ib(type=str)
 
-    ID_KEYS = ["url", "version"]
+    MANIFEST_FORMAT = string.Template("$version $url")
 
     @classmethod
     def from_metadata(cls, a_metadata: Dict[str, Any]) -> "CRANPackageInfo":
@@ -86,6 +87,9 @@ class CRANLoader(PackageLoader[CRANPackageInfo]):
             if version == p_info.version:
                 yield release_name(version), p_info
 
+    def extid_from_known_artifact(self, known_artifact: Dict) -> bytes:
+        return CRANPackageInfo.from_metadata(known_artifact).extid()
+
     def resolve_revision_from(
         self, known_artifacts: Mapping[bytes, Mapping], p_info: CRANPackageInfo,
     ) -> Optional[bytes]:
@@ -93,14 +97,12 @@ class CRANLoader(PackageLoader[CRANPackageInfo]):
            artifact_metadata
 
         """
-        new_identity = p_info.artifact_identity()
+        new_extid = p_info.extid()
         for rev_id, known_artifact_meta in known_artifacts.items():
             logging.debug("known_artifact_meta: %s", known_artifact_meta)
             known_artifact = known_artifact_meta["extrinsic"]["raw"]
-            known_identity = CRANPackageInfo.from_metadata(
-                known_artifact
-            ).artifact_identity()
-            if new_identity == known_identity:
+            known_extid = self.extid_from_known_artifact(known_artifact)
+            if new_extid == known_extid:
                 return rev_id
         return None
 

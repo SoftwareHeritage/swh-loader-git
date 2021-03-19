@@ -4,10 +4,12 @@
 # See top-level LICENSE file for more information
 
 import datetime
+import hashlib
 from itertools import islice
 import json
 import logging
 import os
+import string
 import sys
 import tempfile
 from typing import (
@@ -111,11 +113,20 @@ class BasePackageInfo:
     # TODO: add support for metadata for directories and contents
 
     @property
-    def ID_KEYS(self):
-        raise NotImplementedError(f"{self.__class__.__name__} is missing ID_KEYS")
+    def MANIFEST_FORMAT(self) -> string.Template:
+        """A string.Template object used to format a manifest, which is hashed
+        to get the extid of this package info object"""
+        raise NotImplementedError(
+            f"{self.__class__.__name__} is missing MANIFEST_FORMAT "
+            f"or an override of extid()"
+        )
 
-    def artifact_identity(self):
-        return [getattr(self, k) for k in self.ID_KEYS]
+    def extid(self) -> bytes:
+        """Returns a unique intrinsic identifier of this package info"""
+        manifest = self.MANIFEST_FORMAT.substitute(
+            {k: str(v) for (k, v) in attr.asdict(self).items()}
+        )
+        return hashlib.sha256(manifest.encode()).digest()
 
 
 TPackageInfo = TypeVar("TPackageInfo", bound=BasePackageInfo)

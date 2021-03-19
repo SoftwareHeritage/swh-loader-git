@@ -3,6 +3,9 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import hashlib
+import string
+
 import attr
 import pytest
 
@@ -41,7 +44,7 @@ def test_loader_origin_visit_failure(swh_storage):
     assert actual_load_status2 == {"status": "failed"}
 
 
-def test_artifact_identity():
+def test_extid():
     """Compute primary key should return the right identity
 
     """
@@ -54,7 +57,7 @@ def test_artifact_identity():
         filename = attr.ib()
         version = attr.ib()
 
-        ID_KEYS = ["a", "b"]
+        MANIFEST_FORMAT = string.Template("$a $b")
 
     p_info = TestPackageInfo(
         url="http://example.org/",
@@ -65,8 +68,8 @@ def test_artifact_identity():
         version="0.1.0",
     )
 
-    actual_id = p_info.artifact_identity()
-    assert actual_id == [1, 2]
+    actual_id = p_info.extid()
+    assert actual_id == hashlib.sha256(b"1 2").digest()
 
 
 def test_no_env_swh_config_filename_raise(monkeypatch):

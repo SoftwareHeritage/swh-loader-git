@@ -3,7 +3,11 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import hashlib
+import string
+
 import attr
+import pytest
 
 from swh.loader.package.archive.loader import ArchiveLoader, ArchivePackageInfo
 from swh.loader.package.tests.common import check_metadata_paths
@@ -319,7 +323,7 @@ def test_archive_2_visits_without_change_not_gnu(swh_storage, requests_mock_data
         swh_storage,
         url,
         artifacts=artifacts,
-        identity_artifact_keys=["sha256", "length", "url"],
+        extid_manifest_format="$sha256 $length $url",
     )
 
     actual_load_status = loader.load()
@@ -340,7 +344,7 @@ def test_archive_2_visits_without_change_not_gnu(swh_storage, requests_mock_data
     assert len(urls) == 1
 
 
-def test_archive_artifact_identity():
+def test_archive_extid():
     """Compute primary key should return the right identity
 
     """
@@ -356,19 +360,13 @@ def test_archive_artifact_identity():
         raw_info={**metadata, "a": 1, "b": 2}, a=1, b=2, **metadata,
     )
 
-    for id_keys, expected_id in [
-        (["a", "b"], [1, 2]),
-        ([], []),
-        (["a", "key-that-does-not-exist"], [1, None]),
-        (
-            None,
-            [
-                metadata["time"],
-                metadata["url"],
-                metadata["length"],
-                metadata["version"],
-            ],
-        ),
+    for manifest_format, expected_manifest in [
+        (string.Template("$a $b"), b"1 2"),
+        (string.Template(""), b""),
+        (None, "{time} {length} {version} {url}".format(**metadata).encode()),
     ]:
-        actual_id = p_info.artifact_identity(id_keys=id_keys)
-        assert actual_id == expected_id
+        actual_id = p_info.extid(manifest_format=manifest_format)
+        assert actual_id == hashlib.sha256(expected_manifest).digest()
+
+    with pytest.raises(KeyError):
+        p_info.extid(manifest_format=string.Template("$a $unknown_key"))

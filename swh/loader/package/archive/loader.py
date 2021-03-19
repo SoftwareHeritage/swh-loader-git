@@ -4,8 +4,10 @@
 # See top-level LICENSE file for more information
 
 import datetime
+import hashlib
 import logging
 from os import path
+import string
 from typing import Any, Dict, Iterator, Optional, Sequence, Tuple, Union
 
 import attr
@@ -40,14 +42,19 @@ class ArchivePackageInfo(BasePackageInfo):
     """Timestamp of the archive file on the server"""
     version = attr.ib(type=str)
 
-    # default keys for gnu
-    ID_KEYS = ["time", "url", "length", "version"]
+    # default format for gnu
+    MANIFEST_FORMAT = string.Template("$time $length $version $url")
 
-    def artifact_identity(self, id_keys=None):
-        if id_keys is None:
-            id_keys = self.ID_KEYS
+    def extid(self, manifest_format: Optional[string.Template] = None) -> bytes:
+        """Returns a unique intrinsic identifier of this package info
+
+        ``manifest_format`` allows overriding the class' default MANIFEST_FORMAT"""
+        manifest_format = manifest_format or self.MANIFEST_FORMAT
         # TODO: use parsed attributes instead of self.raw_info
-        return [self.raw_info.get(k) for k in id_keys]
+        manifest = manifest_format.substitute(
+            {k: str(v) for (k, v) in self.raw_info.items()}
+        )
+        return hashlib.sha256(manifest.encode()).digest()
 
     @classmethod
     def from_metadata(cls, a_metadata: Dict[str, Any]) -> "ArchivePackageInfo":
@@ -75,10 +82,10 @@ class ArchiveLoader(PackageLoader[ArchivePackageInfo]):
         storage: StorageInterface,
         url: str,
         artifacts: Sequence[Dict[str, Any]],
-        identity_artifact_keys: Optional[Sequence[str]] = None,
+        extid_manifest_format: Optional[str] = None,
         max_content_size: Optional[int] = None,
     ):
-        """Loader constructor.
+        f"""Loader constructor.
 
         For now, this is the lister's task output.
 
@@ -97,13 +104,18 @@ class ArchiveLoader(PackageLoader[ArchivePackageInfo]):
 
                - **length**: artifact's length
 
-            identity_artifact_keys: Optional List of keys forming the
-                "identity" of an artifact
+            extid_manifest_format: template string used to format a manifest,
+                which is hashed to get the extid of a package.
+                Defaults to {ArchivePackageInfo.MANIFEST_FORMAT!r}
 
         """
         super().__init__(storage=storage, url=url, max_content_size=max_content_size)
         self.artifacts = artifacts  # assume order is enforced in the lister
-        self.identity_artifact_keys = identity_artifact_keys
+        self.extid_manifest_format = (
+            None
+            if extid_manifest_format is None
+            else string.Template(extid_manifest_format)
+        )
 
     def get_versions(self) -> Sequence[str]:
         versions = []
@@ -127,20 +139,19 @@ class ArchiveLoader(PackageLoader[ArchivePackageInfo]):
                 # versioned package
                 yield release_name(version), p_info
 
+    def extid_from_reference_artifact(self, reference_artifact: Dict) -> bytes:
+        reference_artifact_info = ArchivePackageInfo.from_metadata(reference_artifact)
+        return reference_artifact_info.extid(manifest_format=self.extid_manifest_format)
+
     def resolve_revision_from(
         self, known_artifacts: Dict, p_info: ArchivePackageInfo
     ) -> Optional[bytes]:
-        identity = p_info.artifact_identity(id_keys=self.identity_artifact_keys)
+        extid = p_info.extid(manifest_format=self.extid_manifest_format)
         for rev_id, known_artifact in known_artifacts.items():
             logging.debug("known_artifact: %s", known_artifact)
             reference_artifact = known_artifact["extrinsic"]["raw"]
-            reference_artifact_info = ArchivePackageInfo.from_metadata(
-                reference_artifact
-            )
-            known_identity = reference_artifact_info.artifact_identity(
-                id_keys=self.identity_artifact_keys
-            )
-            if identity == known_identity:
+            known_extid = self.extid_from_reference_artifact(reference_artifact)
+            if extid == known_extid:
                 return rev_id
         return None
 
