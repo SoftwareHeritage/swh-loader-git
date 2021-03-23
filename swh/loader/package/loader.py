@@ -478,44 +478,42 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
                 status_load="failed",
             )
 
-        packages_info = [
-            (version, branch_name, p_info)
-            for version in versions
-            for (branch_name, p_info) in self.get_package_info(version)
-        ]
-
         tmp_revisions: Dict[str, List[Tuple[str, Sha1Git]]] = {
             version: [] for version in versions
         }
-        for (version, branch_name, p_info) in packages_info:
-            logger.debug("package_info: %s", p_info)
-            revision_id = self.resolve_revision_from(known_artifacts, p_info)
-            if revision_id is None:
-                try:
-                    res = self._load_revision(p_info, origin)
-                    if res:
-                        (revision_id, directory_id) = res
-                        assert revision_id
-                        assert directory_id
-                        self._load_extrinsic_directory_metadata(
-                            p_info, revision_id, directory_id
-                        )
-                    self.storage.flush()
-                    status_load = "eventful"
-                except Exception as e:
-                    self.storage.clear_buffers()
-                    load_exceptions.append(e)
-                    sentry_sdk.capture_exception(e)
-                    logger.exception(
-                        "Failed loading branch %s for %s", branch_name, self.url
-                    )
-                    failed_branches.append(branch_name)
-                    continue
 
+        for version in versions:
+            logger.debug("version: %s", version)
+            # `p_` stands for `package_`
+            for branch_name, p_info in self.get_package_info(version):
+                logger.debug("package_info: %s", p_info)
+                revision_id = self.resolve_revision_from(known_artifacts, p_info)
                 if revision_id is None:
-                    continue
+                    try:
+                        res = self._load_revision(p_info, origin)
+                        if res:
+                            (revision_id, directory_id) = res
+                            assert revision_id
+                            assert directory_id
+                            self._load_extrinsic_directory_metadata(
+                                p_info, revision_id, directory_id
+                            )
+                        self.storage.flush()
+                        status_load = "eventful"
+                    except Exception as e:
+                        self.storage.clear_buffers()
+                        load_exceptions.append(e)
+                        sentry_sdk.capture_exception(e)
+                        logger.exception(
+                            "Failed loading branch %s for %s", branch_name, self.url
+                        )
+                        failed_branches.append(branch_name)
+                        continue
 
-            tmp_revisions[version].append((branch_name, revision_id))
+                    if revision_id is None:
+                        continue
+
+                tmp_revisions[version].append((branch_name, revision_id))
 
         if load_exceptions:
             status_visit = "partial"
