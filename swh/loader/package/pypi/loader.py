@@ -34,7 +34,7 @@ from swh.storage.interface import StorageInterface
 logger = logging.getLogger(__name__)
 
 
-EXTID_TYPE = "archive-sha256"
+EXTID_TYPE = "pypi-archive-sha256"
 
 
 @attr.s

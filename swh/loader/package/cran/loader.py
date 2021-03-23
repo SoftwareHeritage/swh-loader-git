@@ -38,6 +38,7 @@ class CRANPackageInfo(BasePackageInfo):
     raw_info = attr.ib(type=Dict[str, Any])
     version = attr.ib(type=str)
 
+    EXTID_TYPE = "cran-sha256"
     MANIFEST_FORMAT = string.Template("$version $url")
 
     @classmethod

@@ -810,7 +810,7 @@ def test_pypi__known_artifact_to_extid__old_loader_version():
     sha256 = "6975816f2c5ad4046acc676ba112f2fff945b01522d63948531f11f11e0892ec"
     assert PyPILoader.known_artifact_to_extid(
         {"original_artifact": {"sha256": sha256}}
-    ) == ("archive-sha256", hash_to_bytes(sha256))
+    ) == ("pypi-archive-sha256", hash_to_bytes(sha256))
 
 
 def test_pypi__known_artifact_to_extid__current_loader_version():
@@ -821,7 +821,7 @@ def test_pypi__known_artifact_to_extid__current_loader_version():
 
     assert PyPILoader.known_artifact_to_extid(
         {"original_artifact": [{"checksums": {"sha256": sha256,},}],}
-    ) == ("archive-sha256", hash_to_bytes(sha256))
+    ) == ("pypi-archive-sha256", hash_to_bytes(sha256))
 
     assert (
         PyPILoader.known_artifact_to_extid(

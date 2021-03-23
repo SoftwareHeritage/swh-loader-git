@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 EMPTY_PERSON = Person(fullname=b"", name=None, email=None)
 
 
-EXTID_TYPE = "archive-sha1"
+EXTID_TYPE = "npm-archive-sha1"
 
 
 @attr.s

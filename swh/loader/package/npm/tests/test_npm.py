@@ -557,7 +557,7 @@ def test_npm__known_artifact_to_extid__old_loader_version():
 
     sha1 = "05181c12cd8c22035dd31155656826b85745da37"
     assert NpmLoader.known_artifact_to_extid({"package_source": {"sha1": sha1,}}) == (
-        "archive-sha1",
+        "npm-archive-sha1",
         hash_to_bytes(sha1),
     )
 
@@ -569,7 +569,7 @@ def test_npm__known_artifact_to_extid__current_loader_version():
     sha1 = "05181c12cd8c22035dd31155656826b85745da37"
     assert NpmLoader.known_artifact_to_extid(
         {"original_artifact": [{"checksums": {"sha1": sha1},}],}
-    ) == ("archive-sha1", hash_to_bytes(sha1))
+    ) == ("npm-archive-sha1", hash_to_bytes(sha1))
 
     assert (
         NpmLoader.known_artifact_to_extid(
