@@ -15,6 +15,7 @@ from pkginfo import UnpackedSDist
 from swh.loader.package.loader import (
     BasePackageInfo,
     PackageLoader,
+    PartialExtID,
     RawExtrinsicMetadataCore,
 )
 from swh.loader.package.utils import EMPTY_AUTHOR, api_info, cached_method, release_name
@@ -31,6 +32,9 @@ from swh.model.model import (
 from swh.storage.interface import StorageInterface
 
 logger = logging.getLogger(__name__)
+
+
+EXTID_TYPE = "archive-sha256"
 
 
 @attr.s
@@ -57,8 +61,8 @@ class PyPIPackageInfo(BasePackageInfo):
             ],
         )
 
-    def extid(self) -> bytes:
-        return hash_to_bytes(self.sha256)
+    def extid(self) -> PartialExtID:
+        return (EXTID_TYPE, hash_to_bytes(self.sha256))
 
 
 class PyPILoader(PackageLoader[PyPIPackageInfo]):
@@ -118,12 +122,12 @@ class PyPILoader(PackageLoader[PyPIPackageInfo]):
                 yield release_name(version, p_info.filename), p_info
 
     @staticmethod
-    def known_artifact_to_extid(known_artifact: Dict) -> Optional[bytes]:
+    def known_artifact_to_extid(known_artifact: Dict) -> Optional[PartialExtID]:
         extid_str = _artifact_to_sha256(known_artifact)
         if extid_str is None:
             return None
         try:
-            return hash_to_bytes(extid_str) if extid_str else None
+            return (EXTID_TYPE, hash_to_bytes(extid_str)) if extid_str else None
         except ValueError:
             return None
 

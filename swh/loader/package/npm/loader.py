@@ -16,6 +16,7 @@ import chardet
 from swh.loader.package.loader import (
     BasePackageInfo,
     PackageLoader,
+    PartialExtID,
     RawExtrinsicMetadataCore,
 )
 from swh.loader.package.utils import api_info, cached_method, release_name
@@ -35,6 +36,9 @@ logger = logging.getLogger(__name__)
 
 
 EMPTY_PERSON = Person(fullname=b"", name=None, email=None)
+
+
+EXTID_TYPE = "archive-sha1"
 
 
 @attr.s
@@ -80,8 +84,8 @@ class NpmPackageInfo(BasePackageInfo):
             ],
         )
 
-    def extid(self) -> bytes:
-        return hash_to_bytes(self.shasum)
+    def extid(self) -> PartialExtID:
+        return (EXTID_TYPE, hash_to_bytes(self.shasum))
 
 
 class NpmLoader(PackageLoader[NpmPackageInfo]):
@@ -138,12 +142,12 @@ class NpmLoader(PackageLoader[NpmPackageInfo]):
         yield release_name(version), p_info
 
     @staticmethod
-    def known_artifact_to_extid(known_artifact: Dict) -> Optional[bytes]:
+    def known_artifact_to_extid(known_artifact: Dict) -> Optional[PartialExtID]:
         extid_str = _artifact_to_sha1(known_artifact)
         if extid_str is None:
             return None
         try:
-            return hash_to_bytes(extid_str)
+            return (EXTID_TYPE, hash_to_bytes(extid_str))
         except ValueError:
             return None
 

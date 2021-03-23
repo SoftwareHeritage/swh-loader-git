@@ -366,7 +366,10 @@ def test_archive_extid():
         (None, "{time} {length} {version} {url}".format(**metadata).encode()),
     ]:
         actual_id = p_info.extid(manifest_format=manifest_format)
-        assert actual_id == hashlib.sha256(expected_manifest).digest()
+        assert actual_id == (
+            "package-manifest-sha256",
+            hashlib.sha256(expected_manifest).digest(),
+        )
 
     with pytest.raises(KeyError):
         p_info.extid(manifest_format=string.Template("$a $unknown_key"))

@@ -14,6 +14,7 @@ import attr
 from swh.loader.package.loader import (
     BasePackageInfo,
     PackageLoader,
+    PartialExtID,
     RawExtrinsicMetadataCore,
 )
 from swh.loader.package.utils import EMPTY_AUTHOR, api_info, cached_method
@@ -31,6 +32,10 @@ from swh.model.model import (
 from swh.storage.interface import StorageInterface
 
 logger = logging.getLogger(__name__)
+
+EXTID_TYPE = "subresource-integrity"
+"""The ExtID is an ASCII string, as defined by
+https://w3c.github.io/webappsec-subresource-integrity/"""
 
 
 @attr.s
@@ -50,8 +55,8 @@ class NixGuixPackageInfo(BasePackageInfo):
             raw_info=metadata,
         )
 
-    def extid(self) -> bytes:
-        return self.integrity.encode("ascii")
+    def extid(self) -> PartialExtID:
+        return (EXTID_TYPE, self.integrity.encode("ascii"))
 
 
 class NixGuixLoader(PackageLoader[NixGuixPackageInfo]):
@@ -87,7 +92,7 @@ class NixGuixLoader(PackageLoader[NixGuixPackageInfo]):
         )
 
     @cached_method
-    def integrity_by_url(self) -> Dict[str, Any]:
+    def integrity_by_url(self) -> Dict[str, str]:
         sources = self.supported_sources()
         return {s["urls"][0]: s["integrity"] for s in sources["sources"]}
 
@@ -150,9 +155,9 @@ class NixGuixLoader(PackageLoader[NixGuixPackageInfo]):
             ret[revision.id] = revision.metadata
         return ret
 
-    def known_artifact_to_extid(self, known_artifact: Dict) -> Optional[bytes]:
+    def known_artifact_to_extid(self, known_artifact: Dict) -> Optional[PartialExtID]:
         try:
-            return known_artifact["extrinsic"]["raw"]["integrity"].encode("ascii")
+            value = known_artifact["extrinsic"]["raw"]["integrity"].encode("ascii")
         except KeyError as e:
             logger.exception(
                 "Unexpected metadata revision structure detected: %(context)s",
@@ -162,6 +167,7 @@ class NixGuixLoader(PackageLoader[NixGuixPackageInfo]):
             # nixguix. We consider this not the right revision and continue checking
             # the other revisions
             return None
+        return (EXTID_TYPE, value)
 
     def extra_branches(self) -> Dict[bytes, Mapping[str, Any]]:
         """We add a branch to the snapshot called 'evaluation' pointing to the

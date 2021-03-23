@@ -15,7 +15,7 @@ from dateutil.parser import parse as parse_date
 from debian.changelog import Changelog
 from debian.deb822 import Dsc
 
-from swh.loader.package.loader import BasePackageInfo, PackageLoader
+from swh.loader.package.loader import BasePackageInfo, PackageLoader, PartialExtID
 from swh.loader.package.utils import download, release_name
 from swh.model.hashutil import hash_to_bytes
 from swh.model.model import (
@@ -29,6 +29,8 @@ from swh.storage.interface import StorageInterface
 
 logger = logging.getLogger(__name__)
 UPLOADERS_SPLIT = re.compile(r"(?<=\>)\s*,\s*")
+
+EXTID_TYPE = "dsc-sha256"
 
 
 class DscCountError(ValueError):
@@ -81,7 +83,7 @@ class DebianPackageInfo(BasePackageInfo):
             version=a_metadata["version"],
         )
 
-    def extid(self) -> Optional[bytes]:
+    def extid(self) -> Optional[PartialExtID]:
         dsc_files = [
             file for (name, file) in self.files.items() if name.endswith(".dsc")
         ]
@@ -92,7 +94,7 @@ class DebianPackageInfo(BasePackageInfo):
                 f"got {len(dsc_files)}"
             )
 
-        return hash_to_bytes(dsc_files[0].sha256)
+        return (EXTID_TYPE, hash_to_bytes(dsc_files[0].sha256))
 
 
 @attr.s
@@ -176,11 +178,11 @@ class DebianLoader(PackageLoader[DebianPackageInfo]):
         p_info = DebianPackageInfo.from_metadata(meta, url=self.url)
         yield release_name(version), p_info
 
-    def known_artifact_to_extid(self, known_artifact: Dict) -> Optional[bytes]:
+    def known_artifact_to_extid(self, known_artifact: Dict) -> Optional[PartialExtID]:
         sha256 = _artifact_to_dsc_sha256(known_artifact, url=self.url)
         if sha256 is None:
             return None
-        return hash_to_bytes(sha256)
+        return (EXTID_TYPE, hash_to_bytes(sha256))
 
     def resolve_revision_from(
         self, known_artifacts: Dict, p_info: DebianPackageInfo,

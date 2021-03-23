@@ -115,7 +115,7 @@ def test_manifest_extid():
     )
 
     actual_id = p_info.extid()
-    assert actual_id == hashlib.sha256(b"1 2").digest()
+    assert actual_id == ("package-manifest-sha256", hashlib.sha256(b"1 2").digest())
 
 
 def test_no_env_swh_config_filename_raise(monkeypatch):

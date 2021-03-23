@@ -13,7 +13,7 @@ from typing import Any, Dict, Iterator, Optional, Sequence, Tuple, Union
 import attr
 import iso8601
 
-from swh.loader.package.loader import BasePackageInfo, PackageLoader
+from swh.loader.package.loader import BasePackageInfo, PackageLoader, PartialExtID
 from swh.loader.package.utils import release_name
 from swh.model.model import (
     Person,
@@ -45,7 +45,7 @@ class ArchivePackageInfo(BasePackageInfo):
     # default format for gnu
     MANIFEST_FORMAT = string.Template("$time $length $version $url")
 
-    def extid(self, manifest_format: Optional[string.Template] = None) -> bytes:
+    def extid(self, manifest_format: Optional[string.Template] = None) -> PartialExtID:
         """Returns a unique intrinsic identifier of this package info
 
         ``manifest_format`` allows overriding the class' default MANIFEST_FORMAT"""
@@ -54,7 +54,7 @@ class ArchivePackageInfo(BasePackageInfo):
         manifest = manifest_format.substitute(
             {k: str(v) for (k, v) in self.raw_info.items()}
         )
-        return hashlib.sha256(manifest.encode()).digest()
+        return (self.EXTID_TYPE, hashlib.sha256(manifest.encode()).digest())
 
     @classmethod
     def from_metadata(cls, a_metadata: Dict[str, Any]) -> "ArchivePackageInfo":
@@ -139,10 +139,12 @@ class ArchiveLoader(PackageLoader[ArchivePackageInfo]):
                 # versioned package
                 yield release_name(version), p_info
 
-    def new_packageinfo_to_extid(self, p_info: ArchivePackageInfo) -> Optional[bytes]:
+    def new_packageinfo_to_extid(
+        self, p_info: ArchivePackageInfo
+    ) -> Optional[PartialExtID]:
         return p_info.extid(manifest_format=self.extid_manifest_format)
 
-    def known_artifact_to_extid(self, known_artifact: Dict) -> Optional[bytes]:
+    def known_artifact_to_extid(self, known_artifact: Dict) -> Optional[PartialExtID]:
         known_artifact_info = ArchivePackageInfo.from_metadata(
             known_artifact["extrinsic"]["raw"]
         )

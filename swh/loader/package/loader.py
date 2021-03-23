@@ -72,6 +72,10 @@ Used for metadata on "original artifacts", ie. length, filename, and checksums
 of downloaded archive files."""
 
 
+PartialExtID = Tuple[str, bytes]
+"""The ``extid_type`` and ``extid`` fields of an :ref:py:`ExtID` object."""
+
+
 @attr.s
 class RawExtrinsicMetadataCore:
     """Contains the core of the metadata extracted by a loader, that will be
@@ -105,6 +109,8 @@ class BasePackageInfo:
     """If not None, used by the default extid() implementation to format a manifest,
     before hashing it to produce an ExtID."""
 
+    EXTID_TYPE: str = "package-manifest-sha256"
+
     # The following attribute has kw_only=True in order to allow subclasses
     # to add attributes. Without kw_only, attributes without default values cannot
     # go after attributes with default values.
@@ -116,7 +122,7 @@ class BasePackageInfo:
 
     # TODO: add support for metadata for directories and contents
 
-    def extid(self) -> Optional[bytes]:
+    def extid(self) -> Optional[PartialExtID]:
         """Returns a unique intrinsic identifier of this package info,
         or None if this package info is not 'deduplicatable' (meaning that
         we will always load it, instead of checking the ExtID storage
@@ -127,7 +133,7 @@ class BasePackageInfo:
             manifest = self.MANIFEST_FORMAT.substitute(
                 {k: str(v) for (k, v) in attr.asdict(self).items()}
             )
-            return hashlib.sha256(manifest.encode()).digest()
+            return (self.EXTID_TYPE, hashlib.sha256(manifest.encode()).digest())
 
 
 TPackageInfo = TypeVar("TPackageInfo", bound=BasePackageInfo)
@@ -239,10 +245,10 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
             revision.id: revision.metadata for revision in known_revisions if revision
         }
 
-    def new_packageinfo_to_extid(self, p_info: TPackageInfo) -> Optional[bytes]:
+    def new_packageinfo_to_extid(self, p_info: TPackageInfo) -> Optional[PartialExtID]:
         return p_info.extid()
 
-    def known_artifact_to_extid(self, known_artifact: Dict) -> Optional[bytes]:
+    def known_artifact_to_extid(self, known_artifact: Dict) -> Optional[PartialExtID]:
         """Returns a unique intrinsic identifier of a downloaded artifact,
         used to check if a new artifact is the same."""
         return None
