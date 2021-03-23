@@ -424,9 +424,7 @@ def test_deposit_loading_ok_2(swh_storage, deposit_client, requests_mock_datadir
         )
     )
 
-    assert len(origin_extrinsic_metadata.results) == len(expected_metadata)
-    for orig_meta in origin_extrinsic_metadata.results:
-        assert orig_meta in expected_metadata
+    assert sorted(origin_extrinsic_metadata.results) == sorted(expected_metadata)
 
     # Check the revision metadata swh side
     directory_swhid = ExtendedSWHID(
