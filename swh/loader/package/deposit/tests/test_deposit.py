@@ -471,7 +471,9 @@ def test_deposit_loading_ok_2(swh_storage, deposit_client, requests_mock_datadir
             )
         )
 
-    assert actual_directory_metadata.results == expected_directory_metadata
+    assert sorted(actual_directory_metadata.results) == sorted(
+        expected_directory_metadata
+    )
 
     # Retrieve the information for deposit status update query to the deposit
     urls = [
