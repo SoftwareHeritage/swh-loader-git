@@ -420,7 +420,6 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
         """
         status_load = "uneventful"  # either: eventful, uneventful, failed
         status_visit = "full"  # see swh.model.model.OriginVisitStatus
-        tmp_revisions = {}  # type: Dict[str, List]
         snapshot = None
         failed_branches: List[str] = []
 
@@ -479,9 +478,12 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
                 status_load="failed",
             )
 
+        tmp_revisions: Dict[str, List[Tuple[str, Sha1Git]]] = {
+            version: [] for version in versions
+        }
+
         for version in versions:
             logger.debug("version: %s", version)
-            tmp_revisions[version] = []
             # `p_` stands for `package_`
             for branch_name, p_info in self.get_package_info(version):
                 logger.debug("package_info: %s", p_info)
