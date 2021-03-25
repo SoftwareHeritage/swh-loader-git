@@ -253,17 +253,17 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
         used to check if a new artifact is the same."""
         return None
 
-    def resolve_revision_from(
-        self, known_artifacts: Dict, p_info: TPackageInfo,
-    ) -> Optional[bytes]:
-        """Resolve the revision from a snapshot and an artifact metadata dict.
+    def resolve_revision_from_artifacts(
+        self, known_artifacts: Dict[Sha1Git, Any], p_info: TPackageInfo,
+    ) -> Optional[Sha1Git]:
+        """Resolve the revision from known artifact metadata and a package info object.
 
         If the artifact has already been downloaded, this will return the
         existing revision targeting that uncompressed artifact directory.
         Otherwise, this returns None.
 
         Args:
-            snapshot: Snapshot
+            known_artifacts: dict from revision ids to revision metadata
             p_info: Package information
 
         Returns:
@@ -489,7 +489,7 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
         }
         for (version, branch_name, p_info) in packages_info:
             logger.debug("package_info: %s", p_info)
-            revision_id = self.resolve_revision_from(known_artifacts, p_info)
+            revision_id = self.resolve_revision_from_artifacts(known_artifacts, p_info)
             if revision_id is None:
                 try:
                     res = self._load_revision(p_info, origin)

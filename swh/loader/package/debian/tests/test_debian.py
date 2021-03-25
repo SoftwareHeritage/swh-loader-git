@@ -413,7 +413,7 @@ def test_debian_multiple_packages(swh_storage, requests_mock_datadir):
     check_snapshot(expected_snapshot, swh_storage)
 
 
-def test_debian_resolve_revision_from_edge_cases():
+def test_debian_resolve_revision_from_artifacts_edge_cases():
     """Solving revision with empty data will result in unknown revision
 
     """
@@ -424,11 +424,11 @@ def test_debian_resolve_revision_from_edge_cases():
     }
     for package_artifacts in [empty_artifact, PACKAGE_FILES]:
         p_info = DebianPackageInfo.from_metadata(package_artifacts, url=URL)
-        actual_revision = loader.resolve_revision_from({}, p_info)
+        actual_revision = loader.resolve_revision_from_artifacts({}, p_info)
         assert actual_revision is None
 
     for known_artifacts in [{}, PACKAGE_FILES]:
-        actual_revision = loader.resolve_revision_from(
+        actual_revision = loader.resolve_revision_from_artifacts(
             known_artifacts, DebianPackageInfo.from_metadata(empty_artifact, url=URL)
         )
         assert actual_revision is None
@@ -441,12 +441,12 @@ def test_debian_resolve_revision_from_edge_cases():
             # ... removed the unnecessary intermediary data
         }
     }
-    assert not loader.resolve_revision_from(
+    assert not loader.resolve_revision_from_artifacts(
         known_package_artifacts, DebianPackageInfo.from_metadata(PACKAGE_FILES, url=URL)
     )
 
 
-def test_debian_resolve_revision_from_edge_cases_hit_and_miss():
+def test_debian_resolve_revision_from_artifacts_edge_cases_hit_and_miss():
     """Solving revision with inconsistent data will result in unknown revision
 
     """
@@ -463,12 +463,14 @@ def test_debian_resolve_revision_from_edge_cases_hit_and_miss():
         }
     }
 
-    actual_revision = loader.resolve_revision_from(known_package_artifacts, p_info)
+    actual_revision = loader.resolve_revision_from_artifacts(
+        known_package_artifacts, p_info
+    )
 
     assert actual_revision is None
 
 
-def test_debian_resolve_revision_from():
+def test_debian_resolve_revision_from_artifacts():
     """Solving revision with consistent data will solve the revision
 
     """
@@ -496,12 +498,14 @@ def test_debian_resolve_revision_from():
         }
     }
 
-    actual_revision = loader.resolve_revision_from(known_package_artifacts, p_info)
+    actual_revision = loader.resolve_revision_from_artifacts(
+        known_package_artifacts, p_info
+    )
 
     assert actual_revision == expected_revision_id
 
 
-def test_debian_resolve_revision_from_corrupt_known_artifact():
+def test_debian_resolve_revision_from_artifacts_corrupt_known_artifact():
     """To many or not enough .dsc files in the known_artifacts dict"""
     loader = DebianLoader(None, None, None, None)
     artifact_metadata = PACKAGE_FILES
@@ -526,15 +530,19 @@ def test_debian_resolve_revision_from_corrupt_known_artifact():
 
     # Too many .dsc
     files["another.dsc"] = files["cicero_0.7.2-3.dsc"]
-    assert loader.resolve_revision_from(known_package_artifacts, p_info) is None
+    assert (
+        loader.resolve_revision_from_artifacts(known_package_artifacts, p_info) is None
+    )
 
     # Not enough .dsc
     del files["another.dsc"]
     del files["cicero_0.7.2-3.dsc"]
-    assert loader.resolve_revision_from(known_package_artifacts, p_info) is None
+    assert (
+        loader.resolve_revision_from_artifacts(known_package_artifacts, p_info) is None
+    )
 
 
-def test_debian_resolve_revision_from_corrupt_new_artifact():
+def test_debian_resolve_revision_from_artifacts_corrupt_new_artifact():
     loader = DebianLoader(None, None, None, None)
     artifact_metadata = PACKAGE_FILES
 
@@ -545,10 +553,10 @@ def test_debian_resolve_revision_from_corrupt_new_artifact():
     # Too many .dsc
     files["another.dsc"] = files["cicero_0.7.2-3.dsc"]
     p_info = DebianPackageInfo.from_metadata(artifact_metadata, url=URL)
-    assert loader.resolve_revision_from(PACKAGE_FILES, p_info) is None
+    assert loader.resolve_revision_from_artifacts(PACKAGE_FILES, p_info) is None
 
     # Not enough .dsc
     del files["another.dsc"]
     del files["cicero_0.7.2-3.dsc"]
     p_info = DebianPackageInfo.from_metadata(artifact_metadata, url=URL)
-    assert loader.resolve_revision_from(PACKAGE_FILES, p_info) is None
+    assert loader.resolve_revision_from_artifacts(PACKAGE_FILES, p_info) is None

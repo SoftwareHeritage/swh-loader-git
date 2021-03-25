@@ -469,7 +469,7 @@ def test_loader_two_visits(swh_storage, requests_mock_datadir_visits):
     } == stats
 
 
-def test_resolve_revision_from(swh_storage, requests_mock_datadir, datadir):
+def test_resolve_revision_from_artifacts(swh_storage, requests_mock_datadir, datadir):
     loader = NixGuixLoader(swh_storage, sources_url)
 
     known_artifacts = {
@@ -480,11 +480,11 @@ def test_resolve_revision_from(swh_storage, requests_mock_datadir, datadir):
     p_info = NixGuixPackageInfo.from_metadata(
         {"url": "url1", "integrity": "integrity1"}
     )
-    assert loader.resolve_revision_from(known_artifacts, p_info) == "id1"
+    assert loader.resolve_revision_from_artifacts(known_artifacts, p_info) == "id1"
     p_info = NixGuixPackageInfo.from_metadata(
         {"url": "url3", "integrity": "integrity3"}
     )
-    assert loader.resolve_revision_from(known_artifacts, p_info) == None  # noqa
+    assert loader.resolve_revision_from_artifacts(known_artifacts, p_info) is None
 
 
 def test_evaluation_branch(swh_storage, requests_mock_datadir):

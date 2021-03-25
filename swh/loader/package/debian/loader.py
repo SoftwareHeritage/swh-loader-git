@@ -184,11 +184,11 @@ class DebianLoader(PackageLoader[DebianPackageInfo]):
             return None
         return (EXTID_TYPE, hash_to_bytes(sha256))
 
-    def resolve_revision_from(
+    def resolve_revision_from_artifacts(
         self, known_artifacts: Dict, p_info: DebianPackageInfo,
     ) -> Optional[bytes]:
         try:
-            return super().resolve_revision_from(known_artifacts, p_info)
+            return super().resolve_revision_from_artifacts(known_artifacts, p_info)
         except DscCountError:
             # known_artifacts are corrupted, ignore them instead of crashing
             return None
