@@ -697,10 +697,10 @@ def test_load_nixguix_one_common_artifact_from_other_loader(
 
         expected_detections = [
             {"reason": "'integrity'", "known_artifact": old_revision.metadata,},
-            {"reason": "'integrity'", "known_artifact": old_revision.metadata,},
         ]
 
-        # as many calls as there are sources listed in the sources.json
-        assert len(expected_detections) == len(all_sources["sources"])
+        # less calls than there are sources listed in the sources.json;
+        # as some of them are skipped using the ExtID from a previous run
+        assert len(expected_detections) <= len(all_sources["sources"])
 
         assert actual_detections == expected_detections

@@ -44,6 +44,7 @@ from swh.model.identifiers import (
     ObjectType,
 )
 from swh.model.model import (
+    ExtID,
     MetadataAuthority,
     MetadataAuthorityType,
     MetadataFetcher,
@@ -588,6 +589,7 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
                 branch.target for branch in last_snapshot.branches.values()
             }
 
+        new_extids: Set[ExtID] = set()
         tmp_revisions: Dict[str, List[Tuple[str, Sha1Git]]] = {
             version: [] for version in versions
         }
@@ -632,6 +634,16 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
 
                 if revision_id is None:
                     continue
+
+                partial_extid = p_info.extid()
+                if partial_extid is not None:
+                    (extid_type, extid) = partial_extid
+                    revision_swhid = CoreSWHID(
+                        object_type=ObjectType.REVISION, object_id=revision_id
+                    )
+                    new_extids.add(
+                        ExtID(extid_type=extid_type, extid=extid, target=revision_swhid)
+                    )
 
             tmp_revisions[version].append((branch_name, revision_id))
 
@@ -688,6 +700,8 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
             sentry_sdk.capture_exception(e)
             status_visit = "partial"
             status_load = "failed"
+
+        self._load_extids(new_extids)
 
         return self.finalize_visit(
             snapshot=snapshot,
@@ -1001,3 +1015,14 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
         }
         if fetchers:
             self.storage.metadata_fetcher_add(list(deduplicated_fetchers.values()))
+
+    def _load_extids(self, extids: Set[ExtID]) -> None:
+        if not extids:
+            return
+        try:
+            self.storage.extid_add(list(extids))
+        except Exception as e:
+            logger.exception("Failed to load new ExtIDs for %s", self.url)
+            sentry_sdk.capture_exception(e)
+            # No big deal, it just means the next visit will load the same versions
+            # again.

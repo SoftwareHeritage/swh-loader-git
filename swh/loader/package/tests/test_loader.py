@@ -202,8 +202,9 @@ def test_load_get_known_extids() -> None:
     )
 
 
-def test_load_skip_extids() -> None:
-    """Checks PackageLoader.load() skips iff it should."""
+def test_load_extids() -> None:
+    """Checks PackageLoader.load() skips iff it should, and writes (only)
+    the new ExtIDs"""
     storage = get_storage("memory")
 
     origin = "http://example.org"
@@ -294,6 +295,26 @@ def test_load_skip_extids() -> None:
         }
     )
     assert snapshot_get_latest(storage, origin) == snapshot
+
+    extids = storage.extid_get_from_target(
+        ObjectType.REVISION,
+        [
+            rev1_swhid.object_id,
+            rev2_swhid.object_id,
+            rev3_swhid.object_id,
+            rev4_swhid.object_id,
+        ],
+    )
+
+    assert set(extids) == {
+        # What we inserted at the beginning of the test:
+        ExtID("extid-type1", b"extid-of-v1.0", rev1_swhid),
+        ExtID("extid-type2", b"extid-of-v2.0", rev2_swhid),
+        # Added by the loader:
+        ExtID("extid-type1", b"extid-of-v2.0", rev4_swhid),
+        ExtID("extid-type2", b"extid-of-v3.0", rev4_swhid),
+        ExtID("extid-type2", b"extid-of-v4.0", rev4_swhid),
+    }
 
 
 def test_manifest_extid():
