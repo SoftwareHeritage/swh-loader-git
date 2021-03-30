@@ -88,7 +88,8 @@ class CRANLoader(PackageLoader[CRANPackageInfo]):
             if version == p_info.version:
                 yield release_name(version), p_info
 
-    def known_artifact_to_extid(self, known_artifact: Dict) -> Optional[PartialExtID]:
+    @staticmethod
+    def known_artifact_to_extid(known_artifact: Dict) -> Optional[PartialExtID]:
         return CRANPackageInfo.from_metadata(known_artifact["extrinsic"]["raw"]).extid()
 
     def build_revision(

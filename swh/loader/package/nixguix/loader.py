@@ -155,7 +155,8 @@ class NixGuixLoader(PackageLoader[NixGuixPackageInfo]):
             ret[revision.id] = revision.metadata
         return ret
 
-    def known_artifact_to_extid(self, known_artifact: Dict) -> Optional[PartialExtID]:
+    @staticmethod
+    def known_artifact_to_extid(known_artifact: Dict) -> Optional[PartialExtID]:
         try:
             value = known_artifact["extrinsic"]["raw"]["integrity"].encode("ascii")
         except KeyError as e:
