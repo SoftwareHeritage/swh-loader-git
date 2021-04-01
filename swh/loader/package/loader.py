@@ -468,24 +468,30 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
     def load(self) -> Dict:
         """Load for a specific origin the associated contents.
 
-        for each package version of the origin
+        1. Get the list of versions in an origin.
 
-        1. Fetch the files for one package version By default, this can be
+        2. Get the snapshot from the previous run of the loader,
+           and filter out versions that were already loaded, if their
+           :term:`extids <extid>` match
+
+        Then, for each remaining version in the origin
+
+        3. Fetch the files for one package version By default, this can be
            implemented as a simple HTTP request. Loaders with more specific
            requirements can override this, e.g.: the PyPI loader checks the
            integrity of the downloaded files; the Debian loader has to download
            and check several files for one package version.
 
-        2. Extract the downloaded files By default, this would be a universal
+        4. Extract the downloaded files. By default, this would be a universal
            archive/tarball extraction.
 
            Loaders for specific formats can override this method (for instance,
            the Debian loader uses dpkg-source -x).
 
-        3. Convert the extracted directory to a set of Software Heritage
+        5. Convert the extracted directory to a set of Software Heritage
            objects Using swh.model.from_disk.
 
-        4. Extract the metadata from the unpacked directories This would only
+        6. Extract the metadata from the unpacked directories This would only
            be applicable for "smart" loaders like npm (parsing the
            package.json), PyPI (parsing the PKG-INFO file) or Debian (parsing
            debian/changelog and debian/control).
@@ -495,15 +501,15 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
            revision/release objects (authors, dates) as an argument to the
            task.
 
-        5. Generate the revision/release objects for the given version. From
+        7. Generate the revision/release objects for the given version. From
            the data generated at steps 3 and 4.
 
         end for each
 
-        6. Generate and load the snapshot for the visit
+        8. Generate and load the snapshot for the visit
 
-        Using the revisions/releases collected at step 5., and the branch
-        information from step 0., generate a snapshot and load it into the
+        Using the revisions/releases collected at step 7., and the branch
+        information from step 2., generate a snapshot and load it into the
         Software Heritage archive
 
         """
