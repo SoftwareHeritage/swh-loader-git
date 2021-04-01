@@ -19,6 +19,7 @@ as they usually are quite similar and each fits in a single file.
 
 They all roughly follow these steps, explained in the
 :py:meth:`swh.loader.package.loader.PackageLoader.load` documentation.
+See the :ref:`package-loader-tutorial` for details.
 
 VCS loaders
 -----------

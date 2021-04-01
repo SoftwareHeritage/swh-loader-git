@@ -4,6 +4,8 @@
    :maxdepth: 2
    :caption: Contents:
 
+   package-loader-tutorial
+
 
 Reference Documentation
 -----------------------
