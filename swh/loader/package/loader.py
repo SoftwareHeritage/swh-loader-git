@@ -121,8 +121,10 @@ class BasePackageInfo:
     directory_extrinsic_metadata = attr.ib(
         type=List[RawExtrinsicMetadataCore], default=[], kw_only=True,
     )
+    """:term:`extrinsic metadata` collected by the loader, that will be attached to the
+    loaded directory and added to the Metadata storage."""
 
-    # TODO: add support for metadata for directories and contents
+    # TODO: add support for metadata for revisions and contents
 
     def extid(self) -> Optional[PartialExtID]:
         """Returns a unique intrinsic identifier of this package info,

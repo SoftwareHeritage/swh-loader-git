@@ -357,7 +357,7 @@ Making your loader incremental
 
 In the previous sections, you wrote a fully functional loader for a new type of
 package repository. This is great! Please tell us about it, and
-:ref:`submit it for review <patch-submission>` so we can give you some feedback.
+:ref:`submit it for review <patch-submission>` so we can give you some feedback early.
 
 Now, we will see a key optimization for any package loader: skipping packages
 it already downloaded, using :term:`extids <extid>`.
@@ -589,4 +589,62 @@ to use as an example::
 Loading metadata
 ----------------
 
-TODO
+Finally, an optional step: collecting and loading :term:`extrinsic metadata`.
+This is metadata that your loader may collect while loading an origin.
+For example, the PyPI loader collects some parts of the API response
+(eg. https://pypi.org/pypi/requests/json)
+
+They are stored as raw bytestring, along with a format (an ASCII string) and
+a date of discovery (usually the time your loader ran).
+
+This is done by adding them to the ``directory_extrinsic_metadata`` attribute of
+your ``NewPackageInfo`` object when creating it in ``get_package_info``
+as :py:cls:`swh.loader.package.loader.RawExtrinsicMetadataCore` objects::
+
+   NewPackageInfo(
+       ...,
+       directory_extrinsic_metadata=[
+           RawExtrinsicMetadataCore(
+               format="new-format",
+               metadata=b"foo bar baz",
+               discovery_date=datetime.datetime(...),
+           )
+       ]
+   )
+
+``format`` should be a human-readable ASCII string that unambiguously describes
+the format. Readers of the metadata object will have a built-in list of formats
+they understand, and will check if your metadata object is among them.
+You should use one of the :ref:`known metadata formats <extrinsic-metadata-format>`
+if possible, or add yours to this list.
+
+``metadata`` is the metadata object itself. When possible, it should be copied verbatim
+from the source object you got, and should not be created by the loader.
+If this is not possible, for example because it is extracted from a larger
+JSON or XML document, make sure you do as little modifications as possible to reduce
+the risks of corruption.
+
+``discovery_date`` is optional, and defaults to the time your loader started working.
+
+
+In theory, you can write extrinsic metadata on any kind of objects, eg. by implementing
+:py:meth:`swh.loader.package.loader.PackageLoader.get_extrinsic_origin_metadata`,
+:py:meth:`swh.loader.package.loader.PackageLoader.get_extrinsic_snapshot_metadata`;
+but this is rarely relevant in practice.
+Be sure to check if loader can find any potentially interesting metadata, though!
+
+
+Final words
+-----------
+
+Congratulations, you made it to the end.
+If you have not already, please `contact us`_ to tell us about your new loader,
+and :ref:`submit your loader for review <patch-submission>` on our forge
+so we can merge it and run it along our other loaders to archive more repositories.
+
+And if you have any change in mind to improve this tutorial for future readers,
+please submit them too.
+
+Thank you for your contributions!
+
+.. _contact us: https://www.softwareheritage.org/community/developers/
