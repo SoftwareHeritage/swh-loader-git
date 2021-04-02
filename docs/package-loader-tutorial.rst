@@ -52,7 +52,7 @@ It is now time for the interesting part: writing the code to load packages from
 a package manager into the |swh| archive.
 
 Create a file named ``loader.py`` in your package's directory, with two empty classes
-(remplace the names with what you think is relevant)::
+(replace the names with what you think is relevant)::
 
    from typing import Optional
 
@@ -174,13 +174,191 @@ A few caveats:
   in you package loader.
 
 
+Running your loader
++++++++++++++++++++
+
+With Docker
+^^^^^^^^^^^
+
+We recommend you use our `Docker environment`_ to test your loader.
+
+In short, install Docker, ``cd`` to ``swh-environment/docker/``,
+then `edit docker-compose.override.yml`_ to insert your new loader in the Docker
+environment, something like this will do::
+
+   version: '2'
+
+   services:
+     swh-loader-core:
+       volumes:
+         - "$HOME/swh-environment/swh-loader-core:/src/swh-loader-core"
+
+Then start the Docker environment::
+
+   docker-compose start
+
+Then, you can run your loader::
+
+   docker-compose exec swh-loader swh loader run newloader "https://example.org/~jdoe/project/"
+
+where ``newloader`` is the name you registered as an entrypoint in ``setup.py`` and
+``https://example.org/~jdoe/project/`` is the origin URL, that will be set as the
+``self.url`` attribute of your loader.
+
+
+For example, to run the PyPI loader, the command would be::
+
+   docker-compose exec swh-loader swh loader run pypi "https://pypi.org/project/requests/"
+
+
+If you get this error, make sure you properly configured
+``docker-compose.override.yml``::
+
+   Error: Invalid value for '[...]': invalid choice: newloader
+
+
+Without Docker
+^^^^^^^^^^^^^^
+
+If you do not want to use the Docker environment, you will need to start
+an :ref:`swh-storage` instance yourself, and create a config file that references it::
+
+   storage:
+     cls: remote
+     url: http://localhost:5002/
+
+Or alternatively, this more efficient configuration::
+
+   storage:
+     cls: pipeline
+     steps:
+       - cls: buffer
+         min_batch_size:
+           content: 10000
+           content_bytes: 104857600
+           directory: 1000
+           revision: 1000
+       - cls: filter
+       - cls: remote
+         url: http://localhost:5002/
+
+And run your loader with::
+
+   swh loader -C loader.yml run newloader "https://example.org/~jdoe/project/"
+
+where ``newloader`` is the name you registered as an entrypoint in ``setup.py`` and
+``https://example.org/~jdoe/project/`` is the origin URL, that will be set as the
+``self.url`` attribute of your loader.
+
+For example, with PyPI::
+
+   swh loader -C loader.yml run pypi "https://pypi.org/project/requests/"
+
+
+.. _Docker environment: https://forge.softwareheritage.org/source/swh-environment/browse/master/docker/
+.. _edit docker-compose.override.yml: https://forge.softwareheritage.org/source/swh-environment/browse/master/docker/#install-a-swh-package-from
+
+
 Testing your loader
 +++++++++++++++++++
 
-TODO
+You must write tests for your loader.
+
+First, of course, unit tests for the internal functions of your loader, if any
+(eg. the functions used to extract metadata); but this is not covered in this tutorial.
+
+Most importantly, you should write integration tests for your loader,
+that will simulate an origin, run the loader, and check everything is loaded
+in the storage as it should be.
+
+As we do not want tests to directly query an origin (it makes tests flaky, hard to
+reproduce, and put unnecessary load on the origin), we usually mock it using
+the :py:func:`swh.core.pytest_plugin.requests_mock_datadir` fixture
+
+It works by creating a ``data/`` folder in your tests (such as
+``swh/loader/package/newloader/tests/data/``) and downloading results from API
+calls there, in the structured documented in
+:py:func:`swh.core.pytest_plugin.requests_mock_datadir_factory`
+
+The files in the ``datadir/`` will then be served whenever the loader tries to access
+an URL. This is very dependent on the kind of repositories your loader will read from,
+so here is an example with the PyPI loader.
+
+The files
+``swh/loader/package/pypi/tests/data/https_pypi.org/pypi_nexter_json`` and
+``swh/loader/package/pypi/tests/data/https_files.pythonhosted.org/nexter-*``
+are used in this test::
+
+   from swh.loader.tests import assert_last_visit_matches, check_snapshot, get_stats
+
+   def test_pypi_visit_1_release_with_2_artifacts(swh_storage, requests_mock_datadir):
+       # Initialize the loader
+       url = "https://pypi.org/project/nexter"
+       loader = PyPILoader(swh_storage, url)
+
+       # Run the loader, with a swh-storage instance, on the given URL.
+       # HTTP calls will be mocked by the requests_mock_datadir fixture
+       actual_load_status = loader.load()
+
+       # Check the loader loaded exactly the snapshot we expected
+       # (when writing your tests for the first time, you cannot know the
+       # snapshot id without running your loader; so let it error and write
+       # down the result here)
+       expected_snapshot_id = hash_to_bytes("a27e638a4dad6fbfa273c6ebec1c4bf320fb84c6")
+       assert actual_load_status == {
+           "status": "eventful",
+           "snapshot_id": expected_snapshot_id.hex(),
+       }
+
+       # Check the content of the snapshot. (ditto)
+       expected_snapshot = Snapshot(
+           id=expected_snapshot_id,
+           branches={
+               b"releases/1.1.0/nexter-1.1.0.zip": SnapshotBranch(
+                   target=hash_to_bytes("4c99891f93b81450385777235a37b5e966dd1571"),
+                   target_type=TargetType.REVISION,
+               ),
+               b"releases/1.1.0/nexter-1.1.0.tar.gz": SnapshotBranch(
+                   target=hash_to_bytes("0bf88f5760cca7665d0af4d6575d9301134fe11a"),
+                   target_type=TargetType.REVISION,
+               ),
+           },
+       )
+       check_snapshot(expected_snapshot, swh_storage)
+
+       # Check the visit was properly created with the right type
+       assert_last_visit_matches(
+           swh_storage, url, status="full", type="pypi", snapshot=expected_snapshot.id
+       )
+
+       # Then you could check the directory structure:
+       directory_id = swh_storage.revision_get(
+          [hash_to_bytes("4c99891f93b81450385777235a37b5e966dd1571")]
+       )[0].directory
+       entries = list(swh_storage.directory_ls(directory_id, recursive=True))
+       assert entries == [
+           ...
+       ]
+
+
+Here are some scenarios you should test, when relevant:
+
+* No versions
+* One version
+* Two or more versions
+* More than one package per version, if relevant
+* Corrupt packages (missing metadata, ...), if relevant
+* API errors
+* etc.
 
 
 Making your loader more efficient
 ---------------------------------
+
+TODO
+
+
+Loading metadata
+----------------
 
 TODO
