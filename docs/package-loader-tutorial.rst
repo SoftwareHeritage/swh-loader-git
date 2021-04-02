@@ -352,10 +352,238 @@ Here are some scenarios you should test, when relevant:
 * etc.
 
 
-Making your loader more efficient
----------------------------------
+Making your loader incremental
+------------------------------
 
-TODO
+In the previous sections, you wrote a fully functional loader for a new type of
+package repository. This is great! Please tell us about it, and
+:ref:`submit it for review <patch-submission>` so we can give you some feedback.
+
+Now, we will see a key optimization for any package loader: skipping packages
+it already downloaded, using :term:`extids <extid>`.
+
+The rough idea it to find some way to uniquely identify packages before downloading
+them and encode it in a short string, the ExtID.
+
+Using checksums
++++++++++++++++
+
+Ideally, this short string is a checksum of the archive, provided by the API
+before downloading the archive itself.
+This is ideal, because this ensures that we detect changes in the package's content
+even if it keeps the same name and version number.
+
+If this is not the case of the repository you want to load from, skip to the
+next subsection.
+
+This is used for example by the PyPI loader (with a sha256sum) and the NPM loader
+(with a sha1sum).
+The Debian loader uses a similar scheme: as a single package is assembled from
+a set of tarballs, it only uses the hash of the ``.dsc`` file, which itself contains
+a hash of all the tarballs.
+
+This is implemented by overriding the ``extid`` method of you ``NewPackageInfo`` class,
+that returns the type of the ExtID (see below) and the ExtID itself::
+
+   from swh.loader.package.loader import PartialExtID
+
+   EXTID_TYPE: str = "pypi-archive-sha256"
+
+   @attr.s
+   class NewPackageInfo(BasePackageInfo):
+       sha256: str
+
+       def extid(self) -> PartialExtID:
+           return (EXTID_TYPE, hash_to_bytes(self.sha256))
+
+and the loader's ``get_package_info`` method sets the right value in the ``sha256``
+attribute.
+
+
+Using a custom manifest
++++++++++++++++++++++++
+
+Unfortunaly, this does not work for all packages, as some package repositories do
+not provide a checksum of the archives via their API.
+If this is the case of the repository you want to load from, you need to find a way
+around it.
+
+It highly depends on the repository, so this tutorial cannot cover how to do it.
+We do however provide an easy option that should work in most cases:
+creating a "manifest" of the archive with some metadata in it, and hashing it.
+
+For example, when loading from the GNU FTP servers, we have access to some metadata,
+that is somewhat good enough to deduplicate. We write them all in a string
+and hash that string.
+
+It is done like this::
+
+   import string
+
+   @attr.s
+   class ArchivePackageInfo(BasePackageInfo):
+       length = attr.ib(type=int)
+       """Size of the archive file"""
+       time = attr.ib(type=Union[str, datetime.datetime])
+       """Timestamp of the archive file on the server"""
+       version = attr.ib(type=str)
+
+       EXTID_FORMAT = "package-manifest-sha256"
+
+       MANIFEST_FORMAT = string.Template("$time $length $version $url")
+
+
+The default implementation of :py:func:`swh.loader.package.loader.BasePackageInfo.extid`
+will read this template, substitute the variables based on the object's attributes,
+compute the hash of the result, and return it.
+
+Note that, as mentioned before, this is not perfect because a tarball may be replaced
+with a different tarball of exactly the same length and modification time,
+and we won't detect it.
+But this is extremely unlikely, so we consider it to be good enough.
+
+
+Alternatively, if this is not good enough for your loader, you can simply not implement
+ExtIDs, and your loader will always load all tarballs.
+This can be bandwidth-heavy for both |swh| and the origin you are loaded from,
+so this decision should not be taken lightly.
+
+
+Choosing the ExtID type
++++++++++++++++++++++++
+
+The type of your ExtID should be a short ASCII string, that is both unique to your
+loader and descriptive of how it was computed.
+
+Why unique to the loader? Because different loaders may load the same archive
+differently.
+For example, if I was to create an archive with both a ``PKG-INFO``
+and a ``package.json`` file, and submit it to both NPM and PyPI,
+both package repositories would have exactly the same tarball.
+But the NPM loader would create the revision based on authorship info in
+``package.json``, and the PyPI loader based on ``PKG-INFO``.
+But we do not want the PyPI loader to assume it already created a revision itself,
+while the revision was created by the NPM loader!
+
+And why descriptive? This is simply for future-proofing; in case your loader changes
+the format of the ExtID (eg. by using a different hash algorithm).
+
+
+Testing your incremental loading
+++++++++++++++++++++++++++++++++
+
+If you followed the steps above, your loader is now able to detect what packages it
+already downloaded and skip them. This is what we call an incremental loader.
+
+It is now time to write tests to make sure your loader fulfills this promise.
+
+This time, we want to use ``requests_mock_datadir_visits`` instead of
+``requests_mock_datadir``, because we want to mock the repository's API to emulate
+its results changing over time (eg. because a new version was published between
+two runs of the loader).
+See the documentation of :py:func:`swh.core.pytest_plugin.requests_mock_datadir_factory`
+for a description of the file layout to use.
+
+Let's take, once again, a look at ``swh/loader/package/pypi/tests/test_pypi.py``,
+to use as an example::
+
+   def test_pypi_incremental_visit(swh_storage, requests_mock_datadir_visits):
+       """With prior visit, 2nd load will result with a different snapshot
+
+       """
+       # Initialize the loader
+       url = "https://pypi.org/project/0805nexter"
+       loader = PyPILoader(swh_storage, url)
+
+       # First visit
+       visit1_actual_load_status = loader.load()
+       visit1_stats = get_stats(swh_storage)
+
+       # Make sure everything is in order
+       expected_snapshot_id = hash_to_bytes("ba6e158ada75d0b3cfb209ffdf6daa4ed34a227a")
+       assert visit1_actual_load_status == {
+           "status": "eventful",
+           "snapshot_id": expected_snapshot_id.hex(),
+       }
+
+       assert_last_visit_matches(
+           swh_storage, url, status="full", type="pypi", snapshot=expected_snapshot_id
+       )
+
+       assert {
+           "content": 6,
+           "directory": 4,
+           "origin": 1,
+           "origin_visit": 1,
+           "release": 0,
+           "revision": 2,
+           "skipped_content": 0,
+           "snapshot": 1,
+       } == visit1_stats
+
+       # Reset internal state
+       del loader._cached__raw_info
+       del loader._cached_info
+
+       # Second visit
+       visit2_actual_load_status = loader.load()
+       visit2_stats = get_stats(swh_storage)
+
+       # Check the result of the visit
+       assert visit2_actual_load_status["status"] == "eventful", visit2_actual_load_status
+       expected_snapshot_id2 = hash_to_bytes("2e5149a7b0725d18231a37b342e9b7c4e121f283")
+       assert visit2_actual_load_status == {
+           "status": "eventful",
+           "snapshot_id": expected_snapshot_id2.hex(),
+       }
+
+       assert_last_visit_matches(
+           swh_storage, url, status="full", type="pypi", snapshot=expected_snapshot_id2
+       )
+
+       assert {
+           "content": 6 + 1,  # 1 more content
+           "directory": 4 + 2,  # 2 more directories
+           "origin": 1,
+           "origin_visit": 1 + 1,
+           "release": 0,
+           "revision": 2 + 1,  # 1 more revision
+           "skipped_content": 0,
+           "snapshot": 1 + 1,  # 1 more snapshot
+       } == visit2_stats
+
+       # Check all content objects were loaded
+       expected_contents = map(
+           hash_to_bytes,
+           [
+               "a61e24cdfdab3bb7817f6be85d37a3e666b34566",
+               "938c33483285fd8ad57f15497f538320df82aeb8",
+               "a27576d60e08c94a05006d2e6d540c0fdb5f38c8",
+               "405859113963cb7a797642b45f171d6360425d16",
+               "e5686aa568fdb1d19d7f1329267082fe40482d31",
+               "83ecf6ec1114fd260ca7a833a2d165e71258c338",
+               "92689fa2b7fb4d4fc6fb195bf73a50c87c030639",
+           ],
+       )
+
+       assert list(swh_storage.content_missing_per_sha1(expected_contents)) == []
+
+       # Check all directory objects were loaded
+       expected_dirs = map(
+           hash_to_bytes,
+           [
+               "05219ba38bc542d4345d5638af1ed56c7d43ca7d",
+               "cf019eb456cf6f78d8c4674596f1c9a97ece8f44",
+               "b178b66bd22383d5f16f4f5c923d39ca798861b4",
+               "c3a58f8b57433a4b56caaa5033ae2e0931405338",
+               "e226e7e4ad03b4fc1403d69a18ebdd6f2edd2b3a",
+               "52604d46843b898f5a43208045d09fcf8731631b",
+           ],
+       )
+
+       assert list(swh_storage.directory_missing(expected_dirs)) == []
+
+       # etc.
 
 
 Loading metadata
