@@ -141,16 +141,6 @@ class NpmLoader(PackageLoader[NpmPackageInfo]):
         )
         yield release_name(version), p_info
 
-    @staticmethod
-    def known_artifact_to_extid(known_artifact: Dict) -> Optional[PartialExtID]:
-        extid_str = _artifact_to_sha1(known_artifact)
-        if extid_str is None:
-            return None
-        try:
-            return (EXTID_TYPE, hash_to_bytes(extid_str))
-        except ValueError:
-            return None
-
     def build_revision(
         self, p_info: NpmPackageInfo, uncompressed_path: str, directory: Sha1Git
     ) -> Optional[Revision]:
@@ -183,54 +173,8 @@ class NpmLoader(PackageLoader[NpmPackageInfo]):
             parents=(),
             directory=directory,
             synthetic=True,
-            metadata={
-                "intrinsic": {"tool": "package.json", "raw": i_metadata,},
-                "extrinsic": {
-                    "provider": self.provider_url,
-                    "when": self.visit_date.isoformat(),
-                    "raw": p_info.raw_info,
-                },
-            },
         )
         return r
-
-
-def _artifact_to_sha1(known_artifact: Dict) -> Optional[str]:
-    """Returns the sha1 from an NPM 'original_artifact' dict
-
-    The following code allows to deal with 2 metadata formats:
-
-    - old format sample::
-
-        {
-            'package_source': {
-                'sha1': '05181c12cd8c22035dd31155656826b85745da37',
-            }
-        }
-
-    - new format sample::
-
-        {
-            'original_artifact': [{
-                'checksums': {
-                    'sha256': '6975816f2c5ad4046acc676ba112f2fff945b01522d63948531f11f11e0892ec', # noqa
-                    ...
-                },
-            }],
-            ...
-        }
-
-    """
-    known_original_artifact = known_artifact.get("original_artifact")
-    if not known_original_artifact:
-        # previous loader-npm version kept original artifact elsewhere
-        known_original_artifact = known_artifact.get("package_source")
-        if not known_original_artifact:
-            return None
-        return known_original_artifact["sha1"]
-    else:
-        assert isinstance(known_original_artifact, list)
-        return known_original_artifact[0]["checksums"]["sha1"]
 
 
 def _author_str(author_data: Union[Dict, List, str]) -> str:

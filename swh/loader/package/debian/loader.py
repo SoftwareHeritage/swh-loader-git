@@ -178,21 +178,6 @@ class DebianLoader(PackageLoader[DebianPackageInfo]):
         p_info = DebianPackageInfo.from_metadata(meta, url=self.url)
         yield release_name(version), p_info
 
-    def known_artifact_to_extid(self, known_artifact: Dict) -> Optional[PartialExtID]:
-        sha256 = _artifact_to_dsc_sha256(known_artifact, url=self.url)
-        if sha256 is None:
-            return None
-        return (EXTID_TYPE, hash_to_bytes(sha256))
-
-    def resolve_revision_from_artifacts(
-        self, known_artifacts: Dict, p_info: DebianPackageInfo,
-    ) -> Optional[bytes]:
-        try:
-            return super().resolve_revision_from_artifacts(known_artifacts, p_info)
-        except DscCountError:
-            # known_artifacts are corrupted, ignore them instead of crashing
-            return None
-
     def download_package(
         self, p_info: DebianPackageInfo, tmpdir: str
     ) -> List[Tuple[str, Mapping]]:
@@ -252,14 +237,6 @@ class DebianLoader(PackageLoader[DebianPackageInfo]):
             parents=(),
             directory=directory,
             synthetic=True,
-            metadata={
-                "intrinsic": {"tool": "dsc", "raw": attr.asdict(intrinsic_metadata),},
-                "extrinsic": {
-                    "provider": dsc_url,
-                    "when": self.visit_date.isoformat(),
-                    "raw": p_info.raw_info,
-                },
-            },
         )
 
 

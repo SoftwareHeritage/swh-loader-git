@@ -10,7 +10,6 @@ import attr
 import pytest
 
 from swh.loader.package.archive.loader import ArchiveLoader, ArchivePackageInfo
-from swh.loader.package.tests.common import check_metadata_paths
 from swh.loader.tests import assert_last_visit_matches, check_snapshot, get_stats
 from swh.model.hashutil import hash_to_bytes
 from swh.model.model import Snapshot, SnapshotBranch, TargetType
@@ -108,37 +107,6 @@ def test_archive_visit_with_no_artifact_found(swh_storage, requests_mock_datadir
     } == stats
 
     assert_last_visit_matches(swh_storage, url, status="partial", type="tar")
-
-
-def test_archive_check_revision_metadata_structure(swh_storage, requests_mock_datadir):
-    loader = ArchiveLoader(swh_storage, URL, artifacts=GNU_ARTIFACTS)
-
-    actual_load_status = loader.load()
-    assert actual_load_status["status"] == "eventful"
-    assert actual_load_status["snapshot_id"] is not None
-
-    assert_last_visit_matches(swh_storage, URL, status="full", type="tar")
-
-    expected_revision_id = hash_to_bytes("44183488c0774ce3c957fa19ba695cf18a4a42b3")
-    revision = swh_storage.revision_get([expected_revision_id])[0]
-    assert revision is not None
-
-    check_metadata_paths(
-        revision.metadata,
-        paths=[
-            ("intrinsic", dict),
-            ("extrinsic.provider", str),
-            ("extrinsic.when", str),
-            ("extrinsic.raw", dict),
-            ("original_artifact", list),
-        ],
-    )
-
-    for original_artifact in revision.metadata["original_artifact"]:
-        check_metadata_paths(
-            original_artifact,
-            paths=[("filename", str), ("length", int), ("checksums", dict),],
-        )
 
 
 def test_archive_visit_with_release_artifact_no_prior_visit(

@@ -16,7 +16,7 @@ import attr
 import dateutil.parser
 from debian.deb822 import Deb822
 
-from swh.loader.package.loader import BasePackageInfo, PackageLoader, PartialExtID
+from swh.loader.package.loader import BasePackageInfo, PackageLoader
 from swh.loader.package.utils import release_name
 from swh.model.model import (
     Person,
@@ -88,10 +88,6 @@ class CRANLoader(PackageLoader[CRANPackageInfo]):
             if version == p_info.version:
                 yield release_name(version), p_info
 
-    @staticmethod
-    def known_artifact_to_extid(known_artifact: Dict) -> Optional[PartialExtID]:
-        return CRANPackageInfo.from_metadata(known_artifact["extrinsic"]["raw"]).extid()
-
     def build_revision(
         self, p_info: CRANPackageInfo, uncompressed_path: str, directory: Sha1Git
     ) -> Optional[Revision]:
@@ -110,14 +106,6 @@ class CRANLoader(PackageLoader[CRANPackageInfo]):
             parents=(),
             directory=directory,
             synthetic=True,
-            metadata={
-                "intrinsic": {"tool": "DESCRIPTION", "raw": metadata,},
-                "extrinsic": {
-                    "provider": self.url,
-                    "when": self.visit_date.isoformat(),
-                    "raw": p_info.raw_info,
-                },
-            },
         )
 
 

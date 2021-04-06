@@ -12,7 +12,6 @@ import pytest
 from swh.core.pytest_plugin import requests_mock_datadir_factory
 from swh.loader.package.deposit.loader import ApiClient, DepositLoader
 from swh.loader.package.loader import now
-from swh.loader.package.tests.common import check_metadata_paths
 from swh.loader.tests import assert_last_visit_matches, check_snapshot, get_stats
 from swh.model.hashutil import hash_to_bytes, hash_to_hex
 from swh.model.identifiers import (
@@ -158,42 +157,6 @@ def test_deposit_loading_failure_to_retrieve_1_artifact(
     assert body == expected_body
 
 
-def test_deposit_revision_metadata_structure(
-    swh_storage, deposit_client, requests_mock_datadir
-):
-    url = "https://hal-test.archives-ouvertes.fr/some-external-id"
-    deposit_id = 666
-    loader = DepositLoader(
-        swh_storage, url, deposit_id, deposit_client, default_filename="archive.zip"
-    )
-
-    actual_load_status = loader.load()
-    assert actual_load_status["status"] == "eventful"
-    assert actual_load_status["snapshot_id"] is not None
-    expected_revision_id = hash_to_bytes("637318680351f5d78856d13264faebbd91efe9bb")
-    revision = loader.storage.revision_get([expected_revision_id])[0]
-    assert revision is not None
-
-    check_metadata_paths(
-        revision.metadata,
-        paths=[
-            ("extrinsic.provider", str),
-            ("extrinsic.when", str),
-            ("extrinsic.raw", dict),
-            ("original_artifact", list),
-        ],
-    )
-
-    # Only 2 top-level keys now
-    assert set(revision.metadata.keys()) == {"extrinsic", "original_artifact"}
-
-    for original_artifact in revision.metadata["original_artifact"]:
-        check_metadata_paths(
-            original_artifact,
-            paths=[("filename", str), ("length", int), ("checksums", dict),],
-        )
-
-
 def test_deposit_loading_ok(swh_storage, deposit_client, requests_mock_datadir):
     url = "https://hal-test.archives-ouvertes.fr/some-external-id"
     deposit_id = 666
@@ -336,8 +299,7 @@ def test_deposit_loading_ok_2(swh_storage, deposit_client, requests_mock_datadir
     assert revision
     assert revision.date.to_dict() == raw_meta["deposit"]["author_date"]
     assert revision.committer_date.to_dict() == raw_meta["deposit"]["committer_date"]
-
-    read_api = f"{DEPOSIT_URL}/{deposit_id}/meta/"
+    assert not revision.metadata
 
     provider = {
         "provider_name": "hal",
@@ -349,31 +311,6 @@ def test_deposit_loading_ok_2(swh_storage, deposit_client, requests_mock_datadir
         "name": "swh-deposit",
         "version": "0.0.1",
         "configuration": {"sword_version": "2"},
-    }
-    assert revision.metadata == {
-        "extrinsic": {
-            "provider": read_api,
-            "raw": {
-                "origin": {"type": "deposit", "url": url,},
-                "origin_metadata": {
-                    "metadata": raw_meta["metadata_dict"],
-                    "provider": provider,
-                    "tool": tool,
-                },
-            },
-            "when": revision.metadata["extrinsic"]["when"],  # dynamic
-        },
-        "original_artifact": [
-            {
-                "checksums": {
-                    "sha1": "f8c63d7c890a7453498e6cf9fef215d85ec6801d",
-                    "sha256": "474bf646aeeff6d945eb752b1a9f8a40f3d81a88909ee7bd2d08cc822aa361e6",  # noqa
-                },
-                "filename": "archive.zip",
-                "length": 956830,
-                "url": "https://deposit.softwareheritage.org/1/private/777/raw/",
-            }
-        ],
     }
 
     fetcher = MetadataFetcher(name="swh-deposit", version="0.0.1",)

@@ -209,13 +209,6 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
             parents=p_info.revision_parents,
             directory=directory,
             synthetic=True,
-            metadata={
-                "extrinsic": {
-                    "provider": self.client.metadata_url(self.deposit_id),
-                    "when": self.visit_date.isoformat(),
-                    "raw": p_info.raw_info,
-                },
-            },
         )
 
     def get_extrinsic_origin_metadata(self) -> List[RawExtrinsicMetadataCore]:

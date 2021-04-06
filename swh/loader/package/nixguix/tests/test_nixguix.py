@@ -6,17 +6,14 @@
 import json
 import logging
 import os
-from typing import Dict, List, Optional, Tuple
-from unittest.mock import patch
+from typing import Dict, Optional, Tuple
 
-import attr
 import pytest
 
 from swh.loader.package import __version__
 from swh.loader.package.archive.loader import ArchiveLoader
 from swh.loader.package.nixguix.loader import (
     NixGuixLoader,
-    NixGuixPackageInfo,
     clean_sources,
     make_pattern_unsupported_file_extension,
     parse_sources,
@@ -93,10 +90,7 @@ def check_snapshot(snapshot: Snapshot, storage: StorageInterface):
     for rev in revisions:
         assert rev is not None
         metadata = rev.metadata
-        assert metadata is not None
-        raw = metadata["extrinsic"]["raw"]
-        assert "url" in raw
-        assert "integrity" in raw
+        assert not metadata
 
 
 def test_retrieve_sources(swh_storage, requests_mock_datadir):
@@ -469,24 +463,6 @@ def test_loader_two_visits(swh_storage, requests_mock_datadir_visits):
     } == stats
 
 
-def test_resolve_revision_from_artifacts(swh_storage, requests_mock_datadir, datadir):
-    loader = NixGuixLoader(swh_storage, sources_url)
-
-    known_artifacts = {
-        "id1": {"extrinsic": {"raw": {"url": "url1", "integrity": "integrity1"}}},
-        "id2": {"extrinsic": {"raw": {"url": "url2", "integrity": "integrity2"}}},
-    }
-
-    p_info = NixGuixPackageInfo.from_metadata(
-        {"url": "url1", "integrity": "integrity1"}
-    )
-    assert loader.resolve_revision_from_artifacts(known_artifacts, p_info) == "id1"
-    p_info = NixGuixPackageInfo.from_metadata(
-        {"url": "url3", "integrity": "integrity3"}
-    )
-    assert loader.resolve_revision_from_artifacts(known_artifacts, p_info) is None
-
-
 def test_evaluation_branch(swh_storage, requests_mock_datadir):
     loader = NixGuixLoader(swh_storage, sources_url)
     res = loader.load()
@@ -601,12 +577,6 @@ def test_load_nixguix_one_common_artifact_from_other_loader(
         archive_loader.storage, gnu_url, status="full", type="tar"
     )
 
-    gnu_snapshot: Snapshot = snapshot_get_all_branches(
-        archive_loader.storage, hash_to_bytes(expected_snapshot_id)
-    )
-
-    first_revision = gnu_snapshot.branches[f"releases/{release}".encode("utf-8")]
-
     # 2. Then ingest with the nixguix loader which lists the same artifact within its
     # sources.json
 
@@ -634,73 +604,3 @@ def test_load_nixguix_one_common_artifact_from_other_loader(
     snapshot_id = actual_load_status2["snapshot_id"]
     snapshot = snapshot_get_all_branches(swh_storage, hash_to_bytes(snapshot_id))
     assert snapshot
-
-    # 3. Then ingest again with the nixguix loader, with a different snapshot
-    #    and different source
-
-    # simulate a snapshot already seen with a revision with the wrong metadata structure
-    # This revision should be skipped, thus making the artifact being ingested again.
-    with patch(
-        "swh.loader.package.loader.PackageLoader.last_snapshot"
-    ) as last_snapshot:
-        # mutate the snapshot to target a revision with the wrong metadata structure
-        # snapshot["branches"][artifact_url.encode("utf-8")] = first_revision
-        old_revision = swh_storage.revision_get([first_revision.target])[0]
-        # assert that revision is not in the right format
-        assert old_revision.metadata["extrinsic"]["raw"].get("integrity", {}) == {}
-
-        # mutate snapshot to create a clash
-        snapshot = attr.evolve(
-            snapshot,
-            branches={
-                **snapshot.branches,
-                artifact_url.encode("utf-8"): SnapshotBranch(
-                    target_type=TargetType.REVISION,
-                    target=hash_to_bytes(old_revision.id),
-                ),
-            },
-        )
-
-        # modify snapshot to actually change revision metadata structure so we simulate
-        # a revision written by somebody else (structure different)
-        last_snapshot.return_value = snapshot
-
-        loader = NixGuixLoader(swh_storage, sources_url)
-        actual_load_status3 = loader.load()
-        assert last_snapshot.called
-        assert actual_load_status3["status"] == "eventful"
-
-        assert_last_visit_matches(
-            swh_storage, sources_url, status="full", type="nixguix"
-        )
-
-        new_snapshot_id = "32ff641e510aceefc3a6d0dcbf208b2854d2e965"
-        assert actual_load_status3["snapshot_id"] == new_snapshot_id
-
-        last_snapshot = snapshot_get_all_branches(
-            swh_storage, hash_to_bytes(new_snapshot_id)
-        )
-        new_revision_branch = last_snapshot.branches[artifact_url.encode("utf-8")]
-        assert new_revision_branch.target_type == TargetType.REVISION
-
-        new_revision = swh_storage.revision_get([new_revision_branch.target])[0]
-
-        # the new revision has the correct structure,  so it got ingested alright by the
-        # new run
-        assert new_revision.metadata["extrinsic"]["raw"]["integrity"] is not None
-
-        actual_detections: List[Dict] = []
-        for record in caplog.records:
-            logtext = record.getMessage()
-            if "Unexpected metadata revision structure detected:" in logtext:
-                actual_detections.append(record.args["context"])
-
-        expected_detections = [
-            {"reason": "'integrity'", "known_artifact": old_revision.metadata,},
-        ]
-
-        # less calls than there are sources listed in the sources.json;
-        # as some of them are skipped using the ExtID from a previous run
-        assert len(expected_detections) <= len(all_sources["sources"])
-
-        assert actual_detections == expected_detections

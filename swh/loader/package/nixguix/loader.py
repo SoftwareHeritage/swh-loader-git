@@ -155,21 +155,6 @@ class NixGuixLoader(PackageLoader[NixGuixPackageInfo]):
             ret[revision.id] = revision.metadata
         return ret
 
-    @staticmethod
-    def known_artifact_to_extid(known_artifact: Dict) -> Optional[PartialExtID]:
-        try:
-            value = known_artifact["extrinsic"]["raw"]["integrity"].encode("ascii")
-        except KeyError as e:
-            logger.exception(
-                "Unexpected metadata revision structure detected: %(context)s",
-                {"context": {"reason": str(e), "known_artifact": known_artifact,}},
-            )
-            # metadata field for the revision is not as expected by the loader
-            # nixguix. We consider this not the right revision and continue checking
-            # the other revisions
-            return None
-        return (EXTID_TYPE, value)
-
     def extra_branches(self) -> Dict[bytes, Mapping[str, Any]]:
         """We add a branch to the snapshot called 'evaluation' pointing to the
         revision used to generate the sources.json file. This revision
@@ -210,13 +195,6 @@ class NixGuixLoader(PackageLoader[NixGuixPackageInfo]):
             parents=(),
             directory=directory,
             synthetic=True,
-            metadata={
-                "extrinsic": {
-                    "provider": self.provider_url,
-                    "when": self.visit_date.isoformat(),
-                    "raw": p_info.raw_info,
-                },
-            },
         )
 
 

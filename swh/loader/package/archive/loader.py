@@ -144,12 +144,6 @@ class ArchiveLoader(PackageLoader[ArchivePackageInfo]):
     ) -> Optional[PartialExtID]:
         return p_info.extid(manifest_format=self.extid_manifest_format)
 
-    def known_artifact_to_extid(self, known_artifact: Dict) -> Optional[PartialExtID]:
-        known_artifact_info = ArchivePackageInfo.from_metadata(
-            known_artifact["extrinsic"]["raw"]
-        )
-        return known_artifact_info.extid(manifest_format=self.extid_manifest_format)
-
     def build_revision(
         self, p_info: ArchivePackageInfo, uncompressed_path: str, directory: Sha1Git
     ) -> Optional[Revision]:
@@ -169,12 +163,4 @@ class ArchiveLoader(PackageLoader[ArchivePackageInfo]):
             parents=(),
             directory=directory,
             synthetic=True,
-            metadata={
-                "intrinsic": {},
-                "extrinsic": {
-                    "provider": self.url,
-                    "when": self.visit_date.isoformat(),
-                    "raw": p_info.raw_info,
-                },
-            },
         )

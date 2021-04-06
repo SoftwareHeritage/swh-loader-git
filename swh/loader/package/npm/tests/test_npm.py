@@ -14,7 +14,6 @@ from swh.loader.package.npm.loader import (
     _author_str,
     extract_npm_package_author,
 )
-from swh.loader.package.tests.common import check_metadata_paths
 from swh.loader.tests import assert_last_visit_matches, check_snapshot, get_stats
 from swh.model.hashutil import hash_to_bytes
 from swh.model.identifiers import (
@@ -308,37 +307,6 @@ def package_metadata_url(package):
     return "https://replicate.npmjs.com/%s/" % package
 
 
-def test_npm_revision_metadata_structure(swh_storage, requests_mock_datadir):
-    package = "org"
-    loader = NpmLoader(swh_storage, package_url(package))
-
-    actual_load_status = loader.load()
-    assert actual_load_status["status"] == "eventful"
-    assert actual_load_status["snapshot_id"] is not None
-
-    expected_revision_id = hash_to_bytes("d8a1c7474d2956ac598a19f0f27d52f7015f117e")
-    revision = swh_storage.revision_get([expected_revision_id])[0]
-    assert revision is not None
-
-    check_metadata_paths(
-        revision.metadata,
-        paths=[
-            ("intrinsic.tool", str),
-            ("intrinsic.raw", dict),
-            ("extrinsic.provider", str),
-            ("extrinsic.when", str),
-            ("extrinsic.raw", dict),
-            ("original_artifact", list),
-        ],
-    )
-
-    for original_artifact in revision.metadata["original_artifact"]:
-        check_metadata_paths(
-            original_artifact,
-            paths=[("filename", str), ("length", int), ("checksums", dict),],
-        )
-
-
 def test_npm_loader_first_visit(swh_storage, requests_mock_datadir, org_api_info):
     package = "org"
     url = package_url(package)
@@ -542,41 +510,6 @@ def test_npm_loader_version_divergence(swh_storage):
         },
     )
     check_snapshot(expected_snapshot, swh_storage)
-
-
-def test_npm__known_artifact_to_extid__old_loader_version():
-    """Current loader version should parse old metadata scheme
-
-    """
-    assert (
-        NpmLoader.known_artifact_to_extid(
-            {"package_source": {"sha1": "something-wrong"}}
-        )
-        is None
-    )
-
-    sha1 = "05181c12cd8c22035dd31155656826b85745da37"
-    assert NpmLoader.known_artifact_to_extid({"package_source": {"sha1": sha1,}}) == (
-        "npm-archive-sha1",
-        hash_to_bytes(sha1),
-    )
-
-
-def test_npm__known_artifact_to_extid__current_loader_version():
-    """Current loader version should be able to parse current metadata scheme
-
-    """
-    sha1 = "05181c12cd8c22035dd31155656826b85745da37"
-    assert NpmLoader.known_artifact_to_extid(
-        {"original_artifact": [{"checksums": {"sha1": sha1},}],}
-    ) == ("npm-archive-sha1", hash_to_bytes(sha1))
-
-    assert (
-        NpmLoader.known_artifact_to_extid(
-            {"original_artifact": [{"checksums": {"sha1": "something-wrong"},}],},
-        )
-        is None
-    )
 
 
 def test_npm_artifact_with_no_intrinsic_metadata(swh_storage, requests_mock_datadir):

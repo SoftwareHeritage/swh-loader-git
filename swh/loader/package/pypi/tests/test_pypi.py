@@ -19,7 +19,6 @@ from swh.loader.package.pypi.loader import (
     extract_intrinsic_metadata,
     pypi_api_url,
 )
-from swh.loader.package.tests.common import check_metadata_paths
 from swh.loader.tests import assert_last_visit_matches, check_snapshot, get_stats
 from swh.model.hashutil import hash_to_bytes
 from swh.model.identifiers import (
@@ -333,24 +332,6 @@ def test_pypi_revision_metadata_structure(
     expected_revision_id = hash_to_bytes("e445da4da22b31bfebb6ffc4383dbf839a074d21")
     revision = swh_storage.revision_get([expected_revision_id])[0]
     assert revision is not None
-
-    check_metadata_paths(
-        revision.metadata,
-        paths=[
-            ("intrinsic.tool", str),
-            ("intrinsic.raw", dict),
-            ("extrinsic.provider", str),
-            ("extrinsic.when", str),
-            ("extrinsic.raw", dict),
-            ("original_artifact", list),
-        ],
-    )
-
-    for original_artifact in revision.metadata["original_artifact"]:
-        check_metadata_paths(
-            original_artifact,
-            paths=[("filename", str), ("length", int), ("checksums", dict),],
-        )
 
     revision_swhid = CoreSWHID(
         object_type=ObjectType.REVISION, object_id=expected_revision_id
@@ -794,52 +775,6 @@ def test_pypi_visit_1_release_with_2_artifacts(swh_storage, requests_mock_datadi
     assert_last_visit_matches(
         swh_storage, url, status="full", type="pypi", snapshot=expected_snapshot.id
     )
-
-
-def test_pypi__known_artifact_to_extid__old_loader_version():
-    """Current loader version should solve old metadata scheme
-
-    """
-    assert (
-        PyPILoader.known_artifact_to_extid(
-            {"original_artifact": {"sha256": "something-wrong",},}
-        )
-        is None
-    )
-
-    sha256 = "6975816f2c5ad4046acc676ba112f2fff945b01522d63948531f11f11e0892ec"
-    assert PyPILoader.known_artifact_to_extid(
-        {"original_artifact": {"sha256": sha256}}
-    ) == ("pypi-archive-sha256", hash_to_bytes(sha256))
-
-
-def test_pypi__known_artifact_to_extid__current_loader_version():
-    """Current loader version should be able to solve current metadata scheme
-
-    """
-    sha256 = "6975816f2c5ad4046acc676ba112f2fff945b01522d63948531f11f11e0892ec"
-
-    assert PyPILoader.known_artifact_to_extid(
-        {"original_artifact": [{"checksums": {"sha256": sha256,},}],}
-    ) == ("pypi-archive-sha256", hash_to_bytes(sha256))
-
-    assert (
-        PyPILoader.known_artifact_to_extid(
-            {"original_artifact": [{"checksums": {"sha256": "something-wrong"},}],},
-        )
-        is None
-    )
-
-    # there should not be more than one artifact
-    with pytest.raises(ValueError):
-        PyPILoader.known_artifact_to_extid(
-            {
-                "original_artifact": [
-                    {"checksums": {"sha256": sha256,},},
-                    {"checksums": {"sha256": sha256,},},
-                ],
-            }
-        )
 
 
 def test_pypi_artifact_with_no_intrinsic_metadata(swh_storage, requests_mock_datadir):

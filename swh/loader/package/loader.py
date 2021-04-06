@@ -252,45 +252,6 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
     def new_packageinfo_to_extid(self, p_info: TPackageInfo) -> Optional[PartialExtID]:
         return p_info.extid()
 
-    def known_artifact_to_extid(self, known_artifact: Dict) -> Optional[PartialExtID]:
-        """Returns a unique intrinsic identifier of a downloaded artifact,
-        used to check if a new artifact is the same."""
-        return None
-
-    def resolve_revision_from_artifacts(
-        self, known_artifacts: Dict[Sha1Git, Any], p_info: TPackageInfo,
-    ) -> Optional[Sha1Git]:
-        """Resolve the revision from known artifact metadata and a package info object.
-
-        If the artifact has already been downloaded, this will return the
-        existing revision targeting that uncompressed artifact directory.
-        Otherwise, this returns None.
-
-        Args:
-            known_artifacts: dict from revision ids to revision metadata
-            p_info: Package information
-
-        Returns:
-            None or revision identifier
-
-        """
-        if not known_artifacts:
-            # No known artifact, no need to compute the artifact's extid
-            return None
-
-        new_extid = self.new_packageinfo_to_extid(p_info)
-        if new_extid is None:
-            # This loader does not support deduplication, at least not for this
-            # artifact.
-            return None
-
-        for rev_id, known_artifact in known_artifacts.items():
-            known_extid = self.known_artifact_to_extid(known_artifact)
-            if new_extid == known_extid:
-                return rev_id
-
-        return None
-
     def _get_known_extids(
         self, packages_info: List[TPackageInfo]
     ) -> Dict[PartialExtID, List[CoreSWHID]]:
@@ -610,14 +571,6 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
             )
 
             if revision_id is None:
-                # No existing revision found from an acceptable ExtID,
-                # search in the artifact data instead.
-                # TODO: remove this after we finished migrating to ExtIDs.
-                revision_id = self.resolve_revision_from_artifacts(
-                    known_artifacts, p_info
-                )
-
-            if revision_id is None:
                 # No matching revision found in the last snapshot, load it.
                 try:
                     res = self._load_revision(p_info, origin)
@@ -771,18 +724,6 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
                 return None
 
         metadata = [metadata for (filepath, metadata) in dl_artifacts]
-        extra_metadata: Tuple[str, Any] = (
-            "original_artifact",
-            metadata,
-        )
-
-        if revision.metadata is not None:
-            full_metadata = list(revision.metadata.items()) + [extra_metadata]
-        else:
-            full_metadata = [extra_metadata]
-
-        # TODO: don't add these extrinsic metadata to the revision.
-        revision = attr.evolve(revision, metadata=ImmutableDict(full_metadata))
 
         original_artifact_metadata = RawExtrinsicMetadata(
             target=ExtendedSWHID(

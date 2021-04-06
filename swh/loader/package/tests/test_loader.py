@@ -83,51 +83,6 @@ def test_loader_origin_visit_failure(swh_storage):
     assert actual_load_status2 == {"status": "failed"}
 
 
-def test_resolve_revision_from_artifacts() -> None:
-    loader = PackageLoader(None, None)  # type: ignore
-    loader.known_artifact_to_extid = Mock(  # type: ignore
-        wraps=lambda known_artifact: ("extid-type", known_artifact["key"].encode())
-    )
-
-    known_artifacts = {
-        b"a" * 20: {"key": "extid-of-aaaa"},
-        b"b" * 20: {"key": "extid-of-bbbb"},
-    }
-
-    p_info = Mock(wraps=BasePackageInfo(None, None))  # type: ignore
-
-    # No known artifact -> it would be useless to compute the extid
-    assert loader.resolve_revision_from_artifacts({}, p_info) is None
-    p_info.extid.assert_not_called()
-    loader.known_artifact_to_extid.assert_not_called()
-
-    p_info.extid.reset_mock()
-
-    # Some artifacts, but the PackageInfo does not support extids
-    p_info.extid.return_value = None
-    assert loader.resolve_revision_from_artifacts(known_artifacts, p_info) is None
-    p_info.extid.assert_called_once()
-    loader.known_artifact_to_extid.assert_not_called()
-
-    p_info.extid.reset_mock()
-
-    # Some artifacts, and the PackageInfo is not one of them (ie. cache miss)
-    p_info.extid.return_value = ("extid-type", b"extid-of-cccc")
-    assert loader.resolve_revision_from_artifacts(known_artifacts, p_info) is None
-    p_info.extid.assert_called_once()
-    loader.known_artifact_to_extid.assert_any_call({"key": "extid-of-aaaa"})
-    loader.known_artifact_to_extid.assert_any_call({"key": "extid-of-bbbb"})
-
-    p_info.extid.reset_mock()
-    loader.known_artifact_to_extid.reset_mock()
-
-    # Some artifacts, and the PackageInfo is one of them (ie. cache hit)
-    p_info.extid.return_value = ("extid-type", b"extid-of-aaaa")
-    assert loader.resolve_revision_from_artifacts(known_artifacts, p_info) == b"a" * 20
-    p_info.extid.assert_called_once()
-    loader.known_artifact_to_extid.assert_called_once_with({"key": "extid-of-aaaa"})
-
-
 def test_resolve_revision_from_extids() -> None:
     loader = PackageLoader(None, None)  # type: ignore
 
