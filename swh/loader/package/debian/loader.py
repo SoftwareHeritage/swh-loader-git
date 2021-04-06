@@ -49,6 +49,12 @@ class DebianFileMetadata:
     uri = attr.ib(type=str)
     """URL of this specific file"""
 
+    # Some of the DSC files imported in swh apparently had a Checksums-SHA512
+    # field which got recorded in the archive. Current versions of dpkg-source
+    # don't seem to generate them, but keep the field available for
+    # future-proofing.
+    sha512 = attr.ib(type=str, default="")
+
 
 @attr.s
 class DebianPackageChangelog:
