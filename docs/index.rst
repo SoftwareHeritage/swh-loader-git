@@ -5,6 +5,7 @@
    :caption: Contents:
 
    package-loader-tutorial
+   vcs-loader-overview
 
 
 Reference Documentation
