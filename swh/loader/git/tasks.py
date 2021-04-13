@@ -12,6 +12,15 @@ from swh.loader.git.from_disk import GitLoaderFromArchive, GitLoaderFromDisk
 from swh.loader.git.loader import GitLoader
 
 
+@shared_task(name=f"save_code_now:{__name__}.UpdateGitRepository")
+def load_git_high(*, url: str, base_url: Optional[str] = None) -> Dict[str, Any]:
+    """Import a git repository from a remote location
+
+    """
+    loader = GitLoader.from_configfile(url=url, base_url=base_url)
+    return loader.load()
+
+
 @shared_task(name=__name__ + ".UpdateGitRepository")
 def load_git(*, url: str, base_url: Optional[str] = None) -> Dict[str, Any]:
     """Import a git repository from a remote location
