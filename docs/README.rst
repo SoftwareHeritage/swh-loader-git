@@ -1,5 +1,3 @@
-.. _swh-loader-core:
-
 Software Heritage - Loader foundations
 ======================================
 

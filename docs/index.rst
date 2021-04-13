@@ -1,3 +1,5 @@
+.. _swh-loader-core:
+
 .. include:: README.rst
 
 .. toctree::
@@ -16,3 +18,4 @@ Reference Documentation
 
    cli
    /apidoc/swh.loader.core
+   /apidoc/swh.loader.package

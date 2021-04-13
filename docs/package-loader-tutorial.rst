@@ -71,7 +71,7 @@ Create a file named ``loader.py`` in your package's directory, with two empty cl
 
 
 We now have to fill some of the methods declared by
-:ref:class:`swh.loader.package.PackageLoader`: in your new ``NewLoader`` class.
+:class:`swh.loader.package.PackageLoader`: in your new ``NewLoader`` class.
 
 
 Listing versions
@@ -599,7 +599,7 @@ a date of discovery (usually the time your loader ran).
 
 This is done by adding them to the ``directory_extrinsic_metadata`` attribute of
 your ``NewPackageInfo`` object when creating it in ``get_package_info``
-as :py:cls:`swh.loader.package.loader.RawExtrinsicMetadataCore` objects::
+as :class:`swh.loader.package.loader.RawExtrinsicMetadataCore` objects::
 
    NewPackageInfo(
        ...,
@@ -615,7 +615,7 @@ as :py:cls:`swh.loader.package.loader.RawExtrinsicMetadataCore` objects::
 ``format`` should be a human-readable ASCII string that unambiguously describes
 the format. Readers of the metadata object will have a built-in list of formats
 they understand, and will check if your metadata object is among them.
-You should use one of the :ref:`known metadata formats <extrinsic-metadata-format>`
+You should use one of the :ref:`known metadata formats <extrinsic-metadata-formats>`
 if possible, or add yours to this list.
 
 ``metadata`` is the metadata object itself. When possible, it should be copied verbatim

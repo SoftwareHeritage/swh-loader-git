@@ -18,9 +18,9 @@ def clean_dangling_folders(dirpath, pattern_check, log=None):
     Args:
         dirpath (str): Path to check for dangling files
         pattern_check (str): A dedicated pattern to check on first
-        level directory (e.g `swh.loader.mercurial.`,
-        `swh.loader.svn.`)
-        log (Logger): Optional logger
+            level directory (e.g `swh.loader.mercurial.`,
+            `swh.loader.svn.`)
+            log (Logger): Optional logger
 
     """
     if not os.path.exists(dirpath):

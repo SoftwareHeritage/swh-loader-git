@@ -90,7 +90,7 @@ locally, then return them lazily on demand.
 
 
 Incremental loading
-------------------
+-------------------
 
 Loading a repository from scratch can be costly, so ``swh-storage`` provides
 ways to remember what objects in the repository were already loaded,

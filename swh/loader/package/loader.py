@@ -75,7 +75,7 @@ of downloaded archive files."""
 
 
 PartialExtID = Tuple[str, bytes]
-"""The ``extid_type`` and ``extid`` fields of an :ref:py:`ExtID` object."""
+"""The ``extid_type`` and ``extid`` fields of an :class:`ExtID` object."""
 
 
 @attr.s
@@ -170,7 +170,7 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
         """Return the list of all published package versions.
 
         Raises:
-           `class:swh.loader.exception.NotFound` error when failing to read the
+           class:`swh.loader.exception.NotFound` error when failing to read the
             published package versions.
 
         Returns:
