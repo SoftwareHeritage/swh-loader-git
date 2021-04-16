@@ -182,8 +182,8 @@ class GitLoader(DVCSLoader):
             if cur_size + would_write > size_limit:
                 raise IOError(
                     f"Pack file too big for repository {origin_url}, "
-                    "limit is {size_limit} bytes, current size is {cur_size}, "
-                    "would write {would_write}"
+                    f"limit is {size_limit} bytes, current size is {cur_size}, "
+                    f"would write {would_write}"
                 )
 
             pack_buffer.write(data)
