@@ -9,7 +9,9 @@ from swh.loader.package.archive.loader import ArchiveLoader
 
 
 @shared_task(name=__name__ + ".LoadArchive")
-def load_archive_files(*, url=None, artifacts=None):
+def load_archive_files(*, url=None, artifacts=None, snapshot_append=False):
     """Load archive's artifacts (e.g gnu, etc...)"""
-    loader = ArchiveLoader.from_configfile(url=url, artifacts=artifacts)
+    loader = ArchiveLoader.from_configfile(
+        url=url, artifacts=artifacts, snapshot_append=snapshot_append
+    )
     return loader.load()

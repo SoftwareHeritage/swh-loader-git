@@ -8,7 +8,7 @@ import hashlib
 import logging
 from os import path
 import string
-from typing import Any, Dict, Iterator, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Iterator, Mapping, Optional, Sequence, Tuple, Union
 
 import attr
 import iso8601
@@ -84,6 +84,7 @@ class ArchiveLoader(PackageLoader[ArchivePackageInfo]):
         artifacts: Sequence[Dict[str, Any]],
         extid_manifest_format: Optional[str] = None,
         max_content_size: Optional[int] = None,
+        snapshot_append: bool = False,
     ):
         f"""Loader constructor.
 
@@ -107,6 +108,8 @@ class ArchiveLoader(PackageLoader[ArchivePackageInfo]):
             extid_manifest_format: template string used to format a manifest,
                 which is hashed to get the extid of a package.
                 Defaults to {ArchivePackageInfo.MANIFEST_FORMAT!r}
+            snapshot_append: if :const:`True`, append latest snapshot content to
+                the new snapshot created by the loader
 
         """
         super().__init__(storage=storage, url=url, max_content_size=max_content_size)
@@ -116,6 +119,7 @@ class ArchiveLoader(PackageLoader[ArchivePackageInfo]):
             if extid_manifest_format is None
             else string.Template(extid_manifest_format)
         )
+        self.snapshot_append = snapshot_append
 
     def get_versions(self) -> Sequence[str]:
         versions = []
@@ -164,3 +168,9 @@ class ArchiveLoader(PackageLoader[ArchivePackageInfo]):
             directory=directory,
             synthetic=True,
         )
+
+    def extra_branches(self) -> Dict[bytes, Mapping[str, Any]]:
+        if not self.snapshot_append:
+            return {}
+        last_snapshot = self.last_snapshot()
+        return last_snapshot.to_dict()["branches"] if last_snapshot else {}

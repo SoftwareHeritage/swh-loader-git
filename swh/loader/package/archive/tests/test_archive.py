@@ -22,7 +22,14 @@ GNU_ARTIFACTS = [
         "length": 221837,
         "filename": "8sync-0.1.0.tar.gz",
         "version": "0.1.0",
-    }
+    },
+    {
+        "time": 1480991830,
+        "url": "https://ftp.gnu.org/gnu/8sync/8sync-0.2.0.tar.gz",
+        "length": 238466,
+        "filename": "8sync-0.2.0.tar.gz",
+        "version": "0.2.0",
+    },
 ]
 
 _expected_new_contents_first_visit = [
@@ -115,7 +122,7 @@ def test_archive_visit_with_release_artifact_no_prior_visit(
     """With no prior visit, load a gnu project ends up with 1 snapshot
 
     """
-    loader = ArchiveLoader(swh_storage, URL, artifacts=GNU_ARTIFACTS)
+    loader = ArchiveLoader(swh_storage, URL, artifacts=GNU_ARTIFACTS[:1])
 
     actual_load_status = loader.load()
     assert actual_load_status["status"] == "eventful"
@@ -173,7 +180,7 @@ def test_archive_2_visits_without_change(swh_storage, requests_mock_datadir):
 
     """
     url = URL
-    loader = ArchiveLoader(swh_storage, url, artifacts=GNU_ARTIFACTS)
+    loader = ArchiveLoader(swh_storage, url, artifacts=GNU_ARTIFACTS[:1])
 
     actual_load_status = loader.load()
     assert actual_load_status["status"] == "eventful"
@@ -229,13 +236,7 @@ def test_archive_2_visits_with_new_artifact(swh_storage, requests_mock_datadir):
     ]
     assert len(urls) == 1
 
-    artifact2 = {
-        "time": 1480991830,
-        "url": "https://ftp.gnu.org/gnu/8sync/8sync-0.2.0.tar.gz",
-        "length": 238466,
-        "filename": "8sync-0.2.0.tar.gz",
-        "version": "0.2.0",
-    }
+    artifact2 = GNU_ARTIFACTS[1]
 
     loader2 = ArchiveLoader(swh_storage, url, [artifact1, artifact2])
     stats2 = get_stats(swh_storage)
@@ -341,3 +342,77 @@ def test_archive_extid():
 
     with pytest.raises(KeyError):
         p_info.extid(manifest_format=string.Template("$a $unknown_key"))
+
+
+def test_archive_snapshot_append(swh_storage, requests_mock_datadir):
+    # first loading with a first artifact
+    artifact1 = GNU_ARTIFACTS[0]
+    loader = ArchiveLoader(swh_storage, URL, [artifact1], snapshot_append=True)
+    actual_load_status = loader.load()
+    assert actual_load_status["status"] == "eventful"
+    assert actual_load_status["snapshot_id"] is not None
+    assert_last_visit_matches(swh_storage, URL, status="full", type="tar")
+
+    # check expected snapshot
+    snapshot = loader.last_snapshot()
+    assert len(snapshot.branches) == 2
+    branch_artifact1_name = f"releases/{artifact1['version']}".encode()
+    assert b"HEAD" in snapshot.branches
+    assert branch_artifact1_name in snapshot.branches
+    assert snapshot.branches[b"HEAD"].target == branch_artifact1_name
+
+    # second loading with a second artifact
+    artifact2 = GNU_ARTIFACTS[1]
+    loader = ArchiveLoader(swh_storage, URL, [artifact2], snapshot_append=True)
+    actual_load_status = loader.load()
+    assert actual_load_status["status"] == "eventful"
+    assert actual_load_status["snapshot_id"] is not None
+    assert_last_visit_matches(swh_storage, URL, status="full", type="tar")
+
+    # check expected snapshot, should contain a new branch and the
+    # branch for the first artifact
+    snapshot = loader.last_snapshot()
+    assert len(snapshot.branches) == 3
+    branch_artifact2_name = f"releases/{artifact2['version']}".encode()
+    assert b"HEAD" in snapshot.branches
+    assert branch_artifact2_name in snapshot.branches
+    assert branch_artifact1_name in snapshot.branches
+    assert snapshot.branches[b"HEAD"].target == branch_artifact2_name
+
+
+def test_archive_snapshot_append_branch_override(swh_storage, requests_mock_datadir):
+    # first loading for a first artifact
+    artifact1 = GNU_ARTIFACTS[0]
+    loader = ArchiveLoader(swh_storage, URL, [artifact1], snapshot_append=True)
+    actual_load_status = loader.load()
+    assert actual_load_status["status"] == "eventful"
+    assert actual_load_status["snapshot_id"] is not None
+    assert_last_visit_matches(swh_storage, URL, status="full", type="tar")
+
+    # check expected snapshot
+    snapshot = loader.last_snapshot()
+    assert len(snapshot.branches) == 2
+    branch_artifact1_name = f"releases/{artifact1['version']}".encode()
+    assert branch_artifact1_name in snapshot.branches
+    branch_target_first_visit = snapshot.branches[branch_artifact1_name].target
+
+    # second loading for a second artifact with same version as the first one
+    # but with different tarball content
+    artifact2 = dict(GNU_ARTIFACTS[0])
+    artifact2["url"] = GNU_ARTIFACTS[1]["url"]
+    artifact2["time"] = GNU_ARTIFACTS[1]["time"]
+    artifact2["length"] = GNU_ARTIFACTS[1]["length"]
+    loader = ArchiveLoader(swh_storage, URL, [artifact2], snapshot_append=True)
+    actual_load_status = loader.load()
+    assert actual_load_status["status"] == "eventful"
+    assert actual_load_status["snapshot_id"] is not None
+    assert_last_visit_matches(swh_storage, URL, status="full", type="tar")
+
+    # check expected snapshot, should contain the same branch as previously
+    # but with different target
+    snapshot = loader.last_snapshot()
+    assert len(snapshot.branches) == 2
+    assert branch_artifact1_name in snapshot.branches
+    branch_target_second_visit = snapshot.branches[branch_artifact1_name].target
+
+    assert branch_target_first_visit != branch_target_second_visit
