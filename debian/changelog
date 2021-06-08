@@ -1,8 +1,12 @@
-swh-loader-git (0.9.1-1~swh1~bpo10+1) buster-swh; urgency=medium
+swh-loader-git (0.10.0-1~swh1) unstable-swh; urgency=medium
 
-  * Rebuild for buster-swh
+  * New upstream release 0.10.0     - (tagged by Antoine R. Dumont
+    (@ardumont) <ardumont@softwareheritage.org> on 2021-06-08 10:23:41
+    +0200)
+  * Upstream changes:     - v0.10.0     - Spool large packfiles to disk
+    instead of consuming tons of memory
 
- -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Fri, 16 Apr 2021 13:40:23 +0000
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Tue, 08 Jun 2021 08:27:09 +0000
 
 swh-loader-git (0.9.1-1~swh1) unstable-swh; urgency=medium
 

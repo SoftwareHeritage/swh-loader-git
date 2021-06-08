@@ -5,11 +5,11 @@
 
 from dataclasses import dataclass
 import datetime
-from io import BytesIO
 import logging
 import os
 import pickle
 import sys
+from tempfile import SpooledTemporaryFile
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Set, Type
 
 import dulwich.client
@@ -95,7 +95,7 @@ class RepoRepresentation:
 class FetchPackReturn:
     remote_refs: Dict[bytes, bytes]
     symbolic_refs: Dict[bytes, bytes]
-    pack_buffer: BytesIO
+    pack_buffer: SpooledTemporaryFile
     pack_size: int
 
 
@@ -112,6 +112,7 @@ class GitLoader(DVCSLoader):
         ignore_history: bool = False,
         repo_representation: Type[RepoRepresentation] = RepoRepresentation,
         pack_size_bytes: int = 4 * 1024 * 1024 * 1024,
+        temp_file_cutoff: int = 100 * 1024 * 1024,
         save_data_path: Optional[str] = None,
         max_content_size: Optional[int] = None,
     ):
@@ -133,6 +134,7 @@ class GitLoader(DVCSLoader):
         self.ignore_history = ignore_history
         self.repo_representation = repo_representation
         self.pack_size_bytes = pack_size_bytes
+        self.temp_file_cutoff = temp_file_cutoff
         # state initialized in fetch_data
         self.remote_refs: Dict[bytes, bytes] = {}
         self.symbolic_refs: Dict[bytes, bytes] = {}
@@ -145,7 +147,7 @@ class GitLoader(DVCSLoader):
         do_activity: Callable[[bytes], None],
     ) -> FetchPackReturn:
         """Fetch a pack from the origin"""
-        pack_buffer = BytesIO()
+        pack_buffer = SpooledTemporaryFile(max_size=self.temp_file_cutoff)
 
         base_repo = self.repo_representation(
             storage=self.storage,
