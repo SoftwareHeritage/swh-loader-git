@@ -4,10 +4,13 @@
 # See top-level LICENSE file for more information
 
 import hashlib
+from io import BytesIO
+from pathlib import Path
 import string
 
 import attr
 import pytest
+from requests.exceptions import ContentDecodingError
 
 from swh.loader.package.archive.loader import ArchiveLoader, ArchivePackageInfo
 from swh.loader.tests import assert_last_visit_matches, check_snapshot, get_stats
@@ -416,3 +419,47 @@ def test_archive_snapshot_append_branch_override(swh_storage, requests_mock_data
     branch_target_second_visit = snapshot.branches[branch_artifact1_name].target
 
     assert branch_target_first_visit != branch_target_second_visit
+
+
+@pytest.fixture
+def not_gzipped_tarball_bytes(datadir):
+    return Path(datadir, "not_gzipped_tarball.tar.gz").read_bytes()
+
+
+def test_archive_not_gzipped_tarball(
+    swh_storage, requests_mock, not_gzipped_tarball_bytes
+):
+    """Check that a tarball erroneously marked as gzip compressed can still
+    be downloaded and processed.
+
+    """
+    filename = "not_gzipped_tarball.tar.gz"
+    url = f"https://example.org/ftp/{filename}"
+    requests_mock.get(
+        url,
+        [
+            {"exc": ContentDecodingError,},
+            {"body": BytesIO(not_gzipped_tarball_bytes),},
+        ],
+    )
+    loader = ArchiveLoader(
+        swh_storage,
+        url,
+        artifacts=[
+            {
+                "time": 944729610,
+                "url": url,
+                "length": 221837,
+                "filename": filename,
+                "version": "0.1.0",
+            }
+        ],
+    )
+
+    actual_load_status = loader.load()
+    assert actual_load_status["status"] == "eventful"
+    assert actual_load_status["snapshot_id"] is not None
+
+    snapshot = loader.last_snapshot()
+    assert len(snapshot.branches) == 2
+    assert b"releases/0.1.0" in snapshot.branches

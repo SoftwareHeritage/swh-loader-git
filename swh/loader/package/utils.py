@@ -51,6 +51,7 @@ def download(
     hashes: Dict = {},
     filename: Optional[str] = None,
     auth: Optional[Tuple[str, str]] = None,
+    extra_request_headers: Optional[Dict[str, str]] = None,
 ) -> Tuple[str, Dict]:
     """Download a remote tarball from url, uncompresses and computes swh hashes
        on it.
@@ -74,6 +75,8 @@ def download(
     params = copy.deepcopy(DEFAULT_PARAMS)
     if auth is not None:
         params["auth"] = auth
+    if extra_request_headers is not None:
+        params["headers"].update(extra_request_headers)
     # so the connection does not hang indefinitely (read/connection timeout)
     timeout = params.get("timeout", 60)
     response = requests.get(url, **params, timeout=timeout, stream=True)

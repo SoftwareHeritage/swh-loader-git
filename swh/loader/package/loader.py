@@ -28,6 +28,7 @@ from typing import (
 )
 
 import attr
+from requests.exceptions import ContentDecodingError
 import sentry_sdk
 
 from swh.core.tarball import uncompress
@@ -361,7 +362,20 @@ class PackageLoader(BaseLoader, Generic[TPackageInfo]):
             List of (path, computed hashes)
 
         """
-        return [download(p_info.url, dest=tmpdir, filename=p_info.filename)]
+        try:
+            return [download(p_info.url, dest=tmpdir, filename=p_info.filename)]
+        except ContentDecodingError:
+            # package might be erroneously marked as gzip compressed while is is not,
+            # try to download its raw bytes again without attempting to uncompress
+            # the input stream
+            return [
+                download(
+                    p_info.url,
+                    dest=tmpdir,
+                    filename=p_info.filename,
+                    extra_request_headers={"Accept-Encoding": "identity"},
+                )
+            ]
 
     def uncompress(
         self, dl_artifacts: List[Tuple[str, Mapping[str, Any]]], dest: str
