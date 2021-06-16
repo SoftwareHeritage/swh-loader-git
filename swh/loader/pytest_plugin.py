@@ -19,7 +19,7 @@ def swh_storage_backend_config(swh_storage_postgresql) -> Dict[str, Any]:
             "storage": {
                 "cls": "buffer",
                 "storage": {
-                    "cls": "local",
+                    "cls": "postgresql",
                     "db": swh_storage_postgresql.dsn,
                     "objstorage": {"cls": "memory"},
                 },
