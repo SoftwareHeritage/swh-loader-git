@@ -177,6 +177,8 @@ A few caveats:
 Running your loader
 +++++++++++++++++++
 
+.. _docker-run-loader-cli:
+
 With Docker
 ^^^^^^^^^^^
 
