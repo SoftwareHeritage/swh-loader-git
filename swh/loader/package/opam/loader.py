@@ -24,9 +24,8 @@ class OpamPackageInfo(BasePackageInfo):
 
 def opam_read(
     cmd: List[str], init_error_msg_if_any: Optional[str] = None
-) -> Iterator[str]:
-    """This executes and reads an opam command and yields the
-    output result one line at a time.
+) -> Optional[str]:
+    """This executes an opam command and returns the first line of the output.
 
     Args:
         cmd: Opam command to execute as a list of string
@@ -34,19 +33,22 @@ def opam_read(
           during initialization
 
     Raises:
-        ValueError with the init_error_msg_if_any content in case
-        stdout is not consumable (or something...) and the variable is provided.
+        ValueError with the init_error_msg_if_any content in case stdout is not
+        consumable and the variable is provided with non empty value.
 
-    Yields:
-        output line result of the command line
+    Returns:
+        the first line of the executed command output
 
     """
     with Popen(cmd, stdout=PIPE) as proc:
         if proc.stdout is not None:
             for line in io.TextIOWrapper(proc.stdout):
-                yield line
+                # care only for the first line output result (mostly blank separated
+                # values, callers will deal with the parsing of the line)
+                return line
         elif init_error_msg_if_any:
             raise ValueError(init_error_msg_if_any)
+    return None
 
 
 class OpamLoader(PackageLoader[OpamPackageInfo]):
@@ -103,9 +105,7 @@ class OpamLoader(PackageLoader[OpamPackageInfo]):
             raise ValueError("invalid opam root")
 
     def get_versions(self) -> List[str]:
-        init_error_msg = f"can't get versions for package {self.opam_package} \
-            (at url {self.url}) from `opam show`"
-        for line in opam_read(
+        versions = opam_read(
             [
                 "opam",
                 "show",
@@ -118,18 +118,20 @@ class OpamLoader(PackageLoader[OpamPackageInfo]):
                 "all-versions",
                 self.opam_package,
             ],
-            init_error_msg_if_any=init_error_msg,
-        ):
-            # only care about the first and only line which hold the
-            # versions information as a blank separated list
-            return line.split()
-        raise ValueError(init_error_msg)
+            init_error_msg_if_any=(
+                f"can't get versions for package {self.opam_package} "
+                f"(at url {self.url}) from `opam show`"
+            ),
+        )
+        return versions.split() if versions else []
 
     def get_default_version(self) -> str:
 
         init_error_msg = f"can't get default version for package {self.opam_package} \
             (at url {self.url}) from `opam show`"
-        for line in opam_read(
+        # we only care about the first element of the first line
+        # which is the initial version
+        versions_ = opam_read(
             [
                 "opam",
                 "show",
@@ -143,17 +145,16 @@ class OpamLoader(PackageLoader[OpamPackageInfo]):
                 self.opam_package,
             ],
             init_error_msg_if_any=init_error_msg,
-        ):
-            # we only care about the first element of the first line
-            # and there should be only one element and one line anyway
-            v = line.split()
-            if len(v) != 1:
-                raise ValueError(init_error_msg)
-            return v[0]
-        raise ValueError(init_error_msg)
+        )
+        if not versions_:
+            raise ValueError(init_error_msg)
+        versions = versions_.split()
+        if len(versions) != 1:
+            raise ValueError(init_error_msg)
+        return versions[0]
 
     def get_enclosed_single_line_field(self, field, version) -> Optional[str]:
-        for line in opam_read(
+        result = opam_read(
             [
                 "opam",
                 "show",
@@ -166,12 +167,10 @@ class OpamLoader(PackageLoader[OpamPackageInfo]):
                 field,
                 f"{self.opam_package}.{version}",
             ]
-        ):
-            # we only care about the first line
-            # and there should be only one line anyway
-            # we also need to remove the enclosing " and the trailing \n
-            return line[1:-2]
-        return None
+        )
+
+        # this needs to be cleaned up a bit (remove enclosing " and the trailing \n)
+        return result[1:-2] if result else None
 
     def get_package_info(self, version: str) -> Iterator[Tuple[str, OpamPackageInfo]]:
 
