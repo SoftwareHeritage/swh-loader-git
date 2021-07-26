@@ -125,24 +125,27 @@ class GitLoaderFromDisk(DVCSLoader):
                 },
             )
             return None
-        except ObjectFormatException:
-            _id = oid.decode("utf-8")
+        except ObjectFormatException as e:
+            id_ = oid.decode("utf-8")
             self.log.warn(
-                "object %s malformed, skipping" % _id,
+                "object %s malformed (%s), skipping",
+                id_,
+                e.args[0],
                 extra={
                     "swh_type": "swh_loader_git_missing_object",
-                    "swh_object_id": _id,
+                    "swh_object_id": id_,
                     "origin_url": self.origin.url,
                 },
             )
             return None
         except EmptyFileException:
-            _id = oid.decode("utf-8")
+            id_ = oid.decode("utf-8")
             self.log.warn(
-                "object %s corrupted (empty file), skipping" % _id,
+                "object %s corrupted (empty file), skipping",
+                id_,
                 extra={
                     "swh_type": "swh_loader_git_missing_object",
-                    "swh_object_id": _id,
+                    "swh_object_id": id_,
                     "origin_url": self.origin.url,
                 },
             )
