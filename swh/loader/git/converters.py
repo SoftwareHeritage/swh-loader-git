@@ -169,6 +169,10 @@ def dulwich_tag_to_release(tag, log=None) -> Release:
     else:
         author = date = None
 
+    message = tag.message
+    if tag.signature:
+        message += tag.signature
+
     return Release(
         id=tag.sha().digest(),
         author=author,
@@ -176,7 +180,7 @@ def dulwich_tag_to_release(tag, log=None) -> Release:
         name=tag.name,
         target=bytes.fromhex(target.decode()),
         target_type=DULWICH_OBJECT_TYPES[target_type.type_name],
-        message=tag._message,
+        message=message,
         metadata=None,
         synthetic=False,
     )
