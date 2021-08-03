@@ -164,7 +164,7 @@ class GitLoaderFromDisk(DVCSLoader):
         type_to_ids = defaultdict(list)
         for oid in self.iter_objects():
             obj = self.get_object(oid)
-            if not obj:
+            if obj is None:
                 continue
             type_name = obj.type_name
             type_to_ids[type_name].append(oid)
