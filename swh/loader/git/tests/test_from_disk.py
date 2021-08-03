@@ -400,6 +400,32 @@ class FullGitLoaderTests(CommonGitLoaderTests):
             "snapshot": 1,
         }
 
+    def test_load_empty_tree(self):
+        empty_dir_id = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+
+        # Check the empty tree does not already exist for some reason
+        # (it would make this test pointless)
+        assert list(
+            self.loader.storage.directory_missing([hash_to_bytes(empty_dir_id)])
+        ) == [hash_to_bytes(empty_dir_id)]
+
+        empty_tree = dulwich.objects.Tree()
+        assert empty_tree.id.decode() == empty_dir_id
+        self.repo.object_store.add_object(empty_tree)
+
+        self.repo.do_commit(b"remove all bugs\n", tree=empty_tree.id)
+
+        res = self.loader.load()
+        assert res == {"status": "eventful"}
+
+        assert (
+            list(self.loader.storage.directory_missing([hash_to_bytes(empty_dir_id)]))
+            == []
+        )
+        results = self.loader.storage.directory_get_entries(hash_to_bytes(empty_dir_id))
+        assert results.next_page_token is None
+        assert results.results == []
+
 
 class GitLoaderFromDiskTest(TestCase, FullGitLoaderTests):
     """Prepare a git directory repository to be loaded through a GitLoaderFromDisk.

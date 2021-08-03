@@ -12,3 +12,5 @@ pytest
 pytest-mock
 swh.scheduler[testing]>=0.5.0
 swh.storage[testing]
+types-click
+types-python-dateutil

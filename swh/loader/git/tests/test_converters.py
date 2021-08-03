@@ -98,12 +98,14 @@ class SWHTag:
         tag_time,
         tag_timezone,
         message,
+        signature,
     ):
         self.name = name
         self.type_name = type_name
         self.object = SWHObjectType(target_type), target
         self.tagger = tagger
-        self._message = message
+        self.message = message
+        self.signature = signature
         self.tag_time = tag_time
         self.tag_timezone = tag_timezone
         self._tag_timezone_neg_utc = False
@@ -327,6 +329,7 @@ class TestConverters(unittest.TestCase):
             target=target,
             target_type=b"commit",
             message=message,
+            signature=None,
             tagger=None,
             tag_time=None,
             tag_timezone=None,
@@ -365,6 +368,7 @@ class TestConverters(unittest.TestCase):
             target=target,
             target_type=b"commit",
             message=message,
+            signature=None,
             tagger=tagger,
             tag_time=date,
             tag_timezone=0,
@@ -407,6 +411,7 @@ class TestConverters(unittest.TestCase):
             target=target,
             target_type=b"commit",
             message=message,
+            signature=None,
             tagger=tagger,
             tag_time=None,
             tag_timezone=None,
@@ -425,6 +430,39 @@ class TestConverters(unittest.TestCase):
             date=None,
             id=b"\xda9\xa3\xee^kK\r2U\xbf\xef\x95`\x18\x90\xaf\xd8\x07\t",
             message=message,
+            metadata=None,
+            name=b"blah",
+            synthetic=False,
+            target=hash_to_bytes(target.decode()),
+            target_type=ObjectType.REVISION,
+        )
+
+        self.assertEqual(actual_release, expected_release)
+
+    def test_dulwich_tag_to_release_signature(self):
+        target = b"641fb6e08ddb2e4fd096dcf18e80b894bf"
+        message = b"some release message"
+        tag = SWHTag(
+            name=b"blah",
+            type_name=b"tag",
+            target=target,
+            target_type=b"commit",
+            message=message,
+            signature=GPGSIG,
+            tagger=None,
+            tag_time=None,
+            tag_timezone=None,
+        )
+
+        # when
+        actual_release = converters.dulwich_tag_to_release(tag)
+
+        # then
+        expected_release = Release(
+            author=None,
+            date=None,
+            id=b"\xda9\xa3\xee^kK\r2U\xbf\xef\x95`\x18\x90\xaf\xd8\x07\t",
+            message=message + GPGSIG,
             metadata=None,
             name=b"blah",
             synthetic=False,
