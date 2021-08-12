@@ -152,6 +152,12 @@ def test_deposit_loading_failure_to_retrieve_1_artifact(
     body = update_query.json()
     expected_body = {
         "status": "failed",
+        "status_detail": {
+            "loading": [
+                "Failed to load branch HEAD for some-url-2: Fail to query "
+                "'https://deposit.softwareheritage.org/1/private/666/raw/'. Reason: 404"
+            ]
+        },
     }
 
     assert body == expected_body

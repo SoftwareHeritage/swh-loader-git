@@ -253,14 +253,18 @@ class DepositLoader(PackageLoader[DepositPackageInfo]):
         # Then usual loading
         return super().load()
 
-    def finalize_visit(self, status_visit: str, **kwargs) -> Dict[str, Any]:
+    def finalize_visit(
+        self, status_visit: str, errors: Optional[List[str]] = None, **kwargs
+    ) -> Dict[str, Any]:
         r = super().finalize_visit(status_visit=status_visit, **kwargs)
         success = status_visit == "full"
 
         # Update deposit status
         try:
             if not success:
-                self.client.status_update(self.deposit_id, status="failed")
+                self.client.status_update(
+                    self.deposit_id, status="failed", errors=errors,
+                )
                 return r
 
             snapshot_id = hash_to_bytes(r["snapshot_id"])
@@ -358,6 +362,7 @@ class ApiClient:
         self,
         deposit_id: Union[int, str],
         status: str,
+        errors: Optional[List[str]] = None,
         revision_id: Optional[str] = None,
         directory_id: Optional[str] = None,
         snapshot_id: Optional[str] = None,
@@ -368,7 +373,7 @@ class ApiClient:
 
         """
         url = f"{self.base_url}/{deposit_id}/update/"
-        payload = {"status": status}
+        payload: Dict[str, Any] = {"status": status}
         if revision_id:
             payload["revision_id"] = revision_id
         if directory_id:
@@ -377,5 +382,7 @@ class ApiClient:
             payload["snapshot_id"] = snapshot_id
         if origin_url:
             payload["origin_url"] = origin_url
+        if errors:
+            payload["status_detail"] = {"loading": errors}
 
         self.do("put", url, json=payload)
