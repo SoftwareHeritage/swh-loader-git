@@ -169,14 +169,6 @@ def test_load_extids() -> None:
     rev4_swhid = CoreSWHID(object_type=ObjectType.REVISION, object_id=b"d" * 20)
     dir_swhid = CoreSWHID(object_type=ObjectType.DIRECTORY, object_id=b"e" * 20)
 
-    loader = StubPackageLoader(storage, "http://example.org")
-    patch.object(
-        loader,
-        "_load_revision",
-        return_value=(rev4_swhid.object_id, dir_swhid.object_id),
-        autospec=True,
-    ).start()
-
     # Results of a previous load
     storage.extid_add(
         [
@@ -214,6 +206,14 @@ def test_load_extids() -> None:
             )
         ]
     )
+
+    loader = StubPackageLoader(storage, "http://example.org")
+    patch.object(
+        loader,
+        "_load_revision",
+        return_value=(rev4_swhid.object_id, dir_swhid.object_id),
+        autospec=True,
+    ).start()
 
     loader.load()
 
