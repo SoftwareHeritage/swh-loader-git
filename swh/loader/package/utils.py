@@ -5,9 +5,11 @@
 
 import copy
 import functools
+import itertools
 import logging
 import os
 from typing import Callable, Dict, Optional, Tuple, TypeVar
+from urllib.request import urlopen
 
 import requests
 
@@ -79,9 +81,18 @@ def download(
         params["headers"].update(extra_request_headers)
     # so the connection does not hang indefinitely (read/connection timeout)
     timeout = params.get("timeout", 60)
-    response = requests.get(url, **params, timeout=timeout, stream=True)
-    if response.status_code != 200:
-        raise ValueError("Fail to query '%s'. Reason: %s" % (url, response.status_code))
+
+    if url.startswith("ftp://"):
+        response = urlopen(url, timeout=timeout)
+        chunks = (response.read(HASH_BLOCK_SIZE) for _ in itertools.count())
+        response_data = itertools.takewhile(bool, chunks)
+    else:
+        response = requests.get(url, **params, timeout=timeout, stream=True)
+        if response.status_code != 200:
+            raise ValueError(
+                "Fail to query '%s'. Reason: %s" % (url, response.status_code)
+            )
+        response_data = response.iter_content(chunk_size=HASH_BLOCK_SIZE)
 
     filename = filename if filename else os.path.basename(url)
     logger.debug("filename: %s", filename)
@@ -90,9 +101,11 @@ def download(
 
     h = MultiHash(hash_names=DOWNLOAD_HASHES)
     with open(filepath, "wb") as f:
-        for chunk in response.iter_content(chunk_size=HASH_BLOCK_SIZE):
+        for chunk in response_data:
             h.update(chunk)
             f.write(chunk)
+
+    response.close()
 
     # Also check the expected hashes if provided
     if hashes:

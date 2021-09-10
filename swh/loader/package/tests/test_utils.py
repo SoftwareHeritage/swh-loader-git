@@ -6,6 +6,8 @@
 
 import json
 import os
+from unittest.mock import MagicMock
+from urllib.error import URLError
 
 import pytest
 
@@ -128,6 +130,45 @@ def test_download_fail_hashes_mismatch(tmp_path, requests_mock):
 
         with pytest.raises(ValueError, match=expected_msg):
             download(url, dest=str(tmp_path), hashes=expected_hashes)
+
+
+@pytest.mark.fs
+def test_ftp_download_ok(tmp_path, mocker):
+    """Download without issue should provide filename and hashes"""
+    filename = "requests-0.0.1.tar.gz"
+    url = "ftp://pypi.org/pypi/requests/%s" % filename
+    data = b"this is something"
+
+    cm = MagicMock()
+    cm.getstatus.return_value = 200
+    cm.read.side_effect = [data, b""]
+    cm.__enter__.return_value = cm
+    mocker.patch("swh.loader.package.utils.urlopen").return_value = cm
+
+    actual_filepath, actual_hashes = download(url, dest=str(tmp_path))
+
+    actual_filename = os.path.basename(actual_filepath)
+    assert actual_filename == filename
+    assert actual_hashes["length"] == len(data)
+    assert (
+        actual_hashes["checksums"]["sha1"] == "fdd1ce606a904b08c816ba84f3125f2af44d92b2"
+    )  # noqa
+    assert (
+        actual_hashes["checksums"]["sha256"]
+        == "1d9224378d77925d612c9f926eb9fb92850e6551def8328011b6a972323298d5"
+    )
+
+
+@pytest.mark.fs
+def test_ftp_download_ko(tmp_path, mocker):
+    """Download without issue should provide filename and hashes"""
+    filename = "requests-0.0.1.tar.gz"
+    url = "ftp://pypi.org/pypi/requests/%s" % filename
+
+    mocker.patch("swh.loader.package.utils.urlopen").side_effect = URLError("FTP error")
+
+    with pytest.raises(URLError):
+        download(url, dest=str(tmp_path))
 
 
 def test_api_info_failure(requests_mock):
