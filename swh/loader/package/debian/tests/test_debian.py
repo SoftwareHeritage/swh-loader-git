@@ -3,6 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+from copy import deepcopy
 import logging
 from os import path
 
@@ -301,6 +302,18 @@ def test_debian_dsc_information_not_found():
 
     assert dsc_url is None
     assert dsc_name is None
+
+
+def test_debian_dsc_information_missing_md5sum():
+    package_files = deepcopy(PACKAGE_FILES)
+
+    for package_metadata in package_files["files"].values():
+        del package_metadata["md5sum"]
+
+    p_info = DebianPackageInfo.from_metadata(package_files, url=URL)
+
+    for debian_file_metadata in p_info.files.values():
+        assert not debian_file_metadata.md5sum
 
 
 def test_debian_dsc_information_too_many_dsc_entries():

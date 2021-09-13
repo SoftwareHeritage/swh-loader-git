@@ -41,13 +41,15 @@ class DscCountError(ValueError):
 
 @attr.s
 class DebianFileMetadata:
-    md5sum = attr.ib(type=str)
     name = attr.ib(type=str)
     """Filename"""
     sha256 = attr.ib(type=str)
     size = attr.ib(type=int)
     uri = attr.ib(type=str)
     """URL of this specific file"""
+
+    # md5sum is not always available, make it optional
+    md5sum = attr.ib(type=str, default="")
 
     # Some of the DSC files imported in swh apparently had a Checksums-SHA512
     # field which got recorded in the archive. Current versions of dpkg-source
