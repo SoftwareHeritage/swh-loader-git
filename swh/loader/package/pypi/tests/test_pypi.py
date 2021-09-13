@@ -15,6 +15,7 @@ from swh.core.tarball import uncompress
 from swh.loader.package import __version__
 from swh.loader.package.pypi.loader import (
     PyPILoader,
+    PyPIPackageInfo,
     author,
     extract_intrinsic_metadata,
     pypi_api_url,
@@ -809,3 +810,41 @@ def test_pypi_origin_not_found(swh_storage, requests_mock_datadir):
     assert_last_visit_matches(
         swh_storage, url, status="not_found", type="pypi", snapshot=None
     )
+
+
+def test_pypi_build_revision_missing_version_in_pkg_info(swh_storage, tmp_path):
+    """Simulate revision build when Version field is missing in PKG-INFO file."""
+    url = "https://pypi.org/project/GermlineFilter"
+    # create package info
+    p_info = PyPIPackageInfo(
+        url=url,
+        filename="GermlineFilter-1.2.tar.gz",
+        directory_extrinsic_metadata=[],
+        raw_info={},
+        comment_text="",
+        sha256="e4982353c544d94b34f02c5690ab3d3ebc93480d5b62fe6f3317f23c515acc05",
+        upload_time="2015-02-18T20:39:13",
+    )
+
+    # create PKG-INFO file with missing Version field
+    package_path = tmp_path / "GermlineFilter-1.2"
+    pkg_info_path = package_path / "PKG-INFO"
+    package_path.mkdir()
+    pkg_info_path.write_text(
+        """Metadata-Version: 1.2
+Name: germline_filter
+Home-page:
+Author: Cristian Caloian (OICR)
+Author-email: cristian.caloian@oicr.on.ca
+License: UNKNOWN
+Description: UNKNOWN
+Platform: UNKNOWN"""
+    )
+    directory = hash_to_bytes("8b864d66f356afe35033d58f8e03b7c23a66751f")
+
+    # attempt to build revision
+    loader = PyPILoader(swh_storage, url)
+    revision = loader.build_revision(p_info, str(tmp_path), directory)
+
+    # without comment_text and version in PKG-INFO, message should be empty
+    assert revision.message == b""

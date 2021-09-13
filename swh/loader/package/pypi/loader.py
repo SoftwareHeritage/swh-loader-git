@@ -129,12 +129,12 @@ class PyPILoader(PackageLoader[PyPIPackageInfo]):
             return None
 
         # from intrinsic metadata
-        name = i_metadata["version"]
+        version = i_metadata.get("version", "")
         _author = author(i_metadata)
 
         # from extrinsic metadata
         message = p_info.comment_text or ""
-        message = "%s: %s" % (name, message) if message else name
+        message = "%s: %s" % (version, message) if message else version
         date = TimestampWithTimezone.from_iso8601(p_info.upload_time)
 
         return Revision(
