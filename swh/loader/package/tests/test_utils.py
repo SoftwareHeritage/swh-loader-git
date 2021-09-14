@@ -8,6 +8,7 @@ import json
 import os
 from unittest.mock import MagicMock
 from urllib.error import URLError
+from urllib.parse import quote
 
 import pytest
 
@@ -196,6 +197,72 @@ def test_download_with_redirection(tmp_path, requests_mock):
         actual_hashes["checksums"]["sha256"]
         == "1d9224378d77925d612c9f926eb9fb92850e6551def8328011b6a972323298d5"
     )
+
+
+@pytest.mark.fs
+def test_download_filename_from_content_disposition(tmp_path, requests_mock):
+    """Filename should be extracted from content-disposition request header
+    when available."""
+    url = "https://example.org/download/requests/tar.gz/v0.0.1"
+    filename = "requests-0.0.1.tar.gz"
+
+    data = "this is something"
+
+    for fname in (f'"{filename}"', filename, '"filename with spaces.tar.gz"'):
+        requests_mock.get(
+            url,
+            text=data,
+            headers={
+                "content-length": str(len(data)),
+                "content-disposition": f"attachment; filename={fname}",
+            },
+        )
+
+        actual_filepath, actual_hashes = download(url, dest=str(tmp_path))
+
+        actual_filename = os.path.basename(actual_filepath)
+        assert actual_filename == fname.strip('"')
+        assert actual_hashes["length"] == len(data)
+        assert (
+            actual_hashes["checksums"]["sha1"]
+            == "fdd1ce606a904b08c816ba84f3125f2af44d92b2"
+        )  # noqa
+        assert (
+            actual_hashes["checksums"]["sha256"]
+            == "1d9224378d77925d612c9f926eb9fb92850e6551def8328011b6a972323298d5"
+        )
+
+
+@pytest.mark.fs
+def test_download_utf8_filename_from_content_disposition(tmp_path, requests_mock):
+    """Filename should be extracted from content-disposition request header
+    when available."""
+    url = "https://example.org/download/requests/tar.gz/v0.0.1"
+    data = "this is something"
+
+    for fname in ('"archive école.tar.gz"', "archive_école.tgz"):
+        requests_mock.get(
+            url,
+            text=data,
+            headers={
+                "content-length": str(len(data)),
+                "content-disposition": f"attachment; filename*=utf-8''{quote(fname)}",
+            },
+        )
+
+        actual_filepath, actual_hashes = download(url, dest=str(tmp_path))
+
+        actual_filename = os.path.basename(actual_filepath)
+        assert actual_filename == fname.strip('"')
+        assert actual_hashes["length"] == len(data)
+        assert (
+            actual_hashes["checksums"]["sha1"]
+            == "fdd1ce606a904b08c816ba84f3125f2af44d92b2"
+        )  # noqa
+        assert (
+            actual_hashes["checksums"]["sha256"]
+            == "1d9224378d77925d612c9f926eb9fb92850e6551def8328011b6a972323298d5"
+        )
 
 
 def test_api_info_failure(requests_mock):
