@@ -848,3 +848,40 @@ Platform: UNKNOWN"""
 
     # without comment_text and version in PKG-INFO, message should be empty
     assert revision.message == b""
+
+
+def test_filter_out_invalid_sdists(swh_storage, requests_mock):
+    project_name = "swh-test-sdist-filtering"
+    version = "1.0.0"
+    url = f"https://pypi.org/project/{project_name}"
+    json_url = f"https://pypi.org/pypi/{project_name}/json"
+
+    common_sdist_entries = {
+        "url": "",
+        "comment_text": "",
+        "digests": {"sha256": ""},
+        "upload_time": "",
+        "packagetype": "sdist",
+    }
+
+    requests_mock.get(
+        json_url,
+        json={
+            "releases": {
+                version: [
+                    {
+                        **common_sdist_entries,
+                        "filename": f"{project_name}-{version}.{ext}",
+                    }
+                    for ext in ("tar.gz", "deb", "egg", "rpm", "whl")
+                ]
+            },
+        },
+    )
+
+    loader = PyPILoader(swh_storage, url)
+
+    packages = list(loader.get_package_info(version=version))
+
+    assert len(packages) == 1
+    assert packages[0][1].filename.endswith(".tar.gz")

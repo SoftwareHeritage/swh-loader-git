@@ -109,8 +109,12 @@ class PyPILoader(PackageLoader[PyPIPackageInfo]):
     def get_package_info(self, version: str) -> Iterator[Tuple[str, PyPIPackageInfo]]:
         res = []
         for meta in self.info()["releases"][version]:
-            if meta["packagetype"] != "sdist":
+            # process only standard sdist archives
+            if meta["packagetype"] != "sdist" or meta["filename"].lower().endswith(
+                (".deb", ".egg", ".rpm", ".whl")
+            ):
                 continue
+
             p_info = PyPIPackageInfo.from_metadata(meta)
             res.append((version, p_info))
 
