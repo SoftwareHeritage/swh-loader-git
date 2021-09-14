@@ -92,6 +92,9 @@ def download(
             raise ValueError(
                 "Fail to query '%s'. Reason: %s" % (url, response.status_code)
             )
+        # update URL to response one as requests follow redirection by default
+        # on GET requests
+        url = response.url
         response_data = response.iter_content(chunk_size=HASH_BLOCK_SIZE)
 
     filename = filename if filename else os.path.basename(url)

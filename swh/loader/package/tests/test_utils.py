@@ -171,6 +171,33 @@ def test_ftp_download_ko(tmp_path, mocker):
         download(url, dest=str(tmp_path))
 
 
+@pytest.mark.fs
+def test_download_with_redirection(tmp_path, requests_mock):
+    """Download with redirection should use the targeted URL to extract filename"""
+    url = "https://example.org/project/requests/download"
+    filename = "requests-0.0.1.tar.gz"
+    redirection_url = f"https://example.org/project/requests/files/{filename}"
+    data = "this is something"
+
+    requests_mock.get(url, status_code=302, headers={"location": redirection_url})
+    requests_mock.get(
+        redirection_url, text=data, headers={"content-length": str(len(data))}
+    )
+
+    actual_filepath, actual_hashes = download(url, dest=str(tmp_path))
+
+    actual_filename = os.path.basename(actual_filepath)
+    assert actual_filename == filename
+    assert actual_hashes["length"] == len(data)
+    assert (
+        actual_hashes["checksums"]["sha1"] == "fdd1ce606a904b08c816ba84f3125f2af44d92b2"
+    )  # noqa
+    assert (
+        actual_hashes["checksums"]["sha256"]
+        == "1d9224378d77925d612c9f926eb9fb92850e6551def8328011b6a972323298d5"
+    )
+
+
 def test_api_info_failure(requests_mock):
     """Failure to fetch info/release information should raise"""
     url = "https://pypi.org/pypi/requests/json"
