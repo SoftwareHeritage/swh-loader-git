@@ -3,12 +3,12 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import unittest
+import pytest
 
 from swh.loader.git import utils
 
 
-class TestUtils(unittest.TestCase):
+class TestUtils:
     def test_check_date_time(self):
         """A long as datetime is fine, date time check does not raise
 
@@ -18,7 +18,7 @@ class TestUtils(unittest.TestCase):
             utils.check_date_time(ts)
 
     def test_check_date_time_empty_value(self):
-        self.assertIsNone(utils.check_date_time(None))
+        assert utils.check_date_time(None) is None
 
     def test_check_date_time_raises(self):
         """From a give threshold, check will no longer works.
@@ -26,5 +26,5 @@ class TestUtils(unittest.TestCase):
         """
         exp = 38
         timestamp = 2 ** exp
-        with self.assertRaisesRegex(ValueError, "is out of range"):
+        with pytest.raises(ValueError, match=".*is out of range.*"):
             utils.check_date_time(timestamp)

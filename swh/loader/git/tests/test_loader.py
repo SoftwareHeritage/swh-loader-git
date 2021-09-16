@@ -4,7 +4,6 @@
 # See top-level LICENSE file for more information
 
 import os
-from unittest import TestCase
 
 from dulwich.errors import GitProtocolError, NotGitRepository, ObjectFormatException
 import dulwich.repo
@@ -23,67 +22,65 @@ class CommonGitLoaderNotFound:
         """
         self.mocker = mocker
 
-    def test_load_visit_not_found(self):
-        """Ingesting an unknown url result in a visit with not_found status
-
-        """
-        for failure_exception in [
+    @pytest.mark.parametrize(
+        "failure_exception",
+        [
             GitProtocolError("Repository unavailable"),  # e.g DMCA takedown
             GitProtocolError("Repository not found"),
             GitProtocolError("unexpected http resp 401"),
             NotGitRepository("not a git repo"),
-        ]:
-            with self.subTest(failure_exception=failure_exception):
-                # simulate an initial communication error (e.g no repository found, ...)
-                mock = self.mocker.patch(
-                    "swh.loader.git.loader.GitLoader.fetch_pack_from_origin"
-                )
-                mock.side_effect = failure_exception
+        ],
+    )
+    def test_load_visit_not_found(self, failure_exception):
+        """Ingesting an unknown url result in a visit with not_found status
 
-                res = self.loader.load()
-                assert res == {"status": "uneventful"}
+        """
+        # simulate an initial communication error (e.g no repository found, ...)
+        mock = self.mocker.patch(
+            "swh.loader.git.loader.GitLoader.fetch_pack_from_origin"
+        )
+        mock.side_effect = failure_exception
 
-                assert_last_visit_matches(
-                    self.loader.storage,
-                    self.repo_url,
-                    status="not_found",
-                    type="git",
-                    snapshot=None,
-                )
+        res = self.loader.load()
+        assert res == {"status": "uneventful"}
 
-    def test_load_visit_failure(self):
+        assert_last_visit_matches(
+            self.loader.storage,
+            self.repo_url,
+            status="not_found",
+            type="git",
+            snapshot=None,
+        )
+
+    @pytest.mark.parametrize(
+        "failure_exception",
+        [IOError, ObjectFormatException, OSError, ValueError, GitProtocolError,],
+    )
+    def test_load_visit_failure(self, failure_exception):
         """Failing during the fetch pack step result in failing visit
 
         """
-        for failure_exception in [
-            IOError,
-            ObjectFormatException,
-            OSError,
-            ValueError,
-            GitProtocolError,
-        ]:
-            with self.subTest(failure_exception=failure_exception):
-                # simulate a fetch communication error after the initial connection
-                # server error (e.g IOError, ObjectFormatException, ...)
-                mock = self.mocker.patch(
-                    "swh.loader.git.loader.GitLoader.fetch_pack_from_origin"
-                )
+        # simulate a fetch communication error after the initial connection
+        # server error (e.g IOError, ObjectFormatException, ...)
+        mock = self.mocker.patch(
+            "swh.loader.git.loader.GitLoader.fetch_pack_from_origin"
+        )
 
-                mock.side_effect = failure_exception("failure")
+        mock.side_effect = failure_exception("failure")
 
-                res = self.loader.load()
-                assert res == {"status": "failed"}
+        res = self.loader.load()
+        assert res == {"status": "failed"}
 
-                assert_last_visit_matches(
-                    self.loader.storage,
-                    self.repo_url,
-                    status="failed",
-                    type="git",
-                    snapshot=None,
-                )
+        assert_last_visit_matches(
+            self.loader.storage,
+            self.repo_url,
+            status="failed",
+            type="git",
+            snapshot=None,
+        )
 
 
-class GitLoaderTest(TestCase, FullGitLoaderTests, CommonGitLoaderNotFound):
+class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
     """Prepare a git directory repository to be loaded through a GitLoader.
     This tests all git loader scenario.
 
@@ -91,7 +88,6 @@ class GitLoaderTest(TestCase, FullGitLoaderTests, CommonGitLoaderNotFound):
 
     @pytest.fixture(autouse=True)
     def init(self, swh_storage, datadir, tmp_path):
-        super().setUp()
         archive_name = "testrepo"
         archive_path = os.path.join(datadir, f"{archive_name}.tgz")
         tmp_path = str(tmp_path)
@@ -103,7 +99,7 @@ class GitLoaderTest(TestCase, FullGitLoaderTests, CommonGitLoaderNotFound):
         self.repo = dulwich.repo.Repo(self.destination_path)
 
 
-class GitLoader2Test(TestCase, FullGitLoaderTests, CommonGitLoaderNotFound):
+class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
     """Mostly the same loading scenario but with a base-url different than the repo-url.
     To walk slightly different paths, the end result should stay the same.
 
@@ -111,7 +107,6 @@ class GitLoader2Test(TestCase, FullGitLoaderTests, CommonGitLoaderNotFound):
 
     @pytest.fixture(autouse=True)
     def init(self, swh_storage, datadir, tmp_path):
-        super().setUp()
         archive_name = "testrepo"
         archive_path = os.path.join(datadir, f"{archive_name}.tgz")
         tmp_path = str(tmp_path)

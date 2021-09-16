@@ -6,7 +6,6 @@
 import copy
 import datetime
 import os.path
-from unittest import TestCase
 
 import dulwich.objects
 import dulwich.porcelain
@@ -500,7 +499,7 @@ class FullGitLoaderTests(CommonGitLoaderTests):
         )
 
 
-class GitLoaderFromDiskTest(TestCase, FullGitLoaderTests):
+class TestGitLoaderFromDisk(FullGitLoaderTests):
     """Prepare a git directory repository to be loaded through a GitLoaderFromDisk.
     This tests all git loader scenario.
 
@@ -526,7 +525,7 @@ class GitLoaderFromDiskTest(TestCase, FullGitLoaderTests):
         self.repo = dulwich.repo.Repo(self.destination_path)
 
 
-class GitLoaderFromArchiveTest(TestCase, CommonGitLoaderTests):
+class TestGitLoaderFromArchive(CommonGitLoaderTests):
     """Tests for GitLoaderFromArchive. Only tests common scenario."""
 
     @pytest.fixture(autouse=True)

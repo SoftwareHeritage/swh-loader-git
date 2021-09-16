@@ -7,7 +7,6 @@ import os
 import shutil
 import subprocess
 import tempfile
-import unittest
 
 import dulwich.repo
 import pytest
@@ -117,10 +116,9 @@ class SWHTag:
 
 
 @pytest.mark.fs
-class TestConverters(unittest.TestCase):
+class TestConverters:
     @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
+    def setup_class(cls):
         cls.repo_path = tempfile.mkdtemp()
 
         bundle = os.path.join(TEST_DATA, "git-repos", "example-submodule.bundle")
@@ -161,7 +159,7 @@ class TestConverters(unittest.TestCase):
             length=124,
             status="visible",
         )
-        self.assertEqual(content, expected_content)
+        assert content == expected_content
 
     def test_convertion_wrong_input(self):
         class Something:
@@ -176,7 +174,7 @@ class TestConverters(unittest.TestCase):
         }
 
         for _callable in m.values():
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 _callable(Something())
 
     def test_commit_to_revision(self):
@@ -214,7 +212,7 @@ class TestConverters(unittest.TestCase):
             synthetic=False,
         )
 
-        self.assertEqual(revision, expected_revision)
+        assert revision == expected_revision
 
     def test_commit_to_revision_with_extra_headers(self):
         sha1 = b"322f5bc915e50fc25e85226b5a182bded0e98e4b"
@@ -295,7 +293,7 @@ class TestConverters(unittest.TestCase):
 
     def test_author_line_to_author(self):
         # edge case out of the way
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             converters.parse_author(None)
 
         tests = {
@@ -318,7 +316,7 @@ class TestConverters(unittest.TestCase):
 
         for author in sorted(tests):
             parsed_author = tests[author]
-            self.assertEqual(parsed_author, converters.parse_author(author))
+            assert parsed_author == converters.parse_author(author)
 
     def test_dulwich_tag_to_release_no_author_no_date(self):
         target = b"641fb6e08ddb2e4fd096dcf18e80b894bf"
@@ -351,7 +349,7 @@ class TestConverters(unittest.TestCase):
             target_type=ObjectType.REVISION,
         )
 
-        self.assertEqual(actual_release, expected_release)
+        assert actual_release == expected_release
 
     def test_dulwich_tag_to_release_author_and_date(self):
         tagger = b"hey dude <hello@mail.org>"
@@ -398,7 +396,7 @@ class TestConverters(unittest.TestCase):
             target_type=ObjectType.REVISION,
         )
 
-        self.assertEqual(actual_release, expected_release)
+        assert actual_release == expected_release
 
     def test_dulwich_tag_to_release_author_no_date(self):
         # to reproduce bug T815 (fixed)
@@ -437,7 +435,7 @@ class TestConverters(unittest.TestCase):
             target_type=ObjectType.REVISION,
         )
 
-        self.assertEqual(actual_release, expected_release)
+        assert actual_release == expected_release
 
     def test_dulwich_tag_to_release_signature(self):
         target = b"641fb6e08ddb2e4fd096dcf18e80b894bf"
@@ -470,4 +468,4 @@ class TestConverters(unittest.TestCase):
             target_type=ObjectType.REVISION,
         )
 
-        self.assertEqual(actual_release, expected_release)
+        assert actual_release == expected_release
