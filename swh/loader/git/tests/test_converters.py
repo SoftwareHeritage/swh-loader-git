@@ -3,6 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import copy
 import os
 import shutil
 import subprocess
@@ -12,7 +13,7 @@ import dulwich.repo
 import pytest
 
 import swh.loader.git.converters as converters
-from swh.model.hashutil import bytehex_to_hash, hash_to_bytes
+from swh.model.hashutil import bytehex_to_hash, hash_to_bytehex, hash_to_bytes
 from swh.model.model import (
     Content,
     ObjectType,
@@ -89,6 +90,7 @@ class SWHTag:
 
     def __init__(
         self,
+        sha,
         name,
         type_name,
         target,
@@ -99,6 +101,7 @@ class SWHTag:
         message,
         signature,
     ):
+        self._sha = sha
         self.name = name
         self.type_name = type_name
         self.object = SWHObjectType(target_type), target
@@ -110,9 +113,11 @@ class SWHTag:
         self._tag_timezone_neg_utc = False
 
     def sha(self):
-        from hashlib import sha1
+        class hasher:
+            def digest():
+                return self._sha
 
-        return sha1()
+        return hasher
 
 
 @pytest.mark.fs
@@ -161,13 +166,34 @@ class TestConverters:
         )
         assert content == expected_content
 
+    def test_corrupt_blob(self, mocker):
+        # has a signature
+        sha1 = hash_to_bytes("28c6f4023d65f74e3b59a2dea3c4277ed9ee07b0")
+
+        blob = copy.deepcopy(self.repo[hash_to_bytehex(sha1)])
+
+        class hasher:
+            def digest():
+                return sha1
+
+        blob._sha = hasher
+
+        converters.dulwich_blob_to_content(blob)
+        converters.dulwich_blob_to_content_id(blob)
+
+        sha1 = hash_to_bytes("1234" * 10)
+
+        with pytest.raises(converters.HashMismatch):
+            converters.dulwich_blob_to_content(blob)
+        with pytest.raises(converters.HashMismatch):
+            converters.dulwich_blob_to_content_id(blob)
+
     def test_convertion_wrong_input(self):
         class Something:
             type_name = b"something-not-the-right-type"
 
         m = {
             "blob": converters.dulwich_blob_to_content,
-            "blob2": converters.dulwich_blob_to_content_id,
             "tree": converters.dulwich_tree_to_directory,
             "commit": converters.dulwich_tree_to_directory,
             "tag": converters.dulwich_tag_to_release,
@@ -176,6 +202,17 @@ class TestConverters:
         for _callable in m.values():
             with pytest.raises(ValueError):
                 _callable(Something())
+
+    def test_corrupt_tree(self):
+        # has a signature
+        sha1 = b"f0695c2e2fa7ce9d574023c3413761a473e500ca"
+        tree = copy.deepcopy(self.repo[sha1])
+        converters.dulwich_tree_to_directory(tree)
+
+        del tree._entries[next(iter(tree._entries))]
+
+        with pytest.raises(converters.HashMismatch):
+            converters.dulwich_tree_to_directory(tree)
 
     def test_commit_to_revision(self):
         sha1 = b"9768d0b576dbaaecd80abedad6dfd0d72f1476da"
@@ -251,6 +288,23 @@ class TestConverters:
 
         assert revision == expected_revision
 
+    @pytest.mark.parametrize(
+        "attribute", ["_message", "_encoding", "_author", "_gpgsig"]
+    )
+    def test_corrupt_commit(self, attribute):
+        # has a signature
+        sha1 = b"322f5bc915e50fc25e85226b5a182bded0e98e4b"
+        commit = copy.deepcopy(self.repo[sha1])
+        converters.dulwich_commit_to_revision(commit)
+        setattr(commit, attribute, b"abcde")
+        with pytest.raises(converters.HashMismatch):
+            converters.dulwich_commit_to_revision(commit)
+
+        if attribute == "_gpgsig":
+            setattr(commit, attribute, None)
+            with pytest.raises(converters.HashMismatch):
+                converters.dulwich_commit_to_revision(commit)
+
     def test_commit_to_revision_with_extra_headers_mergetag(self):
         sha1 = b"3ab3da4bf0f81407be16969df09cd1c8af9ac703"
 
@@ -319,9 +373,11 @@ class TestConverters:
             assert parsed_author == converters.parse_author(author)
 
     def test_dulwich_tag_to_release_no_author_no_date(self):
-        target = b"641fb6e08ddb2e4fd096dcf18e80b894bf"
+        sha = hash_to_bytes("f6e367357b446bd1315276de5e88ba3d0d99e136")
+        target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
         message = b"some release message"
         tag = SWHTag(
+            sha=sha,
             name=b"blah",
             type_name=b"tag",
             target=target,
@@ -340,7 +396,7 @@ class TestConverters:
         expected_release = Release(
             author=None,
             date=None,
-            id=b"\xda9\xa3\xee^kK\r2U\xbf\xef\x95`\x18\x90\xaf\xd8\x07\t",
+            id=sha,
             message=message,
             metadata=None,
             name=b"blah",
@@ -352,8 +408,9 @@ class TestConverters:
         assert actual_release == expected_release
 
     def test_dulwich_tag_to_release_author_and_date(self):
+        sha = hash_to_bytes("fc1e6a4f1e37e93e28e78560e73efd0b12f616ef")
         tagger = b"hey dude <hello@mail.org>"
-        target = b"641fb6e08ddb2e4fd096dcf18e80b894bf"
+        target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
         message = b"some release message"
 
         import datetime
@@ -361,6 +418,7 @@ class TestConverters:
         date = datetime.datetime(2007, 12, 5, tzinfo=datetime.timezone.utc).timestamp()
 
         tag = SWHTag(
+            sha=sha,
             name=b"blah",
             type_name=b"tag",
             target=target,
@@ -387,7 +445,7 @@ class TestConverters:
                 offset=0,
                 timestamp=Timestamp(seconds=1196812800, microseconds=0,),
             ),
-            id=b"\xda9\xa3\xee^kK\r2U\xbf\xef\x95`\x18\x90\xaf\xd8\x07\t",
+            id=sha,
             message=message,
             metadata=None,
             name=b"blah",
@@ -400,10 +458,12 @@ class TestConverters:
 
     def test_dulwich_tag_to_release_author_no_date(self):
         # to reproduce bug T815 (fixed)
+        sha = hash_to_bytes("41076e970975122dc6b2a878aa9797960bc4781d")
         tagger = b"hey dude <hello@mail.org>"
-        target = b"641fb6e08ddb2e4fd096dcf18e80b894bf"
+        target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
         message = b"some release message"
         tag = SWHTag(
+            sha=sha,
             name=b"blah",
             type_name=b"tag",
             target=target,
@@ -426,7 +486,7 @@ class TestConverters:
                 name=b"hey dude",
             ),
             date=None,
-            id=b"\xda9\xa3\xee^kK\r2U\xbf\xef\x95`\x18\x90\xaf\xd8\x07\t",
+            id=sha,
             message=message,
             metadata=None,
             name=b"blah",
@@ -438,9 +498,11 @@ class TestConverters:
         assert actual_release == expected_release
 
     def test_dulwich_tag_to_release_signature(self):
-        target = b"641fb6e08ddb2e4fd096dcf18e80b894bf"
+        target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
         message = b"some release message"
+        sha = hash_to_bytes("46fff489610ed733d2cc904e363070dadee05c71")
         tag = SWHTag(
+            sha=sha,
             name=b"blah",
             type_name=b"tag",
             target=target,
@@ -459,7 +521,7 @@ class TestConverters:
         expected_release = Release(
             author=None,
             date=None,
-            id=b"\xda9\xa3\xee^kK\r2U\xbf\xef\x95`\x18\x90\xaf\xd8\x07\t",
+            id=sha,
             message=message + GPGSIG,
             metadata=None,
             name=b"blah",
@@ -469,3 +531,32 @@ class TestConverters:
         )
 
         assert actual_release == expected_release
+
+    @pytest.mark.parametrize("attribute", ["name", "message", "signature"])
+    def test_corrupt_tag(self, attribute):
+        # has a signature
+        sha = hash_to_bytes("46fff489610ed733d2cc904e363070dadee05c71")
+        target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
+        message = b"some release message"
+        tag = SWHTag(
+            sha=sha,
+            name=b"blah",
+            type_name=b"tag",
+            target=target,
+            target_type=b"commit",
+            message=message,
+            signature=GPGSIG,
+            tagger=None,
+            tag_time=None,
+            tag_timezone=None,
+        )
+        converters.dulwich_tag_to_release(tag)
+
+        setattr(tag, attribute, b"abcde")
+        with pytest.raises(converters.HashMismatch):
+            converters.dulwich_tag_to_release(tag)
+
+        if attribute == "signature":
+            setattr(tag, attribute, None)
+            with pytest.raises(converters.HashMismatch):
+                converters.dulwich_tag_to_release(tag)

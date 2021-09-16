@@ -15,6 +15,7 @@ from swh.model.model import (
     Content,
     Directory,
     DirectoryEntry,
+    HashableObject,
     ObjectType,
     Person,
     Release,
@@ -26,7 +27,18 @@ from swh.model.model import (
     TimestampWithTimezone,
 )
 
-HASH_ALGORITHMS = DEFAULT_ALGORITHMS - {"sha1_git"}
+
+class HashMismatch(Exception):
+    pass
+
+
+def check_id(obj: HashableObject) -> None:
+    real_id = obj.compute_hash()
+    if obj.id != real_id:
+        raise HashMismatch(
+            f"Expected {type(obj).__name__} hash to be {obj.id.hex()}, "
+            f"got {real_id.hex()}"
+        )
 
 
 def dulwich_blob_to_content_id(obj: ShaFile) -> Dict[str, Any]:
@@ -37,8 +49,12 @@ def dulwich_blob_to_content_id(obj: ShaFile) -> Dict[str, Any]:
 
     size = blob.raw_length()
     data = blob.as_raw_string()
-    hashes = MultiHash.from_data(data, HASH_ALGORITHMS).digest()
-    hashes["sha1_git"] = blob.sha().digest()
+    hashes = MultiHash.from_data(data, DEFAULT_ALGORITHMS).digest()
+    if hashes["sha1_git"] != blob.sha().digest():
+        raise HashMismatch(
+            f"Expected Content hash to be {blob.sha().digest().hex()}, "
+            f"got {hashes['sha1_git'].hex()}"
+        )
     hashes["length"] = size
     return hashes
 
@@ -84,7 +100,9 @@ def dulwich_tree_to_directory(obj: ShaFile, log=None) -> Directory:
             )
         )
 
-    return Directory(id=tree.sha().digest(), entries=tuple(entries),)
+    dir_ = Directory(id=tree.sha().digest(), entries=tuple(entries),)
+    check_id(dir_)
+    return dir_
 
 
 def parse_author(name_email: bytes) -> Person:
@@ -124,7 +142,7 @@ def dulwich_commit_to_revision(obj: ShaFile, log=None) -> Revision:
     if commit.gpgsig:
         extra_headers.append((b"gpgsig", commit.gpgsig))
 
-    return Revision(
+    rev = Revision(
         id=commit.sha().digest(),
         author=parse_author(commit.author),
         date=dulwich_tsinfo_to_timestamp(
@@ -142,6 +160,8 @@ def dulwich_commit_to_revision(obj: ShaFile, log=None) -> Revision:
         synthetic=False,
         parents=tuple(bytes.fromhex(p.decode()) for p in commit.parents),
     )
+    check_id(rev)
+    return rev
 
 
 DULWICH_TARGET_TYPES = {
@@ -181,7 +201,7 @@ def dulwich_tag_to_release(obj: ShaFile, log=None) -> Release:
     if tag.signature:
         message += tag.signature
 
-    return Release(
+    rel = Release(
         id=tag.sha().digest(),
         author=author,
         date=date,
@@ -192,3 +212,5 @@ def dulwich_tag_to_release(obj: ShaFile, log=None) -> Release:
         metadata=None,
         synthetic=False,
     )
+    check_id(rel)
+    return rel
