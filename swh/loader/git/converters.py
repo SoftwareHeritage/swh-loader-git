@@ -5,7 +5,9 @@
 
 """Convert dulwich objects to dictionaries suitable for swh.storage"""
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
+
+from dulwich.objects import Blob, Commit, ShaFile, Tag, Tree
 
 from swh.model.hashutil import DEFAULT_ALGORITHMS, MultiHash, hash_to_bytes
 from swh.model.model import (
@@ -13,6 +15,7 @@ from swh.model.model import (
     Content,
     Directory,
     DirectoryEntry,
+    HashableObject,
     ObjectType,
     Person,
     Release,
@@ -24,28 +27,46 @@ from swh.model.model import (
     TimestampWithTimezone,
 )
 
-HASH_ALGORITHMS = DEFAULT_ALGORITHMS - {"sha1_git"}
+
+class HashMismatch(Exception):
+    pass
 
 
-def dulwich_blob_to_content_id(blob) -> Dict[str, Any]:
+def check_id(obj: HashableObject) -> None:
+    real_id = obj.compute_hash()
+    if obj.id != real_id:
+        raise HashMismatch(
+            f"Expected {type(obj).__name__} hash to be {obj.id.hex()}, "
+            f"got {real_id.hex()}"
+        )
+
+
+def dulwich_blob_to_content_id(obj: ShaFile) -> Dict[str, Any]:
     """Convert a dulwich blob to a Software Heritage content id"""
-    if blob.type_name != b"blob":
+    if obj.type_name != b"blob":
         raise ValueError("Argument is not a blob.")
+    blob = cast(Blob, obj)
 
     size = blob.raw_length()
     data = blob.as_raw_string()
-    hashes = MultiHash.from_data(data, HASH_ALGORITHMS).digest()
-    hashes["sha1_git"] = blob.sha().digest()
+    hashes = MultiHash.from_data(data, DEFAULT_ALGORITHMS).digest()
+    if hashes["sha1_git"] != blob.sha().digest():
+        raise HashMismatch(
+            f"Expected Content hash to be {blob.sha().digest().hex()}, "
+            f"got {hashes['sha1_git'].hex()}"
+        )
     hashes["length"] = size
     return hashes
 
 
-def dulwich_blob_to_content(blob, max_content_size=None) -> BaseContent:
+def dulwich_blob_to_content(obj: ShaFile, max_content_size=None) -> BaseContent:
     """Convert a dulwich blob to a Software Heritage content
 
     """
-    if blob.type_name != b"blob":
+    if obj.type_name != b"blob":
         raise ValueError("Argument is not a blob.")
+    blob = cast(Blob, obj)
+
     hashes = dulwich_blob_to_content_id(blob)
     if max_content_size is not None and hashes["length"] >= max_content_size:
         return SkippedContent(status="absent", reason="Content too large", **hashes,)
@@ -53,10 +74,11 @@ def dulwich_blob_to_content(blob, max_content_size=None) -> BaseContent:
         return Content(data=blob.as_raw_string(), status="visible", **hashes,)
 
 
-def dulwich_tree_to_directory(tree, log=None) -> Directory:
+def dulwich_tree_to_directory(obj: ShaFile, log=None) -> Directory:
     """Format a tree as a directory"""
-    if tree.type_name != b"tree":
+    if obj.type_name != b"tree":
         raise ValueError("Argument is not a tree.")
+    tree = cast(Tree, obj)
 
     entries = []
 
@@ -78,7 +100,9 @@ def dulwich_tree_to_directory(tree, log=None) -> Directory:
             )
         )
 
-    return Directory(id=tree.sha().digest(), entries=tuple(entries),)
+    dir_ = Directory(id=tree.sha().digest(), entries=tuple(entries),)
+    check_id(dir_)
+    return dir_
 
 
 def parse_author(name_email: bytes) -> Person:
@@ -98,9 +122,10 @@ def dulwich_tsinfo_to_timestamp(
     )
 
 
-def dulwich_commit_to_revision(commit, log=None) -> Revision:
-    if commit.type_name != b"commit":
+def dulwich_commit_to_revision(obj: ShaFile, log=None) -> Revision:
+    if obj.type_name != b"commit":
         raise ValueError("Argument is not a commit.")
+    commit = cast(Commit, obj)
 
     extra_headers = []
     if commit.encoding is not None:
@@ -117,7 +142,7 @@ def dulwich_commit_to_revision(commit, log=None) -> Revision:
     if commit.gpgsig:
         extra_headers.append((b"gpgsig", commit.gpgsig))
 
-    return Revision(
+    rev = Revision(
         id=commit.sha().digest(),
         author=parse_author(commit.author),
         date=dulwich_tsinfo_to_timestamp(
@@ -135,6 +160,8 @@ def dulwich_commit_to_revision(commit, log=None) -> Revision:
         synthetic=False,
         parents=tuple(bytes.fromhex(p.decode()) for p in commit.parents),
     )
+    check_id(rev)
+    return rev
 
 
 DULWICH_TARGET_TYPES = {
@@ -153,9 +180,10 @@ DULWICH_OBJECT_TYPES = {
 }
 
 
-def dulwich_tag_to_release(tag, log=None) -> Release:
-    if tag.type_name != b"tag":
+def dulwich_tag_to_release(obj: ShaFile, log=None) -> Release:
+    if obj.type_name != b"tag":
         raise ValueError("Argument is not a tag.")
+    tag = cast(Tag, obj)
 
     target_type, target = tag.object
     if tag.tagger:
@@ -173,7 +201,7 @@ def dulwich_tag_to_release(tag, log=None) -> Release:
     if tag.signature:
         message += tag.signature
 
-    return Release(
+    rel = Release(
         id=tag.sha().digest(),
         author=author,
         date=date,
@@ -184,3 +212,5 @@ def dulwich_tag_to_release(tag, log=None) -> Release:
         metadata=None,
         synthetic=False,
     )
+    check_id(rel)
+    return rel
