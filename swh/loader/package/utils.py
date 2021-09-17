@@ -10,7 +10,7 @@ import logging
 import os
 import re
 from typing import Callable, Dict, Optional, Tuple, TypeVar
-from urllib.parse import unquote
+from urllib.parse import unquote, urlsplit
 from urllib.request import urlopen
 
 import requests
@@ -118,7 +118,8 @@ def download(
             )
         response_data = response.iter_content(chunk_size=HASH_BLOCK_SIZE)
 
-    filename = filename if filename else os.path.basename(url)
+    filename = filename if filename else os.path.basename(urlsplit(url).path)
+
     logger.debug("filename: %s", filename)
     filepath = os.path.join(dest, filename)
     logger.debug("filepath: %s", filepath)

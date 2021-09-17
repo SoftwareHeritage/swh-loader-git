@@ -154,6 +154,17 @@ def test_download_with_redirection(tmp_path, requests_mock):
     _check_download_ok(url, dest=str(tmp_path))
 
 
+def test_download_extracting_filename_from_url(tmp_path, requests_mock):
+    """Extracting filename from url must sanitize the filename first"""
+    url = "https://example.org/project/requests-0.0.1.tar.gz?a=b&c=d&foo=bar"
+
+    requests_mock.get(
+        url, status_code=200, text=_data, headers={"content-length": str(len(_data))}
+    )
+
+    _check_download_ok(url, dest=str(tmp_path))
+
+
 @pytest.mark.fs
 @pytest.mark.parametrize(
     "filename", [f'"{_filename}"', _filename, '"filename with spaces.tar.gz"']
