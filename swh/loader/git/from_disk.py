@@ -17,6 +17,7 @@ except ImportError:
     # dulwich >= 0.20
     from dulwich.objects import EmptyFileException
 
+import dulwich.objects
 import dulwich.repo
 
 from swh.loader.core.loader import DVCSLoader
@@ -26,6 +27,60 @@ from swh.storage.algos.origin import origin_get_latest_visit_status
 from swh.storage.interface import StorageInterface
 
 from . import converters, utils
+
+
+def _check_tag(tag):
+    """Copy-paste of dulwich.objects.Tag, minus the tagger and time checks,
+    which are too strict and error on old tags."""
+    # Copyright (C) 2007 James Westby <jw+debian@jameswestby.net>
+    # Copyright (C) 2008-2013 Jelmer Vernooij <jelmer@jelmer.uk>
+    #
+    # Dulwich is dual-licensed under the Apache License, Version 2.0 and the GNU
+    # General Public License as public by the Free Software Foundation; version 2.0
+    # or (at your option) any later version. You can redistribute it and/or
+    # modify it under the terms of either of these two licenses.
+    #
+    # Unless required by applicable law or agreed to in writing, software
+    # distributed under the License is distributed on an "AS IS" BASIS,
+    # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    # See the License for the specific language governing permissions and
+    # limitations under the License.
+    #
+    # You should have received a copy of the licenses; if not, see
+    # <http://www.gnu.org/licenses/> for a copy of the GNU General Public License
+    # and <http://www.apache.org/licenses/LICENSE-2.0> for a copy of the Apache
+    # License, Version 2.0.
+    dulwich.objects.ShaFile.check(tag)
+    tag._check_has_member("_object_sha", "missing object sha")
+    tag._check_has_member("_object_class", "missing object type")
+    tag._check_has_member("_name", "missing tag name")
+
+    if not tag._name:
+        raise ObjectFormatException("empty tag name")
+
+    dulwich.objects.check_hexsha(tag._object_sha, "invalid object sha")
+
+    if tag._tag_time is not None:
+        dulwich.objects.check_time(tag._tag_time)
+
+    from dulwich.objects import (
+        _OBJECT_HEADER,
+        _TAG_HEADER,
+        _TAGGER_HEADER,
+        _TYPE_HEADER,
+    )
+
+    last = None
+    for field, _ in dulwich.objects._parse_message(tag._chunked_text):
+        if field == _OBJECT_HEADER and last is not None:
+            raise ObjectFormatException("unexpected object")
+        elif field == _TYPE_HEADER and last != _OBJECT_HEADER:
+            raise ObjectFormatException("unexpected type")
+        elif field == _TAG_HEADER and last != _TYPE_HEADER:
+            raise ObjectFormatException("unexpected tag name")
+        elif field == _TAGGER_HEADER and last != _TAG_HEADER:
+            raise ObjectFormatException("unexpected tagger")
+        last = field
 
 
 class GitLoaderFromDisk(DVCSLoader):
@@ -81,20 +136,23 @@ class GitLoaderFromDisk(DVCSLoader):
             obj (object): Dulwich object read from the repository.
 
         """
-        obj.check()
-        from dulwich.objects import Commit, Tag
+        if isinstance(obj, dulwich.objects.Tag):
+            _check_tag(obj)
+        else:
+            obj.check()
 
         try:
             # For additional checks on dulwich objects with date
             # for now, only checks on *time
-            if isinstance(obj, Commit):
+            if isinstance(obj, dulwich.objects.Commit):
                 commit_time = obj._commit_time
                 utils.check_date_time(commit_time)
                 author_time = obj._author_time
                 utils.check_date_time(author_time)
-            elif isinstance(obj, Tag):
+            elif isinstance(obj, dulwich.objects.Tag):
                 tag_time = obj._tag_time
-                utils.check_date_time(tag_time)
+                if tag_time:
+                    utils.check_date_time(tag_time)
         except Exception as e:
             raise ObjectFormatException(e)
 

@@ -6,8 +6,9 @@
 import copy
 import datetime
 import os.path
-from unittest import TestCase
 
+import dulwich.objects
+import dulwich.porcelain
 import dulwich.repo
 import pytest
 
@@ -18,8 +19,8 @@ from swh.loader.tests import (
     get_stats,
     prepare_repository_from_archive,
 )
-from swh.model.hashutil import hash_to_bytes
-from swh.model.model import Snapshot, SnapshotBranch, TargetType
+from swh.model.hashutil import bytehex_to_hash, hash_to_bytes
+from swh.model.model import ObjectType, Release, Snapshot, SnapshotBranch, TargetType
 from swh.storage.algos.snapshot import snapshot_get_all_branches
 
 SNAPSHOT1 = Snapshot(
@@ -426,8 +427,79 @@ class FullGitLoaderTests(CommonGitLoaderTests):
         assert results.next_page_token is None
         assert results.results == []
 
+    def test_load_tag(self):
+        with open(os.path.join(self.destination_path, "hello.py"), "a") as fd:
+            fd.write("print('Hello world')\n")
 
-class GitLoaderFromDiskTest(TestCase, FullGitLoaderTests):
+        self.repo.stage([b"hello.py"])
+        new_revision = self.repo.do_commit(b"Hello world\n")
+
+        dulwich.porcelain.tag_create(
+            self.repo,
+            b"v1.0.0",
+            message=b"First release!",
+            annotated=True,
+            objectish=new_revision,
+        )
+
+        res = self.loader.load()
+        assert res == {"status": "eventful"}
+
+        branches = self.loader.storage.snapshot_get_branches(self.loader.snapshot.id)
+
+        branch = branches["branches"][b"refs/tags/v1.0.0"]
+        assert branch.target_type == TargetType.RELEASE
+
+        release = self.loader.storage.release_get([branch.target])[0]
+        assert release.date is not None
+        assert release.author is not None
+        assert release == Release(
+            name=b"v1.0.0",
+            message=b"First release!\n",
+            target_type=ObjectType.REVISION,
+            target=bytehex_to_hash(new_revision),
+            author=release.author,
+            date=release.date,
+            synthetic=False,
+        )
+
+    def test_load_tag_minimal(self):
+        with open(os.path.join(self.destination_path, "hello.py"), "a") as fd:
+            fd.write("print('Hello world')\n")
+
+        self.repo.stage([b"hello.py"])
+        new_revision = self.repo.do_commit(b"Hello world\n")
+
+        # dulwich.porcelain.tag_create doesn't allow creating tags without
+        # a tagger or a date, so we have to create it "manually"
+        tag = dulwich.objects.Tag()
+        tag.message = b"First release!\n"
+        tag.name = b"v1.0.0"
+        tag.object = (dulwich.objects.Commit, new_revision)
+        self.repo.object_store.add_object(tag)
+        self.repo[b"refs/tags/v1.0.0"] = tag.id
+
+        res = self.loader.load()
+        assert res == {"status": "eventful"}
+
+        branches = self.loader.storage.snapshot_get_branches(self.loader.snapshot.id)
+
+        print(list(branches["branches"]))
+        branch = branches["branches"][b"refs/tags/v1.0.0"]
+        assert branch.target_type == TargetType.RELEASE
+
+        release = self.loader.storage.release_get([branch.target])[0]
+        assert release == Release(
+            id=bytehex_to_hash(tag.id),
+            name=b"v1.0.0",
+            message=b"First release!\n",
+            target_type=ObjectType.REVISION,
+            target=bytehex_to_hash(new_revision),
+            synthetic=False,
+        )
+
+
+class TestGitLoaderFromDisk(FullGitLoaderTests):
     """Prepare a git directory repository to be loaded through a GitLoaderFromDisk.
     This tests all git loader scenario.
 
@@ -453,7 +525,7 @@ class GitLoaderFromDiskTest(TestCase, FullGitLoaderTests):
         self.repo = dulwich.repo.Repo(self.destination_path)
 
 
-class GitLoaderFromArchiveTest(TestCase, CommonGitLoaderTests):
+class TestGitLoaderFromArchive(CommonGitLoaderTests):
     """Tests for GitLoaderFromArchive. Only tests common scenario."""
 
     @pytest.fixture(autouse=True)
