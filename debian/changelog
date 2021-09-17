@@ -1,3 +1,13 @@
+swh-loader-git (1.0.0-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 1.0.0     - (tagged by Valentin Lorentz
+    <vlorentz@softwareheritage.org> on 2021-09-17 12:28:36 +0200)
+  * Upstream changes:     - v1.0.0     - * from_disk: Do not drop tags
+    with missing tagger or date     - * Migrate to pytest-style tests
+    - * converters: Recompute hashes and check they match the originals
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Fri, 17 Sep 2021 10:31:49 +0000
+
 swh-loader-git (0.10.1-1~swh1) unstable-swh; urgency=medium
 
   * New upstream release 0.10.1     - (tagged by Valentin Lorentz
