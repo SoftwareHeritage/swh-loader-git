@@ -11,6 +11,7 @@ from typing import Iterator, List, Optional, Tuple
 import attr
 
 from swh.loader.package.loader import BasePackageInfo, PackageLoader
+from swh.loader.package.utils import cached_method
 from swh.model.model import Person, Revision, RevisionType, Sha1Git
 from swh.storage.interface import StorageInterface
 
@@ -84,9 +85,55 @@ class OpamLoader(PackageLoader[OpamPackageInfo]):
         self.opam_url = opam_url
         self.opam_package = opam_package
 
+    def get_package_dir(self) -> str:
+        return (
+            f"{self.opam_root}/repo/{self.opam_instance}/packages/{self.opam_package}"
+        )
+
+    def get_package_name(self, version: str) -> str:
+        return f"{self.opam_package}.{version}"
+
+    def get_package_file(self, version: str) -> str:
+        return f"{self.get_package_dir()}/{self.get_package_name(version)}/opam"
+
+    @cached_method
+    def _compute_versions(self) -> List[str]:
+        """Compute the versions using opam internals
+
+        Raises:
+            ValueError in case the lister is not able to determine the list of versions
+
+        Returns:
+            The list of versions for the package
+
+        """
+        # HACK using opam internals (opam < 2.1) to list current package versions. We
+        # need `opam show` to support the --repo flag but it does not currently so we
+        # work around it.
+        package_dir = self.get_package_dir()
+        if not os.path.exists(package_dir):
+            raise ValueError(
+                f"can't get versions for package {self.opam_package} "
+                f"(at url {self.url})."
+            )
+        versions = [
+            ".".join(version.split(".")[1:]) for version in os.listdir(package_dir)
+        ]
+        if not versions:
+            raise ValueError(
+                f"can't get versions for package {self.opam_package} "
+                f"(at url {self.url})"
+            )
+        versions.sort()
+        return versions
+
     def get_versions(self) -> List[str]:
-        """First initialize the opam root directory if needed the start listing the package
-versions.
+        """First initialize the opam root directory if needed then start listing the package
+        versions.
+
+        Raises:
+            ValueError in case the lister is not able to determine the list of
+            versions or if the opam root directory is invalid.
 
         """
         if not os.path.isdir(self.opam_root):
@@ -109,78 +156,37 @@ versions.
         elif not os.path.isfile(os.path.join(self.opam_root, "config")):
             raise ValueError("invalid opam root")
 
-        versions = opam_read(
-            [
-                "opam",
-                "show",
-                "--color",
-                "never",
-                "--normalise",
-                "--root",
-                self.opam_root,
-                "-f",
-                "all-versions",
-                self.opam_package,
-            ],
-            init_error_msg_if_any=(
-                f"can't get versions for package {self.opam_package} "
-                f"(at url {self.url}) from `opam show`"
-            ),
-        )
-        return versions.split() if versions else []
+        return self._compute_versions()
 
     def get_default_version(self) -> str:
-
-        init_error_msg = f"can't get default version for package {self.opam_package} \
-            (at url {self.url}) from `opam show`"
-        # we only care about the first element of the first line
-        # which is the initial version
-        versions_ = opam_read(
-            [
-                "opam",
-                "show",
-                "--color",
-                "never",
-                "--normalise",
-                "--root",
-                self.opam_root,
-                "-f",
-                "version",
-                self.opam_package,
-            ],
-            init_error_msg_if_any=init_error_msg,
-        )
-        if not versions_:
-            raise ValueError(init_error_msg)
-        versions = versions_.split()
-        if len(versions) != 1:
-            raise ValueError(init_error_msg)
-        return versions[0]
+        """Return the most recent version of the package as default."""
+        return self._compute_versions()[-1]
 
     def get_enclosed_single_line_field(self, field, version) -> Optional[str]:
+        package_file = self.get_package_file(version)
         result = opam_read(
             [
                 "opam",
                 "show",
                 "--color",
                 "never",
+                "--safe",
                 "--normalise",
                 "--root",
                 self.opam_root,
-                "-f",
+                "--file",
+                package_file,
+                "--field",
                 field,
-                f"{self.opam_package}.{version}",
             ]
         )
 
-        # this needs to be cleaned up a bit (remove enclosing " and the trailing \n)
-        return result[1:-2] if result else None
+        # Sanitize the result if any (remove trailing \n and enclosing ")
+        return result.strip().strip('"') if result else None
 
     def get_package_info(self, version: str) -> Iterator[Tuple[str, OpamPackageInfo]]:
 
-        branch_name = f"{self.opam_package}.{version}"
         url = self.get_enclosed_single_line_field("url.src:", version)
-
         if url is None:
             raise ValueError(
                 f"can't get field url.src: for version {version} of package {self.opam_package} \
@@ -195,7 +201,7 @@ versions.
         fullname = b"" if maintainer_field is None else str.encode(maintainer_field)
         committer = Person(fullname=fullname, name=None, email=None)
 
-        yield branch_name, OpamPackageInfo(
+        yield self.get_package_name(version), OpamPackageInfo(
             url=url, filename=None, author=author, committer=committer, version=version
         )
 
