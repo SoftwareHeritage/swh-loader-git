@@ -84,8 +84,13 @@ class OpamLoader(PackageLoader[OpamPackageInfo]):
         self.opam_url = opam_url
         self.opam_package = opam_package
 
-        if not os.path.isdir(opam_root):
-            if os.path.isfile(opam_root):
+    def get_versions(self) -> List[str]:
+        """First initialize the opam root directory if needed the start listing the package
+versions.
+
+        """
+        if not os.path.isdir(self.opam_root):
+            if os.path.isfile(self.opam_root):
                 raise ValueError("invalid opam root")
             else:
                 call(
@@ -96,15 +101,14 @@ class OpamLoader(PackageLoader[OpamPackageInfo]):
                         "--bare",
                         "--no-setup",
                         "--root",
-                        opam_root,
-                        opam_instance,
-                        opam_url,
+                        self.opam_root,
+                        self.opam_instance,
+                        self.opam_url,
                     ]
                 )
-        elif not os.path.isfile(os.path.join(opam_root, "config")):
+        elif not os.path.isfile(os.path.join(self.opam_root, "config")):
             raise ValueError("invalid opam root")
 
-    def get_versions(self) -> List[str]:
         versions = opam_read(
             [
                 "opam",
