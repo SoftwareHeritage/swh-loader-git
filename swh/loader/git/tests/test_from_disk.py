@@ -434,10 +434,16 @@ class FullGitLoaderTests(CommonGitLoaderTests):
         self.repo.stage([b"hello.py"])
         new_revision = self.repo.do_commit(b"Hello world\n")
 
+        # Newer Dulwich versions always add a \n to tag messages.
+        if dulwich.__version__ >= (0, 20, 22):
+            message = b"First release!"
+        else:
+            message = b"First release!\n"
+
         dulwich.porcelain.tag_create(
             self.repo,
             b"v1.0.0",
-            message=b"First release!",
+            message=message,
             annotated=True,
             objectish=new_revision,
         )
