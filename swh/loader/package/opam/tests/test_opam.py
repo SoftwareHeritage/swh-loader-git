@@ -12,6 +12,32 @@ from swh.model.hashutil import hash_to_bytes
 from swh.model.model import Person, Snapshot, SnapshotBranch, TargetType
 
 
+def test_opam_loader_no_opam_repository_fails(swh_storage, tmpdir, datadir):
+    """Running opam loader without a prepared opam repository fails"""
+    opam_url = f"file://{datadir}/fake_opam_repo"
+    opam_root = tmpdir
+    opam_instance = "loadertest"
+    opam_package = "agrid"
+    url = f"opam+{opam_url}/packages/{opam_package}"
+
+    loader = OpamLoader(
+        swh_storage,
+        url,
+        opam_root,
+        opam_instance,
+        opam_url,
+        opam_package,
+        initialize_opam_root=False,  # The opam directory must be present
+    )
+
+    # No opam root directory init directory from loader. So, at the opam root does not
+    # exist, the loading fails. That's the expected use for the production workers
+    # (whose opam_root maintenance will be externally managed).
+    actual_load_status = loader.load()
+
+    assert actual_load_status == {"status": "failed"}
+
+
 def test_opam_loader_one_version(tmpdir, requests_mock_datadir, datadir, swh_storage):
 
     opam_url = f"file://{datadir}/fake_opam_repo"
@@ -26,7 +52,13 @@ def test_opam_loader_one_version(tmpdir, requests_mock_datadir, datadir, swh_sto
     url = f"opam+{opam_url}/packages/{opam_package}"
 
     loader = OpamLoader(
-        swh_storage, url, opam_root, opam_instance, opam_url, opam_package
+        swh_storage,
+        url,
+        opam_root,
+        opam_instance,
+        opam_url,
+        opam_package,
+        initialize_opam_root=True,
     )
 
     actual_load_status = loader.load()
@@ -82,7 +114,13 @@ def test_opam_loader_many_version(tmpdir, requests_mock_datadir, datadir, swh_st
     url = f"opam+{opam_url}/packages/{opam_package}"
 
     loader = OpamLoader(
-        swh_storage, url, opam_root, opam_instance, opam_url, opam_package
+        swh_storage,
+        url,
+        opam_root,
+        opam_instance,
+        opam_url,
+        opam_package,
+        initialize_opam_root=True,
     )
 
     actual_load_status = loader.load()
@@ -136,7 +174,13 @@ def test_opam_revision(tmpdir, requests_mock_datadir, swh_storage, datadir):
     url = f"opam+{opam_url}/packages/{opam_package}"
 
     loader = OpamLoader(
-        swh_storage, url, opam_root, opam_instance, opam_url, opam_package
+        swh_storage,
+        url,
+        opam_root,
+        opam_instance,
+        opam_url,
+        opam_package,
+        initialize_opam_root=True,
     )
 
     actual_load_status = loader.load()
