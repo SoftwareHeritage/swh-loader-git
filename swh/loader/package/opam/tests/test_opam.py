@@ -4,8 +4,6 @@
 # See top-level LICENSE file for more information
 
 
-from shutil import rmtree
-
 from swh.loader.package.opam.loader import OpamLoader, OpamPackageInfo
 from swh.loader.tests import assert_last_visit_matches, check_snapshot, get_stats
 from swh.model.hashutil import hash_to_bytes
@@ -41,13 +39,8 @@ def test_opam_loader_no_opam_repository_fails(swh_storage, tmpdir, datadir):
 def test_opam_loader_one_version(tmpdir, requests_mock_datadir, datadir, swh_storage):
 
     opam_url = f"file://{datadir}/fake_opam_repo"
-
     opam_root = tmpdir
-    # the directory should NOT exist, we just need an unique name, so we delete it
-    rmtree(tmpdir)
-
     opam_instance = "loadertest"
-
     opam_package = "agrid"
     url = f"opam+{opam_url}/packages/{opam_package}"
 
@@ -103,13 +96,8 @@ def test_opam_loader_one_version(tmpdir, requests_mock_datadir, datadir, swh_sto
 def test_opam_loader_many_version(tmpdir, requests_mock_datadir, datadir, swh_storage):
 
     opam_url = f"file://{datadir}/fake_opam_repo"
-
     opam_root = tmpdir
-    # the directory should NOT exist, we just need an unique name, so we delete it
-    rmtree(tmpdir)
-
     opam_instance = "loadertest"
-
     opam_package = "directories"
     url = f"opam+{opam_url}/packages/{opam_package}"
 
@@ -163,11 +151,7 @@ def test_opam_loader_many_version(tmpdir, requests_mock_datadir, datadir, swh_st
 def test_opam_revision(tmpdir, requests_mock_datadir, swh_storage, datadir):
 
     opam_url = f"file://{datadir}/fake_opam_repo"
-
     opam_root = tmpdir
-    # the directory should NOT exist, we just need an unique name, so we delete it
-    rmtree(tmpdir)
-
     opam_instance = "loadertest"
 
     opam_package = "ocb"
