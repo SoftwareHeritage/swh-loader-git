@@ -295,7 +295,9 @@ class GitLoader(DVCSLoader):
         self.ref_object_types = {sha1: None for sha1 in self.remote_refs.values()}
 
         self.log.info(
-            "Listed %d refs for repo %s" % (len(self.remote_refs), self.origin.url),
+            "Listed %d refs for repo %s",
+            len(self.remote_refs),
+            self.origin.url,
             extra={
                 "swh_type": "git_repo_list_refs",
                 "swh_repo": self.origin.url,
