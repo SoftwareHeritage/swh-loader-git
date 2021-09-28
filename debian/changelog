@@ -1,3 +1,11 @@
+swh-loader-git (1.1.0-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 1.1.0     - (tagged by Antoine Lambert
+    <anlambert@softwareheritage.org> on 2021-09-28 15:10:11 +0200)
+  * Upstream changes:     - version 1.1.0
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Tue, 28 Sep 2021 13:14:10 +0000
+
 swh-loader-git (1.0.1-1~swh1) unstable-swh; urgency=medium
 
   * New upstream release 1.0.1     - (tagged by Antoine R. Dumont
