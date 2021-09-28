@@ -41,6 +41,7 @@ swh.loader.git.egg-info/top_level.txt
 swh/loader/__init__.py
 swh/loader/git/__init__.py
 swh/loader/git/converters.py
+swh/loader/git/dumb.py
 swh/loader/git/from_disk.py
 swh/loader/git/loader.py
 swh/loader/git/py.typed
