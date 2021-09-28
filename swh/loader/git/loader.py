@@ -34,7 +34,7 @@ from swh.model.model import (
 from swh.storage.algos.snapshot import snapshot_get_latest
 from swh.storage.interface import StorageInterface
 
-from . import converters, utils
+from . import converters, dumb, utils
 
 logger = logging.getLogger(__name__)
 
@@ -143,17 +143,12 @@ class GitLoader(DVCSLoader):
     def fetch_pack_from_origin(
         self,
         origin_url: str,
-        base_snapshot: Optional[Snapshot],
+        base_repo: RepoRepresentation,
         do_activity: Callable[[bytes], None],
     ) -> FetchPackReturn:
         """Fetch a pack from the origin"""
-        pack_buffer = SpooledTemporaryFile(max_size=self.temp_file_cutoff)
 
-        base_repo = self.repo_representation(
-            storage=self.storage,
-            base_snapshot=base_snapshot,
-            ignore_history=self.ignore_history,
-        )
+        pack_buffer = SpooledTemporaryFile(max_size=self.temp_file_cutoff)
 
         # Hardcode the use of the tcp transport (for GitHub origins)
 
@@ -207,6 +202,11 @@ class GitLoader(DVCSLoader):
 
         logger.debug("Fetched pack size: %s", pack_size)
 
+        # check if repository only supports git dumb transfer protocol,
+        # fetched pack file will be empty in that case as dulwich do
+        # not support it and do not fetch any refs
+        self.dumb = transport_url.startswith("http") and client.dumb
+
         return FetchPackReturn(
             remote_refs=utils.filter_refs(remote_refs),
             symbolic_refs=utils.filter_refs(symbolic_refs),
@@ -242,13 +242,19 @@ class GitLoader(DVCSLoader):
     def fetch_data(self) -> bool:
         assert self.origin is not None
 
+        base_repo = self.repo_representation(
+            storage=self.storage,
+            base_snapshot=self.base_snapshot,
+            ignore_history=self.ignore_history,
+        )
+
         def do_progress(msg: bytes) -> None:
             sys.stderr.buffer.write(msg)
             sys.stderr.flush()
 
         try:
             fetch_info = self.fetch_pack_from_origin(
-                self.origin.url, self.base_snapshot, do_progress
+                self.origin.url, base_repo, do_progress
             )
         except NotGitRepository as e:
             raise NotFound(e)
@@ -264,14 +270,28 @@ class GitLoader(DVCSLoader):
                     raise NotFound(e)
             # otherwise transmit the error
             raise
+        except (AttributeError, NotImplementedError, ValueError):
+            # with old dulwich versions, those exceptions types can be raised
+            # by the fetch_pack operation when encountering a repository with
+            # dumb transfer protocol so we check if the repository supports it
+            # here to continue the loading if it is the case
+            self.dumb = dumb.check_protocol(self.origin_url)
+            if not self.dumb:
+                raise
 
-        self.pack_buffer = fetch_info.pack_buffer
-        self.pack_size = fetch_info.pack_size
+        if self.dumb:
+            logger.debug("Fetching objects with HTTP dumb transfer protocol")
+            self.dumb_fetcher = dumb.GitObjectsFetcher(self.origin_url, base_repo)
+            self.dumb_fetcher.fetch_object_ids()
+            self.remote_refs = utils.filter_refs(self.dumb_fetcher.refs)
+            self.symbolic_refs = self.dumb_fetcher.head
+        else:
+            self.pack_buffer = fetch_info.pack_buffer
+            self.pack_size = fetch_info.pack_size
+            self.remote_refs = fetch_info.remote_refs
+            self.symbolic_refs = fetch_info.symbolic_refs
 
-        self.remote_refs = fetch_info.remote_refs
         self.ref_object_types = {sha1: None for sha1 in self.remote_refs.values()}
-
-        self.symbolic_refs = fetch_info.symbolic_refs
 
         self.log.info(
             "Listed %d refs for repo %s" % (len(self.remote_refs), self.origin.url),
@@ -310,13 +330,16 @@ class GitLoader(DVCSLoader):
 
     def iter_objects(self, object_type: bytes) -> Iterator[ShaFile]:
         """Read all the objects of type `object_type` from the packfile"""
-        self.pack_buffer.seek(0)
-        for obj in PackInflater.for_pack_data(
-            PackData.from_file(self.pack_buffer, self.pack_size)
-        ):
-            if obj.type_name != object_type:
-                continue
-            yield obj
+        if self.dumb:
+            yield from self.dumb_fetcher.iter_objects(object_type)
+        else:
+            self.pack_buffer.seek(0)
+            for obj in PackInflater.for_pack_data(
+                PackData.from_file(self.pack_buffer, self.pack_size)
+            ):
+                if obj.type_name != object_type:
+                    continue
+                yield obj
 
     def get_contents(self) -> Iterable[BaseContent]:
         """Format the blobs from the git repository as swh contents"""
