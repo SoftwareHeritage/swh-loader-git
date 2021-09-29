@@ -114,9 +114,8 @@ class OpamLoader(PackageLoader[OpamPackageInfo]):
             The list of versions for the package
 
         """
-        # HACK using opam internals (opam < 2.1) to list current package versions. We
-        # need `opam show` to support the --repo flag but it does not currently so we
-        # work around it.
+        # TODO: use `opam show` instead of this workaround when it support the `--repo`
+        # flag
         package_dir = self.get_package_dir()
         if not os.path.exists(package_dir):
             raise ValueError(
