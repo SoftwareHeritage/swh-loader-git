@@ -73,7 +73,7 @@ class DummyBaseLoader(DummyLoader, BaseLoader):
 
     """
 
-    def store_data(self):
+    def store_data(self, create_partial_visit: bool = False):
         pass
 
 

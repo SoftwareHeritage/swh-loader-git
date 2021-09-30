@@ -236,11 +236,10 @@ class BaseLoader:
         """
         raise NotImplementedError
 
-    def store_data(self):
-        """Store fetched data in the database.
+    def store_data(self, create_partial_visit: bool = False):
+        """Store fetched data in the database. Use create_partial_visit boolean to decide
+        whether to create partial snapshot or not.
 
-        Should call the :func:`maybe_load_xyz` methods, which handle the
-        bundles sent to storage, rather than send directly.
         """
         raise NotImplementedError
 
@@ -336,7 +335,8 @@ class BaseLoader:
 
             while True:
                 more_data_to_fetch = self.fetch_data()
-                self.store_data()
+                # if more data to fetch, let's also create a partial visit
+                self.store_data(create_partial_visit=more_data_to_fetch)
                 if not more_data_to_fetch:
                     break
 
@@ -440,7 +440,7 @@ class DVCSLoader(BaseLoader):
         """Whether the load was eventful"""
         raise NotImplementedError
 
-    def store_data(self) -> None:
+    def store_data(self, create_partial_visit: bool = False) -> None:
         assert self.origin
         if self.save_data_path:
             self.save_data()
@@ -462,7 +462,22 @@ class DVCSLoader(BaseLoader):
         if self.has_releases():
             for release in self.get_releases():
                 self.storage.release_add([release])
+
         snapshot = self.get_snapshot()
         self.storage.snapshot_add([snapshot])
+
+        # More work to do, we make a partial visit targeting the snapshot though That
+        # should ease further visit if we somehow can't make it through the ingestion.
+        if create_partial_visit:
+            assert isinstance(self.visit.visit, int)
+            visit_status = OriginVisitStatus(
+                origin=self.origin.url,
+                visit=self.visit.visit,
+                type=self.visit_type,
+                date=now(),
+                status="partial",
+                snapshot=snapshot.id,
+            )
+            self.storage.origin_visit_status_add([visit_status])
         self.flush()
         self.loaded_snapshot_id = snapshot.id
