@@ -294,7 +294,7 @@ class GitLoader(DVCSLoader):
 
         self.ref_object_types = {sha1: None for sha1 in self.remote_refs.values()}
 
-        self.log.info(
+        logger.info(
             "Listed %d refs for repo %s",
             len(self.remote_refs),
             self.origin.url,
@@ -360,7 +360,7 @@ class GitLoader(DVCSLoader):
             if raw_obj.id in self.ref_object_types:
                 self.ref_object_types[raw_obj.id] = TargetType.DIRECTORY
 
-            yield converters.dulwich_tree_to_directory(raw_obj, log=self.log)
+            yield converters.dulwich_tree_to_directory(raw_obj)
 
     def get_revisions(self) -> Iterable[Revision]:
         """Format commits as swh revisions"""
@@ -368,7 +368,7 @@ class GitLoader(DVCSLoader):
             if raw_obj.id in self.ref_object_types:
                 self.ref_object_types[raw_obj.id] = TargetType.REVISION
 
-            yield converters.dulwich_commit_to_revision(raw_obj, log=self.log)
+            yield converters.dulwich_commit_to_revision(raw_obj)
 
     def get_releases(self) -> Iterable[Release]:
         """Retrieve all the release objects from the git repository"""
@@ -376,7 +376,7 @@ class GitLoader(DVCSLoader):
             if raw_obj.id in self.ref_object_types:
                 self.ref_object_types[raw_obj.id] = TargetType.RELEASE
 
-            yield converters.dulwich_tag_to_release(raw_obj, log=self.log)
+            yield converters.dulwich_tag_to_release(raw_obj)
 
     def get_snapshot(self) -> Snapshot:
         """Get the snapshot for the current visit.
@@ -458,7 +458,7 @@ class GitLoader(DVCSLoader):
                 )
 
         utils.warn_dangling_branches(
-            branches, dangling_branches, self.log, self.origin_url
+            branches, dangling_branches, logger, self.origin_url
         )
 
         self.snapshot = Snapshot(branches=branches)

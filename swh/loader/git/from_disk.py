@@ -2,9 +2,9 @@
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
-
 from collections import defaultdict
 from datetime import datetime
+import logging
 import os
 import shutil
 from typing import Dict, Optional
@@ -27,6 +27,8 @@ from swh.storage.algos.origin import origin_get_latest_visit_status
 from swh.storage.interface import StorageInterface
 
 from . import converters, utils
+
+logger = logging.getLogger(__name__)
 
 
 def _check_tag(tag):
@@ -174,7 +176,7 @@ class GitLoaderFromDisk(DVCSLoader):
             self._check(obj)
         except KeyError:
             _id = oid.decode("utf-8")
-            self.log.warn(
+            logger.warn(
                 "object %s not found, skipping" % _id,
                 extra={
                     "swh_type": "swh_loader_git_missing_object",
@@ -185,7 +187,7 @@ class GitLoaderFromDisk(DVCSLoader):
             return None
         except ObjectFormatException as e:
             id_ = oid.decode("utf-8")
-            self.log.warn(
+            logger.warn(
                 "object %s malformed (%s), skipping",
                 id_,
                 e.args[0],
@@ -198,7 +200,7 @@ class GitLoaderFromDisk(DVCSLoader):
             return None
         except EmptyFileException:
             id_ = oid.decode("utf-8")
-            self.log.warn(
+            logger.warn(
                 "object %s corrupted (empty file), skipping",
                 id_,
                 extra={
@@ -265,7 +267,7 @@ class GitLoaderFromDisk(DVCSLoader):
 
         for oid in missing_dirs:
             yield converters.dulwich_tree_to_directory(
-                self.repo[hashutil.hash_to_bytehex(oid)], log=self.log
+                self.repo[hashutil.hash_to_bytehex(oid)],
             )
 
     def has_revisions(self):
@@ -286,7 +288,7 @@ class GitLoaderFromDisk(DVCSLoader):
 
         for oid in missing_revs:
             yield converters.dulwich_commit_to_revision(
-                self.repo[hashutil.hash_to_bytehex(oid)], log=self.log
+                self.repo[hashutil.hash_to_bytehex(oid)],
             )
 
     def has_releases(self):
@@ -303,7 +305,7 @@ class GitLoaderFromDisk(DVCSLoader):
 
         for oid in missing_rels:
             yield converters.dulwich_tag_to_release(
-                self.repo[hashutil.hash_to_bytehex(oid)], log=self.log
+                self.repo[hashutil.hash_to_bytehex(oid)],
             )
 
     def get_snapshot(self):
@@ -335,7 +337,7 @@ class GitLoaderFromDisk(DVCSLoader):
                 branches[target] = None
 
         utils.warn_dangling_branches(
-            branches, dangling_branches, self.log, self.origin_url
+            branches, dangling_branches, logger, self.origin_url
         )
 
         self.snapshot = Snapshot(branches=branches)
@@ -428,7 +430,7 @@ class GitLoaderFromArchive(GitLoaderFromDisk):
             project_name, self.archive_path
         )
 
-        self.log.info(
+        logger.info(
             "Project %s - Uncompressing archive %s at %s",
             self.origin_url,
             os.path.basename(self.archive_path),
@@ -443,6 +445,6 @@ class GitLoaderFromArchive(GitLoaderFromDisk):
         """
         if self.temp_dir and os.path.exists(self.temp_dir):
             shutil.rmtree(self.temp_dir)
-        self.log.info(
+        logger.info(
             "Project %s - Done injecting %s" % (self.origin_url, self.repo_path)
         )
