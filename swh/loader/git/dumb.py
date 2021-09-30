@@ -16,6 +16,8 @@ from dulwich.objects import S_IFGITLINK, Commit, ShaFile, Tree
 from dulwich.pack import Pack, PackData, PackIndex, load_pack_index_file
 from urllib3.response import HTTPResponse
 
+from swh.loader.git.utils import HexBytes
+
 if TYPE_CHECKING:
     from .loader import RepoRepresentation
 
@@ -128,7 +130,7 @@ class GitObjectsFetcher:
         buffer.seek(0)
         return buffer
 
-    def _get_refs(self) -> Dict[bytes, bytes]:
+    def _get_refs(self) -> Dict[bytes, HexBytes]:
         refs = {}
         refs_resp_bytes = self._http_get("info/refs")
         for ref_line in refs_resp_bytes.readlines():
@@ -136,7 +138,7 @@ class GitObjectsFetcher:
             refs[ref_name] = ref_target
         return refs
 
-    def _get_head(self) -> Dict[bytes, bytes]:
+    def _get_head(self) -> Dict[bytes, HexBytes]:
         head_resp_bytes = self._http_get("HEAD")
         _, head_target = head_resp_bytes.readline().replace(b"\n", b"").split(b" ")
         return {b"HEAD": head_target}

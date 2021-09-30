@@ -35,6 +35,7 @@ from swh.storage.algos.snapshot import snapshot_get_latest
 from swh.storage.interface import StorageInterface
 
 from . import converters, dumb, utils
+from .utils import HexBytes
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ class RepoRepresentation:
         else:
             self.base_snapshot = Snapshot(branches={})
 
-        self.heads: Set[bytes] = set()
+        self.heads: Set[HexBytes] = set()
 
     def get_parents(self, commit: bytes) -> List[bytes]:
         """This method should return the list of known parents"""
@@ -62,7 +63,7 @@ class RepoRepresentation:
     def graph_walker(self) -> ObjectStoreGraphWalker:
         return ObjectStoreGraphWalker(self.heads, self.get_parents)
 
-    def determine_wants(self, refs: Dict[bytes, bytes]) -> List[bytes]:
+    def determine_wants(self, refs: Dict[bytes, HexBytes]) -> List[HexBytes]:
         """Get the list of bytehex sha1s that the git loader should fetch.
 
         This compares the remote refs sent by the server with the base snapshot
@@ -73,7 +74,7 @@ class RepoRepresentation:
             return []
 
         # Cache existing heads
-        local_heads: Set[bytes] = set()
+        local_heads: Set[HexBytes] = set()
         for branch_name, branch in self.base_snapshot.branches.items():
             if not branch or branch.target_type == TargetType.ALIAS:
                 continue
@@ -82,7 +83,7 @@ class RepoRepresentation:
         self.heads = local_heads
 
         # Get the remote heads that we want to fetch
-        remote_heads: Set[bytes] = set()
+        remote_heads: Set[HexBytes] = set()
         for ref_name, ref_target in refs.items():
             if utils.ignore_branch_name(ref_name):
                 continue
@@ -93,8 +94,8 @@ class RepoRepresentation:
 
 @dataclass
 class FetchPackReturn:
-    remote_refs: Dict[bytes, bytes]
-    symbolic_refs: Dict[bytes, bytes]
+    remote_refs: Dict[bytes, HexBytes]
+    symbolic_refs: Dict[bytes, HexBytes]
     pack_buffer: SpooledTemporaryFile
     pack_size: int
 
@@ -136,8 +137,8 @@ class GitLoader(DVCSLoader):
         self.pack_size_bytes = pack_size_bytes
         self.temp_file_cutoff = temp_file_cutoff
         # state initialized in fetch_data
-        self.remote_refs: Dict[bytes, bytes] = {}
-        self.symbolic_refs: Dict[bytes, bytes] = {}
+        self.remote_refs: Dict[bytes, HexBytes] = {}
+        self.symbolic_refs: Dict[bytes, HexBytes] = {}
         self.ref_object_types: Dict[bytes, Optional[TargetType]] = {}
 
     def fetch_pack_from_origin(
@@ -283,7 +284,7 @@ class GitLoader(DVCSLoader):
             logger.debug("Fetching objects with HTTP dumb transfer protocol")
             self.dumb_fetcher = dumb.GitObjectsFetcher(self.origin_url, base_repo)
             self.dumb_fetcher.fetch_object_ids()
-            self.remote_refs = utils.filter_refs(self.dumb_fetcher.refs)
+            self.remote_refs = utils.filter_refs(self.dumb_fetcher.refs)  # type: ignore
             self.symbolic_refs = self.dumb_fetcher.head
         else:
             self.pack_buffer = fetch_info.pack_buffer
@@ -294,7 +295,9 @@ class GitLoader(DVCSLoader):
         self.ref_object_types = {sha1: None for sha1 in self.remote_refs.values()}
 
         self.log.info(
-            "Listed %d refs for repo %s" % (len(self.remote_refs), self.origin.url),
+            "Listed %d refs for repo %s",
+            len(self.remote_refs),
+            self.origin.url,
             extra={
                 "swh_type": "git_repo_list_refs",
                 "swh_repo": self.origin.url,
