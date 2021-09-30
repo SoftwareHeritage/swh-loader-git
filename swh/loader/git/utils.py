@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2020  The Software Heritage developers
+# Copyright (C) 2017-2021  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -10,10 +10,13 @@ import logging
 import os
 import shutil
 import tempfile
-from typing import Dict, Optional
+from typing import Dict, NewType, Optional
 
 from swh.core import tarball
 from swh.model.model import SnapshotBranch
+
+# The hexadecimal representation of the hash in bytes
+HexBytes = NewType("HexBytes", bytes)
 
 
 def init_git_repo_from_archive(project_name, archive_path, root_temp_dir="/tmp"):
@@ -90,10 +93,12 @@ def ignore_branch_name(branch_name: bytes) -> bool:
     return False
 
 
-def filter_refs(refs: Dict[bytes, bytes]) -> Dict[bytes, bytes]:
+def filter_refs(refs: Dict[bytes, bytes]) -> Dict[bytes, HexBytes]:
     """Filter the refs dictionary using the policy set in `ignore_branch_name`"""
     return {
-        name: target for name, target in refs.items() if not ignore_branch_name(name)
+        name: HexBytes(target)
+        for name, target in refs.items()
+        if not ignore_branch_name(name)
     }
 
 
