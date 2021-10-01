@@ -116,21 +116,41 @@ class BaseRepoRepresentation:
             for name, value in refs.items():
                 heads_logger.debug("    %r: %s", name, value.decode())
 
-        # Get the remote heads that we want to fetch
-        remote_heads: Set[HexBytes] = set()
+        # specific set of objects to sort
+        tag_names = set()
+        branch_names = set()
+        # remote heads is just all refs without order
+        remote_heads = set()
+        target_to_ref = defaultdict(list)
         for ref_name, ref_target in refs.items():
-            if utils.ignore_branch_name(ref_name):
+            # Ignore either usual branch to ignore or known references
+            if utils.ignore_branch_name(ref_name) or ref_target in self.local_heads:
                 continue
-            remote_heads.add(ref_target)
+            # Then we'll sort out the tags from the branches
+            if ref_name.startswith(b"refs/tags/"):
+                tag_names.add(ref_name)
+            else:
+                branch_names.add(ref_name)
 
-        if heads_logger.isEnabledFor(logging.DEBUG):
-            heads_logger.debug("Filtered remote heads:")
-            for value in remote_heads:
-                heads_logger.debug("    %s", value.decode())
+            remote_heads.add(ref_target)
+            target_to_ref[ref_target].append(ref_name)
 
         logger.debug("local_heads_count=%s", len(self.local_heads))
         logger.debug("remote_heads_count=%s", len(remote_heads))
-        wanted_refs = list(remote_heads - self.local_heads)
+
+        # Then we sort the refs (by tags then by branches) so it's mostly ingested in
+        # lexicographic order (provided there is some consistency there)
+        tags = [refs[ref_name] for ref_name in sorted(tag_names)]
+        branches = [refs[ref_name] for ref_name in sorted(branch_names)]
+        # The wanted refs is the concatenation first tags then branches references
+        wanted_refs = tags + branches
+
+        if heads_logger.isEnabledFor(logging.DEBUG):
+            heads_logger.debug("Ordered wanted heads returned by the git remote:")
+            for ref_target in wanted_refs:
+                heads_logger.debug(
+                    "    %r: %s", target_to_ref[ref_target], ref_target.decode()
+                )
 
         logger.debug("wanted_refs_count=%s", len(wanted_refs))
         if self.statsd is not None:
@@ -139,9 +159,14 @@ class BaseRepoRepresentation:
                 len(remote_heads - set(refs.values())) / len(refs),
                 tags={},
             )
+            git_known_refs_percent = (
+                len(self.local_heads & remote_heads) / len(remote_heads)
+                if remote_heads
+                else 0
+            )
             self.statsd.histogram(
                 "git_known_refs_percent",
-                len(self.local_heads & remote_heads) / len(remote_heads),
+                git_known_refs_percent,
                 tags={},
             )
         return wanted_refs
