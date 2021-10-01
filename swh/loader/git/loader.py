@@ -112,16 +112,32 @@ class RepoRepresentation:
 
             # Get the remote heads that we want to fetch
             remote_heads: Set[HexBytes] = set()
-            for ref_name, ref_target in refs.items():
-                if utils.ignore_branch_name(ref_name):
-                    continue
-                remote_heads.add(ref_target)
+
+            # Retrieve reference names and sort them
+            ref_names = sorted(
+                [ref for ref in refs.keys() if not utils.ignore_branch_name(ref)]
+            )
+            # Retrieve heads to filter them out
+            remote_heads = {refs[ref_name] for ref_name in ref_names}
 
             logger.debug("local_heads_count=%s", len(local_heads))
             logger.debug("remote_heads_count=%s", len(remote_heads))
-            wanted_refs = list(remote_heads - local_heads)
-            logger.debug("wanted_refs_count=%s", len(wanted_refs))
-            self.wanted_refs = wanted_refs
+            all_wanted_refs = list(remote_heads - local_heads)
+            logger.debug("wanted_refs_count=%s", len(all_wanted_refs))
+            # We now have the wanted refs
+            # Sort them so we deal with tags first
+            tags: List[HexBytes] = []
+            branches: List[HexBytes] = []
+            for ref_name in ref_names:
+                ref_target = refs[ref_name]
+                if ref_target not in all_wanted_refs:
+                    continue
+                lst = tags if ref_name.startswith(b"refs/tags/") else branches
+                lst.append(ref_target)
+
+            # Now order the wanted_refs so we start by tags and we finish with the other
+            # refs
+            self.wanted_refs = tags + branches
 
         start = self.index
         self.index += self.limit
