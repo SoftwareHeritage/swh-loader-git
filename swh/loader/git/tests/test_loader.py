@@ -452,7 +452,7 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
         assert [c for c in statsd_report.mock_calls if c[1][0].startswith("git_")] == [
             call("git_total", "c", 1, {}, 1),
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
-            call("git_known_refs_percent", "h", 0.25, {}, 1),
+            call("git_known_refs_percent", "h", 0.0, {}, 1),
         ]
         assert self.loader.statsd.constant_tags == {
             "visit_type": "git",
@@ -512,7 +512,7 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
         assert [c for c in statsd_report.mock_calls if c[1][0].startswith("git_")] == [
             call("git_total", "c", 1, {}, 1),
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
-            call("git_known_refs_percent", "h", 1.0, {}, 1),
+            call("git_known_refs_percent", "h", 0.0, {}, 1),
         ]
         assert self.loader.statsd.constant_tags == {
             "visit_type": "git",
@@ -532,7 +532,7 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
                     }
                 ),
                 Snapshot(branches={}),
-                0.25,
+                0.0,
                 id="partial-parent-and-empty-previous",
             ),
             pytest.param(
@@ -542,7 +542,7 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
                         b"refs/heads/master": SNAPSHOT1.branches[b"refs/heads/master"]
                     }
                 ),
-                1.0,
+                0.0,
                 id="full-parent-and-partial-previous",
             ),
         ],
