@@ -71,19 +71,22 @@ class RepoRepresentation:
         # Pagination index
         self.index: int = 0
         self.limit = limit
+        self.walker = ObjectStoreGraphWalker(self.heads, self.get_parents)
 
     def get_parents(self, commit: bytes) -> List[bytes]:
         """This method should return the list of known parents"""
         return []
 
     def graph_walker(self) -> ObjectStoreGraphWalker:
-        return ObjectStoreGraphWalker(self.heads, self.get_parents)
+        return self.walker
 
     def wanted_refs_fetched(self) -> bool:
         """Did we fetch all wanted refs?"""
         return self.wanted_refs is not None and self.index > len(self.wanted_refs)
 
-    def determine_wants(self, refs: Dict[bytes, HexBytes],) -> List[HexBytes]:
+    def determine_wants(
+        self, refs: Dict[bytes, HexBytes], depth=None
+    ) -> List[HexBytes]:
         """Get the list of bytehex sha1s that the git loader should fetch.
 
         This compares the remote refs sent by the server with the base snapshot
@@ -125,7 +128,12 @@ class RepoRepresentation:
         self.index += self.limit
 
         assert self.wanted_refs is not None
-        return self.wanted_refs[start : self.index]
+        asked_refs = self.wanted_refs[start : self.index]
+        if start > 0:
+            # modify walker heads to not resolve again seen refs
+            self.walker.heads.update(self.wanted_refs[start - self.index : start])
+        logger.debug("asked_refs_count=%s", len(asked_refs))
+        return asked_refs
 
 
 @dataclass
