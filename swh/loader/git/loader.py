@@ -216,6 +216,10 @@ class GitLoader(DVCSLoader):
         # not support it and do not fetch any refs
         self.dumb = transport_url.startswith("http") and client.dumb
 
+        logger.debug(
+            "Protocol used for communication: %s", "dumb" if self.dumb else "smart"
+        )
+
         return FetchPackReturn(
             remote_refs=utils.filter_refs(remote_refs),
             symbolic_refs=utils.filter_refs(symbolic_refs),
