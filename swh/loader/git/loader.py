@@ -383,6 +383,11 @@ class GitLoader(DVCSLoader):
         with open(os.path.join(pack_dir, refs_name), "xb") as f:
             pickle.dump(self.remote_refs, f)
 
+    def store_data(self, create_snapshot: bool = False):
+        super().store_data(create_snapshot)
+        if not self.dumb:
+            self.pack_buffer.close()
+
     def iter_objects(self, object_type: bytes) -> Iterator[ShaFile]:
         """Read all the objects of type `object_type` from the packfile"""
         if self.dumb:
