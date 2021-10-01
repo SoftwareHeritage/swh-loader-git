@@ -63,7 +63,9 @@ class RepoRepresentation:
     def graph_walker(self) -> ObjectStoreGraphWalker:
         return ObjectStoreGraphWalker(self.heads, self.get_parents)
 
-    def determine_wants(self, refs: Dict[bytes, HexBytes]) -> List[HexBytes]:
+    def determine_wants(
+        self, refs: Dict[bytes, HexBytes], depth: Optional[int] = None
+    ) -> List[HexBytes]:
         """Get the list of bytehex sha1s that the git loader should fetch.
 
         This compares the remote refs sent by the server with the base snapshot
@@ -194,13 +196,24 @@ class GitLoader(DVCSLoader):
 
             pack_buffer.write(data)
 
-        pack_result = client.fetch_pack(
-            path,
-            base_repo.determine_wants,
-            base_repo.graph_walker(),
-            do_pack,
-            progress=do_activity,
-        )
+        if isinstance(client, dulwich.client.LocalGitClient):
+            # for test purposes
+            pack_result = client.fetch_pack(
+                path,
+                base_repo.determine_wants,
+                base_repo.graph_walker(),
+                do_pack,
+                progress=do_activity,
+            )
+        else:
+            pack_result = client.fetch_pack(
+                path,
+                base_repo.determine_wants,
+                base_repo.graph_walker(),
+                do_pack,
+                progress=do_activity,
+                depth=10,
+            )
 
         remote_refs = pack_result.refs or {}
         symbolic_refs = pack_result.symrefs or {}
