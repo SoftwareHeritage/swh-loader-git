@@ -1,5 +1,5 @@
 swh.core >= 0.0.7
-swh.loader.core >= 5.0.0
 swh.model >= 4.3.0
 swh.scheduler >= 0.0.39
 swh.storage >= 0.22.0
+swh.loader.core @ git+https://forge.softwareheritage.org/source/staging.git@ad5c8f49c1dea00e95b895811df21e3c93a6667d#egg=swh.loader.core
