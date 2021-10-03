@@ -32,6 +32,7 @@ from swh.loader.tests import (
     prepare_repository_from_archive,
 )
 from swh.model.model import Origin, OriginVisit, OriginVisitStatus, Snapshot
+from swh.storage.algos.origin import origin_get_latest_visit_status
 
 
 class CommonGitLoaderNotFound:
@@ -98,6 +99,70 @@ class CommonGitLoaderNotFound:
             type="git",
             snapshot=None,
         )
+
+    def test_load_with_multiple_packfiles_with_partial_snapshot(self):
+        """Ingesting repositories in multiple packfiles should be ok"""
+        # Make the loader retrieve multiple packfiles As it's already instantiated, we
+        # must post configure the loader the attributes ourselves
+        self.loader.configure_packfile_fetching_policy(
+            fetch_multiple_packfiles=True, number_of_heads_per_packfile=1
+        )
+
+        res = self.loader.load()
+
+        assert res == {"status": "eventful"}
+
+        stats = get_stats(self.loader.storage)
+        nb_snapshots = stats.pop("snapshot")
+        assert stats == {
+            "content": 4,
+            "directory": 7,
+            "origin": 1,
+            "origin_visit": 1,
+            "release": 0,
+            "revision": 7,
+            "skipped_content": 0,
+        }
+
+        # This nb of snapshots will depend on the packfile ingestion order (and the git
+        # graph connectivity). If loading starts with a set of ref more connected than
+        # the other refs, we'll end up having less snapshots. Invertly, starting with
+        # less connected refs will create more snapshots. Hence the following
+        # comparison.
+        assert 2 <= nb_snapshots <= 4
+
+        # So we end up with at least one partial visit status with a snapshot
+        partial_visit = origin_get_latest_visit_status(
+            self.loader.storage,
+            self.repo_url,
+            type="git",
+            allowed_statuses=["partial"],
+        )
+        assert partial_visit is not None
+        assert partial_visit.snapshot is not None
+
+        partial_snapshot = self.loader.storage.snapshot_get_branches(
+            partial_visit.snapshot
+        )
+
+        # In the end, we have the final full visit targeting the snapshot
+        visit_status = assert_last_visit_matches(
+            self.loader.storage,
+            self.repo_url,
+            status="full",
+            type="git",
+        )
+        assert visit_status.snapshot is not None
+
+        snapshot = self.loader.storage.snapshot_get_branches(visit_status.snapshot)
+
+        # the partial snapshot branches set is a subset of the branches of the final
+        # snapshot
+        partial_branches = partial_snapshot["branches"].keys()
+        snapshot_branches = snapshot["branches"].keys()
+        assert 0 < len(partial_branches) <= len(snapshot_branches)
+        for branch in partial_branches:
+            assert branch in snapshot_branches
 
 
 class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
