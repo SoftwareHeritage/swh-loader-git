@@ -21,6 +21,7 @@ from swh.loader.tests import (
     get_stats,
     prepare_repository_from_archive,
 )
+from swh.storage.algos.origin import origin_get_latest_visit_status
 
 
 class CommonGitLoaderNotFound:
@@ -87,6 +88,41 @@ class CommonGitLoaderNotFound:
             type="git",
             snapshot=None,
         )
+
+    def test_load_visit_multiple_times(self):
+        """Ingesting repositories in multiple packfiles should be ok
+
+        """
+        # Make the loader retrieve multiple packfiles
+        self.loader.packfile_chunk_size = 3
+
+        res = self.loader.load()
+
+        assert res == {"status": "eventful"}
+
+        stats = get_stats(self.loader.storage)
+        assert stats == {
+            "content": 4,
+            "directory": 7,
+            "origin": 1,
+            "origin_visit": 1,
+            "release": 0,
+            "revision": 7,
+            "skipped_content": 0,
+            "snapshot": 1 + 1,  # one partial snapshot and one final
+        }
+
+        partial_visit = origin_get_latest_visit_status(
+            self.loader.storage, self.repo_url, type="git", allowed_statuses=["partial"]
+        )
+        assert partial_visit is not None
+        assert partial_visit.snapshot is not None
+
+        # Final status is ok
+        visit_status = assert_last_visit_matches(
+            self.loader.storage, self.repo_url, status="full", type="git",
+        )
+        assert visit_status.snapshot is not None
 
 
 class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
