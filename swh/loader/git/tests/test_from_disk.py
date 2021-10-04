@@ -336,13 +336,13 @@ class FullGitLoaderTests(CommonGitLoaderTests):
         )
 
     def test_load_filter_branches(self):
-        filtered_branches = {b"refs/pull/42/merge"}
-        unfiltered_branches = {b"refs/pull/42/head"}
+        filtered_branches = {b"refs/pull/42/merge", b"refs/pull/42/head"}
+        unfiltered_branches = {b"refs/heads/branch1"}
 
         # Add branches to the repository on disk; some should be filtered by
         # the loader, some should not.
         for branch_name in filtered_branches | unfiltered_branches:
-            self.repo[branch_name] = self.repo[b"refs/heads/master"]
+            self.repo[branch_name] = self.repo[b"refs/heads/branch1"]
 
         # Generate the expected snapshot from SNAPSHOT1 (which is the original
         # state of the git repo)...
@@ -351,7 +351,7 @@ class FullGitLoaderTests(CommonGitLoaderTests):
         # ... and the unfiltered_branches, which are all pointing to the same
         # commit as "refs/heads/master".
         for branch_name in unfiltered_branches:
-            branches[branch_name] = branches[b"refs/heads/master"]
+            branches[branch_name] = branches[b"refs/heads/branch1"]
 
         expected_snapshot = Snapshot(branches=branches)
 

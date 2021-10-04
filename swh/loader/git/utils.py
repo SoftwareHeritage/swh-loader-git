@@ -86,8 +86,8 @@ def ignore_branch_name(branch_name: bytes) -> bool:
     if branch_name.endswith(b"^{}"):
         # Peeled refs make the git protocol explode
         return True
-    elif branch_name.startswith(b"refs/pull/") and branch_name.endswith(b"/merge"):
-        # We filter-out auto-merged GitHub pull requests
+    elif branch_name.startswith(b"refs/pull/"):
+        # We filter-out pull requests related branches
         return True
 
     return False

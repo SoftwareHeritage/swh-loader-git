@@ -43,12 +43,4 @@ def test_ignore_branch_name():
 
     actual_branches = {b for b in branches if not utils.ignore_branch_name(b)}
 
-    assert actual_branches == set(
-        [
-            b"HEAD",
-            b"refs/heads/master",
-            b"refs/{}",
-            b"refs/pull/10/head",
-            b"refs/pull/100/head",
-        ]
-    )
+    assert actual_branches == set([b"HEAD", b"refs/heads/master", b"refs/{}",])
