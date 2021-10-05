@@ -8,10 +8,12 @@ from __future__ import annotations
 from collections import defaultdict
 import logging
 import stat
+import struct
 from tempfile import SpooledTemporaryFile
 from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Set, cast
 
 from dulwich.client import HttpGitClient
+from dulwich.errors import NotGitRepository
 from dulwich.objects import S_IFGITLINK, Commit, ShaFile, Tree
 from dulwich.pack import Pack, PackData, PackIndex, load_pack_index_file
 from urllib3.response import HTTPResponse
@@ -177,10 +179,16 @@ class GitObjectsFetcher:
     def _get_git_object(self, sha: bytes) -> ShaFile:
         # try to get the object from a pack file first to avoid flooding
         # git server with numerous HTTP requests
-        for pack in self.packs:
-            if sha in pack:
-                return pack[sha]
-        # fetch it from object/ directory otherwise
+        for pack in list(self.packs):
+            try:
+                if sha in pack:
+                    return pack[sha]
+            except (NotGitRepository, struct.error):
+                # missing (dulwich http client raises NotGitRepository on 404)
+                # or invalid pack index/content, remove it from global packs list
+                logger.debug("A pack file is missing or its content is invalid")
+                self.packs.remove(pack)
+        # fetch it from objects/ directory otherwise
         sha_hex = sha.decode()
         object_path = f"objects/{sha_hex[:2]}/{sha_hex[2:]}"
         return ShaFile.from_file(self._http_get(object_path))

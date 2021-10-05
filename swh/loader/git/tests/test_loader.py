@@ -7,6 +7,7 @@ from functools import partial
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 import os
 import subprocess
+from tempfile import SpooledTemporaryFile
 from threading import Thread
 
 from dulwich.errors import GitProtocolError, NotGitRepository, ObjectFormatException
@@ -286,6 +287,34 @@ class TestDumbGitLoaderWithPack(DumbGitLoaderTestBase):
     @classmethod
     def setup_class(cls):
         cls.with_pack_files = True
+
+    def test_load_with_missing_pack(self, mocker):
+        """Some dumb git servers might reference a no longer existing pack file
+        while it is possible to load a repository without it.
+        """
+
+        class GitObjectsFetcherMissingPack(dumb.GitObjectsFetcher):
+            def _http_get(self, path: str) -> SpooledTemporaryFile:
+                buffer = super()._http_get(path)
+                if path == "objects/info/packs":
+                    # prepend a non existing pack to the returned packs list
+                    packs = buffer.read().decode("utf-8")
+                    buffer.seek(0)
+                    buffer.write(
+                        (
+                            "P pack-a70762ba1a901af3a0e76de02fc3a99226842745.pack\n"
+                            + packs
+                        ).encode()
+                    )
+                    buffer.flush()
+                    buffer.seek(0)
+                return buffer
+
+        mocker.patch.object(dumb, "GitObjectsFetcher", GitObjectsFetcherMissingPack)
+
+        res = self.loader.load()
+
+        assert res == {"status": "eventful"}
 
 
 class TestDumbGitLoaderWithoutPack(DumbGitLoaderTestBase):
