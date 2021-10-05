@@ -74,7 +74,7 @@ def dulwich_blob_to_content(obj: ShaFile, max_content_size=None) -> BaseContent:
         return Content(data=blob.as_raw_string(), status="visible", **hashes,)
 
 
-def dulwich_tree_to_directory(obj: ShaFile, log=None) -> Directory:
+def dulwich_tree_to_directory(obj: ShaFile) -> Directory:
     """Format a tree as a directory"""
     if obj.type_name != b"tree":
         raise ValueError("Argument is not a tree.")
@@ -122,7 +122,7 @@ def dulwich_tsinfo_to_timestamp(
     )
 
 
-def dulwich_commit_to_revision(obj: ShaFile, log=None) -> Revision:
+def dulwich_commit_to_revision(obj: ShaFile) -> Revision:
     if obj.type_name != b"commit":
         raise ValueError("Argument is not a commit.")
     commit = cast(Commit, obj)
@@ -180,7 +180,7 @@ DULWICH_OBJECT_TYPES = {
 }
 
 
-def dulwich_tag_to_release(obj: ShaFile, log=None) -> Release:
+def dulwich_tag_to_release(obj: ShaFile) -> Release:
     if obj.type_name != b"tag":
         raise ValueError("Argument is not a tag.")
     tag = cast(Tag, obj)

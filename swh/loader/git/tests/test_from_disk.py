@@ -490,7 +490,6 @@ class FullGitLoaderTests(CommonGitLoaderTests):
 
         branches = self.loader.storage.snapshot_get_branches(self.loader.snapshot.id)
 
-        print(list(branches["branches"]))
         branch = branches["branches"][b"refs/tags/v1.0.0"]
         assert branch.target_type == TargetType.RELEASE
 

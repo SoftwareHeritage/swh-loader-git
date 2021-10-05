@@ -7,6 +7,7 @@ from functools import partial
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 import os
 import subprocess
+from tempfile import SpooledTemporaryFile
 from threading import Thread
 
 from dulwich.errors import GitProtocolError, NotGitRepository, ObjectFormatException
@@ -14,6 +15,7 @@ from dulwich.porcelain import push
 import dulwich.repo
 import pytest
 
+from swh.loader.git import dumb
 from swh.loader.git.loader import GitLoader
 from swh.loader.git.tests.test_from_disk import FullGitLoaderTests
 from swh.loader.tests import (
@@ -257,11 +259,62 @@ class DumbGitLoaderTestBase(FullGitLoaderTests):
             "snapshot": 1,
         }
 
+    def test_load_empty_repository(self, mocker):
+        class GitObjectsFetcherNoRefs(dumb.GitObjectsFetcher):
+            def _get_refs(self):
+                return {}
+
+        mocker.patch.object(dumb, "GitObjectsFetcher", GitObjectsFetcherNoRefs)
+
+        res = self.loader.load()
+
+        assert res == {"status": "uneventful"}
+
+        stats = get_stats(self.loader.storage)
+        assert stats == {
+            "content": 0,
+            "directory": 0,
+            "origin": 1,
+            "origin_visit": 1,
+            "release": 0,
+            "revision": 0,
+            "skipped_content": 0,
+            "snapshot": 1,
+        }
+
 
 class TestDumbGitLoaderWithPack(DumbGitLoaderTestBase):
     @classmethod
     def setup_class(cls):
         cls.with_pack_files = True
+
+    def test_load_with_missing_pack(self, mocker):
+        """Some dumb git servers might reference a no longer existing pack file
+        while it is possible to load a repository without it.
+        """
+
+        class GitObjectsFetcherMissingPack(dumb.GitObjectsFetcher):
+            def _http_get(self, path: str) -> SpooledTemporaryFile:
+                buffer = super()._http_get(path)
+                if path == "objects/info/packs":
+                    # prepend a non existing pack to the returned packs list
+                    packs = buffer.read().decode("utf-8")
+                    buffer.seek(0)
+                    buffer.write(
+                        (
+                            "P pack-a70762ba1a901af3a0e76de02fc3a99226842745.pack\n"
+                            + packs
+                        ).encode()
+                    )
+                    buffer.flush()
+                    buffer.seek(0)
+                return buffer
+
+        mocker.patch.object(dumb, "GitObjectsFetcher", GitObjectsFetcherMissingPack)
+
+        res = self.loader.load()
+
+        assert res == {"status": "eventful"}
 
 
 class TestDumbGitLoaderWithoutPack(DumbGitLoaderTestBase):
