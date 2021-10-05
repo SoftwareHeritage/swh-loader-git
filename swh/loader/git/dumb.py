@@ -77,7 +77,7 @@ class GitObjectsFetcher:
         self.base_repo = base_repo
         self.objects: Dict[bytes, Set[bytes]] = defaultdict(set)
         self.refs = self._get_refs()
-        self.head = self._get_head()
+        self.head = self._get_head() if self.refs else {}
         self.packs = self._get_packs()
 
     def fetch_object_ids(self) -> None:
