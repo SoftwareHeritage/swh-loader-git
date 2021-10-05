@@ -89,7 +89,11 @@ class RepoRepresentation:
                 continue
             remote_heads.add(ref_target)
 
-        return list(remote_heads - local_heads)
+        logger.debug("local_heads_count=%s", len(local_heads))
+        logger.debug("remote_heads_count=%s", len(remote_heads))
+        wanted_refs = list(remote_heads - local_heads)
+        logger.debug("wanted_refs_count=%s", len(wanted_refs))
+        return wanted_refs
 
 
 @dataclass
@@ -168,9 +172,13 @@ class GitLoader(DVCSLoader):
         if transport_url.startswith("https://github.com/"):
             transport_url = "git" + transport_url[5:]
 
+        logger.debug("Transport url to communicate with server: %s", transport_url)
+
         client, path = dulwich.client.get_transport_and_path(
             transport_url, thin_packs=False
         )
+
+        logger.debug("Client %s to fetch pack at %s", client, path)
 
         size_limit = self.pack_size_bytes
 
@@ -201,7 +209,7 @@ class GitLoader(DVCSLoader):
         pack_size = pack_buffer.tell()
         pack_buffer.seek(0)
 
-        logger.debug("Fetched pack size: %s", pack_size)
+        logger.debug("fetched_pack_size=%s", pack_size)
 
         # check if repository only supports git dumb transfer protocol,
         # fetched pack file will be empty in that case as dulwich do
@@ -280,8 +288,10 @@ class GitLoader(DVCSLoader):
             if not self.dumb:
                 raise
 
+        logger.debug(
+            "Protocol used for communication: %s", "dumb" if self.dumb else "smart"
+        )
         if self.dumb:
-            logger.debug("Fetching objects with HTTP dumb transfer protocol")
             self.dumb_fetcher = dumb.GitObjectsFetcher(self.origin_url, base_repo)
             self.dumb_fetcher.fetch_object_ids()
             self.remote_refs = utils.filter_refs(self.dumb_fetcher.refs)  # type: ignore
@@ -294,7 +304,7 @@ class GitLoader(DVCSLoader):
 
         self.ref_object_types = {sha1: None for sha1 in self.remote_refs.values()}
 
-        self.log.info(
+        logger.info(
             "Listed %d refs for repo %s",
             len(self.remote_refs),
             self.origin.url,
@@ -337,12 +347,15 @@ class GitLoader(DVCSLoader):
             yield from self.dumb_fetcher.iter_objects(object_type)
         else:
             self.pack_buffer.seek(0)
+            count = 0
             for obj in PackInflater.for_pack_data(
                 PackData.from_file(self.pack_buffer, self.pack_size)
             ):
                 if obj.type_name != object_type:
                     continue
                 yield obj
+                count += 1
+            logger.debug("packfile_read_count_%s=%s", object_type.decode(), count)
 
     def get_contents(self) -> Iterable[BaseContent]:
         """Format the blobs from the git repository as swh contents"""
@@ -360,7 +373,7 @@ class GitLoader(DVCSLoader):
             if raw_obj.id in self.ref_object_types:
                 self.ref_object_types[raw_obj.id] = TargetType.DIRECTORY
 
-            yield converters.dulwich_tree_to_directory(raw_obj, log=self.log)
+            yield converters.dulwich_tree_to_directory(raw_obj)
 
     def get_revisions(self) -> Iterable[Revision]:
         """Format commits as swh revisions"""
@@ -368,7 +381,7 @@ class GitLoader(DVCSLoader):
             if raw_obj.id in self.ref_object_types:
                 self.ref_object_types[raw_obj.id] = TargetType.REVISION
 
-            yield converters.dulwich_commit_to_revision(raw_obj, log=self.log)
+            yield converters.dulwich_commit_to_revision(raw_obj)
 
     def get_releases(self) -> Iterable[Release]:
         """Retrieve all the release objects from the git repository"""
@@ -376,7 +389,7 @@ class GitLoader(DVCSLoader):
             if raw_obj.id in self.ref_object_types:
                 self.ref_object_types[raw_obj.id] = TargetType.RELEASE
 
-            yield converters.dulwich_tag_to_release(raw_obj, log=self.log)
+            yield converters.dulwich_tag_to_release(raw_obj)
 
     def get_snapshot(self) -> Snapshot:
         """Get the snapshot for the current visit.
@@ -458,7 +471,7 @@ class GitLoader(DVCSLoader):
                 )
 
         utils.warn_dangling_branches(
-            branches, dangling_branches, self.log, self.origin_url
+            branches, dangling_branches, logger, self.origin_url
         )
 
         self.snapshot = Snapshot(branches=branches)
