@@ -17,6 +17,7 @@ from dulwich.errors import GitProtocolError, NotGitRepository
 from dulwich.object_store import ObjectStoreGraphWalker
 from dulwich.objects import ShaFile
 from dulwich.pack import PackData, PackInflater
+from memory_profiler import profile
 
 from swh.loader.core.loader import DVCSLoader
 from swh.loader.exception import NotFound
@@ -63,6 +64,7 @@ class RepoRepresentation:
     def graph_walker(self) -> ObjectStoreGraphWalker:
         return ObjectStoreGraphWalker(self.heads, self.get_parents)
 
+    @profile
     def determine_wants(self, refs: Dict[bytes, HexBytes]) -> List[HexBytes]:
         """Get the list of bytehex sha1s that the git loader should fetch.
 
@@ -145,6 +147,7 @@ class GitLoader(DVCSLoader):
         self.symbolic_refs: Dict[bytes, HexBytes] = {}
         self.ref_object_types: Dict[bytes, Optional[TargetType]] = {}
 
+    @profile
     def fetch_pack_from_origin(
         self,
         origin_url: str,
@@ -248,6 +251,7 @@ class GitLoader(DVCSLoader):
         else:
             self.base_snapshot = Snapshot(branches={})
 
+    @profile
     def fetch_data(self) -> bool:
         assert self.origin is not None
 
@@ -341,6 +345,7 @@ class GitLoader(DVCSLoader):
         with open(os.path.join(pack_dir, refs_name), "xb") as f:
             pickle.dump(self.remote_refs, f)
 
+    @profile
     def iter_objects(self, object_type: bytes) -> Iterator[ShaFile]:
         """Read all the objects of type `object_type` from the packfile"""
         if self.dumb:
@@ -357,6 +362,7 @@ class GitLoader(DVCSLoader):
                 count += 1
             logger.debug("packfile_read_count_%s=%s", object_type.decode(), count)
 
+    @profile
     def get_contents(self) -> Iterable[BaseContent]:
         """Format the blobs from the git repository as swh contents"""
         for raw_obj in self.iter_objects(b"blob"):
@@ -367,6 +373,7 @@ class GitLoader(DVCSLoader):
                 raw_obj, max_content_size=self.max_content_size
             )
 
+    @profile
     def get_directories(self) -> Iterable[Directory]:
         """Format the trees as swh directories"""
         for raw_obj in self.iter_objects(b"tree"):
@@ -375,6 +382,7 @@ class GitLoader(DVCSLoader):
 
             yield converters.dulwich_tree_to_directory(raw_obj)
 
+    @profile
     def get_revisions(self) -> Iterable[Revision]:
         """Format commits as swh revisions"""
         for raw_obj in self.iter_objects(b"commit"):
@@ -383,6 +391,7 @@ class GitLoader(DVCSLoader):
 
             yield converters.dulwich_commit_to_revision(raw_obj)
 
+    @profile
     def get_releases(self) -> Iterable[Release]:
         """Retrieve all the release objects from the git repository"""
         for raw_obj in self.iter_objects(b"tag"):
