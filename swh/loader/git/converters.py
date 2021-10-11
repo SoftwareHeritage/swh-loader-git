@@ -188,7 +188,7 @@ def dulwich_tag_to_release(obj: ShaFile) -> Release:
     target_type, target = tag.object
     if tag.tagger:
         author: Optional[Person] = parse_author(tag.tagger)
-        if not tag.tag_time:
+        if tag.tag_time is None:
             date = None
         else:
             date = dulwich_tsinfo_to_timestamp(

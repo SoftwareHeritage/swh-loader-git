@@ -4,6 +4,7 @@
 # See top-level LICENSE file for more information
 
 import copy
+import datetime
 import os
 import shutil
 import subprocess
@@ -413,8 +414,6 @@ class TestConverters:
         target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
         message = b"some release message"
 
-        import datetime
-
         date = datetime.datetime(2007, 12, 5, tzinfo=datetime.timezone.utc).timestamp()
 
         tag = SWHTag(
@@ -486,6 +485,52 @@ class TestConverters:
                 name=b"hey dude",
             ),
             date=None,
+            id=sha,
+            message=message,
+            metadata=None,
+            name=b"blah",
+            synthetic=False,
+            target=hash_to_bytes(target.decode()),
+            target_type=ObjectType.REVISION,
+        )
+
+        assert actual_release == expected_release
+
+    def test_dulwich_tag_to_release_author_zero_date(self):
+        # to reproduce bug T815 (fixed)
+        sha = hash_to_bytes("6cc1deff5cdcd853428bb63b937f43dd2566c36f")
+        tagger = b"hey dude <hello@mail.org>"
+        target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
+        message = b"some release message"
+        date = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc).timestamp()
+        tag = SWHTag(
+            sha=sha,
+            name=b"blah",
+            type_name=b"tag",
+            target=target,
+            target_type=b"commit",
+            message=message,
+            signature=None,
+            tagger=tagger,
+            tag_time=date,
+            tag_timezone=0,
+        )
+
+        # when
+        actual_release = converters.dulwich_tag_to_release(tag)
+
+        # then
+        expected_release = Release(
+            author=Person(
+                email=b"hello@mail.org",
+                fullname=b"hey dude <hello@mail.org>",
+                name=b"hey dude",
+            ),
+            date=TimestampWithTimezone(
+                negative_utc=False,
+                offset=0,
+                timestamp=Timestamp(seconds=0, microseconds=0,),
+            ),
             id=sha,
             message=message,
             metadata=None,
