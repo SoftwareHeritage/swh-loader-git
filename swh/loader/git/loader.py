@@ -497,6 +497,9 @@ if __name__ == "__main__":
         level=logging.DEBUG, format="%(asctime)s %(process)d %(message)s"
     )
 
+    from deprecated import deprecated
+
+    @deprecated(version="1.1", reason="Use `swh loader run git --help` instead")
     @click.command()
     @click.option("--origin-url", help="Origin url", required=True)
     @click.option("--base-url", default=None, help="Optional Base url")

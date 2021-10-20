@@ -5,12 +5,13 @@ The Software Heritage Git Loader is a tool and a library to walk a local
 Git repository and inject into the SWH dataset all contained files that
 weren't known before.
 
-The main entry points are
+The main entry points are:
 
-- :class:`swh.loader.git.loader.GitLoader` for the main loader which ingests a remote git
-  repository's contents.
+- :class:`swh.loader.git.loader.GitLoader` for the main loader which can ingest either
+  local or remote git repository's contents. This is the main implementation deployed in
+  production.
 
-- :class:`swh.loader.git.from_disk.GitLoaderFromDisk` which ingests a local git clone
+- :class:`swh.loader.git.from_disk.GitLoaderFromDisk` which ingests only local git clone
   repository.
 
 - :class:`swh.loader.git.loader.GitLoaderFromArchive` which ingests a git repository
