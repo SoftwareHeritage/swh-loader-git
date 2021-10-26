@@ -183,15 +183,6 @@ class GitLoader(DVCSLoader):
         size_limit = self.pack_size_bytes
 
         def do_pack(data: bytes) -> None:
-            cur_size = pack_buffer.tell()
-            would_write = len(data)
-            if cur_size + would_write > size_limit:
-                raise IOError(
-                    f"Pack file too big for repository {origin_url}, "
-                    f"limit is {size_limit} bytes, current size is {cur_size}, "
-                    f"would write {would_write}"
-                )
-
             pack_buffer.write(data)
 
         pack_result = client.fetch_pack(
@@ -209,7 +200,12 @@ class GitLoader(DVCSLoader):
         pack_size = pack_buffer.tell()
         pack_buffer.seek(0)
 
-        logger.debug("fetched_pack_size=%s", pack_size)
+        logger.info("fetched_pack_size=%s", pack_size)
+        if pack_size > size_limit:
+            raise IOError(
+                f"Pack file too big for repository {origin_url}, "
+                f"limit is {size_limit} bytes, current size is {pack_size}"
+            )
 
         # check if repository only supports git dumb transfer protocol,
         # fetched pack file will be empty in that case as dulwich do
