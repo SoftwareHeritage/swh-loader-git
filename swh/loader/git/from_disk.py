@@ -17,6 +17,7 @@ except ImportError:
     # dulwich >= 0.20
     from dulwich.objects import EmptyFileException
 
+from deprecated import deprecated
 import dulwich.objects
 import dulwich.repo
 
@@ -85,6 +86,7 @@ def _check_tag(tag):
         last = field
 
 
+@deprecated(version="1.1", reason="Use `swh.loader.git.loader.GitLoader` instead")
 class GitLoaderFromDisk(DVCSLoader):
     """Load a git repository from a directory.
 
