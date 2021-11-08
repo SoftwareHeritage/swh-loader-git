@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import tempfile
 
+import dulwich.objects
 import dulwich.repo
 import pytest
 
@@ -17,6 +18,8 @@ import swh.loader.git.converters as converters
 from swh.model.hashutil import bytehex_to_hash, hash_to_bytehex, hash_to_bytes
 from swh.model.model import (
     Content,
+    Directory,
+    DirectoryEntry,
     ObjectType,
     Person,
     Release,
@@ -214,6 +217,33 @@ class TestConverters:
 
         with pytest.raises(converters.HashMismatch):
             converters.dulwich_tree_to_directory(tree)
+
+    def test_tree_perms(self):
+        entries = [
+            (b"blob_100644", 0o100644, "file"),
+            (b"blob_100664", 0o100664, "file"),
+            (b"blob_100666", 0o100666, "file"),
+            (b"blob_120000", 0o120000, "file"),
+            (b"commit_160644", 0o160644, "rev"),
+            (b"commit_160664", 0o160664, "rev"),
+            (b"commit_160666", 0o160666, "rev"),
+            (b"commit_normal", 0o160000, "rev"),
+            (b"tree_040644", 0o040644, "dir"),
+            (b"tree_040664", 0o040664, "dir"),
+            (b"tree_040666", 0o040666, "dir"),
+            (b"tree_normal", 0o040000, "dir"),
+        ]
+
+        tree = dulwich.objects.Tree()
+        for (name, mode, _) in entries:
+            tree.add(name, mode, b"00" * 20)
+
+        assert converters.dulwich_tree_to_directory(tree) == Directory(
+            entries=tuple(
+                DirectoryEntry(type=type, perms=perms, name=name, target=b"\x00" * 20)
+                for (name, perms, type) in entries
+            )
+        )
 
     def test_commit_to_revision(self):
         sha1 = b"9768d0b576dbaaecd80abedad6dfd0d72f1476da"
