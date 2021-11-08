@@ -27,6 +27,13 @@ from swh.model.model import (
     TimestampWithTimezone,
 )
 
+COMMIT_MODE_MASK = 0o160000
+"""Mode/perms of tree entries that point to a commit.
+They are normally equal to this mask, but may have more bits set to 1."""
+TREE_MODE_MASK = 0o040000
+"""Mode/perms of tree entries that point to a tree.
+They are normally equal to this mask, but may have more bits set to 1."""
+
 
 class HashMismatch(Exception):
     pass
@@ -82,18 +89,17 @@ def dulwich_tree_to_directory(obj: ShaFile) -> Directory:
 
     entries = []
 
-    entry_mode_map = {
-        0o040000: "dir",
-        0o160000: "rev",
-        0o100644: "file",
-        0o100755: "file",
-        0o120000: "file",
-    }
-
     for entry in tree.iteritems():
+        if entry.mode & COMMIT_MODE_MASK == COMMIT_MODE_MASK:
+            type_ = "rev"
+        elif entry.mode & TREE_MODE_MASK == TREE_MODE_MASK:
+            type_ = "dir"
+        else:
+            type_ = "file"
+
         entries.append(
             DirectoryEntry(
-                type=entry_mode_map.get(entry.mode, "file"),
+                type=type_,
                 perms=entry.mode,
                 name=entry.path,
                 target=hash_to_bytes(entry.sha.decode("ascii")),

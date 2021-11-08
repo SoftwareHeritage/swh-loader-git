@@ -44,12 +44,15 @@ class RepoRepresentation:
     """Repository representation for a Software Heritage origin."""
 
     def __init__(
-        self, storage, base_snapshot: Optional[Snapshot] = None, ignore_history=False
+        self,
+        storage,
+        base_snapshot: Optional[Snapshot] = None,
+        incremental: bool = True,
     ):
         self.storage = storage
-        self.ignore_history = ignore_history
+        self.incremental = incremental
 
-        if base_snapshot and not ignore_history:
+        if base_snapshot and incremental:
             self.base_snapshot: Snapshot = base_snapshot
         else:
             self.base_snapshot = Snapshot(branches={})
@@ -114,7 +117,7 @@ class GitLoader(DVCSLoader):
         storage: StorageInterface,
         url: str,
         base_url: Optional[str] = None,
-        ignore_history: bool = False,
+        incremental: bool = True,
         repo_representation: Type[RepoRepresentation] = RepoRepresentation,
         pack_size_bytes: int = 4 * 1024 * 1024 * 1024,
         temp_file_cutoff: int = 100 * 1024 * 1024,
@@ -127,6 +130,10 @@ class GitLoader(DVCSLoader):
             repo_representation: swh's repository representation
             which is in charge of filtering between known and remote
             data.
+            ...
+
+            incremental: If True, the default, this starts from the last known snapshot
+                (if any) references. Otherwise, this loads the full repository.
 
         """
         super().__init__(
@@ -136,7 +143,7 @@ class GitLoader(DVCSLoader):
         )
         self.origin_url = url
         self.base_url = base_url
-        self.ignore_history = ignore_history
+        self.incremental = incremental
         self.repo_representation = repo_representation
         self.pack_size_bytes = pack_size_bytes
         self.temp_file_cutoff = temp_file_cutoff
@@ -235,7 +242,7 @@ class GitLoader(DVCSLoader):
 
         prev_snapshot: Optional[Snapshot] = None
 
-        if not self.ignore_history:
+        if self.incremental:
             prev_snapshot = self.get_full_snapshot(self.origin.url)
 
         if self.base_url and prev_snapshot is None:
@@ -254,7 +261,7 @@ class GitLoader(DVCSLoader):
         base_repo = self.repo_representation(
             storage=self.storage,
             base_snapshot=self.base_snapshot,
-            ignore_history=self.ignore_history,
+            incremental=self.incremental,
         )
 
         def do_progress(msg: bytes) -> None:
@@ -497,6 +504,9 @@ if __name__ == "__main__":
         level=logging.DEBUG, format="%(asctime)s %(process)d %(message)s"
     )
 
+    from deprecated import deprecated
+
+    @deprecated(version="1.1", reason="Use `swh loader run git --help` instead")
     @click.command()
     @click.option("--origin-url", help="Origin url", required=True)
     @click.option("--base-url", default=None, help="Optional Base url")
@@ -505,12 +515,12 @@ if __name__ == "__main__":
         help="Ignore the repository history",
         default=False,
     )
-    def main(origin_url: str, base_url: str, ignore_history: bool) -> Dict[str, Any]:
+    def main(origin_url: str, base_url: str, incremental: bool) -> Dict[str, Any]:
         from swh.storage import get_storage
 
         storage = get_storage(cls="memory")
         loader = GitLoader(
-            storage, origin_url, base_url=base_url, ignore_history=ignore_history,
+            storage, origin_url, base_url=base_url, incremental=incremental,
         )
         return loader.load()
 
