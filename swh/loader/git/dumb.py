@@ -55,11 +55,11 @@ def check_protocol(repo_url: str) -> bool:
     http_client = DumbHttpGitClient(repo_url)
     url = http_client.get_url("info/refs?service=git-upload-pack")
     response = http_client.get(url)
+    content_type = response.getheader("Content-Type")
     return (
         response.status in (200, 304,)
         # header is not mandatory in protocol specification
-        and response.content_type is None
-        or not response.content_type.startswith("application/x-git-")
+        and (content_type is None or not content_type.startswith("application/x-git-"))
     )
 
 
