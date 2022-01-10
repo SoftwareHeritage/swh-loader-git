@@ -116,7 +116,8 @@ class GitObjectsFetcher:
         url = urllib.parse.urljoin(self.repo_url, path)
         response = self._session.get(url, headers=HEADERS)
         buffer = SpooledTemporaryFile(max_size=100 * 1024 * 1024)
-        buffer.write(response.content)
+        for chunk in response.iter_content(chunk_size=10 * 1024 * 1024):
+            buffer.write(chunk)
         buffer.flush()
         buffer.seek(0)
         return buffer
