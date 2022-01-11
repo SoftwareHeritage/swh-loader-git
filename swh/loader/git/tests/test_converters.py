@@ -87,43 +87,6 @@ class SWHObjectType:
         self.type_name = type_name
 
 
-class SWHTag:
-    """Dulwich lookalike tag class
-
-    """
-
-    def __init__(
-        self,
-        sha,
-        name,
-        type_name,
-        target,
-        target_type,
-        tagger,
-        tag_time,
-        tag_timezone,
-        message,
-        signature,
-    ):
-        self._sha = sha
-        self.name = name
-        self.type_name = type_name
-        self.object = SWHObjectType(target_type), target
-        self.tagger = tagger
-        self.message = message
-        self.signature = signature
-        self.tag_time = tag_time
-        self.tag_timezone = tag_timezone
-        self._tag_timezone_neg_utc = False
-
-    def sha(self):
-        class hasher:
-            def digest():
-                return self._sha
-
-        return hasher
-
-
 @pytest.mark.fs
 class TestConverters:
     @classmethod
@@ -407,18 +370,15 @@ class TestConverters:
         sha = hash_to_bytes("f6e367357b446bd1315276de5e88ba3d0d99e136")
         target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
         message = b"some release message"
-        tag = SWHTag(
-            sha=sha,
-            name=b"blah",
-            type_name=b"tag",
-            target=target,
-            target_type=b"commit",
-            message=message,
-            signature=None,
-            tagger=None,
-            tag_time=None,
-            tag_timezone=None,
-        )
+        tag = dulwich.objects.Tag()
+        tag.name = b"blah"
+        tag.object = (dulwich.objects.Commit, target)
+        tag.message = message
+        tag.signature = None
+        tag.tagger = None
+        tag.tag_time = None
+        tag.tag_timezone = None
+        assert tag.sha().digest() == sha
 
         # when
         actual_release = converters.dulwich_tag_to_release(tag)
@@ -444,20 +404,19 @@ class TestConverters:
         target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
         message = b"some release message"
 
-        date = datetime.datetime(2007, 12, 5, tzinfo=datetime.timezone.utc).timestamp()
-
-        tag = SWHTag(
-            sha=sha,
-            name=b"blah",
-            type_name=b"tag",
-            target=target,
-            target_type=b"commit",
-            message=message,
-            signature=None,
-            tagger=tagger,
-            tag_time=date,
-            tag_timezone=0,
+        date = int(
+            datetime.datetime(2007, 12, 5, tzinfo=datetime.timezone.utc).timestamp()
         )
+
+        tag = dulwich.objects.Tag()
+        tag.name = b"blah"
+        tag.object = (dulwich.objects.Commit, target)
+        tag.message = message
+        tag.signature = None
+        tag.tagger = tagger
+        tag.tag_time = date
+        tag.tag_timezone = 0
+        assert tag.sha().digest() == sha
 
         # when
         actual_release = converters.dulwich_tag_to_release(tag)
@@ -491,18 +450,15 @@ class TestConverters:
         tagger = b"hey dude <hello@mail.org>"
         target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
         message = b"some release message"
-        tag = SWHTag(
-            sha=sha,
-            name=b"blah",
-            type_name=b"tag",
-            target=target,
-            target_type=b"commit",
-            message=message,
-            signature=None,
-            tagger=tagger,
-            tag_time=None,
-            tag_timezone=None,
-        )
+        tag = dulwich.objects.Tag()
+        tag.name = b"blah"
+        tag.object = (dulwich.objects.Commit, target)
+        tag.message = message
+        tag.signature = None
+        tag.tagger = tagger
+        tag.tag_time = None
+        tag.tag_timezone = None
+        assert tag.sha().digest() == sha
 
         # when
         actual_release = converters.dulwich_tag_to_release(tag)
@@ -532,19 +488,18 @@ class TestConverters:
         tagger = b"hey dude <hello@mail.org>"
         target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
         message = b"some release message"
-        date = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc).timestamp()
-        tag = SWHTag(
-            sha=sha,
-            name=b"blah",
-            type_name=b"tag",
-            target=target,
-            target_type=b"commit",
-            message=message,
-            signature=None,
-            tagger=tagger,
-            tag_time=date,
-            tag_timezone=0,
+        date = int(
+            datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc).timestamp()
         )
+        tag = dulwich.objects.Tag()
+        tag.name = b"blah"
+        tag.object = (dulwich.objects.Commit, target)
+        tag.message = message
+        tag.signature = None
+        tag.tagger = tagger
+        tag.tag_time = date
+        tag.tag_timezone = 0
+        assert tag.sha().digest() == sha
 
         # when
         actual_release = converters.dulwich_tag_to_release(tag)
@@ -576,18 +531,15 @@ class TestConverters:
         target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
         message = b"some release message"
         sha = hash_to_bytes("46fff489610ed733d2cc904e363070dadee05c71")
-        tag = SWHTag(
-            sha=sha,
-            name=b"blah",
-            type_name=b"tag",
-            target=target,
-            target_type=b"commit",
-            message=message,
-            signature=GPGSIG,
-            tagger=None,
-            tag_time=None,
-            tag_timezone=None,
-        )
+        tag = dulwich.objects.Tag()
+        tag.name = b"blah"
+        tag.object = (dulwich.objects.Commit, target)
+        tag.message = message
+        tag.signature = GPGSIG
+        tag.tagger = None
+        tag.tag_time = None
+        tag.tag_timezone = None
+        assert tag.sha().digest() == sha
 
         # when
         actual_release = converters.dulwich_tag_to_release(tag)
@@ -613,25 +565,28 @@ class TestConverters:
         sha = hash_to_bytes("46fff489610ed733d2cc904e363070dadee05c71")
         target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
         message = b"some release message"
-        tag = SWHTag(
-            sha=sha,
-            name=b"blah",
-            type_name=b"tag",
-            target=target,
-            target_type=b"commit",
-            message=message,
-            signature=GPGSIG,
-            tagger=None,
-            tag_time=None,
-            tag_timezone=None,
-        )
+        tag = dulwich.objects.Tag()
+        tag.name = b"blah"
+        tag.object = (dulwich.objects.Commit, target)
+        tag.message = message
+        tag.signature = GPGSIG
+        tag.tagger = None
+        tag.tag_time = None
+        tag.tag_timezone = None
+        assert tag.sha().digest() == sha
         converters.dulwich_tag_to_release(tag)
 
+        original_sha = tag.sha()
+
         setattr(tag, attribute, b"abcde")
+        tag.sha()  # reset tag._needs_serialization
+        tag._sha = original_sha  # force the wrong hash
         with pytest.raises(converters.HashMismatch):
             converters.dulwich_tag_to_release(tag)
 
         if attribute == "signature":
             setattr(tag, attribute, None)
+            tag.sha()  # reset tag._needs_serialization
+            tag._sha = original_sha  # force the wrong hash
             with pytest.raises(converters.HashMismatch):
                 converters.dulwich_tag_to_release(tag)
