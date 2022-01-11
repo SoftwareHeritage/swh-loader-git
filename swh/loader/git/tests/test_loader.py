@@ -158,18 +158,22 @@ class DumbGitLoaderTestBase(FullGitLoaderTests):
         if with_pack_files:
             # create a bare clone of that repository in another folder,
             # all objects will be contained in one or two pack files in that case
-            bare_repo_path = os.path.join(tmp_path, archive_name + "_bare")
+            http_root_dir = tmp_path
+            repo_name = archive_name + "_bare"
+            bare_repo_path = os.path.join(http_root_dir, repo_name)
             subprocess.run(
                 ["git", "clone", "--bare", base_repo_url, bare_repo_path], check=True,
             )
         else:
             # otherwise serve objects from the bare repository located in
             # the .git folder of the base repository
-            bare_repo_path = os.path.join(destination_path, ".git")
+            http_root_dir = destination_path
+            repo_name = ".git"
+            bare_repo_path = os.path.join(http_root_dir, repo_name)
 
         # spawn local HTTP server that will serve the bare repository files
         hostname = "localhost"
-        handler = partial(SimpleHTTPRequestHandler, directory=bare_repo_path)
+        handler = partial(SimpleHTTPRequestHandler, directory=http_root_dir)
         httpd = HTTPServer((hostname, 0), handler, bind_and_activate=True)
 
         def serve_forever(httpd):
@@ -213,7 +217,7 @@ class DumbGitLoaderTestBase(FullGitLoaderTests):
                 return super().load()
 
         # bare repository with dumb protocol only URL
-        self.repo_url = f"http://{httpd.server_name}:{httpd.server_port}"
+        self.repo_url = f"http://{httpd.server_name}:{httpd.server_port}/{repo_name}"
         self.loader = DumbGitLoaderTest(swh_storage, self.repo_url)
         self.repo = repo
 
