@@ -41,7 +41,10 @@ def check_protocol(repo_url: str) -> bool:
     """
     if not repo_url.startswith("http"):
         return False
-    url = urllib.parse.urljoin(repo_url, "info/refs?service=git-upload-pack/")
+    url = urllib.parse.urljoin(
+        repo_url.rstrip("/") + "/", "info/refs?service=git-upload-pack/"
+    )
+    logger.debug("Fetching %s", url)
     response = requests.get(url, headers=HEADERS)
     content_type = response.headers.get("Content-Type")
     return (
@@ -113,7 +116,8 @@ class GitObjectsFetcher:
         return map(self._get_git_object, self.objects[object_type])
 
     def _http_get(self, path: str) -> SpooledTemporaryFile:
-        url = urllib.parse.urljoin(self.repo_url, path)
+        url = urllib.parse.urljoin(self.repo_url.rstrip("/") + "/", path)
+        logger.debug("Fetching %s", url)
         response = self._session.get(url, headers=HEADERS)
         buffer = SpooledTemporaryFile(max_size=100 * 1024 * 1024)
         for chunk in response.iter_content(chunk_size=10 * 1024 * 1024):
