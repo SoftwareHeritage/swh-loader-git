@@ -176,8 +176,12 @@ class GitLoader(DVCSLoader):
         # We can interrupt it as soon as we've received too many bytes.
 
         transport_url = origin_url
-        if transport_url.startswith("https://github.com/"):
-            transport_url = "git" + transport_url[5:]
+
+        # Temporarily Disabled due to GitHub removing support for the tcp transport. See
+        # https://forge.softwareheritage.org/T3544
+        #
+        # if transport_url.startswith("https://github.com/"):
+        #     transport_url = "git" + transport_url[5:]
 
         logger.debug("Transport url to communicate with server: %s", transport_url)
 
