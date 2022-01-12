@@ -266,16 +266,14 @@ class TestConverters:
             ),
             committer_date=TimestampWithTimezone(
                 timestamp=Timestamp(seconds=1443083765, microseconds=0,),
-                negative_utc=False,
-                offset=120,
+                offset_bytes=b"+0200",
             ),
             message=b"add submodule dependency\n",
             metadata=None,
             extra_headers=(),
             date=TimestampWithTimezone(
                 timestamp=Timestamp(seconds=1443083765, microseconds=0,),
-                negative_utc=False,
-                offset=120,
+                offset_bytes=b"+0200",
             ),
             parents=(b"\xc3\xc5\x88q23`\x9f[\xbb\xb2\xd9\xe7\xf3\xfbJf\x0f?r",),
             synthetic=False,
@@ -303,16 +301,14 @@ class TestConverters:
             ),
             committer_date=TimestampWithTimezone(
                 timestamp=Timestamp(seconds=1594137902, microseconds=0,),
-                negative_utc=False,
-                offset=120,
+                offset_bytes=b"+0200",
             ),
             message=b"Am\xe9lioration du fichier READM\xa4\n",
             metadata=None,
             extra_headers=((b"encoding", b"ISO-8859-15"), (b"gpgsig", GPGSIG)),
             date=TimestampWithTimezone(
                 timestamp=Timestamp(seconds=1594136900, microseconds=0,),
-                negative_utc=False,
-                offset=120,
+                offset_bytes=b"+0200",
             ),
             parents=(bytes.fromhex("c730509025c6e81947102b2d77bc4dc1cade9489"),),
             synthetic=False,
@@ -320,9 +316,42 @@ class TestConverters:
 
         assert revision == expected_revision
 
+    def test_commit_without_manifest(self):
+        """Tests a Release can still be produced when the manifest is not understood
+        by the custom parser in dulwich_commit_to_revision."""
+        target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
+        message = b"some commit message"
+        author = Person(
+            fullname=b"Foo <foo@example.org>", name=b"Foo", email=b"foo@example.org"
+        )
+        commit = dulwich.objects.Commit()
+        commit.tree = target
+        commit.message = message
+        commit.author = commit.committer = b"Foo <foo@example.org>"
+        commit.author_time = commit.commit_time = 1641980946
+        commit.author_timezone = commit.commit_timezone = 3600
+        assert converters.dulwich_commit_to_revision(commit) == Revision(
+            message=b"some commit message",
+            author=author,
+            committer=author,
+            date=TimestampWithTimezone(
+                timestamp=Timestamp(seconds=1641980946, microseconds=0),
+                offset_bytes=b"+0100",
+            ),
+            committer_date=TimestampWithTimezone(
+                timestamp=Timestamp(seconds=1641980946, microseconds=0),
+                offset_bytes=b"+0100",
+            ),
+            type=RevisionType.GIT,
+            directory=hash_to_bytes(target.decode()),
+            synthetic=False,
+            metadata=None,
+            parents=(),
+        )
+
     @pytest.mark.parametrize("attribute", ["message", "encoding", "author", "gpgsig"])
     def test_corrupt_commit(self, attribute):
-        sha = hash_to_bytes("c40d5a78d0d499296c101fd6e9fe161e2a9af43b")
+        sha = hash_to_bytes("3f0ac5a6d15d89cf928209a57334e3b77c5651b9")
         target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
         message = b"some commit message"
         commit = dulwich.objects.Commit()
@@ -331,7 +360,7 @@ class TestConverters:
         commit.gpgsig = GPGSIG
         commit.author = commit.committer = b"Foo <foo@example.org>"
         commit.author_time = commit.commit_time = 1641980946
-        commit.author_timezone = commit.commit_timezone = 60
+        commit.author_timezone = commit.commit_timezone = 3600
         converters.dulwich_commit_to_revision(commit)
         assert commit.sha().digest() == sha
 
@@ -371,16 +400,14 @@ class TestConverters:
             ),
             committer_date=TimestampWithTimezone(
                 timestamp=Timestamp(seconds=1594138183, microseconds=0,),
-                negative_utc=False,
-                offset=120,
+                offset_bytes=b"+0200",
             ),
             message=b"Merge tag 'v0.0.1' into readme\n\nv0.0.1\n",
             metadata=None,
             extra_headers=((b"encoding", b"ISO-8859-15"), (b"mergetag", MERGETAG)),
             date=TimestampWithTimezone(
                 timestamp=Timestamp(seconds=1594138183, microseconds=0,),
-                negative_utc=False,
-                offset=120,
+                offset_bytes=b"+0200",
             ),
             parents=(
                 bytes.fromhex("322f5bc915e50fc25e85226b5a182bded0e98e4b"),
@@ -404,8 +431,6 @@ class TestConverters:
         commit = dulwich.objects.Commit.from_raw_string(b"commit", raw_manifest)
         date = TimestampWithTimezone(
             timestamp=Timestamp(seconds=1640191028, microseconds=0),
-            offset=120,
-            negative_utc=False,
             offset_bytes=b"+0200",
         )
         assert converters.dulwich_commit_to_revision(commit) == Revision(
@@ -425,8 +450,6 @@ class TestConverters:
         commit = dulwich.objects.Commit.from_raw_string(b"commit", raw_manifest2)
         date = TimestampWithTimezone(
             timestamp=Timestamp(seconds=1640191028, microseconds=0),
-            offset=120,
-            negative_utc=False,
             offset_bytes=b"+200",
         )
         assert converters.dulwich_commit_to_revision(commit) == Revision(
@@ -449,8 +472,6 @@ class TestConverters:
         commit = dulwich.objects.Commit.from_raw_string(b"commit", raw_manifest2)
         date = TimestampWithTimezone(
             timestamp=Timestamp(seconds=1640191028, microseconds=0),
-            offset=120,
-            negative_utc=False,
             offset_bytes=b"+0200",
         )
         assert converters.dulwich_commit_to_revision(commit) == Revision(
@@ -555,9 +576,8 @@ class TestConverters:
                 name=b"hey dude",
             ),
             date=TimestampWithTimezone(
-                negative_utc=False,
-                offset=0,
                 timestamp=Timestamp(seconds=1196812800, microseconds=0,),
+                offset_bytes=b"+0000",
             ),
             id=sha,
             message=message,
@@ -638,9 +658,7 @@ class TestConverters:
                 name=b"hey dude",
             ),
             date=TimestampWithTimezone(
-                negative_utc=False,
-                offset=0,
-                timestamp=Timestamp(seconds=0, microseconds=0,),
+                timestamp=Timestamp(seconds=0, microseconds=0,), offset_bytes=b"+0000"
             ),
             id=sha,
             message=message,
@@ -737,14 +755,28 @@ class TestConverters:
             author=Person.from_fullname(b"Foo <foo@example.org>",),
             date=TimestampWithTimezone(
                 timestamp=Timestamp(seconds=1640191027, microseconds=0),
-                offset=120,
-                negative_utc=False,
                 offset_bytes=b"+0200",
             ),
             raw_manifest=None,
         )
 
-        # Mess with the offset
+        # Mess with the offset (negative UTC)
+        raw_manifest2 = raw_manifest.replace(b"+0200", b"-0000")
+        tag = dulwich.objects.Tag.from_raw_string(b"tag", raw_manifest2)
+        assert converters.dulwich_tag_to_release(tag) == Release(
+            name=b"blah",
+            message=b"some release message",
+            target=hash_to_bytes("641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"),
+            target_type=ObjectType.REVISION,
+            synthetic=False,
+            author=Person.from_fullname(b"Foo <foo@example.org>",),
+            date=TimestampWithTimezone(
+                timestamp=Timestamp(seconds=1640191027, microseconds=0),
+                offset_bytes=b"-0000",
+            ),
+        )
+
+        # Mess with the offset (other)
         raw_manifest2 = raw_manifest.replace(b"+0200", b"+200")
         tag = dulwich.objects.Tag.from_raw_string(b"tag", raw_manifest2)
         assert converters.dulwich_tag_to_release(tag) == Release(
@@ -756,8 +788,6 @@ class TestConverters:
             author=Person.from_fullname(b"Foo <foo@example.org>",),
             date=TimestampWithTimezone(
                 timestamp=Timestamp(seconds=1640191027, microseconds=0),
-                offset=120,
-                negative_utc=False,
                 offset_bytes=b"+200",
             ),
         )
@@ -777,8 +807,7 @@ class TestConverters:
             author=Person.from_fullname(b"Foo <foo@example.org>",),
             date=TimestampWithTimezone(
                 timestamp=Timestamp(seconds=1640191027, microseconds=0),
-                offset=120,
-                negative_utc=False,
+                offset_bytes=b"+0200",
             ),
             raw_manifest=b"tag 136\x00" + raw_manifest2,
         )

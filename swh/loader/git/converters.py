@@ -144,19 +144,19 @@ def parse_author(name_email: bytes) -> Person:
 
 
 def dulwich_tsinfo_to_timestamp(
-    timestamp, timezone, timezone_neg_utc, timezone_bytes: Optional[bytes],
+    timestamp, timezone: int, timezone_neg_utc: bool, timezone_bytes: Optional[bytes],
 ) -> TimestampWithTimezone:
     """Convert the dulwich timestamp information to a structure compatible with
-    Software Heritage"""
-    kwargs = {}
-    if timezone_bytes is not None:
-        kwargs["offset_bytes"] = timezone_bytes
-    return TimestampWithTimezone(
-        timestamp=Timestamp(seconds=int(timestamp), microseconds=0,),
-        offset=timezone // 60,
-        negative_utc=timezone_neg_utc if timezone == 0 else False,
-        **kwargs,
-    )
+    Software Heritage."""
+    ts = Timestamp(seconds=int(timestamp), microseconds=0,)
+    if timezone_bytes is None:
+        # Failed to parse from the raw manifest, fallback to what Dulwich managed to
+        # parse.
+        return TimestampWithTimezone.from_numeric_offset(
+            timestamp=ts, offset=timezone // 60, negative_utc=timezone_neg_utc,
+        )
+    else:
+        return TimestampWithTimezone(timestamp=ts, offset_bytes=timezone_bytes)
 
 
 def dulwich_commit_to_revision(obj: ShaFile) -> Revision:
