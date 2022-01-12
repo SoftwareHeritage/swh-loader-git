@@ -171,15 +171,53 @@ class TestConverters:
                 _callable(Something())
 
     def test_corrupt_tree(self):
-        # has a signature
-        sha1 = b"f0695c2e2fa7ce9d574023c3413761a473e500ca"
-        tree = copy.deepcopy(self.repo[sha1])
+        sha1 = b"a9b41fc6347d778f16c4380b598d8083e9b4c1fb"
+        target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
+        tree = dulwich.objects.Tree()
+        tree.add(b"file1", 0o644, target)
+        assert tree.sha().hexdigest() == sha1.decode()
         converters.dulwich_tree_to_directory(tree)
 
-        del tree._entries[next(iter(tree._entries))]
+        original_sha = tree.sha()
+
+        tree.add(b"file2", 0o644, target)
+        tree.sha()  # reset tree._needs_serialization
+        tree._sha = original_sha  # force the wrong hash
+        assert tree.sha().hexdigest() == sha1.decode()
 
         with pytest.raises(converters.HashMismatch):
             converters.dulwich_tree_to_directory(tree)
+
+    def test_weird_tree(self):
+        """Tests a tree with entries the wrong order"""
+
+        raw_manifest = (
+            b"0644 file2\x00"
+            b"d\x1f\xb6\xe0\x8d\xdb.O\xd0\x96\xdc\xf1\x8e\x80\xb8\x94\xbf~%\xce"
+            b"0644 file1\x00"
+            b"d\x1f\xb6\xe0\x8d\xdb.O\xd0\x96\xdc\xf1\x8e\x80\xb8\x94\xbf~%\xce"
+        )
+
+        tree = dulwich.objects.Tree.from_raw_string(b"tree", raw_manifest)
+
+        assert converters.dulwich_tree_to_directory(tree) == Directory(
+            entries=(
+                # in alphabetical order, as it should be
+                DirectoryEntry(
+                    name=b"file1",
+                    type="file",
+                    target=hash_to_bytes("641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"),
+                    perms=0o644,
+                ),
+                DirectoryEntry(
+                    name=b"file2",
+                    type="file",
+                    target=hash_to_bytes("641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"),
+                    perms=0o644,
+                ),
+            ),
+            raw_manifest=b"tree 62\x00" + raw_manifest,
+        )
 
     def test_tree_perms(self):
         entries = [

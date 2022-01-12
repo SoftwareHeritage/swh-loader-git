@@ -120,6 +120,20 @@ def dulwich_tree_to_directory(obj: ShaFile) -> Directory:
         )
 
     dir_ = Directory(id=tree.sha().digest(), entries=tuple(entries),)
+
+    if dir_.compute_hash() != dir_.id:
+        expected_id = dir_.id
+        actual_id = dir_.compute_hash()
+        logger.warning(
+            "Expected directory to have id %s, but got %s. Recording raw_manifest.",
+            hash_to_hex(expected_id),
+            hash_to_hex(actual_id),
+        )
+        raw_string = tree.as_raw_string()
+        dir_ = attr.evolve(
+            dir_, raw_manifest=git_object_header("tree", len(raw_string)) + raw_string
+        )
+
     check_id(dir_)
     return dir_
 
