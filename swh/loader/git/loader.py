@@ -1,4 +1,4 @@
-# Copyright (C) 2016-2021 The Software Heritage developers
+# Copyright (C) 2016-2022 The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -276,7 +276,7 @@ class GitLoader(DVCSLoader):
             fetch_info = self.fetch_pack_from_origin(
                 self.origin.url, base_repo, do_progress
             )
-        except NotGitRepository as e:
+        except (dulwich.client.HTTPUnauthorized, NotGitRepository) as e:
             raise NotFound(e)
         except GitProtocolError as e:
             # unfortunately, that kind of error is not specific to a not found
