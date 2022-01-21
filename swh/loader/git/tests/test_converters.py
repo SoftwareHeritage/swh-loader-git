@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2018  The Software Heritage developers
+# Copyright (C) 2015-2022  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -171,15 +171,53 @@ class TestConverters:
                 _callable(Something())
 
     def test_corrupt_tree(self):
-        # has a signature
-        sha1 = b"f0695c2e2fa7ce9d574023c3413761a473e500ca"
-        tree = copy.deepcopy(self.repo[sha1])
+        sha1 = b"a9b41fc6347d778f16c4380b598d8083e9b4c1fb"
+        target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
+        tree = dulwich.objects.Tree()
+        tree.add(b"file1", 0o644, target)
+        assert tree.sha().hexdigest() == sha1.decode()
         converters.dulwich_tree_to_directory(tree)
 
-        del tree._entries[next(iter(tree._entries))]
+        original_sha = tree.sha()
+
+        tree.add(b"file2", 0o644, target)
+        tree.sha()  # reset tree._needs_serialization
+        tree._sha = original_sha  # force the wrong hash
+        assert tree.sha().hexdigest() == sha1.decode()
 
         with pytest.raises(converters.HashMismatch):
             converters.dulwich_tree_to_directory(tree)
+
+    def test_weird_tree(self):
+        """Tests a tree with entries the wrong order"""
+
+        raw_manifest = (
+            b"0644 file2\x00"
+            b"d\x1f\xb6\xe0\x8d\xdb.O\xd0\x96\xdc\xf1\x8e\x80\xb8\x94\xbf~%\xce"
+            b"0644 file1\x00"
+            b"d\x1f\xb6\xe0\x8d\xdb.O\xd0\x96\xdc\xf1\x8e\x80\xb8\x94\xbf~%\xce"
+        )
+
+        tree = dulwich.objects.Tree.from_raw_string(b"tree", raw_manifest)
+
+        assert converters.dulwich_tree_to_directory(tree) == Directory(
+            entries=(
+                # in alphabetical order, as it should be
+                DirectoryEntry(
+                    name=b"file1",
+                    type="file",
+                    target=hash_to_bytes("641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"),
+                    perms=0o644,
+                ),
+                DirectoryEntry(
+                    name=b"file2",
+                    type="file",
+                    target=hash_to_bytes("641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"),
+                    perms=0o644,
+                ),
+            ),
+            raw_manifest=b"tree 62\x00" + raw_manifest,
+        )
 
     def test_tree_perms(self):
         entries = [
@@ -228,16 +266,14 @@ class TestConverters:
             ),
             committer_date=TimestampWithTimezone(
                 timestamp=Timestamp(seconds=1443083765, microseconds=0,),
-                negative_utc=False,
-                offset=120,
+                offset_bytes=b"+0200",
             ),
             message=b"add submodule dependency\n",
             metadata=None,
             extra_headers=(),
             date=TimestampWithTimezone(
                 timestamp=Timestamp(seconds=1443083765, microseconds=0,),
-                negative_utc=False,
-                offset=120,
+                offset_bytes=b"+0200",
             ),
             parents=(b"\xc3\xc5\x88q23`\x9f[\xbb\xb2\xd9\xe7\xf3\xfbJf\x0f?r",),
             synthetic=False,
@@ -265,16 +301,14 @@ class TestConverters:
             ),
             committer_date=TimestampWithTimezone(
                 timestamp=Timestamp(seconds=1594137902, microseconds=0,),
-                negative_utc=False,
-                offset=120,
+                offset_bytes=b"+0200",
             ),
             message=b"Am\xe9lioration du fichier READM\xa4\n",
             metadata=None,
             extra_headers=((b"encoding", b"ISO-8859-15"), (b"gpgsig", GPGSIG)),
             date=TimestampWithTimezone(
                 timestamp=Timestamp(seconds=1594136900, microseconds=0,),
-                negative_utc=False,
-                offset=120,
+                offset_bytes=b"+0200",
             ),
             parents=(bytes.fromhex("c730509025c6e81947102b2d77bc4dc1cade9489"),),
             synthetic=False,
@@ -282,20 +316,67 @@ class TestConverters:
 
         assert revision == expected_revision
 
-    @pytest.mark.parametrize(
-        "attribute", ["_message", "_encoding", "_author", "_gpgsig"]
-    )
+    def test_commit_without_manifest(self):
+        """Tests a Release can still be produced when the manifest is not understood
+        by the custom parser in dulwich_commit_to_revision."""
+        target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
+        message = b"some commit message"
+        author = Person(
+            fullname=b"Foo <foo@example.org>", name=b"Foo", email=b"foo@example.org"
+        )
+        commit = dulwich.objects.Commit()
+        commit.tree = target
+        commit.message = message
+        commit.author = commit.committer = b"Foo <foo@example.org>"
+        commit.author_time = commit.commit_time = 1641980946
+        commit.author_timezone = commit.commit_timezone = 3600
+        assert converters.dulwich_commit_to_revision(commit) == Revision(
+            message=b"some commit message",
+            author=author,
+            committer=author,
+            date=TimestampWithTimezone(
+                timestamp=Timestamp(seconds=1641980946, microseconds=0),
+                offset_bytes=b"+0100",
+            ),
+            committer_date=TimestampWithTimezone(
+                timestamp=Timestamp(seconds=1641980946, microseconds=0),
+                offset_bytes=b"+0100",
+            ),
+            type=RevisionType.GIT,
+            directory=hash_to_bytes(target.decode()),
+            synthetic=False,
+            metadata=None,
+            parents=(),
+        )
+
+    @pytest.mark.parametrize("attribute", ["message", "encoding", "author", "gpgsig"])
     def test_corrupt_commit(self, attribute):
-        # has a signature
-        sha1 = b"322f5bc915e50fc25e85226b5a182bded0e98e4b"
-        commit = copy.deepcopy(self.repo[sha1])
+        sha = hash_to_bytes("3f0ac5a6d15d89cf928209a57334e3b77c5651b9")
+        target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
+        message = b"some commit message"
+        commit = dulwich.objects.Commit()
+        commit.tree = target
+        commit.message = message
+        commit.gpgsig = GPGSIG
+        commit.author = commit.committer = b"Foo <foo@example.org>"
+        commit.author_time = commit.commit_time = 1641980946
+        commit.author_timezone = commit.commit_timezone = 3600
         converters.dulwich_commit_to_revision(commit)
+        assert commit.sha().digest() == sha
+
+        original_sha = commit.sha()
+
         setattr(commit, attribute, b"abcde")
+        commit.sha()  # reset tag._needs_serialization
+        commit._sha = original_sha  # force the wrong hash
+
         with pytest.raises(converters.HashMismatch):
             converters.dulwich_commit_to_revision(commit)
 
         if attribute == "_gpgsig":
             setattr(commit, attribute, None)
+            commit.sha()  # reset tag._needs_serialization
+            commit._sha = original_sha  # force the wrong hash
             with pytest.raises(converters.HashMismatch):
                 converters.dulwich_commit_to_revision(commit)
 
@@ -319,16 +400,14 @@ class TestConverters:
             ),
             committer_date=TimestampWithTimezone(
                 timestamp=Timestamp(seconds=1594138183, microseconds=0,),
-                negative_utc=False,
-                offset=120,
+                offset_bytes=b"+0200",
             ),
             message=b"Merge tag 'v0.0.1' into readme\n\nv0.0.1\n",
             metadata=None,
             extra_headers=((b"encoding", b"ISO-8859-15"), (b"mergetag", MERGETAG)),
             date=TimestampWithTimezone(
                 timestamp=Timestamp(seconds=1594138183, microseconds=0,),
-                negative_utc=False,
-                offset=120,
+                offset_bytes=b"+0200",
             ),
             parents=(
                 bytes.fromhex("322f5bc915e50fc25e85226b5a182bded0e98e4b"),
@@ -338,6 +417,74 @@ class TestConverters:
         )
 
         assert revision == expected_revision
+
+    def test_weird_commit(self):
+        """Checks raw_manifest is set when the commit cannot fit the data model"""
+
+        # Well-formed manifest
+        raw_manifest = (
+            b"tree 641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce\n"
+            b"author Foo <foo@example.org> 1640191028 +0200\n"
+            b"committer Foo <foo@example.org> 1640191028 +0200\n\n"
+            b"some commit message"
+        )
+        commit = dulwich.objects.Commit.from_raw_string(b"commit", raw_manifest)
+        date = TimestampWithTimezone(
+            timestamp=Timestamp(seconds=1640191028, microseconds=0),
+            offset_bytes=b"+0200",
+        )
+        assert converters.dulwich_commit_to_revision(commit) == Revision(
+            message=b"some commit message",
+            directory=hash_to_bytes("641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"),
+            synthetic=False,
+            author=Person.from_fullname(b"Foo <foo@example.org>",),
+            committer=Person.from_fullname(b"Foo <foo@example.org>",),
+            date=date,
+            committer_date=date,
+            type=RevisionType.GIT,
+            raw_manifest=None,
+        )
+
+        # Mess with the offset
+        raw_manifest2 = raw_manifest.replace(b"+0200", b"+200")
+        commit = dulwich.objects.Commit.from_raw_string(b"commit", raw_manifest2)
+        date = TimestampWithTimezone(
+            timestamp=Timestamp(seconds=1640191028, microseconds=0),
+            offset_bytes=b"+200",
+        )
+        assert converters.dulwich_commit_to_revision(commit) == Revision(
+            message=b"some commit message",
+            directory=hash_to_bytes("641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"),
+            synthetic=False,
+            author=Person.from_fullname(b"Foo <foo@example.org>",),
+            committer=Person.from_fullname(b"Foo <foo@example.org>",),
+            date=date,
+            committer_date=date,
+            type=RevisionType.GIT,
+            raw_manifest=None,
+        )
+
+        # Mess with the rest of the manifest
+        raw_manifest2 = raw_manifest.replace(
+            b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce",
+            b"641FB6E08DDB2E4FD096DCF18E80B894BF7E25CE",
+        )
+        commit = dulwich.objects.Commit.from_raw_string(b"commit", raw_manifest2)
+        date = TimestampWithTimezone(
+            timestamp=Timestamp(seconds=1640191028, microseconds=0),
+            offset_bytes=b"+0200",
+        )
+        assert converters.dulwich_commit_to_revision(commit) == Revision(
+            message=b"some commit message",
+            directory=hash_to_bytes("641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"),
+            synthetic=False,
+            author=Person.from_fullname(b"Foo <foo@example.org>",),
+            committer=Person.from_fullname(b"Foo <foo@example.org>",),
+            date=date,
+            committer_date=date,
+            type=RevisionType.GIT,
+            raw_manifest=b"commit 161\x00" + raw_manifest2,
+        )
 
     def test_author_line_to_author(self):
         # edge case out of the way
@@ -429,9 +576,8 @@ class TestConverters:
                 name=b"hey dude",
             ),
             date=TimestampWithTimezone(
-                negative_utc=False,
-                offset=0,
                 timestamp=Timestamp(seconds=1196812800, microseconds=0,),
+                offset_bytes=b"+0000",
             ),
             id=sha,
             message=message,
@@ -512,9 +658,7 @@ class TestConverters:
                 name=b"hey dude",
             ),
             date=TimestampWithTimezone(
-                negative_utc=False,
-                offset=0,
-                timestamp=Timestamp(seconds=0, microseconds=0,),
+                timestamp=Timestamp(seconds=0, microseconds=0,), offset_bytes=b"+0000"
             ),
             id=sha,
             message=message,
@@ -561,7 +705,6 @@ class TestConverters:
 
     @pytest.mark.parametrize("attribute", ["name", "message", "signature"])
     def test_corrupt_tag(self, attribute):
-        # has a signature
         sha = hash_to_bytes("46fff489610ed733d2cc904e363070dadee05c71")
         target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
         message = b"some release message"
@@ -590,3 +733,81 @@ class TestConverters:
             tag._sha = original_sha  # force the wrong hash
             with pytest.raises(converters.HashMismatch):
                 converters.dulwich_tag_to_release(tag)
+
+    def test_weird_tag(self):
+        """Checks raw_manifest is set when the tag cannot fit the data model"""
+
+        # Well-formed manifest
+        raw_manifest = (
+            b"object 641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce\n"
+            b"type commit\n"
+            b"tag blah\n"
+            b"tagger Foo <foo@example.org> 1640191027 +0200\n\n"
+            b"some release message"
+        )
+        tag = dulwich.objects.Tag.from_raw_string(b"tag", raw_manifest)
+        assert converters.dulwich_tag_to_release(tag) == Release(
+            name=b"blah",
+            message=b"some release message",
+            target=hash_to_bytes("641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"),
+            target_type=ObjectType.REVISION,
+            synthetic=False,
+            author=Person.from_fullname(b"Foo <foo@example.org>",),
+            date=TimestampWithTimezone(
+                timestamp=Timestamp(seconds=1640191027, microseconds=0),
+                offset_bytes=b"+0200",
+            ),
+            raw_manifest=None,
+        )
+
+        # Mess with the offset (negative UTC)
+        raw_manifest2 = raw_manifest.replace(b"+0200", b"-0000")
+        tag = dulwich.objects.Tag.from_raw_string(b"tag", raw_manifest2)
+        assert converters.dulwich_tag_to_release(tag) == Release(
+            name=b"blah",
+            message=b"some release message",
+            target=hash_to_bytes("641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"),
+            target_type=ObjectType.REVISION,
+            synthetic=False,
+            author=Person.from_fullname(b"Foo <foo@example.org>",),
+            date=TimestampWithTimezone(
+                timestamp=Timestamp(seconds=1640191027, microseconds=0),
+                offset_bytes=b"-0000",
+            ),
+        )
+
+        # Mess with the offset (other)
+        raw_manifest2 = raw_manifest.replace(b"+0200", b"+200")
+        tag = dulwich.objects.Tag.from_raw_string(b"tag", raw_manifest2)
+        assert converters.dulwich_tag_to_release(tag) == Release(
+            name=b"blah",
+            message=b"some release message",
+            target=hash_to_bytes("641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"),
+            target_type=ObjectType.REVISION,
+            synthetic=False,
+            author=Person.from_fullname(b"Foo <foo@example.org>",),
+            date=TimestampWithTimezone(
+                timestamp=Timestamp(seconds=1640191027, microseconds=0),
+                offset_bytes=b"+200",
+            ),
+        )
+
+        # Mess with the rest of the manifest
+        raw_manifest2 = raw_manifest.replace(
+            b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce",
+            b"641FB6E08DDB2E4FD096DCF18E80B894BF7E25CE",
+        )
+        tag = dulwich.objects.Tag.from_raw_string(b"tag", raw_manifest2)
+        assert converters.dulwich_tag_to_release(tag) == Release(
+            name=b"blah",
+            message=b"some release message",
+            target=hash_to_bytes("641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"),
+            target_type=ObjectType.REVISION,
+            synthetic=False,
+            author=Person.from_fullname(b"Foo <foo@example.org>",),
+            date=TimestampWithTimezone(
+                timestamp=Timestamp(seconds=1640191027, microseconds=0),
+                offset_bytes=b"+0200",
+            ),
+            raw_manifest=b"tag 136\x00" + raw_manifest2,
+        )
