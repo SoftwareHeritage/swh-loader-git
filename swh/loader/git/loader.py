@@ -10,7 +10,18 @@ import os
 import pickle
 import sys
 from tempfile import SpooledTemporaryFile
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Set, Type
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+)
 
 import dulwich.client
 from dulwich.errors import GitProtocolError, NotGitRepository
@@ -31,10 +42,14 @@ from swh.model.model import (
     SnapshotBranch,
     TargetType,
 )
+from swh.scheduler import get_scheduler
+from swh.scheduler.interface import SchedulerInterface
+from swh.storage import get_storage
 from swh.storage.algos.snapshot import snapshot_get_latest
 from swh.storage.interface import StorageInterface
 
 from . import converters, dumb, utils
+from .submodules import process_submodules
 from .utils import HexBytes
 
 logger = logging.getLogger(__name__)
@@ -123,6 +138,7 @@ class GitLoader(DVCSLoader):
         temp_file_cutoff: int = 100 * 1024 * 1024,
         save_data_path: Optional[str] = None,
         max_content_size: Optional[int] = None,
+        scheduler: Optional[SchedulerInterface] = None,
     ):
         """Initialize the bulk updater.
 
@@ -151,6 +167,27 @@ class GitLoader(DVCSLoader):
         self.remote_refs: Dict[bytes, HexBytes] = {}
         self.symbolic_refs: Dict[bytes, HexBytes] = {}
         self.ref_object_types: Dict[bytes, Optional[TargetType]] = {}
+        self.gitmodules: Set[Tuple[bytes, bytes]] = set()
+        self.scheduler = scheduler
+        self.snapshot = Snapshot(branches={})
+
+    @classmethod
+    def from_config(cls, storage: Dict[str, Any], **config: Any):
+        for legacy_key in ("storage", "celery"):
+            config.pop(legacy_key, None)
+        # Instantiate the storage
+        storage_instance = get_storage(**storage)
+        # Instantiate the scheduler
+        scheduler_instance = None
+        if "scheduler" in config:
+            scheduler_instance = get_scheduler(**config.pop("scheduler"))
+        return cls(storage=storage_instance, scheduler=scheduler_instance, **config)
+
+    def post_load(self, success: bool = True) -> None:
+        """Process git submodules found during the loading process and possibly
+        create scheduler tasks to archive the associated origins.
+        """
+        process_submodules(self)
 
     def fetch_pack_from_origin(
         self,
@@ -384,7 +421,17 @@ class GitLoader(DVCSLoader):
             if raw_obj.id in self.ref_object_types:
                 self.ref_object_types[raw_obj.id] = TargetType.DIRECTORY
 
-            yield converters.dulwich_tree_to_directory(raw_obj)
+            directory = converters.dulwich_tree_to_directory(raw_obj)
+
+            if self.scheduler:
+                # keep track of submodule definition files for later processing
+                self.gitmodules.update(
+                    (directory.id, entry.target)
+                    for entry in directory.entries
+                    if entry.type == "file" and entry.name == b".gitmodules"
+                )
+
+            yield directory
 
     def get_revisions(self) -> Iterable[Revision]:
         """Format commits as swh revisions"""
