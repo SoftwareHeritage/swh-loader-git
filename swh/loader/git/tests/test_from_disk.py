@@ -27,7 +27,8 @@ SNAPSHOT1 = Snapshot(
     id=hash_to_bytes("a23699280a82a043f8c0994cf1631b568f716f95"),
     branches={
         b"HEAD": SnapshotBranch(
-            target=b"refs/heads/master", target_type=TargetType.ALIAS,
+            target=b"refs/heads/master",
+            target_type=TargetType.ALIAS,
         ),
         b"refs/heads/master": SnapshotBranch(
             target=hash_to_bytes("2f01f5ca7e391a2f08905990277faf81e709a649"),
@@ -209,7 +210,7 @@ class CommonGitLoaderTests:
 
 class FullGitLoaderTests(CommonGitLoaderTests):
     """Tests for GitLoader (from disk or not). Includes the common ones, and
-       add others that only work with a local dir.
+    add others that only work with a local dir.
 
     """
 
@@ -272,10 +273,12 @@ class FullGitLoaderTests(CommonGitLoaderTests):
         snapshot = snapshot_get_all_branches(self.loader.storage, snapshot_id)
         branches = snapshot.branches
         assert branches[b"HEAD"] == SnapshotBranch(
-            target=b"refs/heads/master", target_type=TargetType.ALIAS,
+            target=b"refs/heads/master",
+            target_type=TargetType.ALIAS,
         )
         assert branches[b"refs/heads/master"] == SnapshotBranch(
-            target=hash_to_bytes(new_revision), target_type=TargetType.REVISION,
+            target=hash_to_bytes(new_revision),
+            target_type=TargetType.REVISION,
         )
 
         # Merge branch1 into HEAD.
@@ -328,7 +331,8 @@ class FullGitLoaderTests(CommonGitLoaderTests):
         )
         merge_branches = merge_snapshot.branches
         assert merge_branches[b"HEAD"] == SnapshotBranch(
-            target=b"refs/heads/master", target_type=TargetType.ALIAS,
+            target=b"refs/heads/master",
+            target_type=TargetType.ALIAS,
         )
         assert merge_branches[b"refs/heads/master"] == SnapshotBranch(
             target=hash_to_bytes(merge_commit.decode()),
@@ -385,7 +389,8 @@ class FullGitLoaderTests(CommonGitLoaderTests):
         branches = snapshot.branches
 
         assert branches[b"HEAD"] == SnapshotBranch(
-            target=b"refs/heads/dangling-branch", target_type=TargetType.ALIAS,
+            target=b"refs/heads/dangling-branch",
+            target_type=TargetType.ALIAS,
         )
         assert branches[b"refs/heads/dangling-branch"] is None
 

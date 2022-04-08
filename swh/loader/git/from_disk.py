@@ -88,9 +88,7 @@ def _check_tag(tag):
 
 @deprecated(version="1.1", reason="Use `swh.loader.git.loader.GitLoader` instead")
 class GitLoaderFromDisk(DVCSLoader):
-    """Load a git repository from a directory.
-
-    """
+    """Load a git repository from a directory."""
 
     visit_type = "git"
 
@@ -321,7 +319,8 @@ class GitLoaderFromDisk(DVCSLoader):
             if obj:
                 target_type = converters.DULWICH_TARGET_TYPES[obj.type_name]
                 branches[ref] = SnapshotBranch(
-                    target=hashutil.bytehex_to_hash(target), target_type=target_type,
+                    target=hashutil.bytehex_to_hash(target),
+                    target_type=target_type,
                 )
             else:
                 branches[ref] = None
@@ -351,7 +350,7 @@ class GitLoaderFromDisk(DVCSLoader):
 
     def load_status(self):
         """The load was eventful if the current occurrences are different to
-           the ones we retrieved at the beginning of the run"""
+        the ones we retrieved at the beginning of the run"""
         eventful = False
 
         if self.previous_snapshot_id:
@@ -411,9 +410,7 @@ class GitLoaderFromArchive(GitLoaderFromDisk):
         self.archive_path = archive_path
 
     def project_name_from_archive(self, archive_path):
-        """Compute the project name from the archive's path.
-
-        """
+        """Compute the project name from the archive's path."""
         archive_name = os.path.basename(archive_path)
         for ext in (".zip", ".tar.gz", ".tgz"):
             if archive_name.lower().endswith(ext):
@@ -423,8 +420,8 @@ class GitLoaderFromArchive(GitLoaderFromDisk):
 
     def prepare(self):
         """1. Uncompress the archive in temporary location.
-           2. Prepare as the GitLoaderFromDisk does
-           3. Load as GitLoaderFromDisk does
+        2. Prepare as the GitLoaderFromDisk does
+        3. Load as GitLoaderFromDisk does
 
         """
         project_name = self.project_name_from_archive(self.archive_path)
@@ -442,9 +439,7 @@ class GitLoaderFromArchive(GitLoaderFromDisk):
         super().prepare()
 
     def cleanup(self):
-        """Cleanup the temporary location (if it exists).
-
-        """
+        """Cleanup the temporary location (if it exists)."""
         if self.temp_dir and os.path.exists(self.temp_dir):
             shutil.rmtree(self.temp_dir)
         logger.info(

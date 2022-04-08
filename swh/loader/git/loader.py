@@ -442,7 +442,8 @@ class GitLoader(DVCSLoader):
         # Handle symbolic references as alias branches
         for ref_name, target in self.symbolic_refs.items():
             branches[ref_name] = SnapshotBranch(
-                target_type=TargetType.ALIAS, target=target,
+                target_type=TargetType.ALIAS,
+                target=target,
             )
             if target not in branches and target not in unfetched_refs:
                 # This handles the case where the pointer is "dangling".
@@ -490,7 +491,7 @@ class GitLoader(DVCSLoader):
 
     def load_status(self) -> Dict[str, Any]:
         """The load was eventful if the current snapshot is different to
-           the one we retrieved at the beginning of the run"""
+        the one we retrieved at the beginning of the run"""
         eventful = False
 
         if self.base_snapshot and self.snapshot:
@@ -524,7 +525,10 @@ if __name__ == "__main__":
 
         storage = get_storage(cls="memory")
         loader = GitLoader(
-            storage, origin_url, base_url=base_url, incremental=incremental,
+            storage,
+            origin_url,
+            base_url=base_url,
+            incremental=incremental,
         )
         return loader.load()
 
