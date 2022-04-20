@@ -188,9 +188,9 @@ class CommonGitLoaderTests:
     def test_load_visit_with_snapshot_so_status_partial(self):
         # unfortunately, monkey-patch the hard way, self.loader is already instantiated
         # (patching won't work self.loader is already instantiated)
-        # fake store_metadata raising for some reason, so we could have a snapshot id
+        # fake store_data raising for some reason, so we could have a snapshot id
         # at this point in time
-        self.loader.store_metadata = None
+        self.loader.store_data = None
         # fake having a snapshot so the visit status is partial
         self.loader.loaded_snapshot_id = hash_to_bytes(
             "a23699280a82a043f8c0994cf1631b568f716f95"
