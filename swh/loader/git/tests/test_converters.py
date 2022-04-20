@@ -326,6 +326,77 @@ class TestConverters:
 
         assert revision == expected_revision
 
+    def test_commit_without_author(self):
+        target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
+        message = b"some commit message"
+        author = None
+        raw_manifest = (
+            b"tree 641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce\n" b"some commit message"
+        )
+        commit = dulwich.objects.Commit.from_raw_string(b"commit", raw_manifest)
+        assert converters.dulwich_commit_to_revision(commit) == Revision(
+            message=b"some commit message",
+            author=author,
+            committer=author,
+            date=None,
+            committer_date=None,
+            type=RevisionType.GIT,
+            directory=hash_to_bytes(target.decode()),
+            synthetic=False,
+            metadata=None,
+            parents=(),
+        )
+
+    def test_commit_without_author_name(self):
+        target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
+        message = b"some commit message"
+        author = Person(fullname=b"foo@example.org", name=b"", email=b"")
+        raw_manifest = (
+            b"tree 641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce\n"
+            b"author foo@example.org 1640191028 +0200\n"
+            b"committer foo@example.org 1640191028 +0200\n\n"
+            b"some commit message"
+        )
+        commit = dulwich.objects.Commit.from_raw_string(b"commit", raw_manifest)
+        assert converters.dulwich_commit_to_revision(commit) == Revision(
+            message=b"some commit message",
+            author=author,
+            committer=author,
+            date=None,
+            committer_date=None,
+            type=RevisionType.GIT,
+            directory=hash_to_bytes(target.decode()),
+            synthetic=False,
+            metadata=None,
+            parents=(),
+        )
+
+    def test_commit_without_dates(self):
+        target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
+        message = b"some commit message"
+        author = Person(
+            fullname=b"Foo <foo@example.org>", name=b"Foo", email=b"foo@example.org"
+        )
+        raw_manifest = (
+            b"tree 641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce\n"
+            b"author Foo <foo@example.org>\n"
+            b"committer Foo <foo@example.org>\n\n"
+            b"some commit message"
+        )
+        commit = dulwich.objects.Commit.from_raw_string(b"commit", raw_manifest)
+        assert converters.dulwich_commit_to_revision(commit) == Revision(
+            message=b"some commit message",
+            author=author,
+            committer=author,
+            date=None,
+            committer_date=None,
+            type=RevisionType.GIT,
+            directory=hash_to_bytes(target.decode()),
+            synthetic=False,
+            metadata=None,
+            parents=(),
+        )
+
     def test_commit_without_manifest(self):
         """Tests a Release can still be produced when the manifest is not understood
         by the custom parser in dulwich_commit_to_revision."""

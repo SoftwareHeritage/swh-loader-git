@@ -147,19 +147,23 @@ def dulwich_tree_to_directory(obj: ShaFile) -> Directory:
     return dir_
 
 
-def parse_author(name_email: bytes) -> Person:
+def parse_author(name_email: Optional[bytes]) -> Optional[Person]:
     """Parse an author line"""
+    if name_email is None:
+        return None
     return Person.from_fullname(name_email)
 
 
 def dulwich_tsinfo_to_timestamp(
-    timestamp,
+    timestamp: Optional[str],
     timezone: int,
     timezone_neg_utc: bool,
     timezone_bytes: Optional[bytes],
 ) -> TimestampWithTimezone:
     """Convert the dulwich timestamp information to a structure compatible with
     Software Heritage."""
+    if timestamp is None:
+        return None
     ts = Timestamp(
         seconds=int(timestamp),
         microseconds=0,
