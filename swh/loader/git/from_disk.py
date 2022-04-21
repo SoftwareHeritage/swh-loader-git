@@ -23,7 +23,7 @@ import dulwich.repo
 
 from swh.loader.core.loader import DVCSLoader
 from swh.model import hashutil
-from swh.model.model import Origin, Snapshot, SnapshotBranch, TargetType
+from swh.model.model import Snapshot, SnapshotBranch, TargetType
 from swh.storage.algos.origin import origin_get_latest_visit_status
 from swh.storage.interface import StorageInterface
 
@@ -98,20 +98,11 @@ class GitLoaderFromDisk(DVCSLoader):
         url: str,
         visit_date: Optional[datetime] = None,
         directory: Optional[str] = None,
-        save_data_path: Optional[str] = None,
-        max_content_size: Optional[int] = None,
+        **kwargs,
     ):
-        super().__init__(
-            storage=storage,
-            save_data_path=save_data_path,
-            max_content_size=max_content_size,
-        )
-        self.origin_url = url
-        self.visit_date = visit_date
+        super().__init__(storage=storage, origin_url=url, **kwargs)
+        self.visit_date = visit_date or self.visit_date
         self.directory = directory
-
-    def prepare_origin_visit(self):
-        self.origin = Origin(url=self.origin_url)
 
     def prepare(self):
         self.repo = dulwich.repo.Repo(self.directory)
@@ -215,7 +206,7 @@ class GitLoaderFromDisk(DVCSLoader):
     def fetch_data(self):
         """Fetch the data from the data source"""
         visit_status = origin_get_latest_visit_status(
-            self.storage, self.origin_url, require_snapshot=True
+            self.storage, self.origin.url, require_snapshot=True
         )
         self.previous_snapshot_id = (
             None if visit_status is None else visit_status.snapshot
@@ -338,7 +329,7 @@ class GitLoaderFromDisk(DVCSLoader):
                 branches[target] = None
 
         utils.warn_dangling_branches(
-            branches, dangling_branches, logger, self.origin_url
+            branches, dangling_branches, logger, self.origin.url
         )
 
         self.snapshot = Snapshot(branches=branches)
@@ -431,7 +422,7 @@ class GitLoaderFromArchive(GitLoaderFromDisk):
 
         logger.info(
             "Project %s - Uncompressing archive %s at %s",
-            self.origin_url,
+            self.origin.url,
             os.path.basename(self.archive_path),
             self.repo_path,
         )
@@ -443,5 +434,5 @@ class GitLoaderFromArchive(GitLoaderFromDisk):
         if self.temp_dir and os.path.exists(self.temp_dir):
             shutil.rmtree(self.temp_dir)
         logger.info(
-            "Project %s - Done injecting %s" % (self.origin_url, self.repo_path)
+            "Project %s - Done injecting %s" % (self.origin.url, self.repo_path)
         )
