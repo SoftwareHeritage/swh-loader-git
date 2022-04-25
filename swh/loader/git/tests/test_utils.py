@@ -10,22 +10,18 @@ from swh.loader.git import utils
 
 class TestUtils:
     def test_check_date_time(self):
-        """A long as datetime is fine, date time check does not raise
-
-        """
+        """A long as datetime is fine, date time check does not raise"""
         for e in range(32, 37):
-            ts = 2 ** e
+            ts = 2**e
             utils.check_date_time(ts)
 
     def test_check_date_time_empty_value(self):
         assert utils.check_date_time(None) is None
 
     def test_check_date_time_raises(self):
-        """From a give threshold, check will no longer works.
-
-        """
+        """From a give threshold, check will no longer works."""
         exp = 38
-        timestamp = 2 ** exp
+        timestamp = 2**exp
         with pytest.raises(ValueError, match=".*is out of range.*"):
             utils.check_date_time(timestamp)
 

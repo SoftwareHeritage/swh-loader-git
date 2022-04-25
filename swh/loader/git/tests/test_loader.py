@@ -28,9 +28,7 @@ from swh.loader.tests import (
 class CommonGitLoaderNotFound:
     @pytest.fixture(autouse=True)
     def __inject_fixtures(self, mocker):
-        """Inject required fixtures in unittest.TestCase class
-
-        """
+        """Inject required fixtures in unittest.TestCase class"""
         self.mocker = mocker
 
     @pytest.mark.parametrize(
@@ -43,9 +41,7 @@ class CommonGitLoaderNotFound:
         ],
     )
     def test_load_visit_not_found(self, failure_exception):
-        """Ingesting an unknown url result in a visit with not_found status
-
-        """
+        """Ingesting an unknown url result in a visit with not_found status"""
         # simulate an initial communication error (e.g no repository found, ...)
         mock = self.mocker.patch(
             "swh.loader.git.loader.GitLoader.fetch_pack_from_origin"
@@ -65,12 +61,16 @@ class CommonGitLoaderNotFound:
 
     @pytest.mark.parametrize(
         "failure_exception",
-        [IOError, ObjectFormatException, OSError, ValueError, GitProtocolError,],
+        [
+            IOError,
+            ObjectFormatException,
+            OSError,
+            ValueError,
+            GitProtocolError,
+        ],
     )
     def test_load_visit_failure(self, failure_exception):
-        """Failing during the fetch pack step result in failing visit
-
-        """
+        """Failing during the fetch pack step result in failing visit"""
         # simulate a fetch communication error after the initial connection
         # server error (e.g IOError, ObjectFormatException, ...)
         mock = self.mocker.patch(
@@ -131,8 +131,7 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
 
 
 class DumbGitLoaderTestBase(FullGitLoaderTests):
-    """Prepare a git repository to be loaded using the HTTP dumb transfer protocol.
-    """
+    """Prepare a git repository to be loaded using the HTTP dumb transfer protocol."""
 
     @pytest.fixture(autouse=True)
     def init(self, swh_storage, datadir, tmp_path):
@@ -162,7 +161,8 @@ class DumbGitLoaderTestBase(FullGitLoaderTests):
             repo_name = archive_name + "_bare"
             bare_repo_path = os.path.join(http_root_dir, repo_name)
             subprocess.run(
-                ["git", "clone", "--bare", base_repo_url, bare_repo_path], check=True,
+                ["git", "clone", "--bare", base_repo_url, bare_repo_path],
+                check=True,
             )
         else:
             # otherwise serve objects from the bare repository located in
@@ -211,7 +211,8 @@ class DumbGitLoaderTestBase(FullGitLoaderTests):
 
                 # generate or update the info/refs file used in dumb protocol
                 subprocess.run(
-                    ["git", "-C", bare_repo_path, "update-server-info"], check=True,
+                    ["git", "-C", bare_repo_path, "update-server-info"],
+                    check=True,
                 )
 
                 return super().load()

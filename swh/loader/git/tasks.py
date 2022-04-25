@@ -14,9 +14,7 @@ from swh.loader.git.loader import GitLoader
 
 @shared_task(name=__name__ + ".UpdateGitRepository")
 def load_git(*, url: str, base_url: Optional[str] = None) -> Dict[str, Any]:
-    """Import a git repository from a remote location
-
-    """
+    """Import a git repository from a remote location"""
     loader = GitLoader.from_configfile(url=url, base_url=base_url)
     return loader.load()
 
@@ -25,8 +23,8 @@ def load_git(*, url: str, base_url: Optional[str] = None) -> Dict[str, Any]:
 def load_git_from_dir(*, url: str, directory: str, date: str) -> Dict[str, Any]:
     """Import a git repository from a local repository
 
-       Import a git repository, cloned in `directory` from `origin_url` at
-        `date`.
+    Import a git repository, cloned in `directory` from `origin_url` at
+     `date`.
 
     """
     visit_date = dateutil.parser.parse(date)
