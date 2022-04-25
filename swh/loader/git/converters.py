@@ -80,18 +80,24 @@ def dulwich_blob_to_content_id(obj: ShaFile) -> Dict[str, Any]:
 
 
 def dulwich_blob_to_content(obj: ShaFile, max_content_size=None) -> BaseContent:
-    """Convert a dulwich blob to a Software Heritage content
-
-    """
+    """Convert a dulwich blob to a Software Heritage content"""
     if obj.type_name != b"blob":
         raise ValueError("Argument is not a blob.")
     blob = cast(Blob, obj)
 
     hashes = dulwich_blob_to_content_id(blob)
     if max_content_size is not None and hashes["length"] >= max_content_size:
-        return SkippedContent(status="absent", reason="Content too large", **hashes,)
+        return SkippedContent(
+            status="absent",
+            reason="Content too large",
+            **hashes,
+        )
     else:
-        return Content(data=blob.as_raw_string(), status="visible", **hashes,)
+        return Content(
+            data=blob.as_raw_string(),
+            status="visible",
+            **hashes,
+        )
 
 
 def dulwich_tree_to_directory(obj: ShaFile) -> Directory:
@@ -119,7 +125,10 @@ def dulwich_tree_to_directory(obj: ShaFile) -> Directory:
             )
         )
 
-    dir_ = Directory(id=tree.sha().digest(), entries=tuple(entries),)
+    dir_ = Directory(
+        id=tree.sha().digest(),
+        entries=tuple(entries),
+    )
 
     if dir_.compute_hash() != dir_.id:
         expected_id = dir_.id
@@ -144,16 +153,24 @@ def parse_author(name_email: bytes) -> Person:
 
 
 def dulwich_tsinfo_to_timestamp(
-    timestamp, timezone: int, timezone_neg_utc: bool, timezone_bytes: Optional[bytes],
+    timestamp,
+    timezone: int,
+    timezone_neg_utc: bool,
+    timezone_bytes: Optional[bytes],
 ) -> TimestampWithTimezone:
     """Convert the dulwich timestamp information to a structure compatible with
     Software Heritage."""
-    ts = Timestamp(seconds=int(timestamp), microseconds=0,)
+    ts = Timestamp(
+        seconds=int(timestamp),
+        microseconds=0,
+    )
     if timezone_bytes is None:
         # Failed to parse from the raw manifest, fallback to what Dulwich managed to
         # parse.
         return TimestampWithTimezone.from_numeric_offset(
-            timestamp=ts, offset=timezone // 60, negative_utc=timezone_neg_utc,
+            timestamp=ts,
+            offset=timezone // 60,
+            negative_utc=timezone_neg_utc,
         )
     else:
         return TimestampWithTimezone(timestamp=ts, offset_bytes=timezone_bytes)

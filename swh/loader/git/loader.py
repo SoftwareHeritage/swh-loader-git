@@ -24,7 +24,6 @@ from swh.model import hashutil
 from swh.model.model import (
     BaseContent,
     Directory,
-    Origin,
     Release,
     Revision,
     Snapshot,
@@ -121,8 +120,7 @@ class GitLoader(DVCSLoader):
         repo_representation: Type[RepoRepresentation] = RepoRepresentation,
         pack_size_bytes: int = 4 * 1024 * 1024 * 1024,
         temp_file_cutoff: int = 100 * 1024 * 1024,
-        save_data_path: Optional[str] = None,
-        max_content_size: Optional[int] = None,
+        **kwargs: Any,
     ):
         """Initialize the bulk updater.
 
@@ -136,12 +134,7 @@ class GitLoader(DVCSLoader):
                 (if any) references. Otherwise, this loads the full repository.
 
         """
-        super().__init__(
-            storage=storage,
-            save_data_path=save_data_path,
-            max_content_size=max_content_size,
-        )
-        self.origin_url = url
+        super().__init__(storage=storage, origin_url=url, **kwargs)
         self.base_url = base_url
         self.incremental = incremental
         self.repo_representation = repo_representation
@@ -234,10 +227,6 @@ class GitLoader(DVCSLoader):
             pack_size=pack_size,
         )
 
-    def prepare_origin_visit(self) -> None:
-        self.visit_date = datetime.datetime.now(tz=datetime.timezone.utc)
-        self.origin = Origin(url=self.origin_url)
-
     def get_full_snapshot(self, origin_url) -> Optional[Snapshot]:
         return snapshot_get_latest(self.storage, origin_url)
 
@@ -295,7 +284,7 @@ class GitLoader(DVCSLoader):
             # by the fetch_pack operation when encountering a repository with
             # dumb transfer protocol so we check if the repository supports it
             # here to continue the loading if it is the case
-            self.dumb = dumb.check_protocol(self.origin_url)
+            self.dumb = dumb.check_protocol(self.origin.url)
             if not self.dumb:
                 raise
 
@@ -303,7 +292,7 @@ class GitLoader(DVCSLoader):
             "Protocol used for communication: %s", "dumb" if self.dumb else "smart"
         )
         if self.dumb:
-            self.dumb_fetcher = dumb.GitObjectsFetcher(self.origin_url, base_repo)
+            self.dumb_fetcher = dumb.GitObjectsFetcher(self.origin.url, base_repo)
             self.dumb_fetcher.fetch_object_ids()
             self.remote_refs = utils.filter_refs(self.dumb_fetcher.refs)  # type: ignore
             self.symbolic_refs = self.dumb_fetcher.head
@@ -442,7 +431,8 @@ class GitLoader(DVCSLoader):
         # Handle symbolic references as alias branches
         for ref_name, target in self.symbolic_refs.items():
             branches[ref_name] = SnapshotBranch(
-                target_type=TargetType.ALIAS, target=target,
+                target_type=TargetType.ALIAS,
+                target=target,
             )
             if target not in branches and target not in unfetched_refs:
                 # This handles the case where the pointer is "dangling".
@@ -482,7 +472,7 @@ class GitLoader(DVCSLoader):
                 )
 
         utils.warn_dangling_branches(
-            branches, dangling_branches, logger, self.origin_url
+            branches, dangling_branches, logger, self.origin.url
         )
 
         self.snapshot = Snapshot(branches=branches)
@@ -490,7 +480,7 @@ class GitLoader(DVCSLoader):
 
     def load_status(self) -> Dict[str, Any]:
         """The load was eventful if the current snapshot is different to
-           the one we retrieved at the beginning of the run"""
+        the one we retrieved at the beginning of the run"""
         eventful = False
 
         if self.base_snapshot and self.snapshot:
@@ -524,7 +514,10 @@ if __name__ == "__main__":
 
         storage = get_storage(cls="memory")
         loader = GitLoader(
-            storage, origin_url, base_url=base_url, incremental=incremental,
+            storage,
+            origin_url,
+            base_url=base_url,
+            incremental=incremental,
         )
         return loader.load()
 

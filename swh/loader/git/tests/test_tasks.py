@@ -11,7 +11,10 @@ def test_git_loader(
     mock_loader.return_value = {"status": "eventful"}
 
     res = swh_scheduler_celery_app.send_task(
-        "swh.loader.git.tasks.UpdateGitRepository", kwargs={"url": "origin_url",}
+        "swh.loader.git.tasks.UpdateGitRepository",
+        kwargs={
+            "url": "origin_url",
+        },
     )
     assert res
     res.wait()

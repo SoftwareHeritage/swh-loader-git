@@ -48,7 +48,11 @@ def check_protocol(repo_url: str) -> bool:
     response = requests.get(url, headers=HEADERS)
     content_type = response.headers.get("Content-Type")
     return (
-        response.status_code in (200, 304,)
+        response.status_code
+        in (
+            200,
+            304,
+        )
         # header is not mandatory in protocol specification
         and (content_type is None or not content_type.startswith("application/x-git-"))
     )
@@ -75,8 +79,7 @@ class GitObjectsFetcher:
         self.packs = self._get_packs()
 
     def fetch_object_ids(self) -> None:
-        """Fetches identifiers of git objects to load into the archive.
-        """
+        """Fetches identifiers of git objects to load into the archive."""
         wants = self.base_repo.determine_wants(self.refs)
 
         # process refs

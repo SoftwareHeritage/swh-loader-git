@@ -23,7 +23,7 @@ import dulwich.repo
 
 from swh.loader.core.loader import DVCSLoader
 from swh.model import hashutil
-from swh.model.model import Origin, Snapshot, SnapshotBranch, TargetType
+from swh.model.model import Snapshot, SnapshotBranch, TargetType
 from swh.storage.algos.origin import origin_get_latest_visit_status
 from swh.storage.interface import StorageInterface
 
@@ -88,9 +88,7 @@ def _check_tag(tag):
 
 @deprecated(version="1.1", reason="Use `swh.loader.git.loader.GitLoader` instead")
 class GitLoaderFromDisk(DVCSLoader):
-    """Load a git repository from a directory.
-
-    """
+    """Load a git repository from a directory."""
 
     visit_type = "git"
 
@@ -100,20 +98,11 @@ class GitLoaderFromDisk(DVCSLoader):
         url: str,
         visit_date: Optional[datetime] = None,
         directory: Optional[str] = None,
-        save_data_path: Optional[str] = None,
-        max_content_size: Optional[int] = None,
+        **kwargs,
     ):
-        super().__init__(
-            storage=storage,
-            save_data_path=save_data_path,
-            max_content_size=max_content_size,
-        )
-        self.origin_url = url
-        self.visit_date = visit_date
+        super().__init__(storage=storage, origin_url=url, **kwargs)
+        self.visit_date = visit_date or self.visit_date
         self.directory = directory
-
-    def prepare_origin_visit(self):
-        self.origin = Origin(url=self.origin_url)
 
     def prepare(self):
         self.repo = dulwich.repo.Repo(self.directory)
@@ -217,7 +206,7 @@ class GitLoaderFromDisk(DVCSLoader):
     def fetch_data(self):
         """Fetch the data from the data source"""
         visit_status = origin_get_latest_visit_status(
-            self.storage, self.origin_url, require_snapshot=True
+            self.storage, self.origin.url, require_snapshot=True
         )
         self.previous_snapshot_id = (
             None if visit_status is None else visit_status.snapshot
@@ -321,7 +310,8 @@ class GitLoaderFromDisk(DVCSLoader):
             if obj:
                 target_type = converters.DULWICH_TARGET_TYPES[obj.type_name]
                 branches[ref] = SnapshotBranch(
-                    target=hashutil.bytehex_to_hash(target), target_type=target_type,
+                    target=hashutil.bytehex_to_hash(target),
+                    target_type=target_type,
                 )
             else:
                 branches[ref] = None
@@ -339,7 +329,7 @@ class GitLoaderFromDisk(DVCSLoader):
                 branches[target] = None
 
         utils.warn_dangling_branches(
-            branches, dangling_branches, logger, self.origin_url
+            branches, dangling_branches, logger, self.origin.url
         )
 
         self.snapshot = Snapshot(branches=branches)
@@ -351,7 +341,7 @@ class GitLoaderFromDisk(DVCSLoader):
 
     def load_status(self):
         """The load was eventful if the current occurrences are different to
-           the ones we retrieved at the beginning of the run"""
+        the ones we retrieved at the beginning of the run"""
         eventful = False
 
         if self.previous_snapshot_id:
@@ -411,9 +401,7 @@ class GitLoaderFromArchive(GitLoaderFromDisk):
         self.archive_path = archive_path
 
     def project_name_from_archive(self, archive_path):
-        """Compute the project name from the archive's path.
-
-        """
+        """Compute the project name from the archive's path."""
         archive_name = os.path.basename(archive_path)
         for ext in (".zip", ".tar.gz", ".tgz"):
             if archive_name.lower().endswith(ext):
@@ -423,8 +411,8 @@ class GitLoaderFromArchive(GitLoaderFromDisk):
 
     def prepare(self):
         """1. Uncompress the archive in temporary location.
-           2. Prepare as the GitLoaderFromDisk does
-           3. Load as GitLoaderFromDisk does
+        2. Prepare as the GitLoaderFromDisk does
+        3. Load as GitLoaderFromDisk does
 
         """
         project_name = self.project_name_from_archive(self.archive_path)
@@ -434,7 +422,7 @@ class GitLoaderFromArchive(GitLoaderFromDisk):
 
         logger.info(
             "Project %s - Uncompressing archive %s at %s",
-            self.origin_url,
+            self.origin.url,
             os.path.basename(self.archive_path),
             self.repo_path,
         )
@@ -442,11 +430,9 @@ class GitLoaderFromArchive(GitLoaderFromDisk):
         super().prepare()
 
     def cleanup(self):
-        """Cleanup the temporary location (if it exists).
-
-        """
+        """Cleanup the temporary location (if it exists)."""
         if self.temp_dir and os.path.exists(self.temp_dir):
             shutil.rmtree(self.temp_dir)
         logger.info(
-            "Project %s - Done injecting %s" % (self.origin_url, self.repo_path)
+            "Project %s - Done injecting %s" % (self.origin.url, self.repo_path)
         )

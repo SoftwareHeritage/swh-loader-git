@@ -2,7 +2,7 @@ dulwich>=0.18.7
 retrying
 click
 swh.core>=0.0.7
-swh.loader.core>=0.18.0
+swh.loader.core>=3.0.0
 swh.model>=4.3.0
 swh.scheduler>=0.0.39
 swh.storage>=0.22.0

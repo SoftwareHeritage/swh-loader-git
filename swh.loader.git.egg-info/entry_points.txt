@@ -1,5 +1,3 @@
-
-        [swh.workers]
-        loader.git=swh.loader.git:register
-        loader.git_disk=swh.loader.git:register_from_disk
-    
+[swh.workers]
+loader.git = swh.loader.git:register
+loader.git_disk = swh.loader.git:register_from_disk

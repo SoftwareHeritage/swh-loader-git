@@ -79,9 +79,7 @@ MERGETAG = (
 
 
 class SWHObjectType:
-    """Dulwich lookalike ObjectType class
-
-    """
+    """Dulwich lookalike ObjectType class"""
 
     def __init__(self, type_name):
         self.type_name = type_name
@@ -265,14 +263,20 @@ class TestConverters:
                 email=b"zack@upsilon.cc",
             ),
             committer_date=TimestampWithTimezone(
-                timestamp=Timestamp(seconds=1443083765, microseconds=0,),
+                timestamp=Timestamp(
+                    seconds=1443083765,
+                    microseconds=0,
+                ),
                 offset_bytes=b"+0200",
             ),
             message=b"add submodule dependency\n",
             metadata=None,
             extra_headers=(),
             date=TimestampWithTimezone(
-                timestamp=Timestamp(seconds=1443083765, microseconds=0,),
+                timestamp=Timestamp(
+                    seconds=1443083765,
+                    microseconds=0,
+                ),
                 offset_bytes=b"+0200",
             ),
             parents=(b"\xc3\xc5\x88q23`\x9f[\xbb\xb2\xd9\xe7\xf3\xfbJf\x0f?r",),
@@ -300,14 +304,20 @@ class TestConverters:
                 email=b"david.douard@sdfa3.org",
             ),
             committer_date=TimestampWithTimezone(
-                timestamp=Timestamp(seconds=1594137902, microseconds=0,),
+                timestamp=Timestamp(
+                    seconds=1594137902,
+                    microseconds=0,
+                ),
                 offset_bytes=b"+0200",
             ),
             message=b"Am\xe9lioration du fichier READM\xa4\n",
             metadata=None,
             extra_headers=((b"encoding", b"ISO-8859-15"), (b"gpgsig", GPGSIG)),
             date=TimestampWithTimezone(
-                timestamp=Timestamp(seconds=1594136900, microseconds=0,),
+                timestamp=Timestamp(
+                    seconds=1594136900,
+                    microseconds=0,
+                ),
                 offset_bytes=b"+0200",
             ),
             parents=(bytes.fromhex("c730509025c6e81947102b2d77bc4dc1cade9489"),),
@@ -399,14 +409,20 @@ class TestConverters:
                 email=b"david.douard@sdfa3.org",
             ),
             committer_date=TimestampWithTimezone(
-                timestamp=Timestamp(seconds=1594138183, microseconds=0,),
+                timestamp=Timestamp(
+                    seconds=1594138183,
+                    microseconds=0,
+                ),
                 offset_bytes=b"+0200",
             ),
             message=b"Merge tag 'v0.0.1' into readme\n\nv0.0.1\n",
             metadata=None,
             extra_headers=((b"encoding", b"ISO-8859-15"), (b"mergetag", MERGETAG)),
             date=TimestampWithTimezone(
-                timestamp=Timestamp(seconds=1594138183, microseconds=0,),
+                timestamp=Timestamp(
+                    seconds=1594138183,
+                    microseconds=0,
+                ),
                 offset_bytes=b"+0200",
             ),
             parents=(
@@ -437,8 +453,12 @@ class TestConverters:
             message=b"some commit message",
             directory=hash_to_bytes("641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"),
             synthetic=False,
-            author=Person.from_fullname(b"Foo <foo@example.org>",),
-            committer=Person.from_fullname(b"Foo <foo@example.org>",),
+            author=Person.from_fullname(
+                b"Foo <foo@example.org>",
+            ),
+            committer=Person.from_fullname(
+                b"Foo <foo@example.org>",
+            ),
             date=date,
             committer_date=date,
             type=RevisionType.GIT,
@@ -456,8 +476,12 @@ class TestConverters:
             message=b"some commit message",
             directory=hash_to_bytes("641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"),
             synthetic=False,
-            author=Person.from_fullname(b"Foo <foo@example.org>",),
-            committer=Person.from_fullname(b"Foo <foo@example.org>",),
+            author=Person.from_fullname(
+                b"Foo <foo@example.org>",
+            ),
+            committer=Person.from_fullname(
+                b"Foo <foo@example.org>",
+            ),
             date=date,
             committer_date=date,
             type=RevisionType.GIT,
@@ -478,8 +502,12 @@ class TestConverters:
             message=b"some commit message",
             directory=hash_to_bytes("641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"),
             synthetic=False,
-            author=Person.from_fullname(b"Foo <foo@example.org>",),
-            committer=Person.from_fullname(b"Foo <foo@example.org>",),
+            author=Person.from_fullname(
+                b"Foo <foo@example.org>",
+            ),
+            committer=Person.from_fullname(
+                b"Foo <foo@example.org>",
+            ),
             date=date,
             committer_date=date,
             type=RevisionType.GIT,
@@ -493,19 +521,33 @@ class TestConverters:
 
         tests = {
             b"a <b@c.com>": Person(
-                name=b"a", email=b"b@c.com", fullname=b"a <b@c.com>",
+                name=b"a",
+                email=b"b@c.com",
+                fullname=b"a <b@c.com>",
             ),
             b"<foo@bar.com>": Person(
-                name=None, email=b"foo@bar.com", fullname=b"<foo@bar.com>",
+                name=None,
+                email=b"foo@bar.com",
+                fullname=b"<foo@bar.com>",
             ),
             b"malformed <email": Person(
                 name=b"malformed", email=b"email", fullname=b"malformed <email"
             ),
             b"trailing <sp@c.e> ": Person(
-                name=b"trailing", email=b"sp@c.e", fullname=b"trailing <sp@c.e> ",
+                name=b"trailing",
+                email=b"sp@c.e",
+                fullname=b"trailing <sp@c.e> ",
             ),
-            b"no<sp@c.e>": Person(name=b"no", email=b"sp@c.e", fullname=b"no<sp@c.e>",),
-            b" <>": Person(name=None, email=None, fullname=b" <>",),
+            b"no<sp@c.e>": Person(
+                name=b"no",
+                email=b"sp@c.e",
+                fullname=b"no<sp@c.e>",
+            ),
+            b" <>": Person(
+                name=None,
+                email=None,
+                fullname=b" <>",
+            ),
             b"something": Person(name=b"something", email=None, fullname=b"something"),
         }
 
@@ -576,7 +618,10 @@ class TestConverters:
                 name=b"hey dude",
             ),
             date=TimestampWithTimezone(
-                timestamp=Timestamp(seconds=1196812800, microseconds=0,),
+                timestamp=Timestamp(
+                    seconds=1196812800,
+                    microseconds=0,
+                ),
                 offset_bytes=b"+0000",
             ),
             id=sha,
@@ -658,7 +703,11 @@ class TestConverters:
                 name=b"hey dude",
             ),
             date=TimestampWithTimezone(
-                timestamp=Timestamp(seconds=0, microseconds=0,), offset_bytes=b"+0000"
+                timestamp=Timestamp(
+                    seconds=0,
+                    microseconds=0,
+                ),
+                offset_bytes=b"+0000",
             ),
             id=sha,
             message=message,
@@ -752,7 +801,9 @@ class TestConverters:
             target=hash_to_bytes("641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"),
             target_type=ObjectType.REVISION,
             synthetic=False,
-            author=Person.from_fullname(b"Foo <foo@example.org>",),
+            author=Person.from_fullname(
+                b"Foo <foo@example.org>",
+            ),
             date=TimestampWithTimezone(
                 timestamp=Timestamp(seconds=1640191027, microseconds=0),
                 offset_bytes=b"+0200",
@@ -769,7 +820,9 @@ class TestConverters:
             target=hash_to_bytes("641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"),
             target_type=ObjectType.REVISION,
             synthetic=False,
-            author=Person.from_fullname(b"Foo <foo@example.org>",),
+            author=Person.from_fullname(
+                b"Foo <foo@example.org>",
+            ),
             date=TimestampWithTimezone(
                 timestamp=Timestamp(seconds=1640191027, microseconds=0),
                 offset_bytes=b"-0000",
@@ -785,7 +838,9 @@ class TestConverters:
             target=hash_to_bytes("641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"),
             target_type=ObjectType.REVISION,
             synthetic=False,
-            author=Person.from_fullname(b"Foo <foo@example.org>",),
+            author=Person.from_fullname(
+                b"Foo <foo@example.org>",
+            ),
             date=TimestampWithTimezone(
                 timestamp=Timestamp(seconds=1640191027, microseconds=0),
                 offset_bytes=b"+200",
@@ -804,7 +859,9 @@ class TestConverters:
             target=hash_to_bytes("641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"),
             target_type=ObjectType.REVISION,
             synthetic=False,
-            author=Person.from_fullname(b"Foo <foo@example.org>",),
+            author=Person.from_fullname(
+                b"Foo <foo@example.org>",
+            ),
             date=TimestampWithTimezone(
                 timestamp=Timestamp(seconds=1640191027, microseconds=0),
                 offset_bytes=b"+0200",
