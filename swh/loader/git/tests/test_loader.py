@@ -9,6 +9,7 @@ import os
 import subprocess
 from tempfile import SpooledTemporaryFile
 from threading import Thread
+from unittest.mock import MagicMock, call
 
 from dulwich.errors import GitProtocolError, NotGitRepository, ObjectFormatException
 from dulwich.porcelain import push
@@ -23,6 +24,7 @@ from swh.loader.tests import (
     get_stats,
     prepare_repository_from_archive,
 )
+from swh.model.model import Origin
 
 
 class CommonGitLoaderNotFound:
@@ -111,13 +113,16 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
 
 
 class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
-    """Mostly the same loading scenario but with a base-url different than the repo-url.
+    """Mostly the same loading scenario but with a ``parent_origin`` different from the
+    ``origin``; as if the ``origin`` was a forge-fork of ``parent_origin``, detected
+    by the metadata loader.
+
     To walk slightly different paths, the end result should stay the same.
 
     """
 
     @pytest.fixture(autouse=True)
-    def init(self, swh_storage, datadir, tmp_path):
+    def init(self, swh_storage, datadir, tmp_path, mocker):
         archive_name = "testrepo"
         archive_path = os.path.join(datadir, f"{archive_name}.tgz")
         tmp_path = str(tmp_path)
@@ -125,9 +130,82 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             archive_path, archive_name, tmp_path=tmp_path
         )
         self.destination_path = os.path.join(tmp_path, archive_name)
-        base_url = f"base://{self.repo_url}"
-        self.loader = GitLoader(swh_storage, self.repo_url, base_url=base_url)
+
+        self.fetcher = MagicMock()
+        self.fetcher.get_origin_metadata.return_value = []
+        self.fetcher.get_parent_origins.return_value = [
+            Origin(url=f"base://{self.repo_url}")
+        ]
+        self.fetcher_cls = MagicMock(return_value=self.fetcher)
+        self.fetcher_cls.SUPPORTED_LISTERS = ["fake-lister"]
+        mocker.patch(
+            "swh.loader.core.metadata_fetchers._fetchers",
+            return_value=[self.fetcher_cls],
+        )
+
+        self.loader = GitLoader(
+            MagicMock(wraps=swh_storage),
+            self.repo_url,
+            lister_name="fake-lister",
+            lister_instance_name="",
+        )
         self.repo = dulwich.repo.Repo(self.destination_path)
+
+    def test_load_incremental(self):
+        res = self.loader.load()
+        assert res == {"status": "eventful"}
+
+        self.fetcher_cls.assert_called_once_with(
+            credentials={},
+            lister_name="fake-lister",
+            lister_instance_name="",
+            origin=Origin(url=self.repo_url),
+        )
+        self.fetcher.get_parent_origins.assert_called_once_with()
+
+        # First tries the same origin
+        assert self.loader.storage.origin_visit_get_latest.mock_calls == [
+            call(
+                self.repo_url,
+                allowed_statuses=None,
+                require_snapshot=True,
+                type=None,
+            ),
+            # As it does not already have a snapshot, fall back to the parent origin
+            call(
+                f"base://{self.repo_url}",
+                allowed_statuses=None,
+                require_snapshot=True,
+                type=None,
+            ),
+        ]
+
+        self.fetcher.reset_mock()
+        self.fetcher_cls.reset_mock()
+        self.loader.storage.reset_mock()
+
+        # Load again
+        res = self.loader.load()
+        assert res == {"status": "uneventful"}
+
+        self.fetcher_cls.assert_called_once_with(
+            credentials={},
+            lister_name="fake-lister",
+            lister_instance_name="",
+            origin=Origin(url=self.repo_url),
+        )
+        self.fetcher.get_parent_origins.assert_not_called()
+
+        assert self.loader.storage.origin_visit_get_latest.mock_calls == [
+            # Tries the same origin, and finds a snapshot
+            call(
+                self.repo_url,
+                allowed_statuses=None,
+                require_snapshot=True,
+                type=None,
+            ),
+            # -> does not need to fall back to the parent
+        ]
 
 
 class DumbGitLoaderTestBase(FullGitLoaderTests):
