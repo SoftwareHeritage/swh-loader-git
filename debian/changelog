@@ -1,8 +1,12 @@
-swh-loader-git (1.5.0-1~swh1~bpo10+1) buster-swh; urgency=medium
+swh-loader-git (1.6.0-1~swh1) unstable-swh; urgency=medium
 
-  * Rebuild for buster-swh
+  * New upstream release 1.6.0     - (tagged by Valentin Lorentz
+    <vlorentz@softwareheritage.org> on 2022-04-27 16:37:13 +0200)
+  * Upstream changes:     - v1.6.0     - * Replace 'base_url' argument
+    with 'self.parent_origins' attribute     - * tasks: Simplify
+    implementation and make visit_date parameter optional
 
- -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Mon, 25 Apr 2022 09:47:35 +0000
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Wed, 27 Apr 2022 14:42:03 +0000
 
 swh-loader-git (1.5.0-1~swh1) unstable-swh; urgency=medium
 

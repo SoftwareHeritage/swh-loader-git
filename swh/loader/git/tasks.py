@@ -1,41 +1,39 @@
-# Copyright (C) 2015-2021  The Software Heritage developers
+# Copyright (C) 2015-2022  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from celery import shared_task
-import dateutil.parser
 
+from swh.loader.core.utils import parse_visit_date
 from swh.loader.git.from_disk import GitLoaderFromArchive, GitLoaderFromDisk
 from swh.loader.git.loader import GitLoader
 
 
+def _process_kwargs(kwargs):
+    if "visit_date" in kwargs:
+        kwargs["visit_date"] = parse_visit_date(kwargs["visit_date"])
+    return kwargs
+
+
 @shared_task(name=__name__ + ".UpdateGitRepository")
-def load_git(*, url: str, base_url: Optional[str] = None) -> Dict[str, Any]:
+def load_git(**kwargs) -> Dict[str, Any]:
     """Import a git repository from a remote location"""
-    loader = GitLoader.from_configfile(url=url, base_url=base_url)
+    loader = GitLoader.from_configfile(**_process_kwargs(kwargs))
     return loader.load()
 
 
 @shared_task(name=__name__ + ".LoadDiskGitRepository")
-def load_git_from_dir(*, url: str, directory: str, date: str) -> Dict[str, Any]:
-    """Import a git repository from a local repository
-
-    Import a git repository, cloned in `directory` from `origin_url` at
-     `date`.
-
-    """
-    visit_date = dateutil.parser.parse(date)
-    loader = GitLoaderFromDisk.from_configfile(
-        url=url, directory=directory, visit_date=visit_date
-    )
+def load_git_from_dir(**kwargs) -> Dict[str, Any]:
+    """Import a git repository from a local repository"""
+    loader = GitLoaderFromDisk.from_configfile(**_process_kwargs(kwargs))
     return loader.load()
 
 
 @shared_task(name=__name__ + ".UncompressAndLoadDiskGitRepository")
-def load_git_from_zip(*, url: str, archive_path: str, date: str) -> Dict[str, Any]:
+def load_git_from_zip(**kwargs) -> Dict[str, Any]:
     """Import a git repository from a zip archive
 
     1. Uncompress an archive repository in a local and temporary folder
@@ -43,8 +41,5 @@ def load_git_from_zip(*, url: str, archive_path: str, date: str) -> Dict[str, An
     3. Clean up the temporary folder
 
     """
-    visit_date = dateutil.parser.parse(date)
-    loader = GitLoaderFromArchive.from_configfile(
-        url=url, archive_path=archive_path, visit_date=visit_date
-    )
+    loader = GitLoaderFromArchive.from_configfile(**_process_kwargs(kwargs))
     return loader.load()
