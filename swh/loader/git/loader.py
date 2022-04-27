@@ -115,7 +115,6 @@ class GitLoader(DVCSLoader):
         self,
         storage: StorageInterface,
         url: str,
-        base_url: Optional[str] = None,
         incremental: bool = True,
         repo_representation: Type[RepoRepresentation] = RepoRepresentation,
         pack_size_bytes: int = 4 * 1024 * 1024 * 1024,
@@ -135,7 +134,6 @@ class GitLoader(DVCSLoader):
 
         """
         super().__init__(storage=storage, origin_url=url, **kwargs)
-        self.base_url = base_url
         self.incremental = incremental
         self.repo_representation = repo_representation
         self.pack_size_bytes = pack_size_bytes
@@ -238,10 +236,14 @@ class GitLoader(DVCSLoader):
         if self.incremental:
             prev_snapshot = self.get_full_snapshot(self.origin.url)
 
-        if self.base_url and prev_snapshot is None:
-            base_origin = list(self.storage.origin_get([self.base_url]))[0]
-            if base_origin:
-                prev_snapshot = self.get_full_snapshot(base_origin.url)
+            if self.parent_origins is not None:
+                # If this is the first time we load this origin and it is a forge
+                # fork, load incrementally from one of the origins it was forked from,
+                # closest parent first
+                for parent_origin in self.parent_origins:
+                    if prev_snapshot is not None:
+                        break
+                    prev_snapshot = self.get_full_snapshot(parent_origin.url)
 
         if prev_snapshot is not None:
             self.base_snapshot = prev_snapshot
@@ -509,14 +511,13 @@ if __name__ == "__main__":
         help="Ignore the repository history",
         default=False,
     )
-    def main(origin_url: str, base_url: str, incremental: bool) -> Dict[str, Any]:
+    def main(origin_url: str, incremental: bool) -> Dict[str, Any]:
         from swh.storage import get_storage
 
         storage = get_storage(cls="memory")
         loader = GitLoader(
             storage,
             origin_url,
-            base_url=base_url,
             incremental=incremental,
         )
         return loader.load()
