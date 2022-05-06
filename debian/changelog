@@ -1,3 +1,12 @@
+swh-loader-git (1.7.0-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 1.7.0     - (tagged by Valentin Lorentz
+    <vlorentz@softwareheritage.org> on 2022-05-06 11:59:36 +0200)
+  * Upstream changes:     - v1.7.0     - * Add statsd metrics on
+    incremental loading
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Fri, 06 May 2022 10:04:20 +0000
+
 swh-loader-git (1.6.0-1~swh1) unstable-swh; urgency=medium
 
   * New upstream release 1.6.0     - (tagged by Valentin Lorentz
