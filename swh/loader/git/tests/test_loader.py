@@ -1,12 +1,14 @@
-# Copyright (C) 2018-2021  The Software Heritage developers
+# Copyright (C) 2018-2022  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import datetime
 from functools import partial
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 import os
 import subprocess
+import sys
 from tempfile import SpooledTemporaryFile
 from threading import Thread
 from unittest.mock import MagicMock, call
@@ -18,13 +20,13 @@ import pytest
 
 from swh.loader.git import dumb
 from swh.loader.git.loader import GitLoader
-from swh.loader.git.tests.test_from_disk import FullGitLoaderTests
+from swh.loader.git.tests.test_from_disk import SNAPSHOT1, FullGitLoaderTests
 from swh.loader.tests import (
     assert_last_visit_matches,
     get_stats,
     prepare_repository_from_archive,
 )
-from swh.model.model import Origin
+from swh.model.model import Origin, OriginVisit, OriginVisitStatus
 
 
 class CommonGitLoaderNotFound:
@@ -111,6 +113,25 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         self.loader = GitLoader(swh_storage, self.repo_url)
         self.repo = dulwich.repo.Repo(self.destination_path)
 
+    def test_metrics(self, mocker):
+        statsd_report = mocker.patch.object(self.loader.statsd, "_report")
+        res = self.loader.load()
+        assert res == {"status": "eventful"}
+
+        # TODO: assert "incremental" is added to constant tags before these
+        # metrics are sent
+        assert [c for c in statsd_report.mock_calls if c[1][0].startswith("git_")] == [
+            call("git_total", "c", 1, {}, 1),
+            call("git_ignored_refs_percent", "h", 0.0, {}, 1),
+            call("git_known_refs_percent", "h", 0.0, {}, 1),
+        ]
+        assert self.loader.statsd.constant_tags == {
+            "visit_type": "git",
+            "incremental_enabled": True,
+            "incremental_snapshot_origin": "none",
+            "has_parent_origins": False,
+        }
+
 
 class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
     """Mostly the same loading scenario but with a ``parent_origin`` different from the
@@ -151,7 +172,8 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
         )
         self.repo = dulwich.repo.Repo(self.destination_path)
 
-    def test_load_incremental(self):
+    def test_no_previous_snapshot(self, mocker):
+        statsd_report = mocker.patch.object(self.loader.statsd, "_report")
         res = self.loader.load()
         assert res == {"status": "eventful"}
 
@@ -180,9 +202,106 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             ),
         ]
 
+        # TODO: assert "incremental" is added to constant tags before these
+        # metrics are sent
+        assert [c for c in statsd_report.mock_calls if c[1][0].startswith("git_")] == [
+            call("git_total", "c", 1, {}, 1),
+            call("git_ignored_refs_percent", "h", 0.0, {}, 1),
+            call("git_known_refs_percent", "h", 0.0, {}, 1),
+        ]
+        assert self.loader.statsd.constant_tags == {
+            "visit_type": "git",
+            "incremental_enabled": True,
+            "incremental_snapshot_origin": "none",
+            "has_parent_origins": True,
+        }
+
+    def test_load_incremental(self, mocker):
+        statsd_report = mocker.patch.object(self.loader.statsd, "_report")
+
+        snapshot_id = b"\x01" * 20
+        now = datetime.datetime.now(tz=datetime.timezone.utc)
+
+        def ovgl(origin_url, allowed_statuses, require_snapshot, type):
+            if origin_url == f"base://{self.repo_url}":
+                return OriginVisit(origin=origin_url, visit=42, date=now, type="git")
+            else:
+                return None
+
+        self.loader.storage.origin_visit_get_latest.side_effect = ovgl
+        self.loader.storage.origin_visit_status_get_latest.return_value = (
+            OriginVisitStatus(
+                origin=f"base://{self.repo_url}",
+                visit=42,
+                snapshot=snapshot_id,
+                date=now,
+                status="full",
+            )
+        )
+        self.loader.storage.snapshot_get_branches.return_value = {
+            "id": snapshot_id,
+            "branches": {
+                b"refs/heads/master": SNAPSHOT1.branches[b"refs/heads/master"]
+            },
+            "next_branch": None,
+        }
+
+        res = self.loader.load()
+        assert res == {"status": "eventful"}
+
+        self.fetcher_cls.assert_called_once_with(
+            credentials={},
+            lister_name="fake-lister",
+            lister_instance_name="",
+            origin=Origin(url=self.repo_url),
+        )
+        self.fetcher.get_parent_origins.assert_called_once_with()
+
+        # First tries the same origin
+        assert self.loader.storage.origin_visit_get_latest.mock_calls == [
+            call(
+                self.repo_url,
+                allowed_statuses=None,
+                require_snapshot=True,
+                type=None,
+            ),
+            # As it does not already have a snapshot, fall back to the parent origin
+            call(
+                f"base://{self.repo_url}",
+                allowed_statuses=None,
+                require_snapshot=True,
+                type=None,
+            ),
+        ]
+
+        # TODO: assert "incremental*" is added to constant tags before these
+        # metrics are sent
+        assert [c for c in statsd_report.mock_calls if c[1][0].startswith("git_")] == [
+            call("git_total", "c", 1, {}, 1),
+            call("git_ignored_refs_percent", "h", 0.0, {}, 1),
+            call("git_known_refs_percent", "h", 0.25, {}, 1),
+        ]
+        assert self.loader.statsd.constant_tags == {
+            "visit_type": "git",
+            "incremental_enabled": True,
+            "incremental_snapshot_origin": "parent",
+            "has_parent_origins": True,
+        }
+
         self.fetcher.reset_mock()
         self.fetcher_cls.reset_mock()
-        self.loader.storage.reset_mock()
+        if sys.version_info >= (3, 9, 0):
+            self.loader.storage.reset_mock(return_value=True, side_effect=True)
+        else:
+            # Reimplement https://github.com/python/cpython/commit/aef7dc89879d099dc704bd8037b8a7686fb72838  # noqa
+            # for old Python versions:
+            def reset_mock(m):
+                m.reset_mock(return_value=True, side_effect=True)
+                for child in m._mock_children.values():
+                    reset_mock(child)
+
+            reset_mock(self.loader.storage)
+        statsd_report.reset_mock()
 
         # Load again
         res = self.loader.load()
@@ -200,12 +319,26 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             # Tries the same origin, and finds a snapshot
             call(
                 self.repo_url,
+                type=None,
                 allowed_statuses=None,
                 require_snapshot=True,
-                type=None,
             ),
             # -> does not need to fall back to the parent
         ]
+
+        # TODO: assert "incremental*" is added to constant tags before these
+        # metrics are sent
+        assert [c for c in statsd_report.mock_calls if c[1][0].startswith("git_")] == [
+            call("git_total", "c", 1, {}, 1),
+            call("git_ignored_refs_percent", "h", 0.0, {}, 1),
+            call("git_known_refs_percent", "h", 1.0, {}, 1),
+        ]
+        assert self.loader.statsd.constant_tags == {
+            "visit_type": "git",
+            "incremental_enabled": True,
+            "incremental_snapshot_origin": "self",
+            "has_parent_origins": True,
+        }
 
 
 class DumbGitLoaderTestBase(FullGitLoaderTests):

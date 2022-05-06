@@ -18,6 +18,7 @@ from dulwich.object_store import ObjectStoreGraphWalker
 from dulwich.objects import ShaFile
 from dulwich.pack import PackData, PackInflater
 
+from swh.core.statsd import Statsd
 from swh.loader.core.loader import DVCSLoader
 from swh.loader.exception import NotFound
 from swh.model import hashutil
@@ -47,9 +48,11 @@ class RepoRepresentation:
         storage,
         base_snapshot: Optional[Snapshot] = None,
         incremental: bool = True,
+        statsd: Statsd = None,
     ):
         self.storage = storage
         self.incremental = incremental
+        self.statsd = statsd
 
         if base_snapshot and incremental:
             self.base_snapshot: Snapshot = base_snapshot
@@ -95,6 +98,17 @@ class RepoRepresentation:
         logger.debug("remote_heads_count=%s", len(remote_heads))
         wanted_refs = list(remote_heads - local_heads)
         logger.debug("wanted_refs_count=%s", len(wanted_refs))
+        if self.statsd is not None:
+            self.statsd.histogram(
+                "git_ignored_refs_percent",
+                len(remote_heads - set(refs.values())) / len(refs),
+                tags={},
+            )
+            self.statsd.histogram(
+                "git_known_refs_percent",
+                len(local_heads & remote_heads) / len(remote_heads),
+                tags={},
+            )
         return wanted_refs
 
 
@@ -107,7 +121,28 @@ class FetchPackReturn:
 
 
 class GitLoader(DVCSLoader):
-    """A bulk loader for a git repository"""
+    """A bulk loader for a git repository
+
+    Emits the following statsd stats:
+
+    * increments ``swh_loader_git``
+    * histogram ``swh_loader_git_ignored_refs_percent`` is the ratio of refs ignored
+      over all refs of the remote repository
+    * histogram ``swh_loader_git_known_refs_percent`` is the ratio of (non-ignored)
+      remote heads that are already local over all non-ignored remote heads
+
+    All three are tagged with ``{{"incremental": "<incremental_mode>"}}`` where
+    ``incremental_mode`` is one of:
+
+    * ``from_same_origin`` when the origin was already loaded
+    * ``from_parent_origin`` when the origin was not already loaded,
+      but it was detected as a forge-fork of an origin that was already loaded
+    * ``no_previous_snapshot`` when the origin was not already loaded,
+      and it was detected as a forge-fork of origins that were not already loaded either
+    * ``no_parent_origin`` when the origin was no already loaded, and it was not
+      detected as a forge-fork of any other origin
+    * ``disabled`` when incremental loading is disabled by configuration
+    """
 
     visit_type = "git"
 
@@ -233,17 +268,34 @@ class GitLoader(DVCSLoader):
 
         prev_snapshot: Optional[Snapshot] = None
 
+        self.statsd.constant_tags["incremental_enabled"] = self.incremental
+        self.statsd.constant_tags["has_parent_origins"] = bool(self.parent_origins)
         if self.incremental:
             prev_snapshot = self.get_full_snapshot(self.origin.url)
+            if prev_snapshot:
+                incremental_snapshot_origin = "self"
 
-            if self.parent_origins is not None:
+            elif self.parent_origins is not None:
                 # If this is the first time we load this origin and it is a forge
                 # fork, load incrementally from one of the origins it was forked from,
                 # closest parent first
                 for parent_origin in self.parent_origins:
-                    if prev_snapshot is not None:
-                        break
                     prev_snapshot = self.get_full_snapshot(parent_origin.url)
+                    if prev_snapshot is not None:
+                        incremental_snapshot_origin = "parent"
+                        break
+                else:
+                    incremental_snapshot_origin = "none"
+            else:
+                incremental_snapshot_origin = "none"
+
+            self.statsd.constant_tags[
+                "incremental_snapshot_origin"
+            ] = incremental_snapshot_origin
+
+        # Increments a metric with full name 'swh_loader_git'; which is useful to
+        # count how many runs of the loader are with each incremental mode
+        self.statsd.increment("git_total", tags={})
 
         if prev_snapshot is not None:
             self.base_snapshot = prev_snapshot
@@ -257,6 +309,7 @@ class GitLoader(DVCSLoader):
             storage=self.storage,
             base_snapshot=self.base_snapshot,
             incremental=self.incremental,
+            statsd=self.statsd,
         )
 
         def do_progress(msg: bytes) -> None:
