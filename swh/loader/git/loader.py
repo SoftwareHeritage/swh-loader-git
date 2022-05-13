@@ -46,7 +46,7 @@ class RepoRepresentation:
     def __init__(
         self,
         storage,
-        base_snapshot: Optional[Snapshot] = None,
+        base_snapshots: List[Snapshot] = None,
         incremental: bool = True,
         statsd: Statsd = None,
     ):
@@ -54,10 +54,10 @@ class RepoRepresentation:
         self.incremental = incremental
         self.statsd = statsd
 
-        if base_snapshot and incremental:
-            self.base_snapshot: Snapshot = base_snapshot
+        if base_snapshots and incremental:
+            self.base_snapshots: List[Snapshot] = base_snapshots
         else:
-            self.base_snapshot = Snapshot(branches={})
+            self.base_snapshots = []
 
         self.heads: Set[HexBytes] = set()
 
@@ -80,10 +80,11 @@ class RepoRepresentation:
 
         # Cache existing heads
         local_heads: Set[HexBytes] = set()
-        for branch_name, branch in self.base_snapshot.branches.items():
-            if not branch or branch.target_type == TargetType.ALIAS:
-                continue
-            local_heads.add(hashutil.hash_to_hex(branch.target).encode())
+        for base_snapshot in self.base_snapshots:
+            for branch_name, branch in base_snapshot.branches.items():
+                if not branch or branch.target_type == TargetType.ALIAS:
+                    continue
+                local_heads.add(hashutil.hash_to_hex(branch.target).encode())
 
         self.heads = local_heads
 
@@ -266,48 +267,44 @@ class GitLoader(DVCSLoader):
     def prepare(self) -> None:
         assert self.origin is not None
 
-        prev_snapshot: Optional[Snapshot] = None
+        self.prev_snapshot = Snapshot(branches={})
+        """Last snapshot of this origin if any; empty snapshot otherwise"""
+        self.base_snapshots = []
+        """Last snapshot of this origin and all its parents, if any."""
 
         self.statsd.constant_tags["incremental_enabled"] = self.incremental
         self.statsd.constant_tags["has_parent_origins"] = bool(self.parent_origins)
+
+        # May be set to True later
+        self.statsd.constant_tags["has_parent_snapshot"] = False
+
         if self.incremental:
             prev_snapshot = self.get_full_snapshot(self.origin.url)
+            self.statsd.constant_tags["has_previous_snapshot"] = bool(prev_snapshot)
             if prev_snapshot:
-                incremental_snapshot_origin = "self"
+                self.prev_snapshot = prev_snapshot
+                self.base_snapshots.append(prev_snapshot)
 
-            elif self.parent_origins is not None:
+            if self.parent_origins is not None:
                 # If this is the first time we load this origin and it is a forge
                 # fork, load incrementally from one of the origins it was forked from,
                 # closest parent first
                 for parent_origin in self.parent_origins:
-                    prev_snapshot = self.get_full_snapshot(parent_origin.url)
-                    if prev_snapshot is not None:
-                        incremental_snapshot_origin = "parent"
-                        break
-                else:
-                    incremental_snapshot_origin = "none"
-            else:
-                incremental_snapshot_origin = "none"
-
-            self.statsd.constant_tags[
-                "incremental_snapshot_origin"
-            ] = incremental_snapshot_origin
+                    parent_snapshot = self.get_full_snapshot(parent_origin.url)
+                    if parent_snapshot is not None:
+                        self.statsd.constant_tags["has_parent_snapshot"] = True
+                        self.base_snapshots.append(parent_snapshot)
 
         # Increments a metric with full name 'swh_loader_git'; which is useful to
         # count how many runs of the loader are with each incremental mode
         self.statsd.increment("git_total", tags={})
-
-        if prev_snapshot is not None:
-            self.base_snapshot = prev_snapshot
-        else:
-            self.base_snapshot = Snapshot(branches={})
 
     def fetch_data(self) -> bool:
         assert self.origin is not None
 
         base_repo = self.repo_representation(
             storage=self.storage,
-            base_snapshot=self.base_snapshot,
+            base_snapshots=self.base_snapshots,
             incremental=self.incremental,
             statsd=self.statsd,
         )
@@ -502,7 +499,7 @@ class GitLoader(DVCSLoader):
             unknown_objects = {}
             base_snapshot_reverse_branches = {
                 branch.target: branch
-                for branch in self.base_snapshot.branches.values()
+                for branch in self.prev_snapshot.branches.values()
                 if branch and branch.target_type != TargetType.ALIAS
             }
 
@@ -538,8 +535,8 @@ class GitLoader(DVCSLoader):
         the one we retrieved at the beginning of the run"""
         eventful = False
 
-        if self.base_snapshot and self.snapshot:
-            eventful = self.snapshot.id != self.base_snapshot.id
+        if self.prev_snapshot and self.snapshot:
+            eventful = self.snapshot.id != self.prev_snapshot.id
         elif self.snapshot:
             eventful = bool(self.snapshot.branches)
 
