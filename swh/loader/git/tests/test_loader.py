@@ -128,7 +128,8 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         assert self.loader.statsd.constant_tags == {
             "visit_type": "git",
             "incremental_enabled": True,
-            "incremental_snapshot_origin": "none",
+            "has_parent_snapshot": False,
+            "has_previous_snapshot": False,
             "has_parent_origins": False,
         }
 
@@ -212,7 +213,8 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
         assert self.loader.statsd.constant_tags == {
             "visit_type": "git",
             "incremental_enabled": True,
-            "incremental_snapshot_origin": "none",
+            "has_parent_snapshot": False,
+            "has_previous_snapshot": False,
             "has_parent_origins": True,
         }
 
@@ -284,7 +286,8 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
         assert self.loader.statsd.constant_tags == {
             "visit_type": "git",
             "incremental_enabled": True,
-            "incremental_snapshot_origin": "parent",
+            "has_parent_snapshot": True,
+            "has_previous_snapshot": False,
             "has_parent_origins": True,
         }
 
@@ -323,7 +326,14 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
                 allowed_statuses=None,
                 require_snapshot=True,
             ),
-            # -> does not need to fall back to the parent
+            # also fetches the parent, in case the origin was rebased on the parent
+            # since the last visit
+            call(
+                f"base://{self.repo_url}",
+                type=None,
+                allowed_statuses=None,
+                require_snapshot=True,
+            ),
         ]
 
         # TODO: assert "incremental*" is added to constant tags before these
@@ -336,7 +346,8 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
         assert self.loader.statsd.constant_tags == {
             "visit_type": "git",
             "incremental_enabled": True,
-            "incremental_snapshot_origin": "self",
+            "has_parent_snapshot": False,  # Because we reset the mock since last time
+            "has_previous_snapshot": True,
             "has_parent_origins": True,
         }
 
