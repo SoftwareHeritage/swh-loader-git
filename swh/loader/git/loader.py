@@ -497,11 +497,18 @@ class GitLoader(DVCSLoader):
             # Handle inference of object types from the contents of the
             # previous snapshot
             unknown_objects = {}
+
             base_snapshot_reverse_branches = {
                 branch.target: branch
-                for branch in self.prev_snapshot.branches.values()
+                for base_snapshot in reversed(self.base_snapshots)
+                for branch in base_snapshot.branches.values()
                 if branch and branch.target_type != TargetType.ALIAS
             }
+            assert all(
+                base_snapshot_reverse_branches[branch.target] == branch
+                for branch in self.prev_snapshot.branches.values()
+                if branch and branch.target_type != TargetType.ALIAS
+            ), "base_snapshot_reverse_branches is not a superset of prev_snapshot"
 
             for ref_name, target in unfetched_refs.items():
                 branch = base_snapshot_reverse_branches.get(target)
