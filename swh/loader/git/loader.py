@@ -252,7 +252,7 @@ class GitLoader(DVCSLoader):
         # check if repository only supports git dumb transfer protocol,
         # fetched pack file will be empty in that case as dulwich do
         # not support it and do not fetch any refs
-        self.dumb = transport_url.startswith("http") and client.dumb
+        self.dumb = transport_url.startswith("http") and getattr(client, "dumb", False)
 
         return FetchPackReturn(
             remote_refs=utils.filter_refs(remote_refs),
