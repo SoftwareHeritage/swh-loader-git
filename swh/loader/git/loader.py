@@ -286,9 +286,9 @@ class GitLoader(DVCSLoader):
                 self.base_snapshots.append(prev_snapshot)
 
             if self.parent_origins is not None:
-                # If this is the first time we load this origin and it is a forge
-                # fork, load incrementally from one of the origins it was forked from,
-                # closest parent first
+
+                # If this origin is a forge fork, load incrementally from the
+                # origins it was forked from
                 for parent_origin in self.parent_origins:
                     parent_snapshot = self.get_full_snapshot(parent_origin.url)
                     if parent_snapshot is not None:
