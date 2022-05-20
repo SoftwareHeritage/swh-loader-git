@@ -179,6 +179,10 @@ class GitLoader(BaseGitLoader):
         self.symbolic_refs: Dict[bytes, HexBytes] = {}
         self.ref_object_types: Dict[bytes, Optional[TargetType]] = {}
 
+        self.reachable_from_known_refs: Set[bytes] = set()
+        """Set of all git objects that are referenced by objects known to be already
+        in storage prior to this load."""
+
     def fetch_pack_from_origin(
         self,
         origin_url: str,
@@ -282,6 +286,7 @@ class GitLoader(BaseGitLoader):
             prev_snapshot = self.get_full_snapshot(self.origin.url)
             self.statsd.constant_tags["has_previous_snapshot"] = bool(prev_snapshot)
             if prev_snapshot:
+                logger.info("Loading from previous snapshot")
                 self.prev_snapshot = prev_snapshot
                 self.base_snapshots.append(prev_snapshot)
 
@@ -292,8 +297,14 @@ class GitLoader(BaseGitLoader):
                 for parent_origin in self.parent_origins:
                     parent_snapshot = self.get_full_snapshot(parent_origin.url)
                     if parent_snapshot is not None:
+                        logger.info("Loading from parent origin: %s", parent_origin.url)
                         self.statsd.constant_tags["has_parent_snapshot"] = True
                         self.base_snapshots.append(parent_snapshot)
+
+        # Initialize the set of reachable objects
+        for snapshot in self.base_snapshots:
+            for branch in snapshot.branches.values():
+                self.reachable_from_known_refs.add(branch.target)
 
         # Increments a metric with full name 'swh_loader_git'; which is useful to
         # count how many runs of the loader are with each incremental mode
@@ -367,6 +378,8 @@ class GitLoader(BaseGitLoader):
             },
         )
 
+        if not self.dumb:
+            self.compute_known_objects()
         # No more data to fetch
         return False
 
@@ -393,6 +406,57 @@ class GitLoader(BaseGitLoader):
         with open(os.path.join(pack_dir, refs_name), "xb") as f:
             pickle.dump(self.remote_refs, f)
 
+    def process_data(self) -> bool:
+        self.compute_known_objects()
+        return True
+
+    def compute_known_objects(self):
+        """Runs a graph traversal on all objects set by the remote, to update
+        :attr:`reachable_from_known_refs`.
+        """
+        if self.dumb:
+            # When using the smart protocol, the remote may send us many objects
+            # we told it we already have.
+            return
+
+        # Adjacency lists of the graph of all objects received from the remote.
+        # TODO: use tuple() instead of set() for small sets? they are almost as fast,
+        # and have 160 fewer bytes of overhead
+        edges: Dict[bytes, Set[bytes]] = {}
+
+        for obj in PackInflater.for_pack_data(
+            PackData.from_file(self.pack_buffer, self.pack_size)
+        ):
+            id_ = obj.sha().digest()
+            if id_ in edges:
+                # Duplicate object? Skip it
+                continue
+            elif obj.type_name == b"blob":
+                continue
+            elif obj.type_name == b"tree":
+                edges[id_] = {
+                    hashutil.hash_to_bytes(entry.sha.decode("ascii"))
+                    for entry in obj.iteritems()
+                }
+            elif obj.type_name == b"commit":
+                edges[id_] = {
+                    hashutil.hash_to_bytes(parent.decode("ascii"))
+                    for parent in obj.parents
+                }
+                edges[id_].add(hashutil.hash_to_bytes(obj.tree.decode("ascii")))
+            elif obj.type_name == b"tag":
+                (target_type, target) = obj.object
+                edges[id_] = {hashutil.hash_to_bytes(target.decode("ascii"))}
+            else:
+                raise ValueError(f"Unexpected object type: {obj.type_name!r}")
+
+        to_visit = set(self.reachable_from_known_refs)
+        while to_visit:
+            node = to_visit.pop()
+            parents = edges.pop(node, set())
+            self.reachable_from_known_refs.update(parents)
+            to_visit.update(parents)
+
     def iter_objects(self, object_type: bytes) -> Iterator[ShaFile]:
         """Read all the objects of type `object_type` from the packfile"""
         if self.dumb:
@@ -409,9 +473,45 @@ class GitLoader(BaseGitLoader):
                 count += 1
             logger.debug("packfile_read_count_%s=%s", object_type.decode(), count)
 
+    def iter_new_objects(self, object_type: bytes) -> Iterator[ShaFile]:
+        """Read all the objects of type `object_type` from the packfile,
+        yielding only those not reachable from any of the base snapshots.
+
+        This differs from :meth:`iter_objects` when origins send objects
+        reachable from the ``known`` set in the packfiles."""
+        total = 0
+        known_reachable = 0
+
+        for raw_obj in self.iter_objects(object_type):
+            total += 1
+            id_ = raw_obj.id.decode("ascii")
+            if hashutil.hash_to_bytes(id_) in self.reachable_from_known_refs:
+                known_reachable += 1
+                continue
+
+            yield raw_obj
+
+        tags = {"object_type": object_type.decode()}
+
+        if not self.dumb:
+            # average weighted by total
+            self.statsd.increment(
+                "unwanted_packfile_objects_total_sum", known_reachable, tags=tags
+            )
+            self.statsd.increment(
+                "unwanted_packfile_objects_total_count", total, tags=tags
+            )
+
+        self.log.info(
+            "packfile contains %d %s objects; %d are reachable from known snapshots",
+            total,
+            object_type.decode(),
+            known_reachable,
+        )
+
     def get_contents(self) -> Iterable[BaseContent]:
         """Format the blobs from the git repository as swh contents"""
-        for raw_obj in self.iter_objects(b"blob"):
+        for raw_obj in self.iter_new_objects(b"blob"):
             if raw_obj.id in self.ref_object_types:
                 self.ref_object_types[raw_obj.id] = TargetType.CONTENT
 
@@ -421,7 +521,7 @@ class GitLoader(BaseGitLoader):
 
     def get_directories(self) -> Iterable[Directory]:
         """Format the trees as swh directories"""
-        for raw_obj in self.iter_objects(b"tree"):
+        for raw_obj in self.iter_new_objects(b"tree"):
             if raw_obj.id in self.ref_object_types:
                 self.ref_object_types[raw_obj.id] = TargetType.DIRECTORY
 
@@ -429,7 +529,7 @@ class GitLoader(BaseGitLoader):
 
     def get_revisions(self) -> Iterable[Revision]:
         """Format commits as swh revisions"""
-        for raw_obj in self.iter_objects(b"commit"):
+        for raw_obj in self.iter_new_objects(b"commit"):
             if raw_obj.id in self.ref_object_types:
                 self.ref_object_types[raw_obj.id] = TargetType.REVISION
 
@@ -437,7 +537,7 @@ class GitLoader(BaseGitLoader):
 
     def get_releases(self) -> Iterable[Release]:
         """Retrieve all the release objects from the git repository"""
-        for raw_obj in self.iter_objects(b"tag"):
+        for raw_obj in self.iter_new_objects(b"tag"):
             if raw_obj.id in self.ref_object_types:
                 self.ref_object_types[raw_obj.id] = TargetType.RELEASE
 

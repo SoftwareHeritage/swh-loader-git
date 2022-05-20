@@ -128,7 +128,7 @@ class BaseGitLoader(BaseLoader):
             self.statsd.increment("filtered_objects_total_count", total, tags=tags)
 
         self.log.info(
-            "Fetched %d objects; %d are new",
+            "store_data got %d objects; %d are new",
             sum(counts.values()),
             sum(storage_summary[f"{object_type}:add"] for object_type in counts),
         )

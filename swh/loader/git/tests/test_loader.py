@@ -7,6 +7,7 @@ import datetime
 from functools import partial
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 import os
+import re
 import subprocess
 import sys
 from tempfile import SpooledTemporaryFile
@@ -126,6 +127,19 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
             call("git_known_refs_percent", "h", 0.0, {}, 1),
         ]
+
+        # all 0, because they are not referenced by any snapshot
+        assert [c for c in statsd_calls if re.match("unwanted_.*_sum", c[1][0])] == [
+            call(
+                "unwanted_packfile_objects_total_sum",
+                "c",
+                0,
+                {"object_type": object_type},
+                1,
+            )
+            for object_type in ("blob", "tree", "commit", "tag")
+        ]
+
         total_sum_name = "filtered_objects_total_sum"
         total_count_name = "filtered_objects_total_count"
         percent_sum_name = "filtered_objects_percent_sum"
@@ -148,6 +162,7 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             call(total_sum_name, "c", 0, {"object_type": "snapshot"}, 1),
             call(total_count_name, "c", 1, {"object_type": "snapshot"}, 1),
         ]
+
         assert self.loader.statsd.constant_tags == {
             "visit_type": "git",
             "incremental_enabled": True,
@@ -220,6 +235,7 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             call(total_sum_name, "c", 0, {"object_type": "snapshot"}, 1),
             call(total_count_name, "c", 1, {"object_type": "snapshot"}, 1),
         ]
+
         assert self.loader.statsd.constant_tags == {
             "visit_type": "git",
             "incremental_enabled": True,
@@ -300,11 +316,24 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
 
         # TODO: assert "incremental" is added to constant tags before these
         # metrics are sent
-        assert [c for c in statsd_report.mock_calls if c[1][0].startswith("git_")] == [
+        statsd_calls = statsd_report.mock_calls
+        assert [c for c in statsd_calls if c[1][0].startswith("git_")] == [
             call("git_total", "c", 1, {}, 1),
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
             call("git_known_refs_percent", "h", 0.0, {}, 1),
         ]
+
+        assert [c for c in statsd_calls if re.match("unwanted_.*_sum", c[1][0])] == [
+            call(
+                "unwanted_packfile_objects_total_sum",
+                "c",
+                0,
+                {"object_type": object_type},
+                1,
+            )
+            for object_type in ("blob", "tree", "commit", "tag")
+        ]
+
         assert self.loader.statsd.constant_tags == {
             "visit_type": "git",
             "incremental_enabled": True,
@@ -433,11 +462,24 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
 
         # TODO: assert "incremental*" is added to constant tags before these
         # metrics are sent
-        assert [c for c in statsd_report.mock_calls if c[1][0].startswith("git_")] == [
+        statsd_calls = statsd_report.mock_calls
+        assert [c for c in statsd_calls if c[1][0].startswith("git_")] == [
             call("git_total", "c", 1, {}, 1),
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
             call("git_known_refs_percent", "h", 1.0, {}, 1),
         ]
+
+        assert [c for c in statsd_calls if re.match("unwanted_.*_sum", c[1][0])] == [
+            call(
+                "unwanted_packfile_objects_total_sum",
+                "c",
+                0,
+                {"object_type": object_type},
+                1,
+            )
+            for object_type in ("blob", "tree", "commit", "tag")
+        ]
+
         assert self.loader.statsd.constant_tags == {
             "visit_type": "git",
             "incremental_enabled": True,
@@ -447,7 +489,8 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
         }
 
     @pytest.mark.parametrize(
-        "parent_snapshot,previous_snapshot,expected_git_known_refs_percent",
+        "parent_snapshot,previous_snapshot,expected_git_known_refs_percent,"
+        "expected_unwanted",
         [
             pytest.param(
                 Snapshot(
@@ -457,6 +500,8 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
                 ),
                 Snapshot(branches={}),
                 0.25,
+                # not zero, because it reuses an existing packfile
+                dict(blob=2, tree=2, commit=2, tag=0),
                 id="partial-parent-and-empty-previous",
             ),
             pytest.param(
@@ -467,6 +512,9 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
                     }
                 ),
                 1.0,
+                # all zeros, because there is no object to fetch at all (SNAPSHOT1
+                # is the complete set of refs)
+                dict(blob=0, tree=0, commit=0, tag=0),
                 id="full-parent-and-partial-previous",
             ),
         ],
@@ -476,6 +524,7 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
         parent_snapshot,
         previous_snapshot,
         expected_git_known_refs_percent,
+        expected_unwanted,
         mocker,
     ):
         """Snapshot of parent origin has all branches, but previous snapshot was
@@ -561,10 +610,23 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             "has_previous_snapshot": True,
             "has_parent_origins": True,
         }
-        assert [c for c in statsd_report.mock_calls if c[1][0].startswith("git_")] == [
+
+        statsd_calls = statsd_report.mock_calls
+        assert [c for c in statsd_calls if c[1][0].startswith("git_")] == [
             call("git_total", "c", 1, {}, 1),
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
             call("git_known_refs_percent", "h", expected_git_known_refs_percent, {}, 1),
+        ]
+
+        assert [c for c in statsd_calls if re.match("unwanted_.*_sum", c[1][0])] == [
+            call(
+                "unwanted_packfile_objects_total_sum",
+                "c",
+                nb,
+                {"object_type": object_type},
+                1,
+            )
+            for (object_type, nb) in expected_unwanted.items()
         ]
 
 
