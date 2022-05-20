@@ -126,17 +126,27 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
             call("git_known_refs_percent", "h", 0.0, {}, 1),
         ]
-        sum_name = "filtered_objects_percent_sum"
-        count_name = "filtered_objects_percent_count"
+        total_sum_name = "filtered_objects_total_sum"
+        total_count_name = "filtered_objects_total_count"
+        percent_sum_name = "filtered_objects_percent_sum"
+        percent_count_name = "filtered_objects_percent_count"
         assert [c for c in statsd_calls if c[1][0].startswith("filtered_")] == [
-            call(sum_name, "c", 0, {"object_type": "content"}, 1),
-            call(count_name, "c", 4, {"object_type": "content"}, 1),
-            call(sum_name, "c", 0, {"object_type": "directory"}, 1),
-            call(count_name, "c", 7, {"object_type": "directory"}, 1),
-            call(sum_name, "c", 0, {"object_type": "revision"}, 1),
-            call(count_name, "c", 7, {"object_type": "revision"}, 1),
-            call(sum_name, "c", 0, {"object_type": "snapshot"}, 1),
-            call(count_name, "c", 1, {"object_type": "snapshot"}, 1),
+            call(percent_sum_name, "c", 0.0, {"object_type": "content"}, 1),
+            call(percent_count_name, "c", 1, {"object_type": "content"}, 1),
+            call(total_sum_name, "c", 0, {"object_type": "content"}, 1),
+            call(total_count_name, "c", 4, {"object_type": "content"}, 1),
+            call(percent_sum_name, "c", 0.0, {"object_type": "directory"}, 1),
+            call(percent_count_name, "c", 1, {"object_type": "directory"}, 1),
+            call(total_sum_name, "c", 0, {"object_type": "directory"}, 1),
+            call(total_count_name, "c", 7, {"object_type": "directory"}, 1),
+            call(percent_sum_name, "c", 0.0, {"object_type": "revision"}, 1),
+            call(percent_count_name, "c", 1, {"object_type": "revision"}, 1),
+            call(total_sum_name, "c", 0, {"object_type": "revision"}, 1),
+            call(total_count_name, "c", 7, {"object_type": "revision"}, 1),
+            call(percent_sum_name, "c", 0.0, {"object_type": "snapshot"}, 1),
+            call(percent_count_name, "c", 1, {"object_type": "snapshot"}, 1),
+            call(total_sum_name, "c", 0, {"object_type": "snapshot"}, 1),
+            call(total_count_name, "c", 1, {"object_type": "snapshot"}, 1),
         ]
         assert self.loader.statsd.constant_tags == {
             "visit_type": "git",
@@ -188,17 +198,27 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
             call("git_known_refs_percent", "h", 0.0, {}, 1),
         ]
-        sum_name = "filtered_objects_percent_sum"
-        count_name = "filtered_objects_percent_count"
+        total_sum_name = "filtered_objects_total_sum"
+        total_count_name = "filtered_objects_total_count"
+        percent_sum_name = "filtered_objects_percent_sum"
+        percent_count_name = "filtered_objects_percent_count"
         assert [c for c in statsd_calls if c[1][0].startswith("filtered_")] == [
-            call(sum_name, "c", len(known_cnts), {"object_type": "content"}, 1),
-            call(count_name, "c", 4, {"object_type": "content"}, 1),
-            call(sum_name, "c", len(known_dirs), {"object_type": "directory"}, 1),
-            call(count_name, "c", 7, {"object_type": "directory"}, 1),
-            call(sum_name, "c", len(known_revs), {"object_type": "revision"}, 1),
-            call(count_name, "c", 7, {"object_type": "revision"}, 1),
-            call(sum_name, "c", 0, {"object_type": "snapshot"}, 1),
-            call(count_name, "c", 1, {"object_type": "snapshot"}, 1),
+            call(percent_sum_name, "c", 1 / 4, {"object_type": "content"}, 1),
+            call(percent_count_name, "c", 1, {"object_type": "content"}, 1),
+            call(total_sum_name, "c", 1, {"object_type": "content"}, 1),
+            call(total_count_name, "c", 4, {"object_type": "content"}, 1),
+            call(percent_sum_name, "c", 3 / 7, {"object_type": "directory"}, 1),
+            call(percent_count_name, "c", 1, {"object_type": "directory"}, 1),
+            call(total_sum_name, "c", 3, {"object_type": "directory"}, 1),
+            call(total_count_name, "c", 7, {"object_type": "directory"}, 1),
+            call(percent_sum_name, "c", 2 / 7, {"object_type": "revision"}, 1),
+            call(percent_count_name, "c", 1, {"object_type": "revision"}, 1),
+            call(total_sum_name, "c", 2, {"object_type": "revision"}, 1),
+            call(total_count_name, "c", 7, {"object_type": "revision"}, 1),
+            call(percent_sum_name, "c", 0.0, {"object_type": "snapshot"}, 1),
+            call(percent_count_name, "c", 1, {"object_type": "snapshot"}, 1),
+            call(total_sum_name, "c", 0, {"object_type": "snapshot"}, 1),
+            call(total_count_name, "c", 1, {"object_type": "snapshot"}, 1),
         ]
         assert self.loader.statsd.constant_tags == {
             "visit_type": "git",

@@ -119,5 +119,10 @@ class BaseGitLoader(BaseLoader):
 
             # cannot use self.statsd_average, because this is a weighted average
             tags = {"object_type": object_type}
-            self.statsd.increment("filtered_objects_percent_sum", filtered, tags=tags)
-            self.statsd.increment("filtered_objects_percent_count", total, tags=tags)
+
+            # unweighted average
+            self.statsd_average("filtered_objects_percent", filtered / total, tags=tags)
+
+            # average weighted by total
+            self.statsd.increment("filtered_objects_total_sum", filtered, tags=tags)
+            self.statsd.increment("filtered_objects_total_count", total, tags=tags)
