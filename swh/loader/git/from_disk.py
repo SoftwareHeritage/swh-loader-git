@@ -21,13 +21,13 @@ from deprecated import deprecated
 import dulwich.objects
 import dulwich.repo
 
-from swh.loader.core.loader import DVCSLoader
 from swh.model import hashutil
 from swh.model.model import Snapshot, SnapshotBranch, TargetType
 from swh.storage.algos.origin import origin_get_latest_visit_status
 from swh.storage.interface import StorageInterface
 
 from . import converters, utils
+from .base import BaseGitLoader
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +87,7 @@ def _check_tag(tag):
 
 
 @deprecated(version="1.1", reason="Use `swh.loader.git.loader.GitLoader` instead")
-class GitLoaderFromDisk(DVCSLoader):
+class GitLoaderFromDisk(BaseGitLoader):
     """Load a git repository from a directory."""
 
     visit_type = "git"

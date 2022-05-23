@@ -18,7 +18,7 @@ from dulwich.porcelain import push
 import dulwich.repo
 import pytest
 
-from swh.loader.git import dumb
+from swh.loader.git import converters, dumb
 from swh.loader.git.loader import GitLoader
 from swh.loader.git.tests.test_from_disk import SNAPSHOT1, FullGitLoaderTests
 from swh.loader.tests import (
@@ -120,10 +120,105 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
 
         # TODO: assert "incremental" is added to constant tags before these
         # metrics are sent
-        assert [c for c in statsd_report.mock_calls if c[1][0].startswith("git_")] == [
+        statsd_calls = statsd_report.mock_calls
+        assert [c for c in statsd_calls if c[1][0].startswith("git_")] == [
             call("git_total", "c", 1, {}, 1),
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
             call("git_known_refs_percent", "h", 0.0, {}, 1),
+        ]
+        total_sum_name = "filtered_objects_total_sum"
+        total_count_name = "filtered_objects_total_count"
+        percent_sum_name = "filtered_objects_percent_sum"
+        percent_count_name = "filtered_objects_percent_count"
+        assert [c for c in statsd_calls if c[1][0].startswith("filtered_")] == [
+            call(percent_sum_name, "c", 0.0, {"object_type": "content"}, 1),
+            call(percent_count_name, "c", 1, {"object_type": "content"}, 1),
+            call(total_sum_name, "c", 0, {"object_type": "content"}, 1),
+            call(total_count_name, "c", 4, {"object_type": "content"}, 1),
+            call(percent_sum_name, "c", 0.0, {"object_type": "directory"}, 1),
+            call(percent_count_name, "c", 1, {"object_type": "directory"}, 1),
+            call(total_sum_name, "c", 0, {"object_type": "directory"}, 1),
+            call(total_count_name, "c", 7, {"object_type": "directory"}, 1),
+            call(percent_sum_name, "c", 0.0, {"object_type": "revision"}, 1),
+            call(percent_count_name, "c", 1, {"object_type": "revision"}, 1),
+            call(total_sum_name, "c", 0, {"object_type": "revision"}, 1),
+            call(total_count_name, "c", 7, {"object_type": "revision"}, 1),
+            call(percent_sum_name, "c", 0.0, {"object_type": "snapshot"}, 1),
+            call(percent_count_name, "c", 1, {"object_type": "snapshot"}, 1),
+            call(total_sum_name, "c", 0, {"object_type": "snapshot"}, 1),
+            call(total_count_name, "c", 1, {"object_type": "snapshot"}, 1),
+        ]
+        assert self.loader.statsd.constant_tags == {
+            "visit_type": "git",
+            "incremental_enabled": True,
+            "has_parent_snapshot": False,
+            "has_previous_snapshot": False,
+            "has_parent_origins": False,
+        }
+
+    def test_metrics_filtered(self, mocker):
+        """Tests that presence of some objects in the storage (but not referenced
+        by a snapshot) is reported"""
+
+        known_revs = [
+            converters.dulwich_commit_to_revision(self.repo[sha1])
+            for sha1 in [
+                b"b6f40292c4e94a8f7e7b4aff50e6c7429ab98e2a",
+                b"1135e94ccf73b5f9bd6ef07b3fa2c5cc60bba69b",
+            ]
+        ]
+        known_dirs = [
+            converters.dulwich_tree_to_directory(self.repo[sha1])
+            for sha1 in [
+                b"fbf70528223d263661b5ad4b80f26caf3860eb8e",
+                b"9ca0c7d6ffa3f9f0de59fd7912e08f11308a1338",
+                b"5df34ec74d6f69072d9a0a6677d8efbed9b12e60",
+            ]
+        ]
+        known_cnts = [
+            converters.dulwich_blob_to_content(self.repo[sha1])
+            for sha1 in [
+                b"534d61ecee4f6da4d6ca6ddd8abf258208d2d1bc",
+            ]
+        ]
+        self.loader.storage.revision_add(known_revs)
+        self.loader.storage.directory_add(known_dirs)
+        self.loader.storage.content_add(known_cnts)
+        self.loader.storage.flush()
+
+        statsd_report = mocker.patch.object(self.loader.statsd, "_report")
+        res = self.loader.load()
+        assert res == {"status": "eventful"}
+
+        # TODO: assert "incremental" is added to constant tags before these
+        # metrics are sent
+        statsd_calls = statsd_report.mock_calls
+        assert [c for c in statsd_calls if c[1][0].startswith("git_")] == [
+            call("git_total", "c", 1, {}, 1),
+            call("git_ignored_refs_percent", "h", 0.0, {}, 1),
+            call("git_known_refs_percent", "h", 0.0, {}, 1),
+        ]
+        total_sum_name = "filtered_objects_total_sum"
+        total_count_name = "filtered_objects_total_count"
+        percent_sum_name = "filtered_objects_percent_sum"
+        percent_count_name = "filtered_objects_percent_count"
+        assert [c for c in statsd_calls if c[1][0].startswith("filtered_")] == [
+            call(percent_sum_name, "c", 1 / 4, {"object_type": "content"}, 1),
+            call(percent_count_name, "c", 1, {"object_type": "content"}, 1),
+            call(total_sum_name, "c", 1, {"object_type": "content"}, 1),
+            call(total_count_name, "c", 4, {"object_type": "content"}, 1),
+            call(percent_sum_name, "c", 3 / 7, {"object_type": "directory"}, 1),
+            call(percent_count_name, "c", 1, {"object_type": "directory"}, 1),
+            call(total_sum_name, "c", 3, {"object_type": "directory"}, 1),
+            call(total_count_name, "c", 7, {"object_type": "directory"}, 1),
+            call(percent_sum_name, "c", 2 / 7, {"object_type": "revision"}, 1),
+            call(percent_count_name, "c", 1, {"object_type": "revision"}, 1),
+            call(total_sum_name, "c", 2, {"object_type": "revision"}, 1),
+            call(total_count_name, "c", 7, {"object_type": "revision"}, 1),
+            call(percent_sum_name, "c", 0.0, {"object_type": "snapshot"}, 1),
+            call(percent_count_name, "c", 1, {"object_type": "snapshot"}, 1),
+            call(total_sum_name, "c", 0, {"object_type": "snapshot"}, 1),
+            call(total_count_name, "c", 1, {"object_type": "snapshot"}, 1),
         ]
         assert self.loader.statsd.constant_tags == {
             "visit_type": "git",
