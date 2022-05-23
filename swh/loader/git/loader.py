@@ -19,7 +19,6 @@ from dulwich.objects import ShaFile
 from dulwich.pack import PackData, PackInflater
 
 from swh.core.statsd import Statsd
-from swh.loader.core.loader import DVCSLoader
 from swh.loader.exception import NotFound
 from swh.model import hashutil
 from swh.model.model import (
@@ -35,6 +34,7 @@ from swh.storage.algos.snapshot import snapshot_get_latest
 from swh.storage.interface import StorageInterface
 
 from . import converters, dumb, utils
+from .base import BaseGitLoader
 from .utils import HexBytes
 
 logger = logging.getLogger(__name__)
@@ -121,7 +121,7 @@ class FetchPackReturn:
     pack_size: int
 
 
-class GitLoader(DVCSLoader):
+class GitLoader(BaseGitLoader):
     """A bulk loader for a git repository
 
     Emits the following statsd stats:
@@ -286,9 +286,9 @@ class GitLoader(DVCSLoader):
                 self.base_snapshots.append(prev_snapshot)
 
             if self.parent_origins is not None:
-                # If this is the first time we load this origin and it is a forge
-                # fork, load incrementally from one of the origins it was forked from,
-                # closest parent first
+
+                # If this origin is a forge fork, load incrementally from the
+                # origins it was forked from
                 for parent_origin in self.parent_origins:
                     parent_snapshot = self.get_full_snapshot(parent_origin.url)
                     if parent_snapshot is not None:
