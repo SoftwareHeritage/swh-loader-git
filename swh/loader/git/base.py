@@ -121,7 +121,9 @@ class BaseGitLoader(BaseLoader):
             tags = {"object_type": object_type}
 
             # unweighted average
-            self.statsd_average("filtered_objects_percent", filtered / total, tags=tags)
+            self.statsd.histogram(
+                "filtered_objects_percent", filtered / total, tags=tags
+            )
 
             # average weighted by total
             self.statsd.increment("filtered_objects_total_sum", filtered, tags=tags)
