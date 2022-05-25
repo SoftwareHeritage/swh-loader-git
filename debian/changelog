@@ -1,3 +1,12 @@
+swh-loader-git (1.9.1-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 1.9.1     - (tagged by Valentin Lorentz
+    <vlorentz@softwareheritage.org> on 2022-05-25 14:03:27 +0200)
+  * Upstream changes:     - v1.9.1     - * Represent
+    filtered_objects_percent as a histogram rather than average
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Wed, 25 May 2022 12:08:47 +0000
+
 swh-loader-git (1.9.0-1~swh1) unstable-swh; urgency=medium
 
   * New upstream release 1.9.0     - (tagged by Valentin Lorentz
