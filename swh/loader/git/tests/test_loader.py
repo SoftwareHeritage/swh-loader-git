@@ -128,23 +128,18 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         ]
         total_sum_name = "filtered_objects_total_sum"
         total_count_name = "filtered_objects_total_count"
-        percent_sum_name = "filtered_objects_percent_sum"
-        percent_count_name = "filtered_objects_percent_count"
+        percent_name = "filtered_objects_percent"
         assert [c for c in statsd_calls if c[1][0].startswith("filtered_")] == [
-            call(percent_sum_name, "c", 0.0, {"object_type": "content"}, 1),
-            call(percent_count_name, "c", 1, {"object_type": "content"}, 1),
+            call(percent_name, "h", 0.0, {"object_type": "content"}, 1),
             call(total_sum_name, "c", 0, {"object_type": "content"}, 1),
             call(total_count_name, "c", 4, {"object_type": "content"}, 1),
-            call(percent_sum_name, "c", 0.0, {"object_type": "directory"}, 1),
-            call(percent_count_name, "c", 1, {"object_type": "directory"}, 1),
+            call(percent_name, "h", 0.0, {"object_type": "directory"}, 1),
             call(total_sum_name, "c", 0, {"object_type": "directory"}, 1),
             call(total_count_name, "c", 7, {"object_type": "directory"}, 1),
-            call(percent_sum_name, "c", 0.0, {"object_type": "revision"}, 1),
-            call(percent_count_name, "c", 1, {"object_type": "revision"}, 1),
+            call(percent_name, "h", 0.0, {"object_type": "revision"}, 1),
             call(total_sum_name, "c", 0, {"object_type": "revision"}, 1),
             call(total_count_name, "c", 7, {"object_type": "revision"}, 1),
-            call(percent_sum_name, "c", 0.0, {"object_type": "snapshot"}, 1),
-            call(percent_count_name, "c", 1, {"object_type": "snapshot"}, 1),
+            call(percent_name, "h", 0.0, {"object_type": "snapshot"}, 1),
             call(total_sum_name, "c", 0, {"object_type": "snapshot"}, 1),
             call(total_count_name, "c", 1, {"object_type": "snapshot"}, 1),
         ]
@@ -200,23 +195,18 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         ]
         total_sum_name = "filtered_objects_total_sum"
         total_count_name = "filtered_objects_total_count"
-        percent_sum_name = "filtered_objects_percent_sum"
-        percent_count_name = "filtered_objects_percent_count"
+        percent_name = "filtered_objects_percent"
         assert [c for c in statsd_calls if c[1][0].startswith("filtered_")] == [
-            call(percent_sum_name, "c", 1 / 4, {"object_type": "content"}, 1),
-            call(percent_count_name, "c", 1, {"object_type": "content"}, 1),
+            call(percent_name, "h", 1 / 4, {"object_type": "content"}, 1),
             call(total_sum_name, "c", 1, {"object_type": "content"}, 1),
             call(total_count_name, "c", 4, {"object_type": "content"}, 1),
-            call(percent_sum_name, "c", 3 / 7, {"object_type": "directory"}, 1),
-            call(percent_count_name, "c", 1, {"object_type": "directory"}, 1),
+            call(percent_name, "h", 3 / 7, {"object_type": "directory"}, 1),
             call(total_sum_name, "c", 3, {"object_type": "directory"}, 1),
             call(total_count_name, "c", 7, {"object_type": "directory"}, 1),
-            call(percent_sum_name, "c", 2 / 7, {"object_type": "revision"}, 1),
-            call(percent_count_name, "c", 1, {"object_type": "revision"}, 1),
+            call(percent_name, "h", 2 / 7, {"object_type": "revision"}, 1),
             call(total_sum_name, "c", 2, {"object_type": "revision"}, 1),
             call(total_count_name, "c", 7, {"object_type": "revision"}, 1),
-            call(percent_sum_name, "c", 0.0, {"object_type": "snapshot"}, 1),
-            call(percent_count_name, "c", 1, {"object_type": "snapshot"}, 1),
+            call(percent_name, "h", 0.0, {"object_type": "snapshot"}, 1),
             call(total_sum_name, "c", 0, {"object_type": "snapshot"}, 1),
             call(total_count_name, "c", 1, {"object_type": "snapshot"}, 1),
         ]
