@@ -3,20 +3,21 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import collections
 from dataclasses import dataclass
 import datetime
 import logging
 import os
 import pickle
 import sys
-from tempfile import SpooledTemporaryFile
+import tempfile
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Set, Type
 
 import dulwich.client
 from dulwich.errors import GitProtocolError, NotGitRepository
 from dulwich.object_store import ObjectStoreGraphWalker
 from dulwich.objects import ShaFile
-from dulwich.pack import PackData, PackInflater
+from dulwich.pack import PackData, PackInflater, PackIndex2, Pack, MemoryPackIndex
 
 from swh.core.statsd import Statsd
 from swh.loader.exception import NotFound
@@ -113,11 +114,18 @@ class RepoRepresentation:
         return wanted_refs
 
 
+class BetterMemoryPackIndex(MemoryPackIndex):
+    """It's better because it doesn't crash"""
+
+    def _object_index(self, sha):
+        return self._by_sha[sha]
+
+
 @dataclass
 class FetchPackReturn:
     remote_refs: Dict[bytes, HexBytes]
     symbolic_refs: Dict[bytes, HexBytes]
-    pack_buffer: SpooledTemporaryFile
+    pack_buffer: tempfile.SpooledTemporaryFile
     pack_size: int
 
 
@@ -155,6 +163,7 @@ class GitLoader(BaseGitLoader):
         repo_representation: Type[RepoRepresentation] = RepoRepresentation,
         pack_size_bytes: int = 4 * 1024 * 1024 * 1024,
         temp_file_cutoff: int = 100 * 1024 * 1024,
+        traverse_graph: bool = True,
         **kwargs: Any,
     ):
         """Initialize the bulk updater.
@@ -179,6 +188,7 @@ class GitLoader(BaseGitLoader):
         self.symbolic_refs: Dict[bytes, HexBytes] = {}
         self.ref_object_types: Dict[bytes, Optional[TargetType]] = {}
 
+        self.traverse_graph = traverse_graph
         self.reachable_from_known_refs: Set[bytes] = set()
         """Set of all git objects that are referenced by objects known to be already
         in storage prior to this load."""
@@ -191,7 +201,7 @@ class GitLoader(BaseGitLoader):
     ) -> FetchPackReturn:
         """Fetch a pack from the origin"""
 
-        pack_buffer = SpooledTemporaryFile(max_size=self.temp_file_cutoff)
+        pack_buffer = tempfile.SpooledTemporaryFile(max_size=self.temp_file_cutoff)
 
         # Hardcode the use of the tcp transport (for GitHub origins)
 
@@ -378,8 +388,6 @@ class GitLoader(BaseGitLoader):
             },
         )
 
-        if not self.dumb:
-            self.compute_known_objects()
         # No more data to fetch
         return False
 
@@ -419,21 +427,39 @@ class GitLoader(BaseGitLoader):
             # we told it we already have.
             return
 
+        self.total_objects_in_pack = collections.defaultdict(int)
+
+        if self.traverse_graph:
+            logger.debug(
+                "computing reachable_from_known_refs (starting from %s)",
+                len(self.reachable_from_known_refs),
+            )
+        else:
+            logger.debug(
+                "skipping computation of reachable_from_known_refs (starting from %s)",
+                len(self.reachable_from_known_refs),
+            )
+            return
+
         # Adjacency lists of the graph of all objects received from the remote.
         # TODO: use tuple() instead of set() for small sets? they are almost as fast,
         # and have 160 fewer bytes of overhead
         edges: Dict[bytes, Set[bytes]] = {}
 
+        self.pack_buffer.seek(0)
         for obj in PackInflater.for_pack_data(
             PackData.from_file(self.pack_buffer, self.pack_size)
         ):
             id_ = obj.sha().digest()
+            self.total_objects_in_pack[obj.type_name] += 1
             if id_ in edges:
                 # Duplicate object? Skip it
                 continue
             elif obj.type_name == b"blob":
                 continue
             elif obj.type_name == b"tree":
+                # skip it, takes too much memory
+                continue
                 edges[id_] = {
                     hashutil.hash_to_bytes(entry.sha.decode("ascii"))
                     for entry in obj.iteritems()
@@ -443,6 +469,8 @@ class GitLoader(BaseGitLoader):
                     hashutil.hash_to_bytes(parent.decode("ascii"))
                     for parent in obj.parents
                 }
+                # skip it, takes too much memory
+                continue
                 edges[id_].add(hashutil.hash_to_bytes(obj.tree.decode("ascii")))
             elif obj.type_name == b"tag":
                 (target_type, target) = obj.object
@@ -450,12 +478,26 @@ class GitLoader(BaseGitLoader):
             else:
                 raise ValueError(f"Unexpected object type: {obj.type_name!r}")
 
+        logger.debug(
+            "nodes=%s edges=%s",
+            len(edges),
+            sum(map(len, edges.values())),
+        )
+
         to_visit = set(self.reachable_from_known_refs)
         while to_visit:
             node = to_visit.pop()
             parents = edges.pop(node, set())
+
+            # already processed or about to be, don't visit them again
+            parents.difference_update(self.reachable_from_known_refs)
+
             self.reachable_from_known_refs.update(parents)
             to_visit.update(parents)
+
+        logger.debug(
+            "result: reachable_from_known_refs=%s", len(self.reachable_from_known_refs)
+        )
 
     def iter_objects(self, object_type: bytes) -> Iterator[ShaFile]:
         """Read all the objects of type `object_type` from the packfile"""
@@ -479,35 +521,79 @@ class GitLoader(BaseGitLoader):
 
         This differs from :meth:`iter_objects` when origins send objects
         reachable from the ``known`` set in the packfiles."""
-        total = 0
-        known_reachable = 0
+        if self.dumb or not self.traverse_graph:
+            yield from self.iter_objects(object_type)
+        else:
+            to_visit = set()
+            seen = set()
+            self.pack_buffer.seek(0)
+            pack_data = PackData.from_file(self.pack_buffer, self.pack_size)
+            for obj in PackInflater.for_pack_data(pack_data):
+                if obj.type_name in (b"commit", b"tag"):
+                    id_ = obj.sha().digest()
+                    if (
+                        hashutil.hash_to_bytes(id_)
+                        not in self.reachable_from_known_refs
+                    ):
+                        to_visit.add(id_)
 
-        for raw_obj in self.iter_objects(object_type):
-            total += 1
-            id_ = raw_obj.id.decode("ascii")
-            if hashutil.hash_to_bytes(id_) in self.reachable_from_known_refs:
-                known_reachable += 1
-                continue
+            index_file = tempfile.NamedTemporaryFile()
+            # pack_data.create_index_v2(index_file.name)
+            # pack_index = PackIndex2(index_file.name)
+            pack_index = BetterMemoryPackIndex(
+                pack_data.sorted_entries(),
+                pack_data.get_stored_checksum(),  # why is this argument needed?
+            )
+            pack = Pack.from_objects(pack_data, pack_index)
+            while to_visit:
+                id_ = hashutil.hash_to_bytehex(to_visit.pop())
+                # offset = pack_index.object_index(id_)
+                # (offset, type_, (raw_obj,)) = pack_data.get_ref(id_)
+                obj = pack[id_]
 
-            yield raw_obj
+                assert id_ == obj.id
+                assert hashutil.hash_to_bytes(id_) not in self.reachable_from_known_refs
+                if obj.type_name == object_type:
+                    if id_ not in seen:
+                        seen.add(id_)
+                        yield obj
 
-        tags = {"object_type": object_type.decode()}
+                if obj.type_name == b"tree":
+                    to_visit.update(
+                        {
+                            hashutil.hash_to_bytes(entry.sha.decode("ascii"))
+                            for entry in obj.iteritems()
+                        }
+                    )
+                elif obj.type_name == b"commit":
+                    # relevant parents parents are already in to_visit
+                    to_visit.add(hashutil.hash_to_bytes(obj.tree.decode("ascii")))
+                elif obj.type_name == b"tag":
+                    (target_type, target) = obj.object
+                    # TODO: don't do it if it is a commit
+                    to_visit.add(hashutil.hash_to_bytes(target.decode("ascii")))
 
-        if not self.dumb:
+            tags = {"object_type": object_type.decode()}
+
             # average weighted by total
             self.statsd.increment(
-                "unwanted_packfile_objects_total_sum", known_reachable, tags=tags
+                "unwanted_packfile_objects_total_sum",
+                self.total_objects_in_pack[object_type] - len(seen),
+                tags=tags,
             )
             self.statsd.increment(
-                "unwanted_packfile_objects_total_count", total, tags=tags
+                "unwanted_packfile_objects_total_count",
+                self.total_objects_in_pack[object_type],
+                tags=tags,
             )
 
-        self.log.info(
-            "packfile contains %d %s objects; %d are reachable from known snapshots",
-            total,
-            object_type.decode(),
-            known_reachable,
-        )
+            self.log.info(
+                "packfile contains %d %s objects; %d appear to be unreachable "
+                "from known snapshots",
+                self.total_objects_in_pack[object_type],
+                object_type.decode(),
+                len(seen),
+            )
 
     def get_contents(self) -> Iterable[BaseContent]:
         """Format the blobs from the git repository as swh contents"""
