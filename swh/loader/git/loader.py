@@ -84,7 +84,7 @@ class RepoRepresentation:
             for branch_name, branch in base_snapshot.branches.items():
                 if not branch or branch.target_type == TargetType.ALIAS:
                     continue
-                local_heads.add(hashutil.hash_to_hex(branch.target).encode())
+                local_heads.add(HexBytes(hashutil.hash_to_bytehex(branch.target)))
 
         self.heads = local_heads
 
