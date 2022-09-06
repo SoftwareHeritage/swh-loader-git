@@ -104,7 +104,7 @@ def filter_refs(refs: Dict[bytes, bytes]) -> Dict[bytes, HexBytes]:
 
 def warn_dangling_branches(
     branches: Dict[bytes, Optional[SnapshotBranch]],
-    dangling_branches: Dict[bytes, bytes],
+    dangling_branches: Dict[HexBytes, bytes],
     logger: logging.Logger,
     origin_url: str,
 ) -> None:
