@@ -1,4 +1,4 @@
-dulwich>=0.18.7
+dulwich>=0.20.43
 retrying
 click
 swh.core>=0.0.7

@@ -84,7 +84,7 @@ class RepoRepresentation:
             for branch_name, branch in base_snapshot.branches.items():
                 if not branch or branch.target_type == TargetType.ALIAS:
                     continue
-                local_heads.add(hashutil.hash_to_hex(branch.target).encode())
+                local_heads.add(HexBytes(hashutil.hash_to_bytehex(branch.target)))
 
         self.heads = local_heads
 
@@ -188,27 +188,7 @@ class GitLoader(BaseGitLoader):
         """Fetch a pack from the origin"""
 
         pack_buffer = SpooledTemporaryFile(max_size=self.temp_file_cutoff)
-
-        # Hardcode the use of the tcp transport (for GitHub origins)
-
-        # Even if the Dulwich API lets us process the packfile in chunks as it's
-        # received, the HTTP transport implementation needs to entirely allocate
-        # the packfile in memory *twice*, once in the HTTP library, and once in
-        # a BytesIO managed by Dulwich, before passing chunks to the `do_pack`
-        # method Overall this triples the memory usage before we can even try to
-        # interrupt the loader before it overruns its memory limit.
-
-        # In contrast, the Dulwich TCP transport just gives us the read handle
-        # on the underlying socket, doing no processing or copying of the bytes.
-        # We can interrupt it as soon as we've received too many bytes.
-
         transport_url = origin_url
-
-        # Temporarily Disabled due to GitHub removing support for the tcp transport. See
-        # https://forge.softwareheritage.org/T3544
-        #
-        # if transport_url.startswith("https://github.com/"):
-        #     transport_url = "git" + transport_url[5:]
 
         logger.debug("Transport url to communicate with server: %s", transport_url)
 
