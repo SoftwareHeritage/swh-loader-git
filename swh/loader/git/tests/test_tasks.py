@@ -8,12 +8,8 @@ import uuid
 import pytest
 
 from swh.scheduler.model import ListedOrigin, Lister
-from swh.scheduler.utils import create_origin_task_dict
 
-
-@pytest.fixture(autouse=True)
-def celery_worker_and_swh_config(swh_scheduler_celery_worker, swh_config):
-    pass
+NAMESPACE = "swh.loader.git"
 
 
 @pytest.fixture
@@ -28,137 +24,72 @@ def git_listed_origin(git_lister):
     )
 
 
-def test_git_loader(
-    mocker,
-    swh_scheduler_celery_app,
-):
-    mock_loader = mocker.patch("swh.loader.git.loader.GitLoader.load")
-    mock_loader.return_value = {"status": "eventful"}
-
-    res = swh_scheduler_celery_app.send_task(
-        "swh.loader.git.tasks.UpdateGitRepository",
-        kwargs={"url": "origin_url"},
-    )
-    assert res
-    res.wait()
-    assert res.successful()
-
-    assert res.result == {"status": "eventful"}
-    mock_loader.assert_called_once_with()
-
-
 def test_git_loader_for_listed_origin(
-    mocker,
-    swh_scheduler_celery_app,
+    loading_task_creation_for_listed_origin_test,
     git_lister,
     git_listed_origin,
 ):
-    mock_loader = mocker.patch("swh.loader.git.loader.GitLoader.load")
-    mock_loader.return_value = {"status": "eventful"}
-
-    task_dict = create_origin_task_dict(git_listed_origin, git_lister)
-
-    res = swh_scheduler_celery_app.send_task(
-        "swh.loader.git.tasks.UpdateGitRepository",
-        kwargs=task_dict["arguments"]["kwargs"],
+    loading_task_creation_for_listed_origin_test(
+        loader_class_name=f"{NAMESPACE}.loader.GitLoader",
+        task_function_name=f"{NAMESPACE}.tasks.UpdateGitRepository",
+        lister=git_lister,
+        listed_origin=git_listed_origin,
     )
-    assert res
-    res.wait()
-    assert res.successful()
-
-    assert res.result == {"status": "eventful"}
-    mock_loader.assert_called_once_with()
 
 
-def test_git_loader_from_disk(
-    mocker,
-    swh_scheduler_celery_app,
-):
-    mock_loader = mocker.patch("swh.loader.git.from_disk.GitLoaderFromDisk.load")
-    mock_loader.return_value = {"status": "uneventful"}
-
-    res = swh_scheduler_celery_app.send_task(
-        "swh.loader.git.tasks.LoadDiskGitRepository",
-        kwargs={"url": "origin_url2", "directory": "/some/repo", "visit_date": "now"},
-    )
-    assert res
-    res.wait()
-    assert res.successful()
-
-    assert res.result == {"status": "uneventful"}
-    mock_loader.assert_called_once_with()
-
-
+@pytest.mark.parametrize(
+    "extra_loader_arguments",
+    [
+        {
+            "directory": "/some/repo",
+        },
+        {
+            "directory": "/some/repo",
+            "visit_date": "now",
+        },
+    ],
+)
 def test_git_loader_from_disk_for_listed_origin(
-    mocker,
-    swh_scheduler_celery_app,
+    loading_task_creation_for_listed_origin_test,
     git_lister,
     git_listed_origin,
+    extra_loader_arguments,
 ):
-    mock_loader = mocker.patch("swh.loader.git.from_disk.GitLoaderFromDisk.load")
-    mock_loader.return_value = {"status": "uneventful"}
 
-    git_listed_origin.extra_loader_arguments = {
-        "directory": "/some/repo",
-    }
-    task_dict = create_origin_task_dict(git_listed_origin, git_lister)
+    git_listed_origin.extra_loader_arguments = extra_loader_arguments
 
-    res = swh_scheduler_celery_app.send_task(
-        "swh.loader.git.tasks.LoadDiskGitRepository",
-        kwargs=task_dict["arguments"]["kwargs"],
+    loading_task_creation_for_listed_origin_test(
+        loader_class_name=f"{NAMESPACE}.from_disk.GitLoaderFromDisk",
+        task_function_name=f"{NAMESPACE}.tasks.LoadDiskGitRepository",
+        lister=git_lister,
+        listed_origin=git_listed_origin,
     )
-    assert res
-    res.wait()
-    assert res.successful()
-
-    assert res.result == {"status": "uneventful"}
-    mock_loader.assert_called_once_with()
 
 
-def test_git_loader_from_archive(
-    mocker,
-    swh_scheduler_celery_app,
-):
-    mock_loader = mocker.patch("swh.loader.git.from_disk.GitLoaderFromArchive.load")
-    mock_loader.return_value = {"status": "failed"}
-
-    res = swh_scheduler_celery_app.send_task(
-        "swh.loader.git.tasks.UncompressAndLoadDiskGitRepository",
-        kwargs={
-            "url": "origin_url3",
+@pytest.mark.parametrize(
+    "extra_loader_arguments",
+    [
+        {
+            "archive_path": "/some/repo",
+        },
+        {
             "archive_path": "/some/repo",
             "visit_date": "now",
         },
-    )
-    assert res
-    res.wait()
-    assert res.successful()
-
-    assert res.result == {"status": "failed"}
-    mock_loader.assert_called_once_with()
-
-
+    ],
+)
 def test_git_loader_from_archive_for_listed_origin(
-    mocker,
-    swh_scheduler_celery_app,
+    loading_task_creation_for_listed_origin_test,
     git_lister,
     git_listed_origin,
+    extra_loader_arguments,
 ):
-    mock_loader = mocker.patch("swh.loader.git.from_disk.GitLoaderFromArchive.load")
-    mock_loader.return_value = {"status": "failed"}
 
-    git_listed_origin.extra_loader_arguments = {
-        "archive_path": "/some/repo",
-    }
-    task_dict = create_origin_task_dict(git_listed_origin, git_lister)
+    git_listed_origin.extra_loader_arguments = extra_loader_arguments
 
-    res = swh_scheduler_celery_app.send_task(
-        "swh.loader.git.tasks.UncompressAndLoadDiskGitRepository",
-        kwargs=task_dict["arguments"]["kwargs"],
+    loading_task_creation_for_listed_origin_test(
+        loader_class_name=f"{NAMESPACE}.from_disk.GitLoaderFromArchive",
+        task_function_name=f"{NAMESPACE}.tasks.UncompressAndLoadDiskGitRepository",
+        lister=git_lister,
+        listed_origin=git_listed_origin,
     )
-    assert res
-    res.wait()
-    assert res.successful()
-
-    assert res.result == {"status": "failed"}
-    mock_loader.assert_called_once_with()
