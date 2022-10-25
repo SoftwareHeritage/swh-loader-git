@@ -120,7 +120,9 @@ def dulwich_tree_to_directory(obj: ShaFile) -> Directory:
             DirectoryEntry(
                 type=type_,
                 perms=entry.mode,
-                name=entry.path,
+                name=entry.path.replace(
+                    b"/", b"_"
+                ),  # '/' is very rare, and invalid in SWH.
                 target=hash_to_bytes(entry.sha.decode("ascii")),
             )
         )

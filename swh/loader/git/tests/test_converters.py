@@ -244,6 +244,59 @@ class TestConverters:
             )
         )
 
+    def test_tree_with_slashes(self):
+        raw_string = (
+            b"100775 AUTHORS\x00"
+            b"\x7f\xde\x98Av\x81I\xbb\x19\x88N\xffu\xed\xca\x01\xe1\x04\xb1\x81"
+            b"100775 COPYING\x00"
+            b'\xd5\n\x11\xd6O\xa5(\xfcv\xb3\x81\x92\xd1\x8c\x05?\xe8"A\xda'
+            b"100775 README.markdown\x00"
+            b"X-c\xd6\xb7\xa8*\xfa\x13\x9e\xef\x83q\xbf^\x90\xe9UVQ"
+            b"100775 gitter/gitter.xml\x00"
+            b"\xecJ\xfa\xa3\\\xe1\x9fo\x93\x131I\xcb\xbf1h2\x00}n"
+            b"100775 gitter/script.py\x00"
+            b"\x1d\xd3\xec\x83\x94+\xbc\x04\xde\xee\x7f\xc6\xbe\x8b\x9cnp=W\xf9"
+        )
+
+        tree = dulwich.objects.Tree.from_raw_string(b"tree", raw_string)
+
+        dir_ = Directory(
+            entries=(
+                DirectoryEntry(
+                    name=b"AUTHORS",
+                    type="file",
+                    target=hash_to_bytes("7fde9841768149bb19884eff75edca01e104b181"),
+                    perms=0o100775,
+                ),
+                DirectoryEntry(
+                    name=b"COPYING",
+                    type="file",
+                    target=hash_to_bytes("d50a11d64fa528fc76b38192d18c053fe82241da"),
+                    perms=0o100775,
+                ),
+                DirectoryEntry(
+                    name=b"README.markdown",
+                    type="file",
+                    target=hash_to_bytes("582d63d6b7a82afa139eef8371bf5e90e9555651"),
+                    perms=0o100775,
+                ),
+                DirectoryEntry(
+                    name=b"gitter_gitter.xml",  # changed
+                    type="file",
+                    target=hash_to_bytes("ec4afaa35ce19f6f93133149cbbf316832007d6e"),
+                    perms=0o100775,
+                ),
+                DirectoryEntry(
+                    name=b"gitter_script.py",  # changed
+                    type="file",
+                    target=hash_to_bytes("1dd3ec83942bbc04deee7fc6be8b9c6e703d57f9"),
+                    perms=0o100775,
+                ),
+            ),
+            raw_manifest=b"tree 202\x00" + raw_string,
+        )
+        assert converters.dulwich_tree_to_directory(tree) == dir_
+
     def test_commit_to_revision(self):
         sha1 = b"9768d0b576dbaaecd80abedad6dfd0d72f1476da"
 
