@@ -31,7 +31,7 @@ happen between 1 worker and the backend api.
 ## 1
 
 A worker parses a repository.
-It sends the parsing result to the backend in muliple requests/responses.
+It sends the parsing result to the backend in multiple requests/responses.
 The worker sends list of sha1s (git sha1s) encountered.
 The server responds with an unknowns sha1s list.
 The worker sends those sha1s and their associated data to the server.
