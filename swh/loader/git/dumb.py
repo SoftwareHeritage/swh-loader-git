@@ -86,7 +86,7 @@ class GitObjectsFetcher:
         commit_objects = []
         for ref in wants:
             ref_object = self._get_git_object(ref)
-            if ref_object.get_type() == Commit.type_num:
+            if ref_object.type_num == Commit.type_num:
                 commit_objects.append(cast(Commit, ref_object))
                 self.objects[b"commit"].add(ref)
             else:

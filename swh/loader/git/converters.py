@@ -120,7 +120,9 @@ def dulwich_tree_to_directory(obj: ShaFile) -> Directory:
             DirectoryEntry(
                 type=type_,
                 perms=entry.mode,
-                name=entry.path,
+                name=entry.path.replace(
+                    b"/", b"_"
+                ),  # '/' is very rare, and invalid in SWH.
                 target=hash_to_bytes(entry.sha.decode("ascii")),
             )
         )
@@ -183,6 +185,7 @@ def dulwich_commit_to_revision(obj: ShaFile) -> Revision:
 
     author_timezone = None
     committer_timezone = None
+    assert commit._chunked_text is not None  # to keep mypy happy
     for (field, value) in _parse_message(commit._chunked_text):
         if field == b"author":
             m = AUTHORSHIP_LINE_RE.match(value)

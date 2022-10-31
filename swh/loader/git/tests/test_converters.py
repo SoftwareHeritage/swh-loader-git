@@ -189,14 +189,14 @@ class TestConverters:
     def test_weird_tree(self):
         """Tests a tree with entries the wrong order"""
 
-        raw_manifest = (
+        raw_string = (
             b"0644 file2\x00"
             b"d\x1f\xb6\xe0\x8d\xdb.O\xd0\x96\xdc\xf1\x8e\x80\xb8\x94\xbf~%\xce"
             b"0644 file1\x00"
             b"d\x1f\xb6\xe0\x8d\xdb.O\xd0\x96\xdc\xf1\x8e\x80\xb8\x94\xbf~%\xce"
         )
 
-        tree = dulwich.objects.Tree.from_raw_string(b"tree", raw_manifest)
+        tree = dulwich.objects.Tree.from_raw_string(b"tree", raw_string)
 
         assert converters.dulwich_tree_to_directory(tree) == Directory(
             entries=(
@@ -214,7 +214,7 @@ class TestConverters:
                     perms=0o644,
                 ),
             ),
-            raw_manifest=b"tree 62\x00" + raw_manifest,
+            raw_manifest=b"tree 62\x00" + raw_string,
         )
 
     def test_tree_perms(self):
@@ -243,6 +243,59 @@ class TestConverters:
                 for (name, perms, type) in entries
             )
         )
+
+    def test_tree_with_slashes(self):
+        raw_string = (
+            b"100775 AUTHORS\x00"
+            b"\x7f\xde\x98Av\x81I\xbb\x19\x88N\xffu\xed\xca\x01\xe1\x04\xb1\x81"
+            b"100775 COPYING\x00"
+            b'\xd5\n\x11\xd6O\xa5(\xfcv\xb3\x81\x92\xd1\x8c\x05?\xe8"A\xda'
+            b"100775 README.markdown\x00"
+            b"X-c\xd6\xb7\xa8*\xfa\x13\x9e\xef\x83q\xbf^\x90\xe9UVQ"
+            b"100775 gitter/gitter.xml\x00"
+            b"\xecJ\xfa\xa3\\\xe1\x9fo\x93\x131I\xcb\xbf1h2\x00}n"
+            b"100775 gitter/script.py\x00"
+            b"\x1d\xd3\xec\x83\x94+\xbc\x04\xde\xee\x7f\xc6\xbe\x8b\x9cnp=W\xf9"
+        )
+
+        tree = dulwich.objects.Tree.from_raw_string(b"tree", raw_string)
+
+        dir_ = Directory(
+            entries=(
+                DirectoryEntry(
+                    name=b"AUTHORS",
+                    type="file",
+                    target=hash_to_bytes("7fde9841768149bb19884eff75edca01e104b181"),
+                    perms=0o100775,
+                ),
+                DirectoryEntry(
+                    name=b"COPYING",
+                    type="file",
+                    target=hash_to_bytes("d50a11d64fa528fc76b38192d18c053fe82241da"),
+                    perms=0o100775,
+                ),
+                DirectoryEntry(
+                    name=b"README.markdown",
+                    type="file",
+                    target=hash_to_bytes("582d63d6b7a82afa139eef8371bf5e90e9555651"),
+                    perms=0o100775,
+                ),
+                DirectoryEntry(
+                    name=b"gitter_gitter.xml",  # changed
+                    type="file",
+                    target=hash_to_bytes("ec4afaa35ce19f6f93133149cbbf316832007d6e"),
+                    perms=0o100775,
+                ),
+                DirectoryEntry(
+                    name=b"gitter_script.py",  # changed
+                    type="file",
+                    target=hash_to_bytes("1dd3ec83942bbc04deee7fc6be8b9c6e703d57f9"),
+                    perms=0o100775,
+                ),
+            ),
+            raw_manifest=b"tree 202\x00" + raw_string,
+        )
+        assert converters.dulwich_tree_to_directory(tree) == dir_
 
     def test_commit_to_revision(self):
         sha1 = b"9768d0b576dbaaecd80abedad6dfd0d72f1476da"
@@ -438,13 +491,13 @@ class TestConverters:
         """Checks raw_manifest is set when the commit cannot fit the data model"""
 
         # Well-formed manifest
-        raw_manifest = (
+        raw_string = (
             b"tree 641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce\n"
             b"author Foo <foo@example.org> 1640191028 +0200\n"
             b"committer Foo <foo@example.org> 1640191028 +0200\n\n"
             b"some commit message"
         )
-        commit = dulwich.objects.Commit.from_raw_string(b"commit", raw_manifest)
+        commit = dulwich.objects.Commit.from_raw_string(b"commit", raw_string)
         date = TimestampWithTimezone(
             timestamp=Timestamp(seconds=1640191028, microseconds=0),
             offset_bytes=b"+0200",
@@ -466,8 +519,8 @@ class TestConverters:
         )
 
         # Mess with the offset
-        raw_manifest2 = raw_manifest.replace(b"+0200", b"+200")
-        commit = dulwich.objects.Commit.from_raw_string(b"commit", raw_manifest2)
+        raw_string2 = raw_string.replace(b"+0200", b"+200")
+        commit = dulwich.objects.Commit.from_raw_string(b"commit", raw_string2)
         date = TimestampWithTimezone(
             timestamp=Timestamp(seconds=1640191028, microseconds=0),
             offset_bytes=b"+200",
@@ -489,11 +542,11 @@ class TestConverters:
         )
 
         # Mess with the rest of the manifest
-        raw_manifest2 = raw_manifest.replace(
+        raw_string2 = raw_string.replace(
             b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce",
             b"641FB6E08DDB2E4FD096DCF18E80B894BF7E25CE",
         )
-        commit = dulwich.objects.Commit.from_raw_string(b"commit", raw_manifest2)
+        commit = dulwich.objects.Commit.from_raw_string(b"commit", raw_string2)
         date = TimestampWithTimezone(
             timestamp=Timestamp(seconds=1640191028, microseconds=0),
             offset_bytes=b"+0200",
@@ -511,7 +564,7 @@ class TestConverters:
             date=date,
             committer_date=date,
             type=RevisionType.GIT,
-            raw_manifest=b"commit 161\x00" + raw_manifest2,
+            raw_manifest=b"commit 161\x00" + raw_string2,
         )
 
     def test_author_line_to_author(self):
@@ -787,14 +840,14 @@ class TestConverters:
         """Checks raw_manifest is set when the tag cannot fit the data model"""
 
         # Well-formed manifest
-        raw_manifest = (
+        raw_string = (
             b"object 641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce\n"
             b"type commit\n"
             b"tag blah\n"
             b"tagger Foo <foo@example.org> 1640191027 +0200\n\n"
             b"some release message"
         )
-        tag = dulwich.objects.Tag.from_raw_string(b"tag", raw_manifest)
+        tag = dulwich.objects.Tag.from_raw_string(b"tag", raw_string)
         assert converters.dulwich_tag_to_release(tag) == Release(
             name=b"blah",
             message=b"some release message",
@@ -812,8 +865,8 @@ class TestConverters:
         )
 
         # Mess with the offset (negative UTC)
-        raw_manifest2 = raw_manifest.replace(b"+0200", b"-0000")
-        tag = dulwich.objects.Tag.from_raw_string(b"tag", raw_manifest2)
+        raw_string2 = raw_string.replace(b"+0200", b"-0000")
+        tag = dulwich.objects.Tag.from_raw_string(b"tag", raw_string2)
         assert converters.dulwich_tag_to_release(tag) == Release(
             name=b"blah",
             message=b"some release message",
@@ -830,8 +883,8 @@ class TestConverters:
         )
 
         # Mess with the offset (other)
-        raw_manifest2 = raw_manifest.replace(b"+0200", b"+200")
-        tag = dulwich.objects.Tag.from_raw_string(b"tag", raw_manifest2)
+        raw_string2 = raw_string.replace(b"+0200", b"+200")
+        tag = dulwich.objects.Tag.from_raw_string(b"tag", raw_string2)
         assert converters.dulwich_tag_to_release(tag) == Release(
             name=b"blah",
             message=b"some release message",
@@ -848,11 +901,11 @@ class TestConverters:
         )
 
         # Mess with the rest of the manifest
-        raw_manifest2 = raw_manifest.replace(
+        raw_string2 = raw_string.replace(
             b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce",
             b"641FB6E08DDB2E4FD096DCF18E80B894BF7E25CE",
         )
-        tag = dulwich.objects.Tag.from_raw_string(b"tag", raw_manifest2)
+        tag = dulwich.objects.Tag.from_raw_string(b"tag", raw_string2)
         assert converters.dulwich_tag_to_release(tag) == Release(
             name=b"blah",
             message=b"some release message",
@@ -866,5 +919,5 @@ class TestConverters:
                 timestamp=Timestamp(seconds=1640191027, microseconds=0),
                 offset_bytes=b"+0200",
             ),
-            raw_manifest=b"tag 136\x00" + raw_manifest2,
+            raw_manifest=b"tag 136\x00" + raw_string2,
         )
