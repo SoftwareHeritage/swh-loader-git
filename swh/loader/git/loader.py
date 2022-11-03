@@ -38,6 +38,7 @@ from .base import BaseGitLoader
 from .utils import HexBytes
 
 logger = logging.getLogger(__name__)
+heads_logger = logger.getChild("refs")
 
 
 class RepoRepresentation:
@@ -78,12 +79,19 @@ class RepoRepresentation:
         if not refs:
             return []
 
+        if heads_logger.isEnabledFor(logging.DEBUG):
+            heads_logger.debug("Heads returned by the git remote:")
+            for name, value in refs.items():
+                heads_logger.debug("    %r: %s", name, value.decode())
+
+        heads_logger.debug("Heads known in the archive:")
         # Cache existing heads
         local_heads: Set[HexBytes] = set()
         for base_snapshot in self.base_snapshots:
             for branch_name, branch in base_snapshot.branches.items():
                 if not branch or branch.target_type == TargetType.ALIAS:
                     continue
+                heads_logger.debug("    %r: %s", branch_name, branch.target.hex())
                 local_heads.add(HexBytes(hashutil.hash_to_bytehex(branch.target)))
 
         self.heads = local_heads
