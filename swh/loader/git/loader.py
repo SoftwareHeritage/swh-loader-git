@@ -326,7 +326,7 @@ class GitLoader(BaseGitLoader):
         if self.dumb:
             self.dumb_fetcher = dumb.GitObjectsFetcher(self.origin.url, base_repo)
             self.dumb_fetcher.fetch_object_ids()
-            self.remote_refs = utils.filter_refs(self.dumb_fetcher.refs)  # type: ignore
+            self.remote_refs = utils.filter_refs(self.dumb_fetcher.refs)
             self.symbolic_refs = self.dumb_fetcher.head
         else:
             self.pack_buffer = fetch_info.pack_buffer

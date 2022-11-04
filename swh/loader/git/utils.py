@@ -10,7 +10,7 @@ import logging
 import os
 import shutil
 import tempfile
-from typing import Dict, NewType, Optional
+from typing import Dict, Mapping, NewType, Optional, Union
 
 from swh.core import tarball
 from swh.model.model import SnapshotBranch
@@ -93,7 +93,7 @@ def ignore_branch_name(branch_name: bytes) -> bool:
     return False
 
 
-def filter_refs(refs: Dict[bytes, bytes]) -> Dict[bytes, HexBytes]:
+def filter_refs(refs: Mapping[bytes, Union[bytes, HexBytes]]) -> Dict[bytes, HexBytes]:
     """Filter the refs dictionary using the policy set in `ignore_branch_name`"""
     return {
         name: HexBytes(target)
