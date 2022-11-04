@@ -102,7 +102,7 @@ class GitObjectsFetcher:
                     # commit not already seen in the current load
                     parent not in self.objects[b"commit"]
                     # commit not already archived by a previous load
-                    and parent not in self.base_repo.heads
+                    and parent not in self.base_repo.local_heads
                 ):
                     commit_objects.append(cast(Commit, self._get_git_object(parent)))
                     self.objects[b"commit"].add(parent)
