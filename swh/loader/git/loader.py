@@ -3,6 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+from collections import defaultdict
 from dataclasses import dataclass
 import datetime
 import logging
@@ -326,8 +327,8 @@ class GitLoader(BaseGitLoader):
         if self.dumb:
             self.dumb_fetcher = dumb.GitObjectsFetcher(self.origin.url, base_repo)
             self.dumb_fetcher.fetch_object_ids()
-            self.remote_refs = utils.filter_refs(self.dumb_fetcher.refs)  # type: ignore
-            self.symbolic_refs = self.dumb_fetcher.head
+            self.remote_refs = utils.filter_refs(self.dumb_fetcher.refs)
+            self.symbolic_refs = utils.filter_refs(self.dumb_fetcher.head)
         else:
             self.pack_buffer = fetch_info.pack_buffer
             self.pack_size = fetch_info.pack_size
@@ -495,6 +496,47 @@ class GitLoader(BaseGitLoader):
                 branches[ref_name] = branch
                 if not branch:
                     unknown_objects[ref_name] = target
+
+            if unknown_objects and self.base_snapshots:
+                # The remote has sent us a partial packfile. It will have skipped
+                # objects that it knows are ancestors of the heads we have sent as
+                # known. We can look these objects up in the archive, as they should
+                # have had all their ancestors loaded when the previous snapshot was
+                # loaded.
+                refs_for_target = defaultdict(list)
+                for ref_name, target in unknown_objects.items():
+                    refs_for_target[target].append(ref_name)
+
+                targets_unknown = set(refs_for_target)
+
+                for method, target_type in (
+                    (self.storage.revision_missing, TargetType.REVISION),
+                    (self.storage.release_missing, TargetType.RELEASE),
+                    (self.storage.directory_missing, TargetType.DIRECTORY),
+                    (self.storage.content_missing_per_sha1_git, TargetType.CONTENT),
+                ):
+                    missing = set(method(list(targets_unknown)))
+                    known = targets_unknown - missing
+
+                    for target in known:
+                        for ref_name in refs_for_target[target]:
+                            logger.debug(
+                                "Inferred type %s for branch %s pointing at unfetched %s",
+                                target_type.name,
+                                ref_name.decode(),
+                                hashutil.hash_to_hex(target),
+                                extra={
+                                    "swh_type": "swh_loader_git_inferred_target_type"
+                                },
+                            )
+                            branches[ref_name] = SnapshotBranch(
+                                target=target, target_type=target_type
+                            )
+                            del unknown_objects[ref_name]
+
+                    targets_unknown = missing
+                    if not targets_unknown:
+                        break
 
             if unknown_objects:
                 # This object was referenced by the server; We did not fetch
