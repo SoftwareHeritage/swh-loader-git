@@ -6,6 +6,7 @@
 import datetime
 from functools import partial
 from http.server import HTTPServer, SimpleHTTPRequestHandler
+import logging
 import os
 import subprocess
 import sys
@@ -26,14 +27,7 @@ from swh.loader.tests import (
     get_stats,
     prepare_repository_from_archive,
 )
-from swh.model.model import (
-    Origin,
-    OriginVisit,
-    OriginVisitStatus,
-    Snapshot,
-    SnapshotBranch,
-    TargetType,
-)
+from swh.model.model import Origin, OriginVisit, OriginVisitStatus, Snapshot
 
 
 class CommonGitLoaderNotFound:
@@ -224,6 +218,26 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             "has_previous_snapshot": False,
             "has_parent_origins": False,
         }
+
+    def test_load_incremental_partial_history(self, caplog):
+        with caplog.at_level(logging.DEBUG, logger="swh.loader.git.loader"):
+            super().test_load_incremental_partial_history()
+
+        # Check that we've indeed inferred the target type for one of the snapshot
+        # branches
+        for record in caplog.records:
+            if (
+                hasattr(record, "swh_type")
+                and record.swh_type == "swh_loader_git_inferred_target_type"
+            ):
+                assert record.args == (
+                    "REVISION",
+                    "refs/heads/master",
+                    SNAPSHOT1.branches[b"refs/heads/master"].target.hex(),
+                )
+                break
+        else:
+            assert False, "did not find log message for inferred branch target type"
 
 
 class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
@@ -563,56 +577,6 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
             call("git_known_refs_percent", "h", expected_git_known_refs_percent, {}, 1),
         ]
-
-    def test_load_incremental_negotiation(self):
-        """Check that the packfile negotiated when running an incremental load only
-        contains the "new" commits, and not all objects."""
-
-        snapshot_id = b"\x01" * 20
-        now = datetime.datetime.now(tz=datetime.timezone.utc)
-
-        def ovgl(origin_url, allowed_statuses, require_snapshot, type):
-            if origin_url == f"base://{self.repo_url}":
-                return OriginVisit(origin=origin_url, visit=42, date=now, type="git")
-            else:
-                return None
-
-        self.loader.storage.origin_visit_get_latest.side_effect = ovgl
-        self.loader.storage.origin_visit_status_get_latest.return_value = (
-            OriginVisitStatus(
-                origin=f"base://{self.repo_url}",
-                visit=42,
-                snapshot=snapshot_id,
-                date=now,
-                status="full",
-            )
-        )
-        self.loader.storage.snapshot_get_branches.return_value = {
-            "id": snapshot_id,
-            "branches": {
-                b"refs/heads/master": SnapshotBranch(
-                    # id of the initial commit in the git repository fixture
-                    target=bytes.fromhex("b6f40292c4e94a8f7e7b4aff50e6c7429ab98e2a"),
-                    target_type=TargetType.REVISION,
-                ),
-            },
-            "next_branch": None,
-        }
-
-        res = self.loader.load()
-        assert res == {"status": "eventful"}
-
-        stats = get_stats(self.loader.storage)
-        assert stats == {
-            "content": 3,  # instead of 4 for the full repository
-            "directory": 6,  # instead of 7
-            "origin": 1,
-            "origin_visit": 1,
-            "release": 0,
-            "revision": 6,  # instead of 7
-            "skipped_content": 0,
-            "snapshot": 1,
-        }
 
 
 class DumbGitLoaderTestBase(FullGitLoaderTests):
