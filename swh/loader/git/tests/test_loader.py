@@ -26,7 +26,14 @@ from swh.loader.tests import (
     get_stats,
     prepare_repository_from_archive,
 )
-from swh.model.model import Origin, OriginVisit, OriginVisitStatus, Snapshot
+from swh.model.model import (
+    Origin,
+    OriginVisit,
+    OriginVisitStatus,
+    Snapshot,
+    SnapshotBranch,
+    TargetType,
+)
 
 
 class CommonGitLoaderNotFound:
@@ -556,6 +563,56 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
             call("git_known_refs_percent", "h", expected_git_known_refs_percent, {}, 1),
         ]
+
+    def test_load_incremental_negotiation(self):
+        """Check that the packfile negotiated when running an incremental load only
+        contains the "new" commits, and not all objects."""
+
+        snapshot_id = b"\x01" * 20
+        now = datetime.datetime.now(tz=datetime.timezone.utc)
+
+        def ovgl(origin_url, allowed_statuses, require_snapshot, type):
+            if origin_url == f"base://{self.repo_url}":
+                return OriginVisit(origin=origin_url, visit=42, date=now, type="git")
+            else:
+                return None
+
+        self.loader.storage.origin_visit_get_latest.side_effect = ovgl
+        self.loader.storage.origin_visit_status_get_latest.return_value = (
+            OriginVisitStatus(
+                origin=f"base://{self.repo_url}",
+                visit=42,
+                snapshot=snapshot_id,
+                date=now,
+                status="full",
+            )
+        )
+        self.loader.storage.snapshot_get_branches.return_value = {
+            "id": snapshot_id,
+            "branches": {
+                b"refs/heads/master": SnapshotBranch(
+                    # id of the initial commit in the git repository fixture
+                    target=bytes.fromhex("b6f40292c4e94a8f7e7b4aff50e6c7429ab98e2a"),
+                    target_type=TargetType.REVISION,
+                ),
+            },
+            "next_branch": None,
+        }
+
+        res = self.loader.load()
+        assert res == {"status": "eventful"}
+
+        stats = get_stats(self.loader.storage)
+        assert stats == {
+            "content": 3,  # instead of 4 for the full repository
+            "directory": 6,  # instead of 7
+            "origin": 1,
+            "origin_visit": 1,
+            "release": 0,
+            "revision": 6,  # instead of 7
+            "skipped_content": 0,
+            "snapshot": 1,
+        }
 
 
 class DumbGitLoaderTestBase(FullGitLoaderTests):

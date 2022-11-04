@@ -38,6 +38,7 @@ from .base import BaseGitLoader
 from .utils import HexBytes
 
 logger = logging.getLogger(__name__)
+heads_logger = logger.getChild("refs")
 
 
 class RepoRepresentation:
@@ -59,14 +60,18 @@ class RepoRepresentation:
         else:
             self.base_snapshots = []
 
-        self.heads: Set[HexBytes] = set()
-
-    def get_parents(self, commit: bytes) -> List[bytes]:
-        """This method should return the list of known parents"""
-        return []
+        # Cache existing heads
+        self.local_heads: Set[HexBytes] = set()
+        heads_logger.debug("Heads known in the archive:")
+        for base_snapshot in self.base_snapshots:
+            for branch_name, branch in base_snapshot.branches.items():
+                if not branch or branch.target_type == TargetType.ALIAS:
+                    continue
+                heads_logger.debug("    %r: %s", branch_name, branch.target.hex())
+                self.local_heads.add(HexBytes(hashutil.hash_to_bytehex(branch.target)))
 
     def graph_walker(self) -> ObjectStoreGraphWalker:
-        return ObjectStoreGraphWalker(self.heads, self.get_parents)
+        return ObjectStoreGraphWalker(self.local_heads, get_parents=lambda commit: [])
 
     def determine_wants(self, refs: Dict[bytes, HexBytes]) -> List[HexBytes]:
         """Get the list of bytehex sha1s that the git loader should fetch.
@@ -78,15 +83,10 @@ class RepoRepresentation:
         if not refs:
             return []
 
-        # Cache existing heads
-        local_heads: Set[HexBytes] = set()
-        for base_snapshot in self.base_snapshots:
-            for branch_name, branch in base_snapshot.branches.items():
-                if not branch or branch.target_type == TargetType.ALIAS:
-                    continue
-                local_heads.add(HexBytes(hashutil.hash_to_bytehex(branch.target)))
-
-        self.heads = local_heads
+        if heads_logger.isEnabledFor(logging.DEBUG):
+            heads_logger.debug("Heads returned by the git remote:")
+            for name, value in refs.items():
+                heads_logger.debug("    %r: %s", name, value.decode())
 
         # Get the remote heads that we want to fetch
         remote_heads: Set[HexBytes] = set()
@@ -95,9 +95,9 @@ class RepoRepresentation:
                 continue
             remote_heads.add(ref_target)
 
-        logger.debug("local_heads_count=%s", len(local_heads))
+        logger.debug("local_heads_count=%s", len(self.local_heads))
         logger.debug("remote_heads_count=%s", len(remote_heads))
-        wanted_refs = list(remote_heads - local_heads)
+        wanted_refs = list(remote_heads - self.local_heads)
         logger.debug("wanted_refs_count=%s", len(wanted_refs))
         if self.statsd is not None:
             self.statsd.histogram(
@@ -107,7 +107,7 @@ class RepoRepresentation:
             )
             self.statsd.histogram(
                 "git_known_refs_percent",
-                len(local_heads & remote_heads) / len(remote_heads),
+                len(self.local_heads & remote_heads) / len(remote_heads),
                 tags={},
             )
         return wanted_refs
