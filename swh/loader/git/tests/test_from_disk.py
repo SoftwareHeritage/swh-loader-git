@@ -6,12 +6,14 @@
 import copy
 import datetime
 import os.path
+from unittest.mock import patch
 
 import dulwich.objects
 import dulwich.porcelain
 import dulwich.repo
 import pytest
 
+from swh.loader.git import utils
 from swh.loader.git.from_disk import GitLoaderFromArchive, GitLoaderFromDisk
 from swh.loader.tests import (
     assert_last_visit_matches,
@@ -206,6 +208,52 @@ class CommonGitLoaderTests:
             type="git",
             snapshot=None,
         )
+
+    def test_load_incremental_partial_history(self):
+        """Check that loading a partial snapshot, then negotiating a full snapshot, works."""
+
+        # We pick this branch because it contains the target of the refs/heads/master
+        # branch of the full snapshot in its history
+
+        interesting_branch = b"refs/tags/branch2-before-delete"
+        partial_snapshot = Snapshot(
+            branches={interesting_branch: SNAPSHOT1.branches[interesting_branch]}
+        )
+
+        with patch.object(
+            utils,
+            "ignore_branch_name",
+            lambda name: name != interesting_branch,
+        ), patch.object(
+            utils,
+            "filter_refs",
+            lambda refs: {
+                ref_name: utils.HexBytes(target)
+                for ref_name, target in refs.items()
+                if ref_name == interesting_branch
+            },
+        ):
+            # Ensure that only the interesting branch is loaded
+            res = self.loader.load()
+
+        assert res == {"status": "eventful"}
+
+        assert self.loader.storage.snapshot_get_branches(partial_snapshot.id)
+
+        res = self.loader.load()
+        assert res == {"status": "eventful"}
+
+        stats = get_stats(self.loader.storage)
+        assert stats == {
+            "content": 4,
+            "directory": 7,
+            "origin": 1,
+            "origin_visit": 2,
+            "release": 0,
+            "revision": 7,
+            "skipped_content": 0,
+            "snapshot": 2,
+        }
 
 
 class FullGitLoaderTests(CommonGitLoaderTests):
