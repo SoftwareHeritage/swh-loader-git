@@ -317,6 +317,7 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             symbolic_refs={},
             pack_buffer=SpooledTemporaryFile(),
             pack_size=0,
+            continue_fetch_refs=False,
         )
         self.loader.dumb = False
         assert self.loader.load() == {"status": "uneventful"}
@@ -424,6 +425,7 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             symbolic_refs={},
             pack_buffer=buffer,
             pack_size=buffer.getbuffer().nbytes,
+            continue_fetch_refs=False,
         )
 
         statsd_calls = statsd_report.mock_calls
@@ -911,7 +913,7 @@ class DumbGitLoaderTestBase(FullGitLoaderTests):
 
         # bare repository with dumb protocol only URL
         self.repo_url = f"http://{httpd.server_name}:{httpd.server_port}/{repo_name}"
-        self.loader = DumbGitLoaderTest(swh_storage, self.repo_url)
+        self.loader = DumbGitLoaderTest(swh_storage, self.repo_url, dumb=True)
         self.repo = repo
 
         yield

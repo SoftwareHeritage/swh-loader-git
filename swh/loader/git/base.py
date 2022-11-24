@@ -24,6 +24,12 @@ class BaseGitLoader(BaseLoader):
     Those loaders are able to load all the data in one go.
     """
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.counts: Dict[str, int] = collections.defaultdict(int)
+        self.storage_summary: Dict[str, int] = collections.Counter()
+
     def cleanup(self) -> None:
         """Clean up an eventual state installed for computations."""
         pass
@@ -68,49 +74,47 @@ class BaseGitLoader(BaseLoader):
         """Whether the load was eventful"""
         raise NotImplementedError
 
-    def store_data(self) -> None:
+    def store_data(self, with_final_snapshot: bool = True) -> None:
         assert self.origin
         if self.save_data_path:
             self.save_data()
 
-        counts: Dict[str, int] = collections.defaultdict(int)
-        storage_summary: Dict[str, int] = collections.Counter()
-
         if self.has_contents():
             for obj in self.get_contents():
                 if isinstance(obj, Content):
-                    counts["content"] += 1
-                    storage_summary.update(self.storage.content_add([obj]))
+                    self.counts["content"] += 1
+                    self.storage_summary.update(self.storage.content_add([obj]))
                 elif isinstance(obj, SkippedContent):
-                    counts["skipped_content"] += 1
-                    storage_summary.update(self.storage.skipped_content_add([obj]))
+                    self.counts["skipped_content"] += 1
+                    self.storage_summary.update(self.storage.skipped_content_add([obj]))
                 else:
                     raise TypeError(f"Unexpected content type: {obj}")
 
         if self.has_directories():
             for directory in self.get_directories():
-                counts["directory"] += 1
-                storage_summary.update(self.storage.directory_add([directory]))
+                self.counts["directory"] += 1
+                self.storage_summary.update(self.storage.directory_add([directory]))
 
         if self.has_revisions():
             for revision in self.get_revisions():
-                counts["revision"] += 1
-                storage_summary.update(self.storage.revision_add([revision]))
+                self.counts["revision"] += 1
+                self.storage_summary.update(self.storage.revision_add([revision]))
 
         if self.has_releases():
             for release in self.get_releases():
-                counts["release"] += 1
-                storage_summary.update(self.storage.release_add([release]))
+                self.counts["release"] += 1
+                self.storage_summary.update(self.storage.release_add([release]))
 
-        snapshot = self.get_snapshot()
-        counts["snapshot"] += 1
-        storage_summary.update(self.storage.snapshot_add([snapshot]))
+        if with_final_snapshot:
+            snapshot = self.get_snapshot()
+            self.counts["snapshot"] += 1
+            self.storage_summary.update(self.storage.snapshot_add([snapshot]))
+            self.loaded_snapshot_id = snapshot.id
 
-        storage_summary.update(self.flush())
-        self.loaded_snapshot_id = snapshot.id
+        self.storage_summary.update(self.flush())
 
-        for (object_type, total) in counts.items():
-            filtered = total - storage_summary[f"{object_type}:add"]
+        for (object_type, total) in self.counts.items():
+            filtered = total - self.storage_summary[f"{object_type}:add"]
             assert 0 <= filtered <= total, (filtered, total)
 
             if total == 0:
@@ -131,6 +135,9 @@ class BaseGitLoader(BaseLoader):
 
         self.log.info(
             "Fetched %d objects; %d are new",
-            sum(counts.values()),
-            sum(storage_summary[f"{object_type}:add"] for object_type in counts),
+            sum(self.counts.values()),
+            sum(
+                self.storage_summary[f"{object_type}:add"]
+                for object_type in self.counts
+            ),
         )

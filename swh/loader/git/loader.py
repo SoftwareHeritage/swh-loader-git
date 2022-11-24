@@ -100,6 +100,7 @@ class BaseRepoRepresentation:
                 self.local_heads.add(HexBytes(hashutil.hash_to_bytehex(branch.target)))
 
         self.walker = ObjectStoreGraphWalker(self.local_heads, lambda commit: [])
+        self.target_to_refs: defaultdict = defaultdict(list)
 
     def compute_wanted_refs(self, refs: Dict[bytes, HexBytes]) -> List[HexBytes]:
         """Get the list of bytehex sha1s that the git loader should fetch.
@@ -121,7 +122,6 @@ class BaseRepoRepresentation:
         branch_names = set()
         # remote heads is just all refs without order
         remote_heads = set()
-        target_to_ref = defaultdict(list)
         for ref_name, ref_target in refs.items():
             # Ignore either usual branch to ignore or known references
             if utils.ignore_branch_name(ref_name) or ref_target in self.local_heads:
@@ -133,7 +133,7 @@ class BaseRepoRepresentation:
                 branch_names.add(ref_name)
 
             remote_heads.add(ref_target)
-            target_to_ref[ref_target].append(ref_name)
+            self.target_to_refs[ref_target].append(ref_name)
 
         logger.debug("local_heads_count=%s", len(self.local_heads))
         logger.debug("remote_heads_count=%s", len(remote_heads))
@@ -149,7 +149,7 @@ class BaseRepoRepresentation:
             heads_logger.debug("Ordered wanted heads returned by the git remote:")
             for ref_target in wanted_refs:
                 heads_logger.debug(
-                    "    %r: %s", target_to_ref[ref_target], ref_target.decode()
+                    "    %r: %s", self.target_to_refs[ref_target], ref_target.decode()
                 )
 
         logger.debug("wanted_refs_count=%s", len(wanted_refs))
@@ -171,7 +171,7 @@ class BaseRepoRepresentation:
             )
         return wanted_refs
 
-    def confinue_fetch_refs(self) -> bool:
+    def continue_fetch_refs(self) -> bool:
         """Determine whether we are done fetching all refs."""
         return False
 
@@ -185,6 +185,10 @@ class BaseRepoRepresentation:
 
         """
         raise NotImplementedError
+
+    def ref_names(self, ref: HexBytes) -> List[bytes]:
+        """Given a reference, return the reference names"""
+        return self.target_to_refs.get(ref, [])
 
 
 class RepoRepresentation(BaseRepoRepresentation):
@@ -229,9 +233,9 @@ class RepoRepresentationPaginated(BaseRepoRepresentation):
         self.index: int = 0
         self.number_of_heads_per_packfile = number_of_heads_per_packfile
         self.wanted_refs: Optional[List[HexBytes]] = None
-        self.previous_refs: List[HexBytes] = []
+        self.asked_refs: List[HexBytes] = []
 
-    def confinue_fetch_refs(self) -> bool:
+    def continue_fetch_refs(self) -> bool:
         """Determine whether we need to fetch other refs or not."""
         return self.wanted_refs is None or self.index < len(self.wanted_refs)
 
@@ -267,8 +271,8 @@ class RepoRepresentationPaginated(BaseRepoRepresentation):
         if start > 0:
             # Previous refs was already walked so we can remove them from the next walk
             # iteration to avoid processing them again
-            self.walker.heads.update(self.previous_refs)
-        self.previous_refs = asked_refs
+            self.walker.heads.update(self.asked_refs)
+        self.asked_refs = asked_refs
         logger.debug("asked_refs_count=%s", len(asked_refs))
         return asked_refs
 
@@ -279,7 +283,7 @@ class FetchPackReturn:
     symbolic_refs: Dict[bytes, HexBytes]
     pack_buffer: SpooledTemporaryFile
     pack_size: int
-    confinue_fetch_refs: bool
+    continue_fetch_refs: bool
     """Determine whether we still have to fetch remaining references."""
 
 
@@ -316,8 +320,9 @@ class GitLoader(BaseGitLoader):
         incremental: bool = True,
         pack_size_bytes: int = 4 * 1024 * 1024 * 1024,
         temp_file_cutoff: int = 100 * 1024 * 1024,
-        fetch_multiple_packfiles: bool = False,
+        fetch_multiple_packfiles: bool = True,
         number_of_heads_per_packfile: int = DEFAULT_NUMBER_OF_HEADS_PER_PACKFILE,
+        dumb: bool = False,
         **kwargs: Any,
     ):
         """Initialize the bulk updater.
@@ -325,13 +330,15 @@ class GitLoader(BaseGitLoader):
         Args:
             incremental: If True, the default, this starts from the last known snapshot
                 (if any) references. Otherwise, this loads the full repository.
-            fetch_multiple_packfiles: If True, this ingests the repository using
-              (internally) multiple packfiles (creating partial incremental snapshots
-              along the way). When False, the default, this uses the existing ingestion
-              policy of retrieving one packfile to ingest.
+            fetch_multiple_packfiles: If True, and the protocol used to read git refs is
+              the smart protocol, this ingests the repository using (internally)
+              multiple packfiles (creating partial incremental snapshots along the way).
+              When False, this uses the existing ingestion policy of retrieving one
+              packfile to ingest.
             number_of_heads_per_packfile: When fetch_multiple_packfiles is used, this
-              splits packfiles per a given number of heads (no guarantee on the used
-              size).
+              splits packfiles per a given number of head references (there is no
+              guarantee on the packfile size though as the refs fetched are just the
+              head).
 
         """
         super().__init__(storage=storage, origin_url=url, **kwargs)
@@ -342,9 +349,15 @@ class GitLoader(BaseGitLoader):
         self.client, self.path = dulwich.client.get_transport_and_path(
             url, thin_packs=False
         )
-        logger.debug("Client %s to fetch pack at %s", self.client, self.path)
-        self.dumb = url.startswith("http") and getattr(self.client, "dumb", False)
-        self.fetch_multiple_packfiles = fetch_multiple_packfiles
+        self.dumb = dumb or (
+            url.startswith("http") and getattr(self.client, "dumb", False)
+        )
+        logger.debug(
+            "Client %s to fetch pack at %s with protocol %s",
+            self.client,
+            self.path,
+            "dumb" if self.dumb else "smart",
+        )
         self.incremental = incremental
         self.pack_size_bytes = pack_size_bytes
         self.temp_file_cutoff = temp_file_cutoff
@@ -370,14 +383,23 @@ class GitLoader(BaseGitLoader):
         """
         # will create partial snapshot alongside fetching multiple packfiles (when the
         # transfer protocol is not the 'dumb' one)
-        self.create_partial_snapshot = not self.dumb and fetch_multiple_packfiles
         self.number_of_heads_per_packfile: Optional[int] = None
-        self.repo_representation: Type[BaseRepoRepresentation]
-        if self.create_partial_snapshot:
-            self.repo_representation = RepoRepresentationPaginated
-            self.number_of_heads_per_packfile = number_of_heads_per_packfile
+        self.repo_representation: Type[BaseRepoRepresentation] = RepoRepresentation
+
+        if self.dumb:  # Ignore fetching multiple packfiles
+            self.fetch_multiple_packfiles = self.create_partial_snapshot = False
         else:
-            self.repo_representation = RepoRepresentation
+            self.fetch_multiple_packfiles = fetch_multiple_packfiles
+            self.create_partial_snapshot = fetch_multiple_packfiles
+
+            if self.fetch_multiple_packfiles:
+                self.number_of_heads_per_packfile = number_of_heads_per_packfile
+                self.repo_representation = RepoRepresentationPaginated
+                logger.debug(
+                    "Client %s configured to create partial snapshot and fetch %s per packfile",
+                    self.client,
+                    self.number_of_heads_per_packfile,
+                )
 
     def fetch_pack_from_origin(
         self,
@@ -410,21 +432,39 @@ class GitLoader(BaseGitLoader):
             progress=do_activity,
         )
 
-        remote_refs = pack_result.refs or {}
-        symbolic_refs = pack_result.symrefs or {}
-
         pack_buffer.flush()
         pack_size = pack_buffer.tell()
         pack_buffer.seek(0)
 
         logger.debug("fetched_pack_size=%s", pack_size)
 
+        symbolic_refs = pack_result.symrefs or {}
+        if not self.fetch_multiple_packfiles:
+            # No incremeental fetch, so all refs from the packfile will be ingested, we
+            # take them all as is
+            remote_refs = pack_result.refs or {}
+        else:
+            # Refs will be fetched incrementally in multiple packfiles
+            # self.client.fetch_pack still returns all refs so we filter only on the
+            # refs that will be currently ingested. The loader will still create a
+            # partial snapshot will all the refs seen so far.
+            remote_refs = {}
+
+            assert isinstance(self.base_repo, RepoRepresentationPaginated)
+
+            # Retrieve what's currently
+            for ref in list(self.base_repo.asked_refs):
+                ref_names = self.base_repo.ref_names(ref)
+                for ref_name in ref_names:
+                    if ref_name in pack_result.refs:
+                        remote_refs[ref_name] = pack_result.refs[ref_name]
+
         return FetchPackReturn(
             remote_refs=remote_refs,
             symbolic_refs=symbolic_refs,
             pack_buffer=pack_buffer,
             pack_size=pack_size,
-            confinue_fetch_refs=self.base_repo.confinue_fetch_refs(),
+            continue_fetch_refs=self.base_repo.continue_fetch_refs(),
         )
 
     def get_full_snapshot(self, origin_url) -> Optional[Snapshot]:
@@ -481,7 +521,7 @@ class GitLoader(BaseGitLoader):
 
         try:
             fetch_info = self.fetch_pack_from_origin(self.origin.url, do_print_progress)
-            continue_fetch_refs = fetch_info.confinue_fetch_refs
+            continue_fetch_refs = fetch_info.continue_fetch_refs
         except (dulwich.client.HTTPUnauthorized, NotGitRepository) as e:
             raise NotFound(e)
         except GitProtocolError as e:
@@ -506,23 +546,22 @@ class GitLoader(BaseGitLoader):
                 raise
 
         if self.dumb:
-            protocol = "dumb"
             self.dumb_fetcher = dumb.GitObjectsFetcher(self.origin.url, self.base_repo)
             self.dumb_fetcher.fetch_object_ids()
             remote_refs = self.dumb_fetcher.refs
             symbolic_refs = self.dumb_fetcher.head
         else:
-            protocol = "smart"
             self.pack_buffer = fetch_info.pack_buffer
             self.pack_size = fetch_info.pack_size
             remote_refs = fetch_info.remote_refs
             symbolic_refs = fetch_info.symbolic_refs
 
-        logger.debug("Protocol used for communication: %s", protocol)
-
         # So the partial snapshot and the final ones creates the full branches
         self.remote_refs.update(utils.filter_refs(remote_refs))
         self.symbolic_refs.update(utils.filter_refs(symbolic_refs))
+
+        logger.debug("incremental_remote_refs_len: %s", len(self.remote_refs))
+        logger.debug("incremental_remote_symbolic_len: %s", len(self.symbolic_refs))
 
         for sha1 in self.remote_refs.values():
             if sha1 in self.ref_object_types:
@@ -540,6 +579,11 @@ class GitLoader(BaseGitLoader):
             },
         )
 
+        # If we fetch multiple packfiles and we have more data to fetch, we'll create a
+        # partial snapshot
+        self.with_partial_snapshot = (
+            self.create_partial_snapshot and continue_fetch_refs
+        )
         return continue_fetch_refs
 
     def save_data(self) -> None:
@@ -632,14 +676,24 @@ class GitLoader(BaseGitLoader):
 
     def build_partial_snapshot(self) -> Optional[Snapshot]:
         # Current implementation makes it a simple call to existing :meth:`get_snapshot`
-        return self.get_snapshot()
+        assert self.with_partial_snapshot is True
+        snapshot = self.get_snapshot()
+        # Update summary stats (from base git loader)
+        self.counts["snapshot"] += 1
+        # HACK: This call should be happening on its own in the loader core but to
+        # update stats as expected by the base git loader and not complicating further
+        # the code we are calling it here.
+        self.storage_summary.update(self.storage.snapshot_add([snapshot]))
+
+        logger.debug("partial snapshot number of branches: %s", len(snapshot.branches))
+        return snapshot
 
     def store_data(self):
         """Override the default implementation so we make sure to close the pack_buffer
         if we use one in between loop (dumb loader does not actually one for example).
 
         """
-        super().store_data()
+        super().store_data(with_final_snapshot=not self.with_partial_snapshot)
 
         if not self.dumb:
             self.pack_buffer.close()
