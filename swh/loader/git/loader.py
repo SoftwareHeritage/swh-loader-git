@@ -521,9 +521,9 @@ class GitLoader(BaseGitLoader):
                     for target in known:
                         for ref_name in refs_for_target[target]:
                             logger.debug(
-                                "Inferred type %s for branch %s pointing at unfetched %s",
+                                "Inferred type %s for branch %r pointing at unfetched %s",
                                 target_type.name,
-                                ref_name.decode(),
+                                ref_name,
                                 hashutil.hash_to_hex(target),
                                 extra={
                                     "swh_type": "swh_loader_git_inferred_target_type"
@@ -546,7 +546,7 @@ class GitLoader(BaseGitLoader):
                     "Unknown objects referenced by remote refs: %s"
                     % (
                         ", ".join(
-                            f"{name.decode()}: {hashutil.hash_to_hex(obj)}"
+                            f"{name!r}: {hashutil.hash_to_hex(obj)}"
                             for name, obj in unknown_objects.items()
                         )
                     )

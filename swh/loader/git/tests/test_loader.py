@@ -232,7 +232,7 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             ):
                 assert record.args == (
                     "REVISION",
-                    "refs/heads/master",
+                    b"refs/heads/master",
                     SNAPSHOT1.branches[b"refs/heads/master"].target.hex(),
                 )
                 break
