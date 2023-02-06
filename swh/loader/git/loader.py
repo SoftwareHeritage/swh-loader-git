@@ -378,7 +378,7 @@ class GitLoader(BaseGitLoader):
         """Read all the objects of type `object_type` from the packfile"""
         if self.dumb:
             yield from self.dumb_fetcher.iter_objects(object_type)
-        else:
+        elif self.pack_size > 0:
             self.pack_buffer.seek(0)
             count = 0
             for obj in PackInflater.for_pack_data(
@@ -563,7 +563,6 @@ class GitLoader(BaseGitLoader):
         """The load was eventful if the current snapshot is different to
         the one we retrieved at the beginning of the run"""
         eventful = False
-
         if self.prev_snapshot and self.snapshot:
             eventful = self.snapshot.id != self.prev_snapshot.id
         elif self.snapshot:

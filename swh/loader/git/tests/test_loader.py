@@ -20,7 +20,7 @@ import dulwich.repo
 import pytest
 
 from swh.loader.git import converters, dumb
-from swh.loader.git.loader import GitLoader
+from swh.loader.git.loader import GitLoader, FetchPackReturn
 from swh.loader.git.tests.test_from_disk import SNAPSHOT1, FullGitLoaderTests
 from swh.loader.tests import (
     assert_last_visit_matches,
@@ -238,6 +238,19 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
                 break
         else:
             assert False, "did not find log message for inferred branch target type"
+
+    def test_loader_empty_pack_file(self, mocker):
+        fetch_pack_from_origin = mocker.patch.object(
+            self.loader, "fetch_pack_from_origin"
+        )
+        fetch_pack_from_origin.return_value = FetchPackReturn(
+            remote_refs={},
+            symbolic_refs={},
+            pack_buffer=SpooledTemporaryFile(),
+            pack_size=0,
+        )
+        self.loader.dumb = False
+        assert self.loader.load() == {"status": "uneventful"}
 
 
 class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
