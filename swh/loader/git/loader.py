@@ -11,19 +11,37 @@ import os
 import pickle
 import sys
 from tempfile import SpooledTemporaryFile
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Set, Type
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+)
 
 import dulwich.client
 from dulwich.errors import GitProtocolError, NotGitRepository
 from dulwich.object_store import ObjectStoreGraphWalker
-from dulwich.objects import ShaFile
+from dulwich.objects import Blob, Commit, ShaFile, Tag, Tree
 from dulwich.pack import PackData, PackInflater
 
 from swh.core.statsd import Statsd
 from swh.loader.exception import NotFound
 from swh.model import hashutil
+from swh.model.git_objects import (
+    content_git_object,
+    directory_git_object,
+    release_git_object,
+    revision_git_object,
+)
 from swh.model.model import (
     BaseContent,
+    Content,
     Directory,
     Release,
     Revision,
@@ -31,6 +49,7 @@ from swh.model.model import (
     SnapshotBranch,
     TargetType,
 )
+from swh.storage.algos.directory import directory_get
 from swh.storage.algos.snapshot import snapshot_get_latest
 from swh.storage.interface import StorageInterface
 
@@ -99,6 +118,7 @@ class RepoRepresentation:
         logger.debug("local_heads_count=%s", len(self.local_heads))
         logger.debug("remote_heads_count=%s", len(remote_heads))
         wanted_refs = list(remote_heads - self.local_heads)
+
         logger.debug("wanted_refs_count=%s", len(wanted_refs))
         if self.statsd is not None:
             self.statsd.histogram(
@@ -179,6 +199,7 @@ class GitLoader(BaseGitLoader):
         self.remote_refs: Dict[bytes, HexBytes] = {}
         self.symbolic_refs: Dict[bytes, HexBytes] = {}
         self.ref_object_types: Dict[bytes, Optional[TargetType]] = {}
+        self.ext_refs: Dict[bytes, Tuple[int, bytes]] = {}
 
     def fetch_pack_from_origin(
         self,
@@ -374,6 +395,49 @@ class GitLoader(BaseGitLoader):
         with open(os.path.join(pack_dir, refs_name), "xb") as f:
             pickle.dump(self.remote_refs, f)
 
+    def _resolve_ext_ref(self, sha1: bytes) -> Tuple[int, bytes]:
+        """Resolve external references to git objects a pack file might contain
+        by getting associated git manifests from the archive.
+        """
+        storage = self.storage
+        ext_refs = self.ext_refs
+
+        def set_ext_ref(type_num, manifest):
+            ext_refs[sha1] = (type_num, manifest.split(b"\x00", maxsplit=1)[1])
+
+        if sha1 not in ext_refs:
+            cnts = storage.content_find({"sha1_git": sha1})
+            if cnts and cnts[0] is not None:
+                cnt = cnts[0]
+                d = cnt.to_dict()
+                d["data"] = storage.content_get_data(cnt.sha1)
+                cnt = Content.from_dict(d)
+                set_ext_ref(Blob.type_num, content_git_object(cnt))
+        if sha1 not in ext_refs:
+            dir = directory_get(storage, sha1)
+            if dir is not None:
+                set_ext_ref(Tree.type_num, directory_git_object(dir))
+        if sha1 not in ext_refs:
+            rev = storage.revision_get([sha1], ignore_displayname=True)[0]
+            if rev is not None:
+                set_ext_ref(Commit.type_num, revision_git_object(rev))
+        if sha1 not in ext_refs:
+            rel = storage.release_get([sha1], ignore_displayname=True)[0]
+            if rel is not None:
+                set_ext_ref(Tag.type_num, release_git_object(rel))
+
+        type_num_to_name = {
+            obj.type_num: obj.type_name.decode() for obj in (Blob, Commit, Tag, Tree)
+        }
+
+        self.log.debug(
+            "External reference %s of type %s in the pack file fetched from the archive",
+            hashutil.hash_to_hex(sha1),
+            type_num_to_name[ext_refs[sha1][0]],
+        )
+
+        return ext_refs[sha1]
+
     def iter_objects(self, object_type: bytes) -> Iterator[ShaFile]:
         """Read all the objects of type `object_type` from the packfile"""
         if self.dumb:
@@ -382,7 +446,11 @@ class GitLoader(BaseGitLoader):
             self.pack_buffer.seek(0)
             count = 0
             for obj in PackInflater.for_pack_data(
-                PackData.from_file(self.pack_buffer, self.pack_size)
+                PackData.from_file(
+                    self.pack_buffer,
+                    self.pack_size,
+                ),
+                resolve_ext_ref=self._resolve_ext_ref,
             ):
                 if obj.type_name != object_type:
                     continue

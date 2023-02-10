@@ -6,6 +6,7 @@
 import datetime
 from functools import partial
 from http.server import HTTPServer, SimpleHTTPRequestHandler
+import io
 import logging
 import os
 import subprocess
@@ -15,8 +16,10 @@ from threading import Thread
 from unittest.mock import MagicMock, call
 
 from dulwich.errors import GitProtocolError, NotGitRepository, ObjectFormatException
+from dulwich.pack import REF_DELTA
 from dulwich.porcelain import push
 import dulwich.repo
+from dulwich.tests.utils import build_pack
 import pytest
 
 from swh.loader.git import converters, dumb
@@ -251,6 +254,117 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         )
         self.loader.dumb = False
         assert self.loader.load() == {"status": "uneventful"}
+
+    def test_loader_with_ref_delta_in_pack(self, mocker):
+        """Check that the git loader can successfully process objects of type OBJ_REF_DELTA
+        contained in a pack file. Such objects are not stored in the pack file and must be
+        resolved from the object store of the local repository. In our case we resolve them
+        from the archive instead.
+        """
+
+        def add_tag(tag_name, tag_message, commit):
+            tag = dulwich.objects.Tag()
+            tag.name = tag_name
+            tag.message = tag_message
+            tag.object = (dulwich.objects.Commit, commit)
+            self.repo.object_store.add_object(tag)
+            self.repo[b"refs/tags/" + tag_name] = tag.id
+            return tag
+
+        # first load of repository
+        assert self.loader.load() == {"status": "eventful"}
+        assert get_stats(self.loader.storage) == {
+            "content": 4,
+            "directory": 7,
+            "origin": 1,
+            "origin_visit": 1,
+            "release": 0,
+            "revision": 7,
+            "skipped_content": 0,
+            "snapshot": 1,
+        }
+
+        # get all object ids after first load
+        objects_first_load = set(iter(self.repo.object_store))
+
+        # add a new file, commit it and create a tag
+        with open(os.path.join(self.destination_path, "hello.py"), "a") as fd:
+            fd.write("print('Hello world')\n")
+
+        self.repo.stage([b"hello.py"])
+        new_revision = self.repo.do_commit(b"Hello world\n")
+        tag = add_tag(b"v1.0.0", b"First release!\n", new_revision)
+
+        # second load of repository
+        assert self.loader.load() == {"status": "eventful"}
+        assert get_stats(self.loader.storage) == {
+            "content": 5,
+            "directory": 8,
+            "origin": 1,
+            "origin_visit": 2,
+            "release": 1,
+            "revision": 8,
+            "skipped_content": 0,
+            "snapshot": 2,
+        }
+
+        # get all object ids after second load
+        objects_second_load = set(iter(self.repo.object_store))
+
+        # add another file, commit it and create another tag
+        with open(os.path.join(self.destination_path, "foo.py"), "a") as fd:
+            fd.write("print('foo')\n")
+
+        self.repo.stage([b"foo.py"])
+        new_revision = self.repo.do_commit(b"Add foo file\n")
+        tag = add_tag(b"v1.1.0", b"Second release!\n", new_revision)
+
+        # get all object ids that will be in storage after third load
+        objects_third_load = set(iter(self.repo.object_store))
+
+        # create a pack file containing full objects for newly added blob, tree,
+        # commit and tag in latest commit but also external references to objects
+        # that were discovered during the second loading of the repository
+        objects = []
+        new_objects_second_load = objects_second_load - objects_first_load
+        new_objects_third_load = objects_third_load - objects_second_load
+        for obj_id in new_objects_third_load:
+            obj = self.repo.object_store[obj_id]
+            objects.append((obj.type_num, obj.as_raw_string()))
+        for obj_id in new_objects_second_load:
+            obj = self.repo.object_store[obj_id]
+            objects.append((REF_DELTA, (obj_id, obj.as_raw_string())))
+        buffer = io.BytesIO()
+        build_pack(buffer, objects, self.repo.object_store)
+
+        # mock fetch_pack_from_origin method of the loader to return the pack
+        # file built above
+        fetch_pack_from_origin = mocker.patch.object(
+            self.loader, "fetch_pack_from_origin"
+        )
+        fetch_pack_from_origin.return_value = FetchPackReturn(
+            remote_refs={
+                b"refs/heads/master": new_revision,
+                b"refs/tags/v1.1.0": tag.id,
+            },
+            symbolic_refs={},
+            pack_buffer=buffer,
+            pack_size=buffer.getbuffer().nbytes,
+        )
+
+        # check that data for external references in the pack file are fetched
+        # from the archive
+        assert self.loader.load() == {"status": "eventful"}
+        assert get_stats(self.loader.storage) == {
+            "content": 6,
+            "directory": 9,
+            "origin": 1,
+            "origin_visit": 3,
+            "release": 2,
+            "revision": 9,
+            "skipped_content": 0,
+            "snapshot": 3,
+        }
 
 
 class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
