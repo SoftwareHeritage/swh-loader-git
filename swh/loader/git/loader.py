@@ -412,18 +412,22 @@ class GitLoader(BaseGitLoader):
                 d = cnt.to_dict()
                 d["data"] = storage.content_get_data(cnt.sha1)
                 cnt = Content.from_dict(d)
+                cnt.check()
                 set_ext_ref(Blob.type_num, content_git_object(cnt))
         if sha1 not in ext_refs:
             dir = directory_get(storage, sha1)
             if dir is not None:
+                dir.check()
                 set_ext_ref(Tree.type_num, directory_git_object(dir))
         if sha1 not in ext_refs:
             rev = storage.revision_get([sha1], ignore_displayname=True)[0]
             if rev is not None:
+                rev.check()
                 set_ext_ref(Commit.type_num, revision_git_object(rev))
         if sha1 not in ext_refs:
             rel = storage.release_get([sha1], ignore_displayname=True)[0]
             if rel is not None:
+                rel.check()
                 set_ext_ref(Tag.type_num, release_git_object(rel))
 
         type_num_to_name = {

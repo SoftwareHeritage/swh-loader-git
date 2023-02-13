@@ -15,6 +15,7 @@ from tempfile import SpooledTemporaryFile
 from threading import Thread
 from unittest.mock import MagicMock, call
 
+import attr
 from dulwich.errors import GitProtocolError, NotGitRepository, ObjectFormatException
 from dulwich.pack import REF_DELTA
 from dulwich.porcelain import push
@@ -255,7 +256,8 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         self.loader.dumb = False
         assert self.loader.load() == {"status": "uneventful"}
 
-    def test_loader_with_ref_delta_in_pack(self, mocker):
+    @pytest.mark.parametrize("corrupted_object", [False, True])
+    def test_loader_with_ref_delta_in_pack(self, mocker, corrupted_object):
         """Check that the git loader can successfully process objects of type OBJ_REF_DELTA
         contained in a pack file. Such objects are not stored in the pack file and must be
         resolved from the object store of the local repository. In our case we resolve them
@@ -293,7 +295,7 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
 
         self.repo.stage([b"hello.py"])
         new_revision = self.repo.do_commit(b"Hello world\n")
-        tag = add_tag(b"v1.0.0", b"First release!\n", new_revision)
+        first_tag = add_tag(b"v1.0.0", b"First release!\n", new_revision)
 
         # second load of repository
         assert self.loader.load() == {"status": "eventful"}
@@ -317,7 +319,7 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
 
         self.repo.stage([b"foo.py"])
         new_revision = self.repo.do_commit(b"Add foo file\n")
-        tag = add_tag(b"v1.1.0", b"Second release!\n", new_revision)
+        second_tag = add_tag(b"v1.1.0", b"Second release!\n", new_revision)
 
         # get all object ids that will be in storage after third load
         objects_third_load = set(iter(self.repo.object_store))
@@ -345,26 +347,33 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         fetch_pack_from_origin.return_value = FetchPackReturn(
             remote_refs={
                 b"refs/heads/master": new_revision,
-                b"refs/tags/v1.1.0": tag.id,
+                b"refs/tags/v1.1.0": second_tag.id,
             },
             symbolic_refs={},
             pack_buffer=buffer,
             pack_size=buffer.getbuffer().nbytes,
         )
 
-        # check that data for external references in the pack file are fetched
-        # from the archive
-        assert self.loader.load() == {"status": "eventful"}
-        assert get_stats(self.loader.storage) == {
-            "content": 6,
-            "directory": 9,
-            "origin": 1,
-            "origin_visit": 3,
-            "release": 2,
-            "revision": 9,
-            "skipped_content": 0,
-            "snapshot": 3,
-        }
+        if corrupted_object:
+            release = self.loader.storage.release_get([first_tag.sha().digest()])[0]
+            corrupted_release = attr.evolve(release, id=b"\x00" * 20)
+            release_get = mocker.patch.object(self.loader.storage, "release_get")
+            release_get.return_value = [corrupted_release]
+            assert self.loader.load() == {"status": "failed"}
+        else:
+            # check that data for external references in the pack file are fetched
+            # from the archive
+            assert self.loader.load() == {"status": "eventful"}
+            assert get_stats(self.loader.storage) == {
+                "content": 6,
+                "directory": 9,
+                "origin": 1,
+                "origin_visit": 3,
+                "release": 2,
+                "revision": 9,
+                "skipped_content": 0,
+                "snapshot": 3,
+            }
 
 
 class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
