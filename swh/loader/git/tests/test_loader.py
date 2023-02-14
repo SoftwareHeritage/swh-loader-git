@@ -256,13 +256,20 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         self.loader.dumb = False
         assert self.loader.load() == {"status": "uneventful"}
 
-    @pytest.mark.parametrize("corrupted_object", [False, True])
-    def test_loader_with_ref_delta_in_pack(self, mocker, corrupted_object):
+    @pytest.mark.parametrize(
+        "corrupted_object,missing_object",
+        [(False, False), (True, False), (False, True)],
+    )
+    def test_loader_with_ref_delta_in_pack(
+        self, mocker, corrupted_object, missing_object
+    ):
         """Check that the git loader can successfully process objects of type OBJ_REF_DELTA
         contained in a pack file. Such objects are not stored in the pack file and must be
         resolved from the object store of the local repository. In our case we resolve them
         from the archive instead.
         """
+
+        statsd_report = mocker.patch.object(self.loader.statsd, "_report")
 
         def add_tag(tag_name, tag_message, commit):
             tag = dulwich.objects.Tag()
@@ -354,12 +361,34 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             pack_size=buffer.getbuffer().nbytes,
         )
 
+        statsd_calls = statsd_report.mock_calls
+        statsd_metric = "swh_loader_git_external_reference_fetch_total"
+
         if corrupted_object:
             release = self.loader.storage.release_get([first_tag.sha().digest()])[0]
             corrupted_release = attr.evolve(release, id=b"\x00" * 20)
             release_get = mocker.patch.object(self.loader.storage, "release_get")
             release_get.return_value = [corrupted_release]
             assert self.loader.load() == {"status": "failed"}
+        elif missing_object:
+            revision_get = mocker.patch.object(self.loader.storage, "revision_get")
+            revision_get.return_value = [None]
+            assert self.loader.load() == {"status": "failed"}
+            assert list(
+                sorted(
+                    [c for c in statsd_calls if c[1][0] == statsd_metric],
+                    key=lambda c: c[1][3]["type"],
+                )
+            ) == [
+                call(statsd_metric, "c", 1, {"type": "content", "result": "found"}, 1),
+                call(
+                    statsd_metric, "c", 1, {"type": "directory", "result": "found"}, 1
+                ),
+                call(statsd_metric, "c", 1, {"type": "release", "result": "found"}, 1),
+                call(
+                    statsd_metric, "c", 1, {"type": "unknown", "result": "not_found"}, 1
+                ),
+            ]
         else:
             # check that data for external references in the pack file are fetched
             # from the archive
@@ -374,6 +403,19 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
                 "skipped_content": 0,
                 "snapshot": 3,
             }
+            assert list(
+                sorted(
+                    [c for c in statsd_calls if c[1][0] == statsd_metric],
+                    key=lambda c: c[1][3]["type"],
+                )
+            ) == [
+                call(statsd_metric, "c", 1, {"type": "content", "result": "found"}, 1),
+                call(
+                    statsd_metric, "c", 1, {"type": "directory", "result": "found"}, 1
+                ),
+                call(statsd_metric, "c", 1, {"type": "release", "result": "found"}, 1),
+                call(statsd_metric, "c", 1, {"type": "revision", "result": "found"}, 1),
+            ]
 
 
 class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):

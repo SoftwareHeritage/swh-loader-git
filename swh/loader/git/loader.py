@@ -199,7 +199,7 @@ class GitLoader(BaseGitLoader):
         self.remote_refs: Dict[bytes, HexBytes] = {}
         self.symbolic_refs: Dict[bytes, HexBytes] = {}
         self.ref_object_types: Dict[bytes, Optional[TargetType]] = {}
-        self.ext_refs: Dict[bytes, Tuple[int, bytes]] = {}
+        self.ext_refs: Dict[bytes, Optional[Tuple[int, bytes]]] = {}
 
     def fetch_pack_from_origin(
         self,
@@ -401,9 +401,19 @@ class GitLoader(BaseGitLoader):
         """
         storage = self.storage
         ext_refs = self.ext_refs
+        statsd_metric = "swh_loader_git_external_reference_fetch_total"
 
-        def set_ext_ref(type_num, manifest):
+        def set_ext_ref(type_num, manifest, swh_type):
             ext_refs[sha1] = (type_num, manifest.split(b"\x00", maxsplit=1)[1])
+            self.statsd.increment(
+                statsd_metric,
+                tags={"type": swh_type, "result": "found"},
+            )
+            self.log.debug(
+                "External reference %s of type %s in the pack file resolved from the archive",
+                hashutil.hash_to_hex(sha1),
+                swh_type,
+            )
 
         if sha1 not in ext_refs:
             cnts = storage.content_find({"sha1_git": sha1})
@@ -413,34 +423,42 @@ class GitLoader(BaseGitLoader):
                 d["data"] = storage.content_get_data(cnt.sha1)
                 cnt = Content.from_dict(d)
                 cnt.check()
-                set_ext_ref(Blob.type_num, content_git_object(cnt))
+                set_ext_ref(Blob.type_num, content_git_object(cnt), "content")
         if sha1 not in ext_refs:
             dir = directory_get(storage, sha1)
             if dir is not None:
                 dir.check()
-                set_ext_ref(Tree.type_num, directory_git_object(dir))
+                set_ext_ref(Tree.type_num, directory_git_object(dir), "directory")
         if sha1 not in ext_refs:
             rev = storage.revision_get([sha1], ignore_displayname=True)[0]
             if rev is not None:
                 rev.check()
-                set_ext_ref(Commit.type_num, revision_git_object(rev))
+                set_ext_ref(Commit.type_num, revision_git_object(rev), "revision")
         if sha1 not in ext_refs:
             rel = storage.release_get([sha1], ignore_displayname=True)[0]
             if rel is not None:
                 rel.check()
-                set_ext_ref(Tag.type_num, release_git_object(rel))
+                set_ext_ref(Tag.type_num, release_git_object(rel), "release")
 
-        type_num_to_name = {
-            obj.type_num: obj.type_name.decode() for obj in (Blob, Commit, Tag, Tree)
-        }
+        if sha1 not in ext_refs:
+            self.statsd.increment(
+                statsd_metric,
+                tags={"type": "unknown", "result": "not_found"},
+            )
+            self.log.debug(
+                "External reference %s in the pack file could not be resolved from the archive",
+                hashutil.hash_to_hex(sha1),
+            )
+            ext_refs[sha1] = None
 
-        self.log.debug(
-            "External reference %s of type %s in the pack file fetched from the archive",
-            hashutil.hash_to_hex(sha1),
-            type_num_to_name[ext_refs[sha1][0]],
-        )
-
-        return ext_refs[sha1]
+        ext_ref = ext_refs[sha1]
+        if ext_ref is None:
+            # dulwich catches this exception but checks for pending objects in the pack once
+            # all ref chains have been walked
+            raise KeyError(
+                f"Object with sha1_git {hashutil.hash_to_hex(sha1)} not found in the archive"
+            )
+        return ext_ref
 
     def iter_objects(self, object_type: bytes) -> Iterator[ShaFile]:
         """Read all the objects of type `object_type` from the packfile"""
