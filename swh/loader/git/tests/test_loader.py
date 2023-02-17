@@ -20,7 +20,7 @@ import dulwich.repo
 import pytest
 
 from swh.loader.git import converters, dumb
-from swh.loader.git.loader import GitLoader, FetchPackReturn
+from swh.loader.git.loader import FetchPackReturn, GitLoader
 from swh.loader.git.tests.test_from_disk import SNAPSHOT1, FullGitLoaderTests
 from swh.loader.tests import (
     assert_last_visit_matches,

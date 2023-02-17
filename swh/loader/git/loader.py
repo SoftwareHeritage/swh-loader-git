@@ -48,9 +48,9 @@ class RepoRepresentation:
     def __init__(
         self,
         storage,
-        base_snapshots: List[Snapshot] = None,
+        base_snapshots: Optional[List[Snapshot]] = None,
         incremental: bool = True,
-        statsd: Statsd = None,
+        statsd: Optional[Statsd] = None,
     ):
         self.storage = storage
         self.incremental = incremental
