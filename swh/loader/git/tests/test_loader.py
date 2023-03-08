@@ -44,7 +44,9 @@ class CommonGitLoaderNotFound:
         "failure_exception",
         [
             GitProtocolError("Repository unavailable"),  # e.g DMCA takedown
+            GitProtocolError("user/project.git unavailable"),
             GitProtocolError("Repository not found"),
+            GitProtocolError("user/project.git not found"),
             GitProtocolError("unexpected http resp 401"),
             NotGitRepository("not a git repo"),
         ],
