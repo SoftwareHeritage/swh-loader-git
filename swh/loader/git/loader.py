@@ -325,8 +325,8 @@ class GitLoader(BaseGitLoader):
             # unfortunately, that kind of error is not specific to a not found
             # scenario... It depends on the value of message within the exception.
             for msg in [
-                "unavailable",  # e.g DMCA takedown
-                "not found",
+                " unavailable",  # e.g DMCA takedown
+                " not found",
                 "unexpected http resp 401",
             ]:
                 if msg in e.args[0]:
