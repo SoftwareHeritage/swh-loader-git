@@ -329,7 +329,7 @@ class GitLoader(BaseGitLoader):
                 " not found",
                 "unexpected http resp 401",
             ]:
-                if msg in e.args[0]:
+                if msg in str(e.args[0]):
                     raise NotFound(e)
             # otherwise transmit the error
             raise

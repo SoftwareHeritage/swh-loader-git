@@ -73,11 +73,12 @@ class CommonGitLoaderNotFound:
     @pytest.mark.parametrize(
         "failure_exception",
         [
-            IOError,
-            ObjectFormatException,
-            OSError,
-            ValueError,
-            GitProtocolError,
+            IOError("failure"),
+            ObjectFormatException("failure"),
+            OSError("failure"),
+            ValueError("failure"),
+            GitProtocolError("failure"),
+            GitProtocolError(ConnectionResetError("Connection reset by peer")),
         ],
     )
     def test_load_visit_failure(self, failure_exception):
@@ -88,7 +89,7 @@ class CommonGitLoaderNotFound:
             "swh.loader.git.loader.GitLoader.fetch_pack_from_origin"
         )
 
-        mock.side_effect = failure_exception("failure")
+        mock.side_effect = failure_exception
 
         res = self.loader.load()
         assert res == {"status": "failed"}
