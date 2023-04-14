@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022  The Software Heritage developers
+# Copyright (C) 2018-2023  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -22,6 +22,7 @@ from dulwich.porcelain import push
 import dulwich.repo
 from dulwich.tests.utils import build_pack
 import pytest
+import requests_mock
 
 from swh.loader.git import converters, dumb
 from swh.loader.git.loader import FetchPackReturn, GitLoader
@@ -851,6 +852,7 @@ class DumbGitLoaderTestBase(FullGitLoaderTests):
         self.repo_url = f"http://{httpd.server_name}:{httpd.server_port}/{repo_name}"
         self.loader = DumbGitLoaderTest(swh_storage, self.repo_url)
         self.repo = repo
+        self.bare_repo_path = bare_repo_path
 
         yield
 
@@ -950,6 +952,30 @@ class TestDumbGitLoaderWithPack(DumbGitLoaderTestBase):
         res = self.loader.load()
 
         assert res == {"status": "eventful"}
+
+    def test_http_get_retry(self, mocker):
+        sleep = mocker.patch.object(dumb.GitObjectsFetcher._http_get.retry, "sleep")
+        with requests_mock.Mocker(real_http=True) as http_mocker:
+            # mock requests for getting packs data
+            for root, _, files in os.walk(
+                os.path.join(self.bare_repo_path, "objects/pack")
+            ):
+                nb_files = len(files)
+                for pack in files:
+                    with open(os.path.join(root, pack), "rb") as pack_data:
+                        http_mocker.get(
+                            f"{self.repo_url}/objects/pack/{pack}",
+                            [
+                                # first request fails
+                                {"status_code": 502},
+                                # next one succeeds
+                                {"status_code": 200, "content": pack_data.read()},
+                            ],
+                        )
+
+            res = self.loader.load()
+            assert res == {"status": "eventful"}
+            sleep.assert_has_calls([mocker.call(param) for param in [1] * nb_files])
 
 
 class TestDumbGitLoaderWithoutPack(DumbGitLoaderTestBase):

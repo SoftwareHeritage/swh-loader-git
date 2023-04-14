@@ -1,4 +1,4 @@
-# Copyright (C) 2021  The Software Heritage developers
+# Copyright (C) 2021-2023  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -17,7 +17,9 @@ from dulwich.errors import NotGitRepository
 from dulwich.objects import S_IFGITLINK, Commit, ShaFile, Tree
 from dulwich.pack import Pack, PackData, PackIndex, load_pack_index_file
 import requests
+from tenacity.before_sleep import before_sleep_log
 
+from swh.core.retry import http_retry
 from swh.loader.git.utils import HexBytes
 
 if TYPE_CHECKING:
@@ -118,10 +120,14 @@ class GitObjectsFetcher:
         """
         return map(self._get_git_object, self.objects[object_type])
 
+    @http_retry(
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+    )
     def _http_get(self, path: str) -> SpooledTemporaryFile:
         url = urllib.parse.urljoin(self.repo_url.rstrip("/") + "/", path)
         logger.debug("Fetching %s", url)
         response = self._session.get(url, headers=HEADERS)
+        response.raise_for_status()
         buffer = SpooledTemporaryFile(max_size=100 * 1024 * 1024)
         for chunk in response.iter_content(chunk_size=10 * 1024 * 1024):
             buffer.write(chunk)
@@ -180,9 +186,10 @@ class GitObjectsFetcher:
             try:
                 if sha in pack:
                     return pack[sha]
-            except (NotGitRepository, struct.error):
-                # missing (dulwich http client raises NotGitRepository on 404)
-                # or invalid pack index/content, remove it from global packs list
+            except (NotGitRepository, struct.error, requests.HTTPError) as e:
+                if isinstance(e, requests.HTTPError) and e.response.status_code != 404:
+                    raise
+                # missing or invalid pack index/content, remove it from global packs list
                 logger.debug("A pack file is missing or its content is invalid")
                 self.packs.remove(pack)
         # fetch it from objects/ directory otherwise
