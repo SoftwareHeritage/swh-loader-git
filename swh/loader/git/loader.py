@@ -357,6 +357,8 @@ class GitLoader(BaseGitLoader):
                 " unavailable",  # e.g DMCA takedown
                 " not found",
                 "unexpected http resp 401",
+                "unexpected http resp 403",
+                "unexpected http resp 410",
             ]:
                 if msg in str(e.args[0]):
                     raise NotFound(e)

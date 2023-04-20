@@ -58,6 +58,8 @@ class CommonGitLoaderNotFound:
             GitProtocolError("Repository not found"),
             GitProtocolError("user/project.git not found"),
             GitProtocolError("unexpected http resp 401"),
+            GitProtocolError("unexpected http resp 403"),
+            GitProtocolError("unexpected http resp 410"),
             NotGitRepository("not a git repo"),
         ],
     )
