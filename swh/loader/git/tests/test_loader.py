@@ -32,7 +32,16 @@ from swh.loader.tests import (
     get_stats,
     prepare_repository_from_archive,
 )
-from swh.model.model import Origin, OriginVisit, OriginVisitStatus, Snapshot
+from swh.model.model import (
+    MetadataAuthority,
+    MetadataAuthorityType,
+    MetadataFetcher,
+    Origin,
+    OriginVisit,
+    OriginVisitStatus,
+    RawExtrinsicMetadata,
+    Snapshot,
+)
 
 
 class CommonGitLoaderNotFound:
@@ -982,3 +991,57 @@ class TestDumbGitLoaderWithoutPack(DumbGitLoaderTestBase):
     @classmethod
     def setup_class(cls):
         cls.with_pack_files = False
+
+
+def test_loader_too_large_pack_file_for_github_origin(
+    swh_storage, datadir, tmp_path, mocker, sentry_events
+):
+    archive_name = "testrepo"
+    archive_path = os.path.join(datadir, f"{archive_name}.tgz")
+    repo_url = prepare_repository_from_archive(
+        archive_path, archive_name, tmp_path=tmp_path
+    )
+
+    big_size_kib = 100 * 1024 * 1024
+
+    metadata = RawExtrinsicMetadata(
+        target=Origin(url=repo_url).swhid(),
+        discovery_date=datetime.datetime.now(datetime.timezone.utc),
+        authority=MetadataAuthority(
+            type=MetadataAuthorityType.FORGE, url="https://github.com", metadata=None
+        ),
+        fetcher=MetadataFetcher(
+            name="swh.loader.metadata.github", version="1.1.0", metadata=None
+        ),
+        format="application/vnd.github.v3+json",
+        metadata=f'{{"size": {big_size_kib}}}'.encode(),
+        origin=None,
+        visit=None,
+        snapshot=None,
+        release=None,
+        revision=None,
+        path=None,
+        directory=None,
+    )
+
+    loader = GitLoader(
+        swh_storage,
+        repo_url,
+        lister_name="github",
+        lister_instance_name="github",
+    )
+
+    mocker.patch.object(
+        loader,
+        "build_extrinsic_origin_metadata",
+        return_value=[metadata],
+    )
+
+    assert loader.load() == {"status": "failed"}
+
+    assert sentry_events
+    assert sentry_events[0]["level"] == "error"
+    assert sentry_events[0]["exception"]["values"][0]["value"] == (
+        f"Pack file too big for repository {repo_url}, "
+        f"limit is {loader.pack_size_bytes} bytes, current size is {big_size_kib*1024}"
+    )
