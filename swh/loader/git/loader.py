@@ -6,6 +6,7 @@
 from collections import defaultdict
 from dataclasses import dataclass
 import datetime
+import json
 import logging
 import os
 import pickle
@@ -43,12 +44,14 @@ from swh.model.model import (
     BaseContent,
     Content,
     Directory,
+    RawExtrinsicMetadata,
     Release,
     Revision,
     Snapshot,
     SnapshotBranch,
     TargetType,
 )
+from swh.model.swhids import ExtendedObjectType
 from swh.storage.algos.directory import directory_get
 from swh.storage.algos.snapshot import snapshot_get_latest
 from swh.storage.interface import StorageInterface
@@ -200,6 +203,7 @@ class GitLoader(BaseGitLoader):
         self.symbolic_refs: Dict[bytes, HexBytes] = {}
         self.ref_object_types: Dict[bytes, Optional[TargetType]] = {}
         self.ext_refs: Dict[bytes, Optional[Tuple[int, bytes]]] = {}
+        self.repo_pack_size_bytes = 0
 
     def fetch_pack_from_origin(
         self,
@@ -266,6 +270,24 @@ class GitLoader(BaseGitLoader):
     def get_full_snapshot(self, origin_url) -> Optional[Snapshot]:
         return snapshot_get_latest(self.storage, origin_url)
 
+    def load_metadata_objects(
+        self, metadata_objects: List[RawExtrinsicMetadata]
+    ) -> None:
+        for metadata in metadata_objects:
+            if (
+                metadata.target.object_type == ExtendedObjectType.ORIGIN
+                and metadata.format == "application/vnd.github.v3+json"
+            ):
+                try:
+                    json_metadata = json.loads(metadata.metadata)
+                    self.repo_pack_size_bytes = json_metadata.get("size", 0) * 1024
+                except json.JSONDecodeError:
+                    logger.warning(
+                        "JSON metadata for origin %s could not be parsed.",
+                        self.origin.url,
+                    )
+        super().load_metadata_objects(metadata_objects)
+
     def prepare(self) -> None:
         assert self.origin is not None
 
@@ -304,6 +326,13 @@ class GitLoader(BaseGitLoader):
     def fetch_data(self) -> bool:
         assert self.origin is not None
 
+        if not self.base_snapshots and self.repo_pack_size_bytes > self.pack_size_bytes:
+            raise IOError(
+                f"Pack file too big for repository {self.origin.url}, "
+                f"limit is {self.pack_size_bytes} bytes, "
+                f"current size is {self.repo_pack_size_bytes}"
+            )
+
         base_repo = self.repo_representation(
             storage=self.storage,
             base_snapshots=self.base_snapshots,
@@ -325,11 +354,13 @@ class GitLoader(BaseGitLoader):
             # unfortunately, that kind of error is not specific to a not found
             # scenario... It depends on the value of message within the exception.
             for msg in [
-                "Repository unavailable",  # e.g DMCA takedown
-                "Repository not found",
+                " unavailable",  # e.g DMCA takedown
+                " not found",
                 "unexpected http resp 401",
+                "unexpected http resp 403",
+                "unexpected http resp 410",
             ]:
-                if msg in e.args[0]:
+                if msg in str(e.args[0]):
                     raise NotFound(e)
             # otherwise transmit the error
             raise
