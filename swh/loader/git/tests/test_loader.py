@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022  The Software Heritage developers
+# Copyright (C) 2018-2023  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -22,6 +22,7 @@ from dulwich.porcelain import push
 import dulwich.repo
 from dulwich.tests.utils import build_pack
 import pytest
+import requests_mock
 
 from swh.loader.git import converters, dumb
 from swh.loader.git.loader import FetchPackReturn, GitLoader
@@ -31,7 +32,16 @@ from swh.loader.tests import (
     get_stats,
     prepare_repository_from_archive,
 )
-from swh.model.model import Origin, OriginVisit, OriginVisitStatus, Snapshot
+from swh.model.model import (
+    MetadataAuthority,
+    MetadataAuthorityType,
+    MetadataFetcher,
+    Origin,
+    OriginVisit,
+    OriginVisitStatus,
+    RawExtrinsicMetadata,
+    Snapshot,
+)
 
 
 class CommonGitLoaderNotFound:
@@ -44,8 +54,12 @@ class CommonGitLoaderNotFound:
         "failure_exception",
         [
             GitProtocolError("Repository unavailable"),  # e.g DMCA takedown
+            GitProtocolError("user/project.git unavailable"),
             GitProtocolError("Repository not found"),
+            GitProtocolError("user/project.git not found"),
             GitProtocolError("unexpected http resp 401"),
+            GitProtocolError("unexpected http resp 403"),
+            GitProtocolError("unexpected http resp 410"),
             NotGitRepository("not a git repo"),
         ],
     )
@@ -71,11 +85,12 @@ class CommonGitLoaderNotFound:
     @pytest.mark.parametrize(
         "failure_exception",
         [
-            IOError,
-            ObjectFormatException,
-            OSError,
-            ValueError,
-            GitProtocolError,
+            IOError("failure"),
+            ObjectFormatException("failure"),
+            OSError("failure"),
+            ValueError("failure"),
+            GitProtocolError("failure"),
+            GitProtocolError(ConnectionResetError("Connection reset by peer")),
         ],
     )
     def test_load_visit_failure(self, failure_exception):
@@ -86,7 +101,7 @@ class CommonGitLoaderNotFound:
             "swh.loader.git.loader.GitLoader.fetch_pack_from_origin"
         )
 
-        mock.side_effect = failure_exception("failure")
+        mock.side_effect = failure_exception
 
         res = self.loader.load()
         assert res == {"status": "failed"}
@@ -848,6 +863,7 @@ class DumbGitLoaderTestBase(FullGitLoaderTests):
         self.repo_url = f"http://{httpd.server_name}:{httpd.server_port}/{repo_name}"
         self.loader = DumbGitLoaderTest(swh_storage, self.repo_url)
         self.repo = repo
+        self.bare_repo_path = bare_repo_path
 
         yield
 
@@ -948,8 +964,86 @@ class TestDumbGitLoaderWithPack(DumbGitLoaderTestBase):
 
         assert res == {"status": "eventful"}
 
+    def test_http_get_retry(self, mocker):
+        sleep = mocker.patch.object(dumb.GitObjectsFetcher._http_get.retry, "sleep")
+        with requests_mock.Mocker(real_http=True) as http_mocker:
+            # mock requests for getting packs data
+            for root, _, files in os.walk(
+                os.path.join(self.bare_repo_path, "objects/pack")
+            ):
+                nb_files = len(files)
+                for pack in files:
+                    with open(os.path.join(root, pack), "rb") as pack_data:
+                        http_mocker.get(
+                            f"{self.repo_url}/objects/pack/{pack}",
+                            [
+                                # first request fails
+                                {"status_code": 502},
+                                # next one succeeds
+                                {"status_code": 200, "content": pack_data.read()},
+                            ],
+                        )
+
+            res = self.loader.load()
+            assert res == {"status": "eventful"}
+            sleep.assert_has_calls([mocker.call(param) for param in [1] * nb_files])
+
 
 class TestDumbGitLoaderWithoutPack(DumbGitLoaderTestBase):
     @classmethod
     def setup_class(cls):
         cls.with_pack_files = False
+
+
+def test_loader_too_large_pack_file_for_github_origin(
+    swh_storage, datadir, tmp_path, mocker, sentry_events
+):
+    archive_name = "testrepo"
+    archive_path = os.path.join(datadir, f"{archive_name}.tgz")
+    repo_url = prepare_repository_from_archive(
+        archive_path, archive_name, tmp_path=tmp_path
+    )
+
+    big_size_kib = 100 * 1024 * 1024
+
+    metadata = RawExtrinsicMetadata(
+        target=Origin(url=repo_url).swhid(),
+        discovery_date=datetime.datetime.now(datetime.timezone.utc),
+        authority=MetadataAuthority(
+            type=MetadataAuthorityType.FORGE, url="https://github.com", metadata=None
+        ),
+        fetcher=MetadataFetcher(
+            name="swh.loader.metadata.github", version="1.1.0", metadata=None
+        ),
+        format="application/vnd.github.v3+json",
+        metadata=f'{{"size": {big_size_kib}}}'.encode(),
+        origin=None,
+        visit=None,
+        snapshot=None,
+        release=None,
+        revision=None,
+        path=None,
+        directory=None,
+    )
+
+    loader = GitLoader(
+        swh_storage,
+        repo_url,
+        lister_name="github",
+        lister_instance_name="github",
+    )
+
+    mocker.patch.object(
+        loader,
+        "build_extrinsic_origin_metadata",
+        return_value=[metadata],
+    )
+
+    assert loader.load() == {"status": "failed"}
+
+    assert sentry_events
+    assert sentry_events[0]["level"] == "error"
+    assert sentry_events[0]["exception"]["values"][0]["value"] == (
+        f"Pack file too big for repository {repo_url}, "
+        f"limit is {loader.pack_size_bytes} bytes, current size is {big_size_kib*1024}"
+    )
