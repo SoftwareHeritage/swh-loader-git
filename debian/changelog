@@ -1,3 +1,18 @@
+swh-loader-git (2.3.0-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 2.3.0     - (tagged by Antoine R. Dumont
+    (@ardumont) <ardumont@softwareheritage.org> on 2023-05-02 11:35:01
+    +0200)
+  * Upstream changes:     - v2.3.0     - dumb: Retry HTTP requests in
+    case of throttling or temporary failures     - loader: Handle more
+    cases where NotFound should be raised     - loader: Check pack size
+    of non archived github origin prior fetching it     - loader: Ensure
+    to search in a string when processing GitProtocolError     - loader:
+    Make 'NotFound' detection less sensitive     - loader: Handle more
+    cases where NotFound should be raised
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Tue, 02 May 2023 12:40:00 +0000
+
 swh-loader-git (2.2.0-1~swh1) unstable-swh; urgency=medium
 
   * New upstream release 2.2.0     - (tagged by Antoine Lambert
