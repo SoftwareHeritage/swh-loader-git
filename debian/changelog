@@ -121,7 +121,7 @@ swh-loader-git (1.5.0-1~swh1) unstable-swh; urgency=medium
     <vlorentz@softwareheritage.org> on 2022-04-25 11:40:08 +0200)
   * Upstream changes:     - v1.5.0     - * Update for swh.loader.core
     3.0.0 and remove initialization boilerplate     - * pre-commit
-    maintainance     - * speed-up pytest
+    maintenance     - * speed-up pytest
 
  -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Mon, 25 Apr 2022 09:44:43 +0000
 
@@ -228,7 +228,7 @@ swh-loader-git (0.10.1-1~swh1) unstable-swh; urgency=medium
     <vlorentz@softwareheritage.org> on 2021-08-03 10:37:43 +0200)
   * Upstream changes:     - v0.10.1     - * from_disk: Improve error
     logging     - * converters: Preserve GPG signatures on releases     -
-    * Do not exclude falsy git objects from being added.
+    * Do not exclude incorrect git objects from being added.
 
  -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Tue, 03 Aug 2021 08:46:18 +0000
 
