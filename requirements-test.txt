@@ -1,5 +1,6 @@
 pytest
 pytest-mock
+requests_mock
 swh.scheduler[testing] >= 0.5.0
 swh.storage[testing]
 types-click
