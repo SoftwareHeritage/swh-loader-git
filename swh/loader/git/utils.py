@@ -1,10 +1,11 @@
-# Copyright (C) 2017-2021  The Software Heritage developers
+# Copyright (C) 2017-2023  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
 """Utilities helper functions"""
 
+from contextlib import contextmanager
 import datetime
 import logging
 import os
@@ -12,7 +13,11 @@ import shutil
 import tempfile
 from typing import Dict, Mapping, NewType, Optional, Union
 
+from dulwich.client import HTTPUnauthorized
+from dulwich.errors import GitProtocolError, NotGitRepository
+
 from swh.core import tarball
+from swh.loader.exception import NotFound
 from swh.model.model import SnapshotBranch
 
 # The hexadecimal representation of the hash in bytes
@@ -124,3 +129,37 @@ def warn_dangling_branches(
                 "origin_url": origin_url,
             },
         )
+
+
+@contextmanager
+def raise_not_found_repository():
+    """Catches all kinds of exceptions which translate to an inexistent repository and
+    reraise as a NotFound exception. Any other exceptions are propagated to the caller.
+
+    Raises:
+        NotFound: instead of HTTPUnauthorized, NotGitRepository and any GitProtocol with
+            specific error message relative to an inexistent repository.
+        *: Any other exceptions raised within the try block
+
+    """
+    try:
+        yield
+    except (HTTPUnauthorized, NotGitRepository) as e:
+        raise NotFound(e)
+    except GitProtocolError as e:
+        # that kind of error is unfortunately not specific to a not found scenario... It
+        # depends on the value of message within the exception. So parse the exception
+        # message to detect if it's a not found or not.
+        for msg in [
+            " unavailable",  # e.g DMCA takedown
+            " not found",
+            "unexpected http resp 401",
+            "unexpected http resp 403",
+            "unexpected http resp 410",
+        ]:
+            if msg in str(e.args[0]):
+                raise NotFound(e)
+        # otherwise transmit the error
+        raise
+    except Exception:
+        raise

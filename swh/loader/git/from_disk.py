@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2021  The Software Heritage developers
+# Copyright (C) 2015-2023  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -21,6 +21,7 @@ from deprecated import deprecated
 import dulwich.objects
 import dulwich.repo
 
+from swh.loader.git.utils import raise_not_found_repository
 from swh.model import hashutil
 from swh.model.model import Snapshot, SnapshotBranch, TargetType
 from swh.storage.algos.origin import origin_get_latest_visit_status
@@ -105,7 +106,8 @@ class GitLoaderFromDisk(BaseGitLoader):
         self.directory = directory
 
     def prepare(self):
-        self.repo = dulwich.repo.Repo(self.directory)
+        with raise_not_found_repository():
+            self.repo = dulwich.repo.Repo(self.directory)
 
     def iter_objects(self):
         object_store = self.repo.object_store
