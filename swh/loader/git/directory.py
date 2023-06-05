@@ -13,6 +13,7 @@ from dulwich.porcelain import checkout_branch, clone
 
 from swh.loader.core.loader import BaseDirectoryLoader
 from swh.loader.git.utils import raise_not_found_repository
+from swh.model.model import Snapshot, SnapshotBranch, TargetType
 
 
 def clone_repository(git_url: str, git_ref: str, target: Path):
@@ -50,6 +51,9 @@ class GitDirectoryLoader(BaseDirectoryLoader):
        id: <bytes>
        branches:
          HEAD:
+           target_type: alias
+           target: <git-ref>
+         <git-ref>:
            target_type: directory
            target: <directory-id>
 
@@ -68,3 +72,20 @@ class GitDirectoryLoader(BaseDirectoryLoader):
                     self.origin.url, self.git_ref, target=Path(tmpdir)
                 )
                 yield repo.path
+
+    def build_snapshot(self) -> Snapshot:
+        """Build snapshot without losing the git reference context."""
+        assert self.directory is not None
+        branch_name = self.git_ref.encode()
+        return Snapshot(
+            branches={
+                b"HEAD": SnapshotBranch(
+                    target_type=TargetType.ALIAS,
+                    target=branch_name,
+                ),
+                branch_name: SnapshotBranch(
+                    target=self.directory.hash,
+                    target_type=TargetType.DIRECTORY,
+                ),
+            }
+        )

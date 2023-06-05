@@ -104,12 +104,18 @@ def test_git_loader_directory(swh_storage, datadir, tmp_path, reference):
 
     assert actual_result == {"status": "eventful"}
 
-    assert_last_visit_matches(
+    actual_visit = assert_last_visit_matches(
         swh_storage,
         repo_url,
         status="full",
         type="git-checkout",
     )
+
+    snapshot = swh_storage.snapshot_get(actual_visit.snapshot)
+    assert snapshot is not None
+
+    branches = snapshot["branches"].keys()
+    assert set(branches) == {b"HEAD", reference.encode()}
 
     # Ensure the extids got stored as well
     extids = fetch_nar_extids_from_checksums(loader.storage, checksums)
