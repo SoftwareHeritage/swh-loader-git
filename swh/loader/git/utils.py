@@ -161,5 +161,3 @@ def raise_not_found_repository():
                 raise NotFound(e)
         # otherwise transmit the error
         raise
-    except Exception:
-        raise
