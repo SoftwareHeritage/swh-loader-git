@@ -3,9 +3,13 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+from os.path import basename
 from pathlib import Path
+import string
 import tempfile
 from typing import Iterator
+
+from dulwich.porcelain import checkout_branch, clone
 
 from swh.loader.core.loader import BaseDirectoryLoader
 from swh.loader.git.utils import raise_not_found_repository
@@ -18,10 +22,6 @@ def clone_repository(git_url: str, git_ref: str, target: Path):
     main loop in the loader.
 
     """
-    from os.path import basename
-    import string
-
-    from dulwich.porcelain import checkout_branch, clone
 
     local_name = basename(git_url)
     commit_ref = all(c in string.hexdigits for c in git_ref) and len(git_ref) >= 40
