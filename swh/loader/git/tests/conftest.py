@@ -4,8 +4,18 @@
 # See top-level LICENSE file for more information
 
 from typing import Any, Dict
+import uuid
 
 import pytest
+
+from swh.scheduler.model import Lister
+
+NAMESPACE = "swh.loader.git"
+
+
+@pytest.fixture
+def git_lister():
+    return Lister(name="git-lister", instance_name="example", id=uuid.uuid4())
 
 
 @pytest.fixture

@@ -26,13 +26,12 @@ from typing import (
 )
 
 import dulwich.client
-from dulwich.errors import GitProtocolError, NotGitRepository
 from dulwich.object_store import ObjectStoreGraphWalker
 from dulwich.objects import Blob, Commit, ShaFile, Tag, Tree
 from dulwich.pack import PackData, PackInflater
 
 from swh.core.statsd import Statsd
-from swh.loader.exception import NotFound
+from swh.loader.git.utils import raise_not_found_repository
 from swh.model import hashutil
 from swh.model.git_objects import (
     content_git_object,
@@ -345,25 +344,10 @@ class GitLoader(BaseGitLoader):
             sys.stderr.flush()
 
         try:
-            fetch_info = self.fetch_pack_from_origin(
-                self.origin.url, base_repo, do_progress
-            )
-        except (dulwich.client.HTTPUnauthorized, NotGitRepository) as e:
-            raise NotFound(e)
-        except GitProtocolError as e:
-            # unfortunately, that kind of error is not specific to a not found
-            # scenario... It depends on the value of message within the exception.
-            for msg in [
-                " unavailable",  # e.g DMCA takedown
-                " not found",
-                "unexpected http resp 401",
-                "unexpected http resp 403",
-                "unexpected http resp 410",
-            ]:
-                if msg in str(e.args[0]):
-                    raise NotFound(e)
-            # otherwise transmit the error
-            raise
+            with raise_not_found_repository():
+                fetch_info = self.fetch_pack_from_origin(
+                    self.origin.url, base_repo, do_progress
+                )
         except (AttributeError, NotImplementedError, ValueError):
             # with old dulwich versions, those exceptions types can be raised
             # by the fetch_pack operation when encountering a repository with

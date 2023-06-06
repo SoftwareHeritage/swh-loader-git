@@ -1,20 +1,14 @@
-# Copyright (C) 2018-2022  The Software Heritage developers
+# Copyright (C) 2018-2023  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import uuid
 
 import pytest
 
-from swh.scheduler.model import ListedOrigin, Lister
+from swh.scheduler.model import ListedOrigin
 
-NAMESPACE = "swh.loader.git"
-
-
-@pytest.fixture
-def git_lister():
-    return Lister(name="git-lister", instance_name="example", id=uuid.uuid4())
+from .conftest import NAMESPACE
 
 
 @pytest.fixture
