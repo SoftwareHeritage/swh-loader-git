@@ -43,6 +43,7 @@ swh/loader/__init__.py
 swh/loader/git/__init__.py
 swh/loader/git/base.py
 swh/loader/git/converters.py
+swh/loader/git/directory.py
 swh/loader/git/dumb.py
 swh/loader/git/from_disk.py
 swh/loader/git/loader.py
@@ -52,9 +53,11 @@ swh/loader/git/utils.py
 swh/loader/git/tests/__init__.py
 swh/loader/git/tests/conftest.py
 swh/loader/git/tests/test_converters.py
+swh/loader/git/tests/test_directory.py
 swh/loader/git/tests/test_from_disk.py
 swh/loader/git/tests/test_loader.py
 swh/loader/git/tests/test_tasks.py
+swh/loader/git/tests/test_tasks_directory.py
 swh/loader/git/tests/test_utils.py
 swh/loader/git/tests/data/testrepo.tgz
 swh/loader/git/tests/data/git-repos/example-submodule.bundle

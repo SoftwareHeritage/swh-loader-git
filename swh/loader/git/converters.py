@@ -188,10 +188,12 @@ def dulwich_commit_to_revision(obj: ShaFile) -> Revision:
     assert commit._chunked_text is not None  # to keep mypy happy
     for (field, value) in _parse_message(commit._chunked_text):
         if field == b"author":
+            assert value is not None
             m = AUTHORSHIP_LINE_RE.match(value)
             if m:
                 author_timezone = m.group("timezone")
         elif field == b"committer":
+            assert value is not None
             m = AUTHORSHIP_LINE_RE.match(value)
             if m:
                 committer_timezone = m.group("timezone")
@@ -278,6 +280,7 @@ def dulwich_tag_to_release(obj: ShaFile) -> Release:
     # FIXME: _parse_message is a private function from Dulwich.
     for (field, value) in _parse_message(tag.as_raw_chunks()):
         if field == b"tagger":
+            assert value is not None
             m = AUTHORSHIP_LINE_RE.match(value)
             if m:
                 tagger_timezone = m.group("timezone")

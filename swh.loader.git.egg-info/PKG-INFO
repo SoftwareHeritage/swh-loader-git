@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: swh.loader.git
-Version: 2.3.0
+Version: 2.4.0
 Summary: Software Heritage git loader
 Home-page: https://forge.softwareheritage.org/diffusion/DLDG/
 Author: Software Heritage developers
@@ -38,6 +38,9 @@ The main entry points are:
 
 - :class:`swh.loader.git.loader.GitLoaderFromArchive` which ingests a git repository
   wrapped in an archive.
+
+- :class:`swh.loader.git.directory.GitDirectoryLoader` which ingests a git tree at a
+  specific commit, branch or tag.
 
 
 License

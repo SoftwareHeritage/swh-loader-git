@@ -1,10 +1,13 @@
-# Copyright (C) 2015-2021  The Software Heritage developers
+# Copyright (C) 2015-2023  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+from dulwich.client import HTTPUnauthorized
+from dulwich.errors import GitProtocolError, NotGitRepository
 import pytest
 
+from swh.loader.exception import NotFound
 from swh.loader.git import utils
 
 
@@ -48,3 +51,34 @@ def test_ignore_branch_name():
             b"refs/pull/100/head",
         ]
     )
+
+
+@pytest.mark.parametrize(
+    "exception",
+    [
+        HTTPUnauthorized("url", "not authorized"),
+        NotGitRepository("not a git repo"),
+        GitProtocolError(" unavailable"),
+        GitProtocolError(" not found"),
+        GitProtocolError(" unexpected http resp 401"),
+        GitProtocolError(" unexpected http resp 403"),
+        GitProtocolError(" unexpected http resp 410"),
+    ],
+)
+def test_raise_not_found_repository(exception, mocker):
+    """Sensible not found exceptions are filtered as not found exception"""
+    msg = exception.args[0]
+    # All those exceptions are caught as not found (with the original error message
+    # propagated)
+    with pytest.raises(NotFound, match=msg):
+        with utils.raise_not_found_repository():
+            raise exception
+
+
+@pytest.mark.parametrize("exception", [GitProtocolError, ValueError, Exception])
+def test_raise_not_found_repository_raised_back(exception):
+    """Any other kind of exceptions are just raised back."""
+    exc = exception("this is raised back")
+    with pytest.raises(exception, match="raised back"):
+        with utils.raise_not_found_repository():
+            raise exc
