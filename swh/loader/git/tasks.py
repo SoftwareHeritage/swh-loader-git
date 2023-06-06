@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2022  The Software Heritage developers
+# Copyright (C) 2015-2023  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -8,6 +8,7 @@ from typing import Any, Dict
 from celery import shared_task
 
 from swh.loader.core.utils import parse_visit_date
+from swh.loader.git.directory import GitDirectoryLoader
 from swh.loader.git.from_disk import GitLoaderFromArchive, GitLoaderFromDisk
 from swh.loader.git.loader import GitLoader
 
@@ -42,4 +43,11 @@ def load_git_from_zip(**kwargs) -> Dict[str, Any]:
 
     """
     loader = GitLoaderFromArchive.from_configfile(**_process_kwargs(kwargs))
+    return loader.load()
+
+
+@shared_task(name=__name__ + ".LoadGitDirectory")
+def load_git_directory(**kwargs) -> Dict[str, Any]:
+    """Load a git tree at a specific commit, tag or branch."""
+    loader = GitDirectoryLoader.from_configfile(**_process_kwargs(kwargs))
     return loader.load()
