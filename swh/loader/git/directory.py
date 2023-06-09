@@ -40,7 +40,7 @@ def clone_repository(git_url: str, git_ref: str, target: Path):
     return repo
 
 
-class GitDirectoryLoader(BaseDirectoryLoader):
+class GitCheckoutLoader(BaseDirectoryLoader):
     """Git directory loader in charge of ingesting a git tree at a specific commit, tag
     or branch into the swh archive.
 

@@ -10,7 +10,7 @@ from typing import Tuple
 import pytest
 
 from swh.loader.core.nar import Nar
-from swh.loader.git.directory import GitDirectoryLoader, clone_repository
+from swh.loader.git.directory import GitCheckoutLoader, clone_repository
 from swh.loader.tests import (
     assert_last_visit_matches,
     fetch_nar_extids_from_checksums,
@@ -92,7 +92,7 @@ def test_git_loader_directory(swh_storage, datadir, tmp_path, reference):
     checksums = {
         "sha256": compute_nar_hash_for_ref(repo_url, reference, "sha256", tmp_path)
     }
-    loader = GitDirectoryLoader(
+    loader = GitCheckoutLoader(
         swh_storage,
         repo_url,
         ref=reference,
@@ -134,7 +134,7 @@ def test_loader_git_directory_hash_mismatch(swh_storage, datadir, tmp_path):
     reference = "branch2-before-delete"
     truthy_checksums = compute_nar_hash_for_ref(repo_url, reference, "sha256", tmp_path)
     faulty_checksums = {"sha256": truthy_checksums.replace("5", "0")}
-    loader = GitDirectoryLoader(
+    loader = GitCheckoutLoader(
         swh_storage,
         repo_url,
         ref=reference,
@@ -164,7 +164,7 @@ def test_loader_git_directory_hash_mismatch(swh_storage, datadir, tmp_path):
 
 def test_loader_git_directory_not_found(swh_storage, datadir, tmp_path):
     """Loading a git tree from an unknown origin should fail"""
-    loader = GitDirectoryLoader(
+    loader = GitCheckoutLoader(
         swh_storage,
         "file:///home/origin/does/not/exist",
         ref="not-important",
