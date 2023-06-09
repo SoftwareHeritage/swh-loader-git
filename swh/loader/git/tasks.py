@@ -8,7 +8,7 @@ from typing import Any, Dict
 from celery import shared_task
 
 from swh.loader.core.utils import parse_visit_date
-from swh.loader.git.directory import GitDirectoryLoader
+from swh.loader.git.directory import GitCheckoutLoader
 from swh.loader.git.from_disk import GitLoaderFromArchive, GitLoaderFromDisk
 from swh.loader.git.loader import GitLoader
 
@@ -46,8 +46,8 @@ def load_git_from_zip(**kwargs) -> Dict[str, Any]:
     return loader.load()
 
 
-@shared_task(name=__name__ + ".LoadGitDirectory")
-def load_git_directory(**kwargs) -> Dict[str, Any]:
+@shared_task(name=__name__ + ".LoadGitCheckout")
+def load_git_checkout(**kwargs) -> Dict[str, Any]:
     """Load a git tree at a specific commit, tag or branch."""
-    loader = GitDirectoryLoader.from_configfile(**_process_kwargs(kwargs))
+    loader = GitCheckoutLoader.from_configfile(**_process_kwargs(kwargs))
     return loader.load()
