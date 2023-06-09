@@ -36,8 +36,8 @@ def test_git_directory_loader_for_listed_origin(
     git_listed_origin.extra_loader_arguments = extra_loader_arguments
 
     loading_task_creation_for_listed_origin_test(
-        loader_class_name=f"{NAMESPACE}.directory.GitDirectoryLoader",
-        task_function_name=f"{NAMESPACE}.tasks.LoadGitDirectory",
+        loader_class_name=f"{NAMESPACE}.directory.GitCheckoutLoader",
+        task_function_name=f"{NAMESPACE}.tasks.LoadGitCheckout",
         lister=git_lister,
         listed_origin=git_listed_origin,
     )

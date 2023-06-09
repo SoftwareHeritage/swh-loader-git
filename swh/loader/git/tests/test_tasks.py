@@ -6,9 +6,16 @@
 
 import pytest
 
+from swh.loader.tests import assert_module_tasks_are_scheduler_ready
 from swh.scheduler.model import ListedOrigin
 
 from .conftest import NAMESPACE
+
+
+def test_tasks_loader_visit_type_match_task_name():
+    import swh.loader.git
+
+    assert_module_tasks_are_scheduler_ready([swh.loader.git])
 
 
 @pytest.fixture

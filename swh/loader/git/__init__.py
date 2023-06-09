@@ -25,9 +25,9 @@ def register_from_disk() -> Dict[str, Any]:
 
 
 def register_checkout() -> Dict[str, Any]:
-    from swh.loader.git.directory import GitDirectoryLoader
+    from swh.loader.git.directory import GitCheckoutLoader
 
     return {
         "task_modules": [],
-        "loader": GitDirectoryLoader,
+        "loader": GitCheckoutLoader,
     }
