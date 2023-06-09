@@ -55,7 +55,7 @@ setup(
         [swh.workers]
         loader.git=swh.loader.git:register
         loader.git_disk=swh.loader.git:register_from_disk
-        loader.git_checkout=swh.loader.git:register_checkout
+        loader.git-checkout=swh.loader.git:register_checkout
     """,
     classifiers=[
         "Programming Language :: Python :: 3",
