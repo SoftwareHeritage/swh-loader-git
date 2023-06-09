@@ -1,3 +1,14 @@
+swh-loader-git (2.5.0-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 2.5.0     - (tagged by Antoine R. Dumont
+    (@ardumont) <ardumont@softwareheritage.org> on 2023-06-09 17:17:25
+    +0200)
+  * Upstream changes:     - v2.5.0     - requirements.txt: Bump dulwich
+    requirements     - tests: Ensure tasks can be scheduled     -
+    setup.py: Register git-checkout loader for use through CLI
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Fri, 09 Jun 2023 15:25:48 +0000
+
 swh-loader-git (2.4.0-1~swh1) unstable-swh; urgency=medium
 
   * New upstream release 2.4.0     - (tagged by Antoine R. Dumont
