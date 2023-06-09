@@ -17,7 +17,7 @@ The main entry points are:
 - :class:`swh.loader.git.loader.GitLoaderFromArchive` which ingests a git repository
   wrapped in an archive.
 
-- :class:`swh.loader.git.directory.GitDirectoryLoader` which ingests a git tree at a
+- :class:`swh.loader.git.directory.GitCheckoutLoader` which ingests a git tree at a
   specific commit, branch or tag.
 
 
