@@ -31,6 +31,9 @@ logger = logging.getLogger(__name__)
 HEADERS = {"User-Agent": "Software Heritage dumb Git loader"}
 
 
+@http_retry(
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+)
 def check_protocol(repo_url: str) -> bool:
     """Checks if a git repository can be cloned using the dumb protocol.
 
@@ -48,6 +51,7 @@ def check_protocol(repo_url: str) -> bool:
     )
     logger.debug("Fetching %s", url)
     response = requests.get(url, headers=HEADERS)
+    response.raise_for_status()
     content_type = response.headers.get("Content-Type")
     return (
         response.status_code

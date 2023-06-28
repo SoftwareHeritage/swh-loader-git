@@ -9,16 +9,10 @@ import os
 import shutil
 from typing import Dict, Optional
 
-from dulwich.errors import ObjectFormatException
-
-try:
-    from dulwich.errors import EmptyFileException  # type: ignore
-except ImportError:
-    # dulwich >= 0.20
-    from dulwich.objects import EmptyFileException
-
 from deprecated import deprecated
+from dulwich.errors import ObjectFormatException
 import dulwich.objects
+from dulwich.objects import EmptyFileException
 import dulwich.repo
 
 from swh.loader.git.utils import raise_not_found_repository
@@ -102,7 +96,8 @@ class GitLoaderFromDisk(BaseGitLoader):
         **kwargs,
     ):
         super().__init__(storage=storage, origin_url=url, **kwargs)
-        self.visit_date = visit_date or self.visit_date
+        if visit_date is not None:
+            self.visit_date = visit_date
         self.directory = directory
 
     def prepare(self):

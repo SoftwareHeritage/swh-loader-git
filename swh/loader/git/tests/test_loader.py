@@ -22,7 +22,6 @@ from dulwich.porcelain import push
 import dulwich.repo
 from dulwich.tests.utils import build_pack
 import pytest
-import requests_mock
 
 from swh.loader.git import converters, dumb
 from swh.loader.git.loader import FetchPackReturn, GitLoader
@@ -964,29 +963,45 @@ class TestDumbGitLoaderWithPack(DumbGitLoaderTestBase):
 
         assert res == {"status": "eventful"}
 
-    def test_http_get_retry(self, mocker):
+    def test_http_get_retry(self, mocker, requests_mock):
+        requests_mock.real_http = True
         sleep = mocker.patch.object(dumb.GitObjectsFetcher._http_get.retry, "sleep")
-        with requests_mock.Mocker(real_http=True) as http_mocker:
-            # mock requests for getting packs data
-            for root, _, files in os.walk(
-                os.path.join(self.bare_repo_path, "objects/pack")
-            ):
-                nb_files = len(files)
-                for pack in files:
-                    with open(os.path.join(root, pack), "rb") as pack_data:
-                        http_mocker.get(
-                            f"{self.repo_url}/objects/pack/{pack}",
-                            [
-                                # first request fails
-                                {"status_code": 502},
-                                # next one succeeds
-                                {"status_code": 200, "content": pack_data.read()},
-                            ],
-                        )
 
-            res = self.loader.load()
-            assert res == {"status": "eventful"}
-            sleep.assert_has_calls([mocker.call(param) for param in [1] * nb_files])
+        # mock requests for getting packs data
+        for root, _, files in os.walk(
+            os.path.join(self.bare_repo_path, "objects/pack")
+        ):
+            nb_files = len(files)
+            for pack in files:
+                with open(os.path.join(root, pack), "rb") as pack_data:
+                    requests_mock.get(
+                        f"{self.repo_url}/objects/pack/{pack}",
+                        [
+                            # first request fails
+                            {"status_code": 502},
+                            # next one succeeds
+                            {"status_code": 200, "content": pack_data.read()},
+                        ],
+                    )
+
+        res = self.loader.load()
+        assert res == {"status": "eventful"}
+        sleep.assert_has_calls([mocker.call(param) for param in [1] * nb_files])
+
+        sleep = mocker.patch.object(dumb.check_protocol.retry, "sleep")
+        with open(os.path.join(self.bare_repo_path, "info/refs"), "rb") as refs_data:
+            requests_mock.get(
+                f"{self.repo_url}/info/refs",
+                [
+                    # first request fails
+                    {"status_code": 502},
+                    # next one succeeds
+                    {"status_code": 200, "content": refs_data.read()},
+                ],
+            )
+
+        assert dumb.check_protocol(self.repo_url)
+        sleep.assert_has_calls([mocker.call(1)])
 
 
 class TestDumbGitLoaderWithoutPack(DumbGitLoaderTestBase):
