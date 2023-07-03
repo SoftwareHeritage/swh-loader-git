@@ -22,6 +22,7 @@ from dulwich.porcelain import push
 import dulwich.repo
 from dulwich.tests.utils import build_pack
 import pytest
+from requests import HTTPError
 
 from swh.loader.git import converters, dumb
 from swh.loader.git.loader import FetchPackReturn, GitLoader
@@ -65,10 +66,13 @@ class CommonGitLoaderNotFound:
     def test_load_visit_not_found(self, failure_exception):
         """Ingesting an unknown url result in a visit with not_found status"""
         # simulate an initial communication error (e.g no repository found, ...)
-        mock = self.mocker.patch(
+        self.mocker.patch(
             "swh.loader.git.loader.GitLoader.fetch_pack_from_origin"
-        )
-        mock.side_effect = failure_exception
+        ).side_effect = failure_exception
+
+        self.mocker.patch(
+            "swh.loader.git.loader.dumb.check_protocol"
+        ).side_effect = HTTPError("404 not found")
 
         res = self.loader.load()
         assert res == {"status": "uneventful"}

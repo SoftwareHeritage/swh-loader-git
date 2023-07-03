@@ -31,6 +31,7 @@ from dulwich.objects import Blob, Commit, ShaFile, Tag, Tree
 from dulwich.pack import PackData, PackInflater
 
 from swh.core.statsd import Statsd
+from swh.loader.exception import NotFound
 from swh.loader.git.utils import raise_not_found_repository
 from swh.model import hashutil
 from swh.model.git_objects import (
@@ -348,6 +349,10 @@ class GitLoader(BaseGitLoader):
                 fetch_info = self.fetch_pack_from_origin(
                     self.origin.url, base_repo, do_progress
                 )
+        except NotFound:
+            # NotFound inherits from ValueError and should not be caught
+            # by the next exception handler
+            raise
         except (AttributeError, NotImplementedError, ValueError):
             # with old dulwich versions, those exceptions types can be raised
             # by the fetch_pack operation when encountering a repository with
