@@ -1,3 +1,11 @@
+swh-loader-git (2.5.2-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 2.5.2     - (tagged by Antoine Lambert
+    <anlambert@softwareheritage.org> on 2023-07-03 14:50:59 +0200)
+  * Upstream changes:     - version 2.5.2
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Mon, 03 Jul 2023 12:55:42 +0000
+
 swh-loader-git (2.5.1-1~swh1) unstable-swh; urgency=medium
 
   * New upstream release 2.5.1     - (tagged by Antoine R. Dumont
