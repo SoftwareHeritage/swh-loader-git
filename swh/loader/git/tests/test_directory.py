@@ -10,13 +10,69 @@ from typing import Tuple
 import pytest
 
 from swh.loader.core.nar import Nar
-from swh.loader.git.directory import GitCheckoutLoader, clone_repository
+from swh.loader.git.directory import GitCheckoutLoader, clone_repository, list_git_tree
 from swh.loader.tests import (
     assert_last_visit_matches,
     fetch_nar_extids_from_checksums,
     get_stats,
     prepare_repository_from_archive,
 )
+
+
+def test_list_git_tree(datadir, tmp_path):
+    """Listing a git tree should not list any .git paths nor empty folders."""
+    archive_name = "testrepo"
+    archive_path = os.path.join(datadir, f"{archive_name}.tgz")
+    repo, repo_url = prepare_test_git_clone(
+        archive_path, archive_name, tmp_path, "branch2-after-delete"
+    )
+
+    from swh.model.from_disk import Directory
+
+    repo_dir = repo.path.as_posix()
+
+    # Create an empty dir within the repository
+    os.makedirs(os.path.join(repo_dir, "empty-foo"), exist_ok=True)
+    os.makedirs(os.path.join(repo_dir, ".git", "empty-foobar"), exist_ok=True)
+
+    repo_path = repo_dir.encode()
+    dir1 = Directory.from_disk(path=repo_path)
+
+    def names(entries):
+        return [d["name"] for d in entries]
+
+    dir1_entries = names(dir1.entries)
+    assert b".git" in dir1_entries
+    assert b"empty-foo" in dir1_entries
+
+    # Let's find empty-foobar
+    empty_bar_found = False
+    all_nodes = dir1.collect()
+    assert len(all_nodes) > 0
+    for entry in all_nodes:
+        if entry.object_type == "content":
+            continue
+        dir_entries = names(entry.entries)
+        if b"empty-foobar" in dir_entries:
+            empty_bar_found = True
+            break
+
+    assert empty_bar_found is True
+
+    dir2 = Directory.from_disk(path=repo_path, dir_filter=list_git_tree)
+    dir2_entries = [d["name"] for d in dir2.entries]
+    assert b".git" not in dir2_entries
+    assert b"empty-foo" not in dir2_entries
+
+    # Let's find empty-foobar
+    all_nodes = dir2.collect()
+    assert len(all_nodes) > 0
+    for entry in all_nodes:
+        if entry.object_type == "content":
+            continue
+        dir_entries = names(entry.entries)
+        assert b"empty" not in dir_entries
+        assert b".git" not in dir_entries
 
 
 def compute_nar_hash_for_ref(
@@ -99,6 +155,8 @@ def test_git_loader_directory(swh_storage, datadir, tmp_path, reference):
         checksum_layout="nar",
         checksums=checksums,
     )
+
+    assert loader.dir_filter == list_git_tree
 
     actual_result = loader.load()
 
