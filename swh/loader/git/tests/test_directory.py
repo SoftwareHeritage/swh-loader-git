@@ -7,9 +7,11 @@ import os
 from pathlib import Path
 from typing import Tuple
 
+from dulwich.repo import Repo
 import pytest
 
 from swh.loader.core.nar import Nar
+from swh.loader.exception import NotFound
 from swh.loader.git.directory import GitCheckoutLoader, clone_repository, list_git_tree
 from swh.loader.tests import (
     assert_last_visit_matches,
@@ -29,7 +31,7 @@ def test_list_git_tree(datadir, tmp_path):
 
     from swh.model.from_disk import Directory
 
-    repo_dir = repo.path.as_posix()
+    repo_dir = repo.path
 
     # Create an empty dir within the repository
     os.makedirs(os.path.join(repo_dir, "empty-foo"), exist_ok=True)
@@ -64,7 +66,7 @@ def test_list_git_tree(datadir, tmp_path):
     assert b".git" not in dir2_entries
     assert b"empty-foo" not in dir2_entries
 
-    # Let's find empty-foobar
+    # Check .git folder and empty folders have not been collected.
     all_nodes = dir2.collect()
     assert len(all_nodes) > 0
     for entry in all_nodes:
@@ -81,9 +83,9 @@ def compute_nar_hash_for_ref(
     """Compute the nar from a git checked out by git."""
     tmp_path = Path(os.path.join(temp_dir, "compute-nar"))
     tmp_path.mkdir(exist_ok=True)
-    git_repo = clone_repository(repo_url, ref, tmp_path)
+    git_repo_path = clone_repository(repo_url, ref, tmp_path)
     nar = Nar(hash_names=[hash_name], exclude_vcs=True)
-    nar.serialize(git_repo.path)
+    nar.serialize(git_repo_path)
     return nar.hexdigest()[hash_name]
 
 
@@ -96,11 +98,11 @@ def prepare_test_git_clone(
 
     temp_dir = Path(tmp_path) / "checkout"
     os.makedirs(temp_dir)
-    repo = clone_repository(repo_url, ref, temp_dir)
-    assert repo and repo.path and repo.path.exists()
+    repo_path = clone_repository(repo_url, ref, temp_dir)
+    assert repo_path and repo_path.exists()
     expected_path = temp_dir / os.path.basename(repo_url)
-    assert str(repo.path) == str(expected_path)
-    return repo, repo_url
+    assert str(repo_path) == str(expected_path)
+    return Repo(str(repo_path)), repo_url
 
 
 @pytest.mark.parametrize(
@@ -127,6 +129,13 @@ def test_clone_repository_from(datadir, tmp_path, reference, reference_type):
     else:
         expected_head = reference.encode()
     assert repo.head() == expected_head
+
+
+def test_clone_directory_not_found(tmp_path):
+    with pytest.raises(NotFound):
+        clone_repository(
+            "file:///home/origin/does/not/exist", "not-important", tmp_path
+        )
 
 
 @pytest.mark.parametrize(
