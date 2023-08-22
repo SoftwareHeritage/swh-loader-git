@@ -1,3 +1,14 @@
+swh-loader-git (2.6.0-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 2.6.0     - (tagged by Antoine R. Dumont
+    (@ardumont) <ardumont@softwareheritage.org> on 2023-08-22 09:27:40
+    +0200)
+  * Upstream changes:     - v2.6.0     - git.directory: Use faster
+    treeless cloning     - git.directory: Ignore .git and empty folders
+    for hash computations
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Tue, 22 Aug 2023 07:33:20 +0000
+
 swh-loader-git (2.5.2-1~swh1) unstable-swh; urgency=medium
 
   * New upstream release 2.5.2     - (tagged by Antoine Lambert
