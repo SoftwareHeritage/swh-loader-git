@@ -5,18 +5,32 @@
 
 from os.path import basename
 from pathlib import Path
-import string
+from shutil import which
+from subprocess import CalledProcessError, check_output
 import tempfile
-from typing import Iterator
-
-from dulwich.porcelain import checkout_branch, clone
+from typing import Any, Iterable, Iterator
 
 from swh.loader.core.loader import BaseDirectoryLoader
+from swh.loader.exception import NotFound
 from swh.loader.git.utils import raise_not_found_repository
+from swh.model.from_disk import ignore_empty_directories, ignore_named_directories
 from swh.model.model import Snapshot, SnapshotBranch, TargetType
 
 
-def clone_repository(git_url: str, git_ref: str, target: Path):
+def git() -> str:
+    """Get the path to the git executable.
+
+    Raises:
+        EnvironmentError if no opam executable is found
+    """
+    ret = which("git")
+    if not ret:
+        raise EnvironmentError("No git executable found in path {os.environ['PATH']}")
+
+    return ret
+
+
+def clone_repository(git_url: str, git_ref: str, target: Path) -> Path:
     """Clone ``git_url`` repository at ``git_ref`` commit, tag or branch.
 
     This function can raise for various reasons. This is expected to be caught by the
@@ -25,24 +39,46 @@ def clone_repository(git_url: str, git_ref: str, target: Path):
     """
 
     local_name = basename(git_url)
-    commit_ref = all(c in string.hexdigits for c in git_ref) and len(git_ref) >= 40
+    local_clone = str(target / local_name)
+    clone_cmd = [
+        # treeless clone (except for the head)
+        # man git-rev-list > section "--filter": "A treeless clone downloads all
+        # reachable commits, then downloads trees and blobs on demand."
+        git(),
+        "clone",
+        "--filter=tree:0",
+        git_url,
+        local_clone,
+    ]
+    # Clone
+    try:
+        check_output(clone_cmd)
+    except CalledProcessError:
+        raise NotFound("Repository <{git_url}> not found")
 
-    repo = clone(
-        source=git_url,
-        target=target / local_name,
-        branch=git_ref if not commit_ref else None,
-        depth=0 if not commit_ref else None,
-    )
+    # Then checkout the tree at the desired reference
+    check_output([git(), "switch", "--detach", git_ref], cwd=local_clone)
 
-    if commit_ref:
-        checkout_branch(repo, git_ref)
+    return Path(local_clone)
 
-    return repo
+
+def list_git_tree(dirpath: str, dirname: str, entries: Iterable[Any]) -> bool:
+    # def list_git_tree() -> Callable:
+    """List a git tree. This ignores any repo_path/.git/* and empty folders. This is a
+    filter for :func:`directory_to_objects` to ignore specific directories.
+
+    """
+    return ignore_named_directories([b".git"])(
+        dirpath, dirname, entries
+    ) and ignore_empty_directories(dirpath, dirname, entries)
 
 
 class GitCheckoutLoader(BaseDirectoryLoader):
     """Git directory loader in charge of ingesting a git tree at a specific commit, tag
     or branch into the swh archive.
+
+    As per the standard git hash computations, this ignores the .git and the empty
+    directories.
 
     The output snapshot is of the form:
 
@@ -63,15 +99,16 @@ class GitCheckoutLoader(BaseDirectoryLoader):
 
     def __init__(self, *args, **kwargs):
         self.git_ref = kwargs.pop("ref")
-        super().__init__(*args, **kwargs)
+        # We use a filter which ignore the .git folder and the empty git trees
+        super().__init__(*args, dir_filter=list_git_tree, **kwargs)
 
     def fetch_artifact(self) -> Iterator[Path]:
         with raise_not_found_repository():
             with tempfile.TemporaryDirectory() as tmpdir:
-                repo = clone_repository(
+                repo_path = clone_repository(
                     self.origin.url, self.git_ref, target=Path(tmpdir)
                 )
-                yield repo.path
+                yield repo_path
 
     def build_snapshot(self) -> Snapshot:
         """Build snapshot without losing the git reference context."""

@@ -7,10 +7,12 @@ import os
 from pathlib import Path
 from typing import Tuple
 
+from dulwich.repo import Repo
 import pytest
 
 from swh.loader.core.nar import Nar
-from swh.loader.git.directory import GitCheckoutLoader, clone_repository
+from swh.loader.exception import NotFound
+from swh.loader.git.directory import GitCheckoutLoader, clone_repository, list_git_tree
 from swh.loader.tests import (
     assert_last_visit_matches,
     fetch_nar_extids_from_checksums,
@@ -19,15 +21,71 @@ from swh.loader.tests import (
 )
 
 
+def test_list_git_tree(datadir, tmp_path):
+    """Listing a git tree should not list any .git paths nor empty folders."""
+    archive_name = "testrepo"
+    archive_path = os.path.join(datadir, f"{archive_name}.tgz")
+    repo, repo_url = prepare_test_git_clone(
+        archive_path, archive_name, tmp_path, "branch2-after-delete"
+    )
+
+    from swh.model.from_disk import Directory
+
+    repo_dir = repo.path
+
+    # Create an empty dir within the repository
+    os.makedirs(os.path.join(repo_dir, "empty-foo"), exist_ok=True)
+    os.makedirs(os.path.join(repo_dir, ".git", "empty-foobar"), exist_ok=True)
+
+    repo_path = repo_dir.encode()
+    dir1 = Directory.from_disk(path=repo_path)
+
+    def names(entries):
+        return [d["name"] for d in entries]
+
+    dir1_entries = names(dir1.entries)
+    assert b".git" in dir1_entries
+    assert b"empty-foo" in dir1_entries
+
+    # Let's find empty-foobar
+    empty_bar_found = False
+    all_nodes = dir1.collect()
+    assert len(all_nodes) > 0
+    for entry in all_nodes:
+        if entry.object_type == "content":
+            continue
+        dir_entries = names(entry.entries)
+        if b"empty-foobar" in dir_entries:
+            empty_bar_found = True
+            break
+
+    assert empty_bar_found is True
+
+    dir2 = Directory.from_disk(path=repo_path, dir_filter=list_git_tree)
+    dir2_entries = [d["name"] for d in dir2.entries]
+    assert b".git" not in dir2_entries
+    assert b"empty-foo" not in dir2_entries
+
+    # Check .git folder and empty folders have not been collected.
+    all_nodes = dir2.collect()
+    assert len(all_nodes) > 0
+    for entry in all_nodes:
+        if entry.object_type == "content":
+            continue
+        dir_entries = names(entry.entries)
+        assert b"empty" not in dir_entries
+        assert b".git" not in dir_entries
+
+
 def compute_nar_hash_for_ref(
     repo_url: str, ref: str, hash_name: str = "sha256", temp_dir: str = "/tmp"
 ) -> str:
     """Compute the nar from a git checked out by git."""
     tmp_path = Path(os.path.join(temp_dir, "compute-nar"))
     tmp_path.mkdir(exist_ok=True)
-    git_repo = clone_repository(repo_url, ref, tmp_path)
+    git_repo_path = clone_repository(repo_url, ref, tmp_path)
     nar = Nar(hash_names=[hash_name], exclude_vcs=True)
-    nar.serialize(git_repo.path)
+    nar.serialize(git_repo_path)
     return nar.hexdigest()[hash_name]
 
 
@@ -40,11 +98,11 @@ def prepare_test_git_clone(
 
     temp_dir = Path(tmp_path) / "checkout"
     os.makedirs(temp_dir)
-    repo = clone_repository(repo_url, ref, temp_dir)
-    assert repo and repo.path and repo.path.exists()
+    repo_path = clone_repository(repo_url, ref, temp_dir)
+    assert repo_path and repo_path.exists()
     expected_path = temp_dir / os.path.basename(repo_url)
-    assert str(repo.path) == str(expected_path)
-    return repo, repo_url
+    assert str(repo_path) == str(expected_path)
+    return Repo(str(repo_path)), repo_url
 
 
 @pytest.mark.parametrize(
@@ -73,6 +131,13 @@ def test_clone_repository_from(datadir, tmp_path, reference, reference_type):
     assert repo.head() == expected_head
 
 
+def test_clone_directory_not_found(tmp_path):
+    with pytest.raises(NotFound):
+        clone_repository(
+            "file:///home/origin/does/not/exist", "not-important", tmp_path
+        )
+
+
 @pytest.mark.parametrize(
     "reference",
     [
@@ -99,6 +164,8 @@ def test_git_loader_directory(swh_storage, datadir, tmp_path, reference):
         checksum_layout="nar",
         checksums=checksums,
     )
+
+    assert loader.dir_filter == list_git_tree
 
     actual_result = loader.load()
 
