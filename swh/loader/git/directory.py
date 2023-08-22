@@ -54,7 +54,7 @@ def clone_repository(git_url: str, git_ref: str, target: Path) -> Path:
     try:
         check_output(clone_cmd)
     except CalledProcessError:
-        raise NotFound("Repository <{git_url}> not found")
+        raise NotFound(f"Repository <{git_url}> not found")
 
     # Then checkout the tree at the desired reference
     check_output([git(), "switch", "--detach", git_ref], cwd=local_clone)

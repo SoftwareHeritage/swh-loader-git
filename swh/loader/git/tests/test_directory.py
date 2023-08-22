@@ -132,7 +132,7 @@ def test_clone_repository_from(datadir, tmp_path, reference, reference_type):
 
 
 def test_clone_directory_not_found(tmp_path):
-    with pytest.raises(NotFound):
+    with pytest.raises(NotFound, match="Repository <file://"):
         clone_repository(
             "file:///home/origin/does/not/exist", "not-important", tmp_path
         )
