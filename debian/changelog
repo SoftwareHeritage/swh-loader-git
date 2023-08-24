@@ -1,3 +1,14 @@
+swh-loader-git (2.6.1-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 2.6.1     - (tagged by Antoine R. Dumont
+    (@ardumont) <ardumont@softwareheritage.org> on 2023-08-24 18:57:29
+    +0200)
+  * Upstream changes:     - v2.6.1     - git.directory: Initialize git
+    submodules after switch to git ref     - git.directory: Fix missing
+    f-string prefix
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Thu, 24 Aug 2023 17:03:15 +0000
+
 swh-loader-git (2.6.0-1~swh1) unstable-swh; urgency=medium
 
   * New upstream release 2.6.0     - (tagged by Antoine R. Dumont
