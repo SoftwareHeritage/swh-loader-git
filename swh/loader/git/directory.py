@@ -54,10 +54,17 @@ def clone_repository(git_url: str, git_ref: str, target: Path) -> Path:
     try:
         check_output(clone_cmd)
     except CalledProcessError:
-        raise NotFound("Repository <{git_url}> not found")
+        raise NotFound(f"Repository <{git_url}> not found")
 
     # Then checkout the tree at the desired reference
     check_output([git(), "switch", "--detach", git_ref], cwd=local_clone)
+
+    # Then initialize submodules if any.
+    # Note that using '--recurse-submodules' during the clone step was tried and this
+    # was not enough so only initialize the submodule when the git reference switch is
+    # done to reduce the number of git operations to the minimum
+    check_output([git(), "submodule", "init"], cwd=local_clone)
+    check_output([git(), "submodule", "update"], cwd=local_clone)
 
     return Path(local_clone)
 
