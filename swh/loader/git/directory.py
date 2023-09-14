@@ -3,7 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-from os.path import basename
+from os.path import basename, exists, join
 from pathlib import Path
 from shutil import which
 from subprocess import CalledProcessError, check_output
@@ -59,13 +59,6 @@ def clone_repository(git_url: str, git_ref: str, target: Path) -> Path:
     # Then checkout the tree at the desired reference
     check_output([git(), "switch", "--detach", git_ref], cwd=local_clone)
 
-    # Then initialize submodules if any.
-    # Note that using '--recurse-submodules' during the clone step was tried and this
-    # was not enough so only initialize the submodule when the git reference switch is
-    # done to reduce the number of git operations to the minimum
-    check_output([git(), "submodule", "init"], cwd=local_clone)
-    check_output([git(), "submodule", "update"], cwd=local_clone)
-
     return Path(local_clone)
 
 
@@ -115,7 +108,34 @@ class GitCheckoutLoader(BaseDirectoryLoader):
                 repo_path = clone_repository(
                     self.origin.url, self.git_ref, target=Path(tmpdir)
                 )
+
                 yield repo_path
+
+                # if the steps below are executed, it means a directory hash mismatch was
+                # found between the one computed from the cloned repository and the expected
+                # one provided as loader parameter, retry loading by fetching submodules in
+                # case they were used in hash computation
+
+                local_clone = str(repo_path)
+                gitmodules_path = join(local_clone, ".gitmodules")
+                if exists(gitmodules_path):
+                    with open(gitmodules_path, "r") as f:
+                        gitmodules = f.read()
+                    with open(gitmodules_path, "w") as f:
+                        # replace no longer working github URLs using TCP protocol
+                        f.write(
+                            gitmodules.replace(
+                                "git://github.com/", "https://github.com/"
+                            )
+                        )
+                    check_output(
+                        [git(), "submodule", "update", "--init", "--recursive"],
+                        cwd=local_clone,
+                    )
+                    # restore original .gitmodules file in case it was modified above
+                    check_output([git(), "checkout", "."], cwd=local_clone)
+
+                    yield repo_path
 
     def build_snapshot(self) -> Snapshot:
         """Build snapshot without losing the git reference context."""
