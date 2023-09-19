@@ -5,9 +5,12 @@
 
 import os
 from pathlib import Path
+from subprocess import run
+import threading
 from typing import Tuple
 
 from dulwich.repo import Repo
+from dulwich.server import DictBackend, TCPGitServer
 import pytest
 
 from swh.loader.core.nar import Nar
@@ -253,3 +256,106 @@ def test_loader_git_directory_not_found(swh_storage, datadir, tmp_path):
         "skipped_content": 0,
         "snapshot": 0,
     }
+
+
+@pytest.fixture
+def simple_git_repository_url(tmp_path):
+    """Create a simple git repository containing one file.
+    This repository will be added as a submodule in another git repository.
+    As git forbids to add a submodule from the local filesystem, we serve
+    the repository using TCP."""
+    git_repo_path = os.path.join(tmp_path, "git_repo")
+    git_repo = Repo.init(git_repo_path, mkdir=True)
+
+    with open(os.path.join(git_repo_path, "file"), "w") as f:
+        f.write("foo")
+
+    git_repo.stage(["file"])
+    git_repo.do_commit(
+        b"file added",
+        committer=b"Test Committer <test@example.org>",
+        author=b"Test Author <test@example.org>",
+        commit_timestamp=12395,
+        commit_timezone=0,
+        author_timestamp=12395,
+        author_timezone=0,
+    )
+
+    backend = DictBackend({b"/": git_repo})
+    git_server = TCPGitServer(backend, b"localhost", 0)
+
+    git_server_thread = threading.Thread(target=git_server.serve)
+    git_server_thread.start()
+
+    _, port = git_server.socket.getsockname()
+
+    yield f"git://localhost:{port}/"
+
+    git_server.shutdown()
+    git_server.server_close()
+    git_server_thread.join()
+
+
+@pytest.mark.parametrize("with_submodule", [False, True])
+def test_loader_git_directory_without_or_with_submodule(
+    swh_storage, datadir, tmp_path, simple_git_repository_url, with_submodule
+):
+    archive_name = "testrepo"
+    archive_path = os.path.join(datadir, f"{archive_name}.tgz")
+    release_name = "branch2-before-delete"
+    repo, _ = prepare_test_git_clone(archive_path, archive_name, tmp_path, release_name)
+    repo_url = f"file://{repo.path}"
+
+    if with_submodule:
+        run(
+            ["git", "config", "user.email", "foo@example.org"],
+            check=True,
+            cwd=repo.path,
+        )
+        run(
+            ["git", "config", "user.name", "Foo"],
+            check=True,
+            cwd=repo.path,
+        )
+        # add the repository served by the simple_git_repository_url fixture as a
+        # submodule in it
+        run(
+            ["git", "submodule", "add", simple_git_repository_url, "submodule"],
+            check=True,
+            cwd=repo.path,
+        )
+        run(
+            ["git", "commit", "-m", "submodule added"],
+            check=True,
+            cwd=repo.path,
+        )
+
+    tmp_clone_path = os.path.join(tmp_path, "repo_clone")
+
+    run(["git", "clone", repo_url, tmp_clone_path], check=True)
+    if with_submodule:
+        run(["git", "submodule", "init"], check=True, cwd=tmp_clone_path)
+        run(["git", "submodule", "update"], check=True, cwd=tmp_clone_path)
+
+    nar = Nar(hash_names=["sha1", "sha256"], exclude_vcs=True)
+    nar.serialize(Path(tmp_clone_path))
+    nar_hashes = nar.hexdigest()
+
+    loader = GitCheckoutLoader(
+        swh_storage,
+        repo_url,
+        ref=repo.head().decode(),
+        checksum_layout="nar",
+        checksums=nar_hashes,
+    )
+
+    result = loader.load()
+
+    assert result == {"status": "eventful"}
+
+    assert_last_visit_matches(
+        swh_storage,
+        repo_url,
+        status="full",
+        type="git-checkout",
+    )

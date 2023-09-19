@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: swh.loader.git
-Version: 2.6.1
+Version: 2.6.2
 Summary: Software Heritage git loader
 Home-page: https://forge.softwareheritage.org/diffusion/DLDG/
 Author: Software Heritage developers
@@ -16,9 +16,24 @@ Classifier: Operating System :: OS Independent
 Classifier: Development Status :: 5 - Production/Stable
 Requires-Python: >=3.7
 Description-Content-Type: text/markdown
-Provides-Extra: testing
 License-File: LICENSE
 License-File: AUTHORS
+Requires-Dist: dulwich>=0.21.5
+Requires-Dist: retrying
+Requires-Dist: click
+Requires-Dist: swh.core>=2.22.0
+Requires-Dist: swh.loader.core>=5.7.3
+Requires-Dist: swh.model>=4.3.0
+Requires-Dist: swh.scheduler>=0.0.39
+Requires-Dist: swh.storage>=0.22.0
+Provides-Extra: testing
+Requires-Dist: pytest; extra == "testing"
+Requires-Dist: pytest-mock; extra == "testing"
+Requires-Dist: requests_mock; extra == "testing"
+Requires-Dist: swh.scheduler[testing]>=0.5.0; extra == "testing"
+Requires-Dist: swh.storage[testing]; extra == "testing"
+Requires-Dist: types-click; extra == "testing"
+Requires-Dist: types-Deprecated; extra == "testing"
 
 swh-loader-git
 ==============
