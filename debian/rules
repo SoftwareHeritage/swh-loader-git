@@ -2,6 +2,8 @@
 
 export PYBUILD_NAME=swh.loader.git
 export PYBUILD_TEST_ARGS=-v -m "not db and not fs"
+export PYTEST_PLUGINS=swh.storage.pytest_plugin,swh.loader.pytest_plugin,swh.scheduler.pytest_plugin
+
 
 %:
 	dh $@ --with python3 --buildsystem=pybuild
