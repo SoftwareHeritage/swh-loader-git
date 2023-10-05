@@ -9,13 +9,18 @@ from subprocess import run
 import threading
 from typing import Tuple
 
+from dulwich.client import LocalGitClient
 from dulwich.repo import Repo
 from dulwich.server import DictBackend, TCPGitServer
 import pytest
 
 from swh.loader.core.nar import Nar
 from swh.loader.exception import NotFound
-from swh.loader.git.directory import GitCheckoutLoader, clone_repository, list_git_tree
+from swh.loader.git.directory import (
+    GitCheckoutLoader,
+    checkout_repository_ref,
+    list_git_tree,
+)
 from swh.loader.tests import (
     assert_last_visit_matches,
     fetch_nar_extids_from_checksums,
@@ -28,7 +33,7 @@ def test_list_git_tree(datadir, tmp_path):
     """Listing a git tree should not list any .git paths nor empty folders."""
     archive_name = "testrepo"
     archive_path = os.path.join(datadir, f"{archive_name}.tgz")
-    repo, repo_url = prepare_test_git_clone(
+    repo, repo_url = prepare_test_git_checkout(
         archive_path, archive_name, tmp_path, "branch2-after-delete"
     )
 
@@ -86,13 +91,13 @@ def compute_nar_hash_for_ref(
     """Compute the nar from a git checked out by git."""
     tmp_path = Path(os.path.join(temp_dir, "compute-nar"))
     tmp_path.mkdir(exist_ok=True)
-    git_repo_path = clone_repository(repo_url, ref, tmp_path)
+    git_repo_path = checkout_repository_ref(repo_url, ref, tmp_path)
     nar = Nar(hash_names=[hash_name], exclude_vcs=True)
     nar.serialize(git_repo_path)
     return nar.hexdigest()[hash_name]
 
 
-def prepare_test_git_clone(
+def prepare_test_git_checkout(
     archive_path: str, archive_name: str, tmp_path: str, ref: str
 ) -> Tuple:
     repo_url = prepare_repository_from_archive(
@@ -101,7 +106,7 @@ def prepare_test_git_clone(
 
     temp_dir = Path(tmp_path) / "checkout"
     os.makedirs(temp_dir)
-    repo_path = clone_repository(repo_url, ref, temp_dir)
+    repo_path = checkout_repository_ref(repo_url, ref, temp_dir)
     assert repo_path and repo_path.exists()
     expected_path = temp_dir / os.path.basename(repo_url)
     assert str(repo_path) == str(expected_path)
@@ -116,27 +121,30 @@ def prepare_test_git_clone(
         ("commit", "bd746cd1913721b269b395a56a97baf6755151c2"),
     ],
 )
-def test_clone_repository_from(datadir, tmp_path, reference, reference_type):
+def test_checkout_repository_ref_from(datadir, tmp_path, reference, reference_type):
     """Cloning a repository from a branch, tag or commit should be ok"""
     archive_name = "testrepo"
     archive_path = os.path.join(datadir, f"{archive_name}.tgz")
     # reference is either: branch, tags, or commit
-    repo, _ = prepare_test_git_clone(archive_path, archive_name, tmp_path, reference)
+    checkout, repo_url = prepare_test_git_checkout(
+        archive_path, archive_name, tmp_path, reference
+    )
+    refs = LocalGitClient().get_refs(repo_url.replace("file://", ""))
     # Ensure the repository exists and is at the branch_name required
     if reference_type == "branch":
         ref = f"refs/heads/{reference}".encode()
-        expected_head = repo[ref].id
+        expected_head = refs[ref]
     elif reference_type == "tag":
         ref = f"refs/tags/{reference}".encode()
-        expected_head = repo[ref].id
+        expected_head = refs[ref]
     else:
         expected_head = reference.encode()
-    assert repo.head() == expected_head
+    assert checkout.head() == expected_head
 
 
-def test_clone_directory_not_found(tmp_path):
-    with pytest.raises(NotFound, match="Repository <file://"):
-        clone_repository(
+def test_checkout_repository_ref_not_found(tmp_path):
+    with pytest.raises(NotFound, match=r"Repository <file://.*not found"):
+        checkout_repository_ref(
             "file:///home/origin/does/not/exist", "not-important", tmp_path
         )
 
@@ -153,7 +161,7 @@ def test_git_loader_directory(swh_storage, datadir, tmp_path, reference):
     """Loading a git directory should be eventful"""
     archive_name = "testrepo"
     archive_path = os.path.join(datadir, f"{archive_name}.tgz")
-    _, repo_url = prepare_test_git_clone(
+    _, repo_url = prepare_test_git_checkout(
         archive_path, archive_name, tmp_path, reference
     )
 
@@ -197,7 +205,7 @@ def test_loader_git_directory_hash_mismatch(swh_storage, datadir, tmp_path):
     archive_name = "testrepo"
     archive_path = os.path.join(datadir, f"{archive_name}.tgz")
     release_name = "branch2-before-delete"
-    _, repo_url = prepare_test_git_clone(
+    _, repo_url = prepare_test_git_checkout(
         archive_path, archive_name, tmp_path, release_name
     )
 
@@ -303,7 +311,9 @@ def test_loader_git_directory_without_or_with_submodule(
     archive_name = "testrepo"
     archive_path = os.path.join(datadir, f"{archive_name}.tgz")
     release_name = "branch2-before-delete"
-    repo, _ = prepare_test_git_clone(archive_path, archive_name, tmp_path, release_name)
+    repo, _ = prepare_test_git_checkout(
+        archive_path, archive_name, tmp_path, release_name
+    )
     repo_url = f"file://{repo.path}"
 
     if with_submodule:

@@ -3,10 +3,11 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import os
 from os.path import basename, exists, join
 from pathlib import Path
 from shutil import which
-from subprocess import CalledProcessError, check_output
+from subprocess import PIPE, CalledProcessError, check_output
 import tempfile
 from typing import Any, Iterable, Iterator
 
@@ -30,36 +31,34 @@ def git() -> str:
     return ret
 
 
-def clone_repository(git_url: str, git_ref: str, target: Path) -> Path:
-    """Clone ``git_url`` repository at ``git_ref`` commit, tag or branch.
+def checkout_repository_ref(git_url: str, git_ref: str, target: Path) -> Path:
+    """Checkout the reference ``git_ref`` (commit, tag or branch) from git repository
+    located at ``git_url``.
 
     This function can raise for various reasons. This is expected to be caught by the
     main loop in the loader.
-
     """
 
     local_name = basename(git_url)
-    local_clone = str(target / local_name)
-    clone_cmd = [
-        # treeless clone (except for the head)
-        # man git-rev-list > section "--filter": "A treeless clone downloads all
-        # reachable commits, then downloads trees and blobs on demand."
-        git(),
-        "clone",
-        "--filter=tree:0",
-        git_url,
-        local_clone,
-    ]
-    # Clone
+    local_path = str(target / local_name)
+    os.mkdir(local_path)
+
+    def run_git_cmd(cmd):
+        # ensure english output
+        env = {"LC_ALL": "C"}
+        check_output([git()] + cmd, cwd=local_path, env=env, stderr=PIPE)
+
     try:
-        check_output(clone_cmd)
-    except CalledProcessError:
-        raise NotFound(f"Repository <{git_url}> not found")
+        run_git_cmd(["init", "--initial-branch=main"])
+        run_git_cmd(["remote", "add", "origin", git_url])
+        run_git_cmd(["fetch", "--depth", "1", "origin", git_ref])
+        run_git_cmd(["checkout", "FETCH_HEAD"])
+    except CalledProcessError as cpe:
+        if b"fatal: Could not read from remote repository" in cpe.stderr:
+            raise NotFound(f"Repository <{git_url}> not found")
+        raise
 
-    # Then checkout the tree at the desired reference
-    check_output([git(), "switch", "--detach", git_ref], cwd=local_clone)
-
-    return Path(local_clone)
+    return Path(local_path)
 
 
 def list_git_tree(dirpath: str, dirname: str, entries: Iterable[Any]) -> bool:
@@ -105,7 +104,7 @@ class GitCheckoutLoader(BaseDirectoryLoader):
     def fetch_artifact(self) -> Iterator[Path]:
         with raise_not_found_repository():
             with tempfile.TemporaryDirectory() as tmpdir:
-                repo_path = clone_repository(
+                repo_path = checkout_repository_ref(
                     self.origin.url, self.git_ref, target=Path(tmpdir)
                 )
 
