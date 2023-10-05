@@ -39,7 +39,7 @@ def checkout_repository_ref(git_url: str, git_ref: str, target: Path) -> Path:
     main loop in the loader.
     """
 
-    local_name = basename(git_url)
+    local_name = basename(git_url.rstrip("/"))
     local_path = str(target / local_name)
     os.mkdir(local_path)
 
@@ -51,8 +51,15 @@ def checkout_repository_ref(git_url: str, git_ref: str, target: Path) -> Path:
     try:
         run_git_cmd(["init", "--initial-branch=main"])
         run_git_cmd(["remote", "add", "origin", git_url])
-        run_git_cmd(["fetch", "--depth", "1", "origin", git_ref])
-        run_git_cmd(["checkout", "FETCH_HEAD"])
+        try:
+            run_git_cmd(["fetch", "--depth", "1", "origin", git_ref])
+        except CalledProcessError:
+            # shallow fetch failed, retry a full one
+            run_git_cmd(["fetch", "origin"])
+            run_git_cmd(["checkout", git_ref])
+        else:
+            run_git_cmd(["checkout", "FETCH_HEAD"])
+
     except CalledProcessError as cpe:
         if b"fatal: Could not read from remote repository" in cpe.stderr:
             raise NotFound(f"Repository <{git_url}> not found")
