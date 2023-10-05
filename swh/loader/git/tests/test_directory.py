@@ -119,6 +119,7 @@ def prepare_test_git_checkout(
         ("branch", "master"),
         ("tag", "branch2-after-delete"),
         ("commit", "bd746cd1913721b269b395a56a97baf6755151c2"),
+        ("commit", "bd746cd"),
     ],
 )
 def test_checkout_repository_ref_from(datadir, tmp_path, reference, reference_type):
@@ -139,7 +140,7 @@ def test_checkout_repository_ref_from(datadir, tmp_path, reference, reference_ty
         expected_head = refs[ref]
     else:
         expected_head = reference.encode()
-    assert checkout.head() == expected_head
+    assert checkout.head().startswith(expected_head)
 
 
 def test_checkout_repository_ref_not_found(tmp_path):
@@ -244,7 +245,7 @@ def test_loader_git_directory_not_found(swh_storage, datadir, tmp_path):
     """Loading a git tree from an unknown origin should fail"""
     loader = GitCheckoutLoader(
         swh_storage,
-        "file:///home/origin/does/not/exist",
+        "file:///home/origin/does/not/exist/",
         ref="not-important",
         checksum_layout="standard",
         checksums={},
