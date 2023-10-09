@@ -55,7 +55,7 @@ def checkout_repository_ref(git_url: str, git_ref: str, target: Path) -> Path:
             run_git_cmd(["fetch", "--depth", "1", "origin", git_ref])
         except CalledProcessError:
             # shallow fetch failed, retry a full one
-            run_git_cmd(["fetch", "origin"])
+            run_git_cmd(["fetch", "-t", "origin"])
             run_git_cmd(["checkout", git_ref])
         else:
             run_git_cmd(["checkout", "FETCH_HEAD"])
