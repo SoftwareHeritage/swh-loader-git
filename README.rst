@@ -7,18 +7,18 @@ weren't known before.
 
 The main entry points are:
 
-- :class:`swh.loader.git.loader.GitLoader` for the main loader which can ingest either
-  local or remote git repository's contents. This is the main implementation deployed in
-  production.
+- :class:`swh.loader.git.loader.GitLoader` for the main loader which can ingest
+  either local or remote git repository's contents. This is the main
+  implementation deployed in production.
 
-- :class:`swh.loader.git.from_disk.GitLoaderFromDisk` which ingests only local git clone
-  repository.
+- :class:`swh.loader.git.from_disk.GitLoaderFromDisk` which ingests only local
+  git clone repository.
 
-- :class:`swh.loader.git.loader.GitLoaderFromArchive` which ingests a git repository
-  wrapped in an archive.
+- :class:`swh.loader.git.loader.GitLoaderFromArchive` which ingests a git
+  repository wrapped in an archive.
 
-- :class:`swh.loader.git.directory.GitCheckoutLoader` which ingests a git tree at a
-  specific commit, branch or tag.
+- :class:`swh.loader.git.directory.GitCheckoutLoader` which ingests a git tree
+  at a specific commit, branch or tag.
 
 
 License
@@ -64,21 +64,22 @@ Requirements
 CLI Run
 ----------
 
-You can run the loader from a remote origin (*loader*) or from an origin on disk
-(*from_disk*) directly by calling:
+You can run the loader from a remote origin (*loader*) or from an origin on
+disk (*from_disk*) directly by calling:
 
-```
-swh loader -C <config-file> run git <git-repository-url>
-```
+.. code-block:: shell
+
+   swh loader -C <config-file> run git <git-repository-url>
 
 or "git_disk".
 
 ## Configuration sample
 
 /tmp/git.yml:
-```
-storage:
-  cls: remote
-  args:
-    url: http://localhost:5002/
-```
+
+.. code-block:: yaml
+
+   storage:
+     cls: remote
+     args:
+       url: http://localhost:5002/
