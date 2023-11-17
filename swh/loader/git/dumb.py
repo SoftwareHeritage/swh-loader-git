@@ -191,7 +191,11 @@ class GitObjectsFetcher:
                 if sha in pack:
                     return pack[sha]
             except (NotGitRepository, struct.error, requests.HTTPError) as e:
-                if isinstance(e, requests.HTTPError) and e.response.status_code != 404:
+                if (
+                    isinstance(e, requests.HTTPError)
+                    and e.response is not None
+                    and e.response.status_code != 404
+                ):
                     raise
                 # missing or invalid pack index/content, remove it from global packs list
                 logger.debug("A pack file is missing or its content is invalid")
