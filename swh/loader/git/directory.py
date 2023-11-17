@@ -68,7 +68,7 @@ def checkout_repository_ref(git_url: str, git_ref: str, target: Path) -> Path:
     return Path(local_path)
 
 
-def list_git_tree(dirpath: str, dirname: str, entries: Iterable[Any]) -> bool:
+def list_git_tree(dirpath: bytes, dirname: bytes, entries: Iterable[Any]) -> bool:
     # def list_git_tree() -> Callable:
     """List a git tree. This ignores any repo_path/.git/* and empty folders. This is a
     filter for :func:`directory_to_objects` to ignore specific directories.
