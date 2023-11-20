@@ -7,17 +7,17 @@ weren't known before.
 
 The main entry points are:
 
-- :class:`swh.loader.git.loader.GitLoader` for the main loader which can ingest
+- ``swh.loader.git.loader.GitLoader`` for the main loader which can ingest
   either local or remote git repository's contents. This is the main
   implementation deployed in production.
 
-- :class:`swh.loader.git.from_disk.GitLoaderFromDisk` which ingests only local
+- ``swh.loader.git.from_disk.GitLoaderFromDisk`` which ingests only local
   git clone repository.
 
-- :class:`swh.loader.git.loader.GitLoaderFromArchive` which ingests a git
+- ``swh.loader.git.loader.GitLoaderFromArchive`` which ingests a git
   repository wrapped in an archive.
 
-- :class:`swh.loader.git.directory.GitCheckoutLoader` which ingests a git tree
+- ``swh.loader.git.directory.GitCheckoutLoader`` which ingests a git tree
   at a specific commit, branch or tag.
 
 
