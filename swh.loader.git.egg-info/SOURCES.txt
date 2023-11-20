@@ -7,7 +7,7 @@ CONTRIBUTORS
 LICENSE
 MANIFEST.in
 Makefile
-README.md
+README.rst
 conftest.py
 mypy.ini
 pyproject.toml
