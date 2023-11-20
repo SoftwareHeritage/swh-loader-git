@@ -1,10 +1,6 @@
 .. _swh-loader-git:
 
-Software Heritage - Git loader
-==============================
-
-Loader for `Git <https://git-scm.com/>`_ repositories.
-
+.. include:: README.rst
 
 Reference Documentation
 -----------------------

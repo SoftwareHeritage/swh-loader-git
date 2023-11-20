@@ -55,7 +55,7 @@ def checkout_repository_ref(git_url: str, git_ref: str, target: Path) -> Path:
             run_git_cmd(["fetch", "--depth", "1", "origin", git_ref])
         except CalledProcessError:
             # shallow fetch failed, retry a full one
-            run_git_cmd(["fetch", "origin"])
+            run_git_cmd(["fetch", "-t", "origin"])
             run_git_cmd(["checkout", git_ref])
         else:
             run_git_cmd(["checkout", "FETCH_HEAD"])
@@ -68,7 +68,7 @@ def checkout_repository_ref(git_url: str, git_ref: str, target: Path) -> Path:
     return Path(local_path)
 
 
-def list_git_tree(dirpath: str, dirname: str, entries: Iterable[Any]) -> bool:
+def list_git_tree(dirpath: bytes, dirname: bytes, entries: Iterable[Any]) -> bool:
     # def list_git_tree() -> Callable:
     """List a git tree. This ignores any repo_path/.git/* and empty folders. This is a
     filter for :func:`directory_to_objects` to ignore specific directories.
