@@ -310,7 +310,6 @@ class GitLoader(BaseGitLoader):
                 self.base_snapshots.append(prev_snapshot)
 
             if self.parent_origins is not None:
-
                 # If this origin is a forge fork, load incrementally from the
                 # origins it was forked from
                 for parent_origin in self.parent_origins:
