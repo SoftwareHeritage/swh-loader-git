@@ -1,5 +1,4 @@
-# Enable black
+# python: Reformat code with black
 1378de32454f454173db1168115830212b10f663
-
-# python: Reformat code with black 22.3.0
 3b29141375e62395c4cd3bcfd86d85d8f32cf6df
+01f2138d744c3ddb918a0cbf68ed7048352d9148
