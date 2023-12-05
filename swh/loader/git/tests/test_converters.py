@@ -234,7 +234,7 @@ class TestConverters:
         ]
 
         tree = dulwich.objects.Tree()
-        for (name, mode, _) in entries:
+        for name, mode, _ in entries:
             tree.add(name, mode, b"00" * 20)
 
         assert converters.dulwich_tree_to_directory(tree) == Directory(

@@ -56,7 +56,6 @@ def test_git_loader_from_disk_for_listed_origin(
     git_listed_origin,
     extra_loader_arguments,
 ):
-
     git_listed_origin.extra_loader_arguments = extra_loader_arguments
 
     loading_task_creation_for_listed_origin_test(
@@ -85,7 +84,6 @@ def test_git_loader_from_archive_for_listed_origin(
     git_listed_origin,
     extra_loader_arguments,
 ):
-
     git_listed_origin.extra_loader_arguments = extra_loader_arguments
 
     loading_task_creation_for_listed_origin_test(

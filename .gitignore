@@ -1,19 +1,16 @@
-.eggs/
-/sgloader/__pycache__/
-/dataset/
+*.egg-info/
 *.pyc
-/.coverage
-/.coverage.*
-/scratch/swhgitloader.cProfile
-/scratch/swhgitloader.profile
-/scratch/save.p
-*.egg-info
-version.txt
-/resources/repo-linux-to-load.ini
-/resources/repo-to-load.ini
+.coverage
+.eggs/
+.hypothesis
+.mypy_cache
+.tox
+__pycache__
 build/
 dist/
-.hypothesis
-.pytest_cache
-.tox/
-.mypy_cache/
+# these are symlinks created by a hook in swh-docs' main sphinx conf.py
+docs/README.rst
+docs/README.md
+# this should be a symlink for people who want to build the sphinx doc
+# without using tox, generally created by the swh-env/bin/update script
+docs/Makefile.sphinx

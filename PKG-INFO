@@ -1,14 +1,13 @@
 Metadata-Version: 2.1
 Name: swh.loader.git
-Version: 2.7.3
+Version: 2.8.0
 Summary: Software Heritage git loader
-Home-page: https://forge.softwareheritage.org/diffusion/DLDG/
-Author: Software Heritage developers
-Author-email: swh-devel@inria.fr
-Project-URL: Bug Reports, https://forge.softwareheritage.org/maniphest
+Author-email: Software Heritage developers <swh-devel@inria.fr>
+Project-URL: Homepage, https://gitlab.softwareheritage.org/swh/devel/swh-loader-git
+Project-URL: Bug Reports, https://gitlab.softwareheritage.org/swh/devel/swh-loader-git/-/issues
 Project-URL: Funding, https://www.softwareheritage.org/donate
-Project-URL: Source, https://forge.softwareheritage.org/source/swh-loader-git
 Project-URL: Documentation, https://docs.softwareheritage.org/devel/swh-loader-git/
+Project-URL: Source, https://gitlab.softwareheritage.org/swh/devel/swh-loader-git.git
 Classifier: Programming Language :: Python :: 3
 Classifier: Intended Audience :: Developers
 Classifier: License :: OSI Approved :: GNU General Public License v3 (GPLv3)
@@ -27,6 +26,14 @@ Requires-Dist: swh.model>=6.9.0
 Requires-Dist: swh.scheduler>=0.0.39
 Requires-Dist: swh.storage>=0.22.0
 Provides-Extra: testing
+Requires-Dist: dulwich>=0.21.5; extra == "testing"
+Requires-Dist: retrying; extra == "testing"
+Requires-Dist: click; extra == "testing"
+Requires-Dist: swh.core>=2.22.0; extra == "testing"
+Requires-Dist: swh.loader.core>=5.7.3; extra == "testing"
+Requires-Dist: swh.model>=6.9.0; extra == "testing"
+Requires-Dist: swh.scheduler>=0.0.39; extra == "testing"
+Requires-Dist: swh.storage>=0.22.0; extra == "testing"
 Requires-Dist: pytest; extra == "testing"
 Requires-Dist: pytest-mock; extra == "testing"
 Requires-Dist: requests_mock; extra == "testing"
