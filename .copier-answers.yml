@@ -1,0 +1,11 @@
+# Changes here will be overwritten by Copier
+_commit: v0.1.6
+_src_path: https://gitlab.softwareheritage.org/swh/devel/swh-py-template.git
+description: Software Heritage git loader
+distribution_name: swh-loader-git
+have_cli: false
+have_workers: true
+package_root: swh/loader/git
+project_name: swh.loader.git
+python_minimal_version: '3.7'
+readme_format: rst

@@ -109,7 +109,7 @@ class BaseGitLoader(BaseLoader):
         storage_summary.update(self.flush())
         self.loaded_snapshot_id = snapshot.id
 
-        for (object_type, total) in counts.items():
+        for object_type, total in counts.items():
             filtered = total - storage_summary[f"{object_type}:add"]
             assert 0 <= filtered <= total, (filtered, total)
 

@@ -1,3 +1,4 @@
+.copier-answers.yml
 .git-blame-ignore-revs
 .gitignore
 .pre-commit-config.yaml
@@ -16,7 +17,6 @@ requirements-swh.txt
 requirements-test.txt
 requirements.txt
 setup.cfg
-setup.py
 tox.ini
 bin/dir-git-repo-meta.sh
 docs/.gitignore
@@ -32,14 +32,12 @@ resources/remote-loader-git.ini
 resources/updater.ini
 resources/test/back.ini
 resources/test/db-manager.ini
-swh/__init__.py
 swh.loader.git.egg-info/PKG-INFO
 swh.loader.git.egg-info/SOURCES.txt
 swh.loader.git.egg-info/dependency_links.txt
 swh.loader.git.egg-info/entry_points.txt
 swh.loader.git.egg-info/requires.txt
 swh.loader.git.egg-info/top_level.txt
-swh/loader/__init__.py
 swh/loader/git/__init__.py
 swh/loader/git/base.py
 swh/loader/git/converters.py
