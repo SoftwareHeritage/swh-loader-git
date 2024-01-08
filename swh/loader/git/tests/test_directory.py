@@ -358,6 +358,7 @@ def test_loader_git_directory_without_or_with_submodule(
         ref=repo.head().decode(),
         checksum_layout="nar",
         checksums=nar_hashes,
+        submodules=with_submodule,
     )
 
     result = loader.load()

@@ -105,6 +105,7 @@ class GitCheckoutLoader(BaseDirectoryLoader):
 
     def __init__(self, *args, **kwargs):
         self.git_ref = kwargs.pop("ref")
+        self.submodules = kwargs.pop("submodules", False)
         # We use a filter which ignore the .git folder and the empty git trees
         super().__init__(*args, dir_filter=list_git_tree, **kwargs)
 
@@ -114,34 +115,29 @@ class GitCheckoutLoader(BaseDirectoryLoader):
                 repo_path = checkout_repository_ref(
                     self.origin.url, self.git_ref, target=Path(tmpdir)
                 )
-
-                yield repo_path
-
-                # if the steps below are executed, it means a directory hash mismatch was
-                # found between the one computed from the cloned repository and the expected
-                # one provided as loader parameter, retry loading by fetching submodules in
-                # case they were used in hash computation
-
-                local_clone = str(repo_path)
-                gitmodules_path = join(local_clone, ".gitmodules")
-                if exists(gitmodules_path):
-                    with open(gitmodules_path, "r") as f:
-                        gitmodules = f.read()
-                    with open(gitmodules_path, "w") as f:
-                        # replace no longer working github URLs using TCP protocol
-                        f.write(
-                            gitmodules.replace(
-                                "git://github.com/", "https://github.com/"
-                            )
-                        )
-                    check_output(
-                        [git(), "submodule", "update", "--init", "--recursive"],
-                        cwd=local_clone,
-                    )
-                    # restore original .gitmodules file in case it was modified above
-                    check_output([git(), "checkout", "."], cwd=local_clone)
-
+                if not self.submodules:
                     yield repo_path
+                else:
+                    local_clone = str(repo_path)
+                    gitmodules_path = join(local_clone, ".gitmodules")
+                    if exists(gitmodules_path):
+                        with open(gitmodules_path, "r") as f:
+                            gitmodules = f.read()
+                        with open(gitmodules_path, "w") as f:
+                            # replace no longer working github URLs using TCP protocol
+                            f.write(
+                                gitmodules.replace(
+                                    "git://github.com/", "https://github.com/"
+                                )
+                            )
+                        check_output(
+                            [git(), "submodule", "update", "--init", "--recursive"],
+                            cwd=local_clone,
+                        )
+                        # restore original .gitmodules file in case it was modified above
+                        check_output([git(), "checkout", "."], cwd=local_clone)
+
+                        yield repo_path
 
     def build_snapshot(self) -> Snapshot:
         """Build snapshot without losing the git reference context."""
