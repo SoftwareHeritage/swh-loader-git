@@ -23,7 +23,7 @@ from swh.loader.git.directory import (
 )
 from swh.loader.tests import (
     assert_last_visit_matches,
-    fetch_nar_extids_from_checksums,
+    fetch_extids_from_checksums,
     get_stats,
     prepare_repository_from_archive,
 )
@@ -197,7 +197,9 @@ def test_git_loader_directory(swh_storage, datadir, tmp_path, reference):
     assert set(branches) == {b"HEAD", reference.encode()}
 
     # Ensure the extids got stored as well
-    extids = fetch_nar_extids_from_checksums(loader.storage, checksums)
+    extids = fetch_extids_from_checksums(
+        loader.storage, checksum_layout="nar", checksums=checksums
+    )
     assert len(extids) == len(checksums)
 
 
@@ -237,7 +239,9 @@ def test_loader_git_directory_hash_mismatch(swh_storage, datadir, tmp_path):
     }
 
     # Ensure no extids got stored
-    extids = fetch_nar_extids_from_checksums(loader.storage, faulty_checksums)
+    extids = fetch_extids_from_checksums(
+        loader.storage, checksum_layout="nar", checksums=faulty_checksums
+    )
     assert len(extids) == 0
 
 
