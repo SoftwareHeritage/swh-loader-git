@@ -115,9 +115,7 @@ class GitCheckoutLoader(BaseDirectoryLoader):
                 repo_path = checkout_repository_ref(
                     self.origin.url, self.git_ref, target=Path(tmpdir)
                 )
-                if not self.submodules:
-                    yield repo_path
-                else:
+                if self.submodules:
                     local_clone = str(repo_path)
                     gitmodules_path = join(local_clone, ".gitmodules")
                     if exists(gitmodules_path):
@@ -136,8 +134,7 @@ class GitCheckoutLoader(BaseDirectoryLoader):
                         )
                         # restore original .gitmodules file in case it was modified above
                         check_output([git(), "checkout", "."], cwd=local_clone)
-
-                        yield repo_path
+                yield repo_path
 
     def build_snapshot(self) -> Snapshot:
         """Build snapshot without losing the git reference context."""
