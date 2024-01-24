@@ -64,6 +64,7 @@ from .utils import HexBytes
 logger = logging.getLogger(__name__)
 heads_logger = logger.getChild("refs")
 remote_logger = logger.getChild("remote")
+fetch_pack_logger = logger.getChild("fetch_pack")
 
 # How often to log messages for long-running operations, in seconds
 LOGGING_INTERVAL = 30
@@ -275,15 +276,28 @@ class GitLoader(BaseGitLoader):
 
         size_limit = self.pack_size_bytes
 
+        last_line_logged = time.monotonic()
+
         def do_pack(data: bytes) -> None:
+            nonlocal last_line_logged
+
             cur_size = pack_buffer.tell()
             would_write = len(data)
-            if cur_size + would_write > size_limit:
+            fetched = cur_size + would_write
+            if fetched > size_limit:
                 raise IOError(
                     f"Pack file too big for repository {origin_url}, "
                     f"limit is {size_limit} bytes, current size is {cur_size}, "
                     f"would write {would_write}"
                 )
+
+            if time.monotonic() > last_line_logged + LOGGING_INTERVAL:
+                fetch_pack_logger.info(
+                    "Fetched %s packfile bytes so far (%.2f%% of configured limit)",
+                    fetched,
+                    100 * fetched / size_limit,
+                )
+                last_line_logged = time.monotonic()
 
             pack_buffer.write(data)
 
