@@ -179,6 +179,7 @@ class GitLoader(BaseGitLoader):
         repo_representation: Type[RepoRepresentation] = RepoRepresentation,
         pack_size_bytes: int = 4 * 1024 * 1024 * 1024,
         temp_file_cutoff: int = 100 * 1024 * 1024,
+        urllib3_extra_kwargs: Dict[str, Any] = {},
         **kwargs: Any,
     ):
         """Initialize the bulk updater.
@@ -204,6 +205,7 @@ class GitLoader(BaseGitLoader):
         self.ref_object_types: Dict[bytes, Optional[TargetType]] = {}
         self.ext_refs: Dict[bytes, Optional[Tuple[int, bytes]]] = {}
         self.repo_pack_size_bytes = 0
+        self.urllib3_extra_kwargs = urllib3_extra_kwargs
 
     def fetch_pack_from_origin(
         self,
@@ -218,8 +220,20 @@ class GitLoader(BaseGitLoader):
 
         logger.debug("Transport url to communicate with server: %s", transport_url)
 
+        transport_kwargs: Dict[str, Any] = {"thin_packs": False}
+
+        if transport_url.startswith(("http://", "https://")):
+            # Inject urllib3 kwargs into the pool manager
+            transport_kwargs["pool_manager"] = dulwich.client.default_urllib3_manager(
+                config=None,
+                **self.urllib3_extra_kwargs,
+            )
+
         client, path = dulwich.client.get_transport_and_path(
-            transport_url, thin_packs=False, operation="pull"
+            location=transport_url,
+            config=None,
+            operation="pull",
+            **transport_kwargs,
         )
 
         logger.debug("Client %s to fetch pack at %s", client, path)
