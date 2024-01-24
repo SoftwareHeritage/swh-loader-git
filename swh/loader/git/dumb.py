@@ -6,11 +6,12 @@
 from __future__ import annotations
 
 from collections import defaultdict
+import copy
 import logging
 import stat
 import struct
 from tempfile import SpooledTemporaryFile
-from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Set, cast
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Set, cast
 import urllib.parse
 
 from dulwich.errors import NotGitRepository
@@ -28,17 +29,26 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-HEADERS = {"User-Agent": "Software Heritage dumb Git loader"}
+def requests_kwargs(kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    """Inject User-Agent header in the requests kwargs"""
+    ret = copy.deepcopy(kwargs)
+    ret.setdefault("headers", {}).update(
+        {"User-Agent": "Software Heritage dumb Git loader"}
+    )
+    ret.setdefault("timeout", (120, 60))
+    return ret
 
 
 @http_retry(
     before_sleep=before_sleep_log(logger, logging.WARNING),
 )
-def check_protocol(repo_url: str) -> bool:
+def check_protocol(repo_url: str, requests_extra_kwargs: Dict[str, Any] = {}) -> bool:
     """Checks if a git repository can be cloned using the dumb protocol.
 
     Args:
         repo_url: Base URL of a git repository
+        requests_extra_kwargs: extra keyword arguments to be passed to requests,
+          e.g. `timeout`, `verify`.
 
     Returns:
         Whether the dumb protocol is supported.
@@ -50,7 +60,7 @@ def check_protocol(repo_url: str) -> bool:
         repo_url.rstrip("/") + "/", "info/refs?service=git-upload-pack/"
     )
     logger.debug("Fetching %s", url)
-    response = requests.get(url, headers=HEADERS)
+    response = requests.get(url, **requests_kwargs(requests_extra_kwargs))
     response.raise_for_status()
     content_type = response.headers.get("Content-Type")
     return (
@@ -73,10 +83,18 @@ class GitObjectsFetcher:
     Args:
         repo_url: Base URL of a git repository
         base_repo: State of repository archived by Software Heritage
+        requests_extra_kwargs: extra keyword arguments to be passed to requests,
+          e.g. `timeout`, `verify`.
     """
 
-    def __init__(self, repo_url: str, base_repo: RepoRepresentation):
+    def __init__(
+        self,
+        repo_url: str,
+        base_repo: RepoRepresentation,
+        requests_extra_kwargs: Dict[str, Any] = {},
+    ):
         self._session = requests.Session()
+        self.requests_extra_kwargs = requests_extra_kwargs
         self.repo_url = repo_url
         self.base_repo = base_repo
         self.objects: Dict[bytes, Set[bytes]] = defaultdict(set)
@@ -130,7 +148,7 @@ class GitObjectsFetcher:
     def _http_get(self, path: str) -> SpooledTemporaryFile:
         url = urllib.parse.urljoin(self.repo_url.rstrip("/") + "/", path)
         logger.debug("Fetching %s", url)
-        response = self._session.get(url, headers=HEADERS)
+        response = self._session.get(url, **requests_kwargs(self.requests_extra_kwargs))
         response.raise_for_status()
         buffer = SpooledTemporaryFile(max_size=100 * 1024 * 1024)
         for chunk in response.iter_content(chunk_size=10 * 1024 * 1024):

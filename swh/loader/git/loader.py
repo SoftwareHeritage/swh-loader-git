@@ -180,6 +180,7 @@ class GitLoader(BaseGitLoader):
         pack_size_bytes: int = 4 * 1024 * 1024 * 1024,
         temp_file_cutoff: int = 100 * 1024 * 1024,
         urllib3_extra_kwargs: Dict[str, Any] = {},
+        requests_extra_kwargs: Dict[str, Any] = {},
         **kwargs: Any,
     ):
         """Initialize the bulk updater.
@@ -206,6 +207,7 @@ class GitLoader(BaseGitLoader):
         self.ext_refs: Dict[bytes, Optional[Tuple[int, bytes]]] = {}
         self.repo_pack_size_bytes = 0
         self.urllib3_extra_kwargs = urllib3_extra_kwargs
+        self.requests_extra_kwargs = requests_extra_kwargs
 
     def fetch_pack_from_origin(
         self,
@@ -371,7 +373,7 @@ class GitLoader(BaseGitLoader):
             # by the fetch_pack operation when encountering a repository with
             # dumb transfer protocol so we check if the repository supports it
             # here to continue the loading if it is the case
-            self.dumb = dumb.check_protocol(self.origin.url)
+            self.dumb = dumb.check_protocol(self.origin.url, self.requests_extra_kwargs)
             if not self.dumb:
                 raise
 
@@ -379,7 +381,11 @@ class GitLoader(BaseGitLoader):
             "Protocol used for communication: %s", "dumb" if self.dumb else "smart"
         )
         if self.dumb:
-            self.dumb_fetcher = dumb.GitObjectsFetcher(self.origin.url, base_repo)
+            self.dumb_fetcher = dumb.GitObjectsFetcher(
+                self.origin.url,
+                base_repo,
+                requests_extra_kwargs=self.requests_extra_kwargs,
+            )
             self.dumb_fetcher.fetch_object_ids()
             self.remote_refs = utils.filter_refs(self.dumb_fetcher.refs)
             self.symbolic_refs = utils.filter_refs(self.dumb_fetcher.head)
