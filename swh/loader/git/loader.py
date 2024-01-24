@@ -29,6 +29,7 @@ import dulwich.client
 from dulwich.object_store import ObjectStoreGraphWalker
 from dulwich.objects import Blob, Commit, ShaFile, Tag, Tree
 from dulwich.pack import PackData, PackInflater
+import urllib3.util
 
 from swh.core.statsd import Statsd
 from swh.loader.exception import NotFound
@@ -179,6 +180,8 @@ class GitLoader(BaseGitLoader):
         repo_representation: Type[RepoRepresentation] = RepoRepresentation,
         pack_size_bytes: int = 4 * 1024 * 1024 * 1024,
         temp_file_cutoff: int = 100 * 1024 * 1024,
+        connect_timeout: float = 120,
+        read_timeout: float = 60,
         urllib3_extra_kwargs: Dict[str, Any] = {},
         requests_extra_kwargs: Dict[str, Any] = {},
         **kwargs: Any,
@@ -207,7 +210,11 @@ class GitLoader(BaseGitLoader):
         self.ext_refs: Dict[bytes, Optional[Tuple[int, bytes]]] = {}
         self.repo_pack_size_bytes = 0
         self.urllib3_extra_kwargs = urllib3_extra_kwargs
+        self.urllib3_extra_kwargs["timeout"] = urllib3.util.Timeout(
+            connect=connect_timeout, read=read_timeout
+        )
         self.requests_extra_kwargs = requests_extra_kwargs
+        self.requests_extra_kwargs["timeout"] = (connect_timeout, read_timeout)
 
     def fetch_pack_from_origin(
         self,
