@@ -10,8 +10,8 @@ import json
 import logging
 import os
 import pickle
-import sys
 from tempfile import SpooledTemporaryFile
+import time
 from typing import (
     Any,
     Callable,
@@ -63,6 +63,27 @@ from .utils import HexBytes
 
 logger = logging.getLogger(__name__)
 heads_logger = logger.getChild("refs")
+remote_logger = logger.getChild("remote")
+
+# How often to log messages for long-running operations, in seconds
+LOGGING_INTERVAL = 30
+
+
+def split_lines_and_remainder(buf: bytes) -> Tuple[List[bytes], bytes]:
+    """Get newline-terminated (``b"\\r"`` or ``b"\\n"``) lines from `buf`,
+    and the beginning of the last line if it isn't terminated."""
+
+    lines = buf.splitlines(keepends=True)
+    if not lines:
+        return [], b""
+
+    if buf.endswith((b"\r", b"\n")):
+        # The buffer ended with a newline, everything can be sent as lines
+        return lines, b""
+    else:
+        # The buffer didn't end with a newline, we need to keep the
+        # last bit as the beginning of the next line
+        return lines[:-1], lines[-1]
 
 
 class RepoRepresentation:
@@ -367,14 +388,71 @@ class GitLoader(BaseGitLoader):
             statsd=self.statsd,
         )
 
-        def do_progress(msg: bytes) -> None:
-            sys.stderr.buffer.write(msg)
-            sys.stderr.flush()
+        # Remote logging utilities
+
+        # Number of lines (ending with a carriage return) elided when debug
+        # logging is not enabled
+        remote_lines_elided = 0
+
+        # Timestamp where the last elision was logged
+        last_elision_logged = time.monotonic()
+
+        def maybe_log_elision(force: bool = False):
+            nonlocal remote_lines_elided
+            nonlocal last_elision_logged
+
+            if remote_lines_elided and (
+                force
+                # Always log at least every LOGGING_INTERVAL
+                or time.monotonic() > last_elision_logged + LOGGING_INTERVAL
+            ):
+                remote_logger.info(
+                    "%s remote line%s elided",
+                    remote_lines_elided,
+                    "s" if remote_lines_elided > 1 else "",
+                )
+                remote_lines_elided = 0
+                last_elision_logged = time.monotonic()
+
+        def log_remote_message(line: bytes):
+            nonlocal remote_lines_elided
+
+            do_debug = remote_logger.isEnabledFor(logging.DEBUG)
+
+            if not line.endswith(b"\n"):
+                # This is a verbose line, ending with a carriage return only
+                if do_debug:
+                    if stripped := line.strip():
+                        remote_logger.debug(
+                            "remote: %s", stripped.decode("utf-8", "backslashreplace")
+                        )
+                else:
+                    remote_lines_elided += 1
+                    maybe_log_elision()
+            else:
+                # This is the last line in the current section, we will always log it
+                maybe_log_elision(force=True)
+                if stripped := line.strip():
+                    remote_logger.info(
+                        "remote: %s", stripped.decode("utf-8", "backslashreplace")
+                    )
+
+        # This buffer keeps the end of what do_remote has received, across
+        # calls, if it happens to be unterminated
+        next_line_buf = b""
+
+        def do_remote(msg: bytes) -> None:
+            nonlocal next_line_buf
+
+            lines, next_line_buf = split_lines_and_remainder(next_line_buf + msg)
+
+            for line in lines:
+                log_remote_message(line)
 
         try:
             with raise_not_found_repository():
                 fetch_info = self.fetch_pack_from_origin(
-                    self.origin.url, base_repo, do_progress
+                    self.origin.url, base_repo, do_remote
                 )
         except NotFound:
             # NotFound inherits from ValueError and should not be caught
@@ -388,6 +466,10 @@ class GitLoader(BaseGitLoader):
             self.dumb = dumb.check_protocol(self.origin.url, self.requests_extra_kwargs)
             if not self.dumb:
                 raise
+        else:
+            # Always log what remains in the next_line_buf, if it's not empty
+            maybe_log_elision(force=True)
+            log_remote_message(next_line_buf)
 
         logger.debug(
             "Protocol used for communication: %s", "dumb" if self.dumb else "smart"

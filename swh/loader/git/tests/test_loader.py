@@ -25,7 +25,7 @@ import pytest
 from requests import HTTPError
 
 from swh.loader.git import converters, dumb
-from swh.loader.git.loader import FetchPackReturn, GitLoader
+from swh.loader.git.loader import FetchPackReturn, GitLoader, split_lines_and_remainder
 from swh.loader.git.tests.test_from_disk import SNAPSHOT1, FullGitLoaderTests
 from swh.loader.tests import (
     assert_last_visit_matches,
@@ -1073,3 +1073,19 @@ def test_loader_too_large_pack_file_for_github_origin(
         f"Pack file too big for repository {repo_url}, "
         f"limit is {loader.pack_size_bytes} bytes, current size is {big_size_kib*1024}"
     )
+
+
+@pytest.mark.parametrize(
+    "input,output",
+    (
+        (b"", ([], b"")),
+        (b"trailing", ([], b"trailing")),
+        (b"line1\r", ([b"line1\r"], b"")),
+        (b"line1\rtrailing", ([b"line1\r"], b"trailing")),
+        (b"line1\r\ntrailing", ([b"line1\r\n"], b"trailing")),
+        (b"line1\r\nline2\ntrailing", ([b"line1\r\n", b"line2\n"], b"trailing")),
+        (b"line1\r\nline2\nline3\r", ([b"line1\r\n", b"line2\n", b"line3\r"], b"")),
+    ),
+)
+def test_split_lines_and_remainder(input, output):
+    assert split_lines_and_remainder(input) == output
