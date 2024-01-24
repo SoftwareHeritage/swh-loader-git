@@ -182,6 +182,7 @@ class GitLoader(BaseGitLoader):
         temp_file_cutoff: int = 100 * 1024 * 1024,
         connect_timeout: float = 120,
         read_timeout: float = 60,
+        verify_certs: bool = True,
         urllib3_extra_kwargs: Dict[str, Any] = {},
         requests_extra_kwargs: Dict[str, Any] = {},
         **kwargs: Any,
@@ -215,6 +216,10 @@ class GitLoader(BaseGitLoader):
         )
         self.requests_extra_kwargs = requests_extra_kwargs
         self.requests_extra_kwargs["timeout"] = (connect_timeout, read_timeout)
+
+        if not verify_certs:
+            self.urllib3_extra_kwargs["cert_reqs"] = "CERT_NONE"
+            self.requests_extra_kwargs["verify"] = False
 
     def fetch_pack_from_origin(
         self,
