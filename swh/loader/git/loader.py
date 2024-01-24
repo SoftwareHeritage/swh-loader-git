@@ -219,7 +219,7 @@ class GitLoader(BaseGitLoader):
         logger.debug("Transport url to communicate with server: %s", transport_url)
 
         client, path = dulwich.client.get_transport_and_path(
-            transport_url, thin_packs=False
+            transport_url, thin_packs=False, operation="pull"
         )
 
         logger.debug("Client %s to fetch pack at %s", client, path)
