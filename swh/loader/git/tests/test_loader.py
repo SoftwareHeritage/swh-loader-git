@@ -971,12 +971,19 @@ class TestDumbGitLoaderWithPack(DumbGitLoaderTestBase):
         requests_mock.real_http = True
         sleep = mocker.patch.object(dumb.GitObjectsFetcher._http_get.retry, "sleep")
 
+        nb_files = 0
+
         # mock requests for getting packs data
         for root, _, files in os.walk(
             os.path.join(self.bare_repo_path, "objects/pack")
         ):
-            nb_files = len(files)
             for pack in files:
+                if not pack.endswith((".idx", ".pack")):
+                    # Spurious file created by recent git versions, will not be
+                    # used by the dumb protocol loader
+                    continue
+
+                nb_files += 1
                 with open(os.path.join(root, pack), "rb") as pack_data:
                     requests_mock.get(
                         f"{self.repo_url}/objects/pack/{pack}",
