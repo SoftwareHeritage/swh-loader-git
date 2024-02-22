@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2023  The Software Heritage developers
+# Copyright (C) 2017-2024  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -11,6 +11,7 @@ import logging
 import os
 import shutil
 import tempfile
+import time
 from typing import Dict, Mapping, NewType, Optional, Union
 
 from dulwich.client import HTTPUnauthorized
@@ -161,3 +162,46 @@ def raise_not_found_repository():
                 raise NotFound(e)
         # otherwise transmit the error
         raise
+
+
+# How often to log messages for long-running operations, in seconds
+LOGGING_INTERVAL = 30
+
+
+class PackWriter:
+    """Helper class to abort git loading if pack file currently downloaded
+    has a size in bytes that exceeds a given threshold."""
+
+    def __init__(
+        self,
+        pack_buffer: tempfile.SpooledTemporaryFile,
+        size_limit: int,
+        origin_url: str,
+        fetch_pack_logger: logging.Logger,
+    ):
+        self.pack_buffer = pack_buffer
+        self.size_limit = size_limit
+        self.origin_url = origin_url
+        self.fetch_pack_logger = fetch_pack_logger
+        self.last_time_logged = time.monotonic()
+
+    def write(self, data: bytes):
+        cur_size = self.pack_buffer.tell()
+        would_write = len(data)
+        fetched = cur_size + would_write
+        if fetched > self.size_limit:
+            raise IOError(
+                f"Pack file too big for repository {self.origin_url}, "
+                f"limit is {self.size_limit} bytes, current size is {cur_size}, "
+                f"would write {would_write}"
+            )
+
+        if time.monotonic() > self.last_time_logged + LOGGING_INTERVAL:
+            self.fetch_pack_logger.info(
+                "Fetched %s packfile bytes so far (%.2f%% of configured limit)",
+                fetched,
+                100 * fetched / self.size_limit,
+            )
+            self.last_time_logged = time.monotonic()
+
+        self.pack_buffer.write(data)

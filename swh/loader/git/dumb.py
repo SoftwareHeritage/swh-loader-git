@@ -11,7 +11,17 @@ import logging
 import stat
 import struct
 from tempfile import SpooledTemporaryFile
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Set, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Protocol,
+    Set,
+    cast,
+)
 import urllib.parse
 
 from dulwich.errors import NotGitRepository
@@ -21,12 +31,18 @@ import requests
 from tenacity.before_sleep import before_sleep_log
 
 from swh.core.retry import http_retry
-from swh.loader.git.utils import HexBytes
+from swh.loader.git.utils import HexBytes, PackWriter
 
 if TYPE_CHECKING:
     from .loader import RepoRepresentation
 
 logger = logging.getLogger(__name__)
+fetch_pack_logger = logger.getChild("fetch_pack")
+
+
+class BytesWriter(Protocol):
+    def write(self, data: bytes):
+        ...
 
 
 def requests_kwargs(kwargs: Dict[str, Any]) -> Dict[str, Any]:
@@ -91,12 +107,14 @@ class GitObjectsFetcher:
         self,
         repo_url: str,
         base_repo: RepoRepresentation,
+        pack_size_limit: int,
         requests_extra_kwargs: Dict[str, Any] = {},
     ):
         self._session = requests.Session()
         self.requests_extra_kwargs = requests_extra_kwargs
         self.repo_url = repo_url
         self.base_repo = base_repo
+        self.pack_size_limit = pack_size_limit
         self.objects: Dict[bytes, Set[bytes]] = defaultdict(set)
         self.refs = self._get_refs()
         self.head = self._get_head() if self.refs else {}
@@ -153,8 +171,16 @@ class GitObjectsFetcher:
         )
         response.raise_for_status()
         buffer = SpooledTemporaryFile(max_size=100 * 1024 * 1024)
+        bytes_writer: BytesWriter = buffer
+        if path.startswith("objects/pack/") and path.endswith(".pack"):
+            bytes_writer = PackWriter(
+                pack_buffer=buffer,
+                size_limit=self.pack_size_limit,
+                origin_url=self.repo_url,
+                fetch_pack_logger=fetch_pack_logger,
+            )
         for chunk in response.iter_content(chunk_size=10 * 1024 * 1024):
-            buffer.write(chunk)
+            bytes_writer.write(chunk)
         buffer.flush()
         buffer.seek(0)
         return buffer

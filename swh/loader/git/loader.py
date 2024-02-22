@@ -1,4 +1,4 @@
-# Copyright (C) 2016-2022 The Software Heritage developers
+# Copyright (C) 2016-2024 The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -59,15 +59,12 @@ from swh.storage.interface import StorageInterface
 
 from . import converters, dumb, utils
 from .base import BaseGitLoader
-from .utils import HexBytes
+from .utils import LOGGING_INTERVAL, HexBytes, PackWriter
 
 logger = logging.getLogger(__name__)
 heads_logger = logger.getChild("refs")
 remote_logger = logger.getChild("remote")
 fetch_pack_logger = logger.getChild("fetch_pack")
-
-# How often to log messages for long-running operations, in seconds
-LOGGING_INTERVAL = 30
 
 
 def split_lines_and_remainder(buf: bytes) -> Tuple[List[bytes], bytes]:
@@ -274,38 +271,18 @@ class GitLoader(BaseGitLoader):
 
         logger.debug("Client %s to fetch pack at %s", client, path)
 
-        size_limit = self.pack_size_bytes
-
-        last_line_logged = time.monotonic()
-
-        def do_pack(data: bytes) -> None:
-            nonlocal last_line_logged
-
-            cur_size = pack_buffer.tell()
-            would_write = len(data)
-            fetched = cur_size + would_write
-            if fetched > size_limit:
-                raise IOError(
-                    f"Pack file too big for repository {origin_url}, "
-                    f"limit is {size_limit} bytes, current size is {cur_size}, "
-                    f"would write {would_write}"
-                )
-
-            if time.monotonic() > last_line_logged + LOGGING_INTERVAL:
-                fetch_pack_logger.info(
-                    "Fetched %s packfile bytes so far (%.2f%% of configured limit)",
-                    fetched,
-                    100 * fetched / size_limit,
-                )
-                last_line_logged = time.monotonic()
-
-            pack_buffer.write(data)
+        pack_writer = PackWriter(
+            pack_buffer=pack_buffer,
+            size_limit=self.pack_size_bytes,
+            origin_url=origin_url,
+            fetch_pack_logger=fetch_pack_logger,
+        )
 
         pack_result = client.fetch_pack(
             path,
             base_repo.determine_wants,
             base_repo.graph_walker(),
-            do_pack,
+            pack_writer.write,
             progress=do_activity,
         )
 
@@ -490,8 +467,9 @@ class GitLoader(BaseGitLoader):
         )
         if self.dumb:
             self.dumb_fetcher = dumb.GitObjectsFetcher(
-                self.origin.url,
-                base_repo,
+                repo_url=self.origin.url,
+                base_repo=base_repo,
+                pack_size_limit=self.pack_size_bytes,
                 requests_extra_kwargs=self.requests_extra_kwargs,
             )
             self.dumb_fetcher.fetch_object_ids()

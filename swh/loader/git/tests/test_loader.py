@@ -23,6 +23,7 @@ import dulwich.repo
 from dulwich.tests.utils import build_pack
 import pytest
 from requests import HTTPError
+import sentry_sdk
 
 from swh.loader.git import converters, dumb
 from swh.loader.git.loader import FetchPackReturn, GitLoader, split_lines_and_remainder
@@ -434,6 +435,17 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
                 call(statsd_metric, "c", 1, {"type": "release", "result": "found"}, 1),
                 call(statsd_metric, "c", 1, {"type": "revision", "result": "found"}, 1),
             ]
+
+    def test_load_pack_size_limit(self, sentry_events):
+        # set max pack size to a really small value
+        self.loader.pack_size_bytes = 10
+        res = self.loader.load()
+        assert res == {"status": "failed"}
+        assert sentry_events
+        assert sentry_events[0]["level"] == "error"
+        assert sentry_events[0]["exception"]["values"][0]["value"].startswith(
+            "Pack file too big for repository"
+        )
 
 
 class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
@@ -1013,6 +1025,21 @@ class TestDumbGitLoaderWithPack(DumbGitLoaderTestBase):
 
         assert dumb.check_protocol(self.repo_url)
         sleep.assert_has_calls([mocker.call(1)])
+
+    def test_load_pack_size_limit(self, sentry_events):
+        # without that hack, the following error is raised when running test
+        # AttributeError: 'TestTransport' object has no attribute 'parsed_dsn'
+        sentry_sdk.Hub.current.client.integrations.pop("stdlib", None)
+
+        # set max pack size to a really small value
+        self.loader.pack_size_bytes = 10
+        res = self.loader.load()
+        assert res == {"status": "failed"}
+        assert sentry_events
+        assert sentry_events[0]["level"] == "error"
+        assert sentry_events[0]["exception"]["values"][0]["value"].startswith(
+            "Pack file too big for repository"
+        )
 
 
 class TestDumbGitLoaderWithoutPack(DumbGitLoaderTestBase):
