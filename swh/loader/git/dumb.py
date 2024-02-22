@@ -1,4 +1,4 @@
-# Copyright (C) 2021-2023  The Software Heritage developers
+# Copyright (C) 2021-2024  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -148,7 +148,9 @@ class GitObjectsFetcher:
     def _http_get(self, path: str) -> SpooledTemporaryFile:
         url = urllib.parse.urljoin(self.repo_url.rstrip("/") + "/", path)
         logger.debug("Fetching %s", url)
-        response = self._session.get(url, **requests_kwargs(self.requests_extra_kwargs))
+        response = self._session.get(
+            url, stream=True, **requests_kwargs(self.requests_extra_kwargs)
+        )
         response.raise_for_status()
         buffer = SpooledTemporaryFile(max_size=100 * 1024 * 1024)
         for chunk in response.iter_content(chunk_size=10 * 1024 * 1024):
