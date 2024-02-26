@@ -945,6 +945,18 @@ class DumbGitLoaderTestBase(FullGitLoaderTests):
             "snapshot": 1,
         }
 
+    def test_load_head_legacy_format(self, requests_mock):
+        # mock a single request and let the others pass through as real ones
+        requests_mock.real_http = True
+        requests_mock.get(
+            self.repo_url + "/HEAD", content=self.repo.refs[b"refs/heads/master"]
+        )
+
+        res = self.loader.load()
+        assert res == {"status": "eventful"}
+        assert b"HEAD" in self.loader.snapshot.branches
+        assert self.loader.snapshot.branches[b"HEAD"].target == b"refs/heads/master"
+
 
 class TestDumbGitLoaderWithPack(DumbGitLoaderTestBase):
     @classmethod

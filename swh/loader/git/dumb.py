@@ -195,7 +195,13 @@ class GitObjectsFetcher:
 
     def _get_head(self) -> Dict[bytes, HexBytes]:
         head_resp_bytes = self._http_get("HEAD")
-        _, head_target = head_resp_bytes.readline().replace(b"\n", b"").split(b" ")
+        head_split = head_resp_bytes.readline().replace(b"\n", b"").split(b" ")
+        head_target = head_split[1] if len(head_split) > 1 else head_split[0]
+        # handle HEAD legacy format containing a commit id instead of a ref name
+        for ref_name, ret_target in self.refs.items():
+            if ret_target == head_target:
+                head_target = ref_name
+                break
         return {b"HEAD": head_target}
 
     def _get_pack_data(self, pack_name: str) -> Callable[[], PackData]:
