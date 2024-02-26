@@ -73,7 +73,7 @@ def check_protocol(repo_url: str, requests_extra_kwargs: Dict[str, Any] = {}) ->
     if not repo_url.startswith("http"):
         return False
     url = urllib.parse.urljoin(
-        repo_url.rstrip("/") + "/", "info/refs?service=git-upload-pack/"
+        repo_url.rstrip("/") + "/", "info/refs?service=git-upload-pack"
     )
     logger.debug("Fetching %s", url)
     response = requests.get(url, **requests_kwargs(requests_extra_kwargs))
