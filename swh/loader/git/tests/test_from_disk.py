@@ -22,7 +22,13 @@ from swh.loader.tests import (
     prepare_repository_from_archive,
 )
 from swh.model.hashutil import bytehex_to_hash, hash_to_bytes
-from swh.model.model import ObjectType, Release, Snapshot, SnapshotBranch, TargetType
+from swh.model.model import (
+    ObjectType,
+    Release,
+    Snapshot,
+    SnapshotBranch,
+    SnapshotTargetType,
+)
 from swh.storage.algos.snapshot import snapshot_get_all_branches
 
 SNAPSHOT1 = Snapshot(
@@ -30,27 +36,27 @@ SNAPSHOT1 = Snapshot(
     branches={
         b"HEAD": SnapshotBranch(
             target=b"refs/heads/master",
-            target_type=TargetType.ALIAS,
+            target_type=SnapshotTargetType.ALIAS,
         ),
         b"refs/heads/master": SnapshotBranch(
             target=hash_to_bytes("2f01f5ca7e391a2f08905990277faf81e709a649"),
-            target_type=TargetType.REVISION,
+            target_type=SnapshotTargetType.REVISION,
         ),
         b"refs/heads/branch1": SnapshotBranch(
             target=hash_to_bytes("b0a77609903f767a2fd3d769904ef9ef68468b87"),
-            target_type=TargetType.REVISION,
+            target_type=SnapshotTargetType.REVISION,
         ),
         b"refs/heads/branch2": SnapshotBranch(
             target=hash_to_bytes("bd746cd1913721b269b395a56a97baf6755151c2"),
-            target_type=TargetType.REVISION,
+            target_type=SnapshotTargetType.REVISION,
         ),
         b"refs/tags/branch2-after-delete": SnapshotBranch(
             target=hash_to_bytes("bd746cd1913721b269b395a56a97baf6755151c2"),
-            target_type=TargetType.REVISION,
+            target_type=SnapshotTargetType.REVISION,
         ),
         b"refs/tags/branch2-before-delete": SnapshotBranch(
             target=hash_to_bytes("1135e94ccf73b5f9bd6ef07b3fa2c5cc60bba69b"),
-            target_type=TargetType.REVISION,
+            target_type=SnapshotTargetType.REVISION,
         ),
     },
 )
@@ -322,11 +328,11 @@ class FullGitLoaderTests(CommonGitLoaderTests):
         branches = snapshot.branches
         assert branches[b"HEAD"] == SnapshotBranch(
             target=b"refs/heads/master",
-            target_type=TargetType.ALIAS,
+            target_type=SnapshotTargetType.ALIAS,
         )
         assert branches[b"refs/heads/master"] == SnapshotBranch(
             target=hash_to_bytes(new_revision),
-            target_type=TargetType.REVISION,
+            target_type=SnapshotTargetType.REVISION,
         )
 
         # Merge branch1 into HEAD.
@@ -380,11 +386,11 @@ class FullGitLoaderTests(CommonGitLoaderTests):
         merge_branches = merge_snapshot.branches
         assert merge_branches[b"HEAD"] == SnapshotBranch(
             target=b"refs/heads/master",
-            target_type=TargetType.ALIAS,
+            target_type=SnapshotTargetType.ALIAS,
         )
         assert merge_branches[b"refs/heads/master"] == SnapshotBranch(
             target=hash_to_bytes(merge_commit.decode()),
-            target_type=TargetType.REVISION,
+            target_type=SnapshotTargetType.REVISION,
         )
 
     def test_load_filter_branches(self):
@@ -438,7 +444,7 @@ class FullGitLoaderTests(CommonGitLoaderTests):
 
         assert branches[b"HEAD"] == SnapshotBranch(
             target=b"refs/heads/dangling-branch",
-            target_type=TargetType.ALIAS,
+            target_type=SnapshotTargetType.ALIAS,
         )
         assert branches[b"refs/heads/dangling-branch"] is None
 
@@ -507,7 +513,7 @@ class FullGitLoaderTests(CommonGitLoaderTests):
         branches = self.loader.storage.snapshot_get_branches(self.loader.snapshot.id)
 
         branch = branches["branches"][b"refs/tags/v1.0.0"]
-        assert branch.target_type == TargetType.RELEASE
+        assert branch.target_type == SnapshotTargetType.RELEASE
 
         release = self.loader.storage.release_get([branch.target])[0]
         assert release.date is not None
@@ -544,7 +550,7 @@ class FullGitLoaderTests(CommonGitLoaderTests):
         branches = self.loader.storage.snapshot_get_branches(self.loader.snapshot.id)
 
         branch = branches["branches"][b"refs/tags/v1.0.0"]
-        assert branch.target_type == TargetType.RELEASE
+        assert branch.target_type == SnapshotTargetType.RELEASE
 
         release = self.loader.storage.release_get([branch.target])[0]
         assert release == Release(

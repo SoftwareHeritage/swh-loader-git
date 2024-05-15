@@ -31,7 +31,7 @@ from swh.model.model import (
     Revision,
     RevisionType,
     SkippedContent,
-    TargetType,
+    SnapshotTargetType,
     Timestamp,
     TimestampWithTimezone,
 )
@@ -256,10 +256,10 @@ def dulwich_commit_to_revision(obj: ShaFile) -> Revision:
 
 
 DULWICH_TARGET_TYPES = {
-    b"blob": TargetType.CONTENT,
-    b"tree": TargetType.DIRECTORY,
-    b"commit": TargetType.REVISION,
-    b"tag": TargetType.RELEASE,
+    b"blob": SnapshotTargetType.CONTENT,
+    b"tree": SnapshotTargetType.DIRECTORY,
+    b"commit": SnapshotTargetType.REVISION,
+    b"tag": SnapshotTargetType.RELEASE,
 }
 
 

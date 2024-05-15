@@ -50,7 +50,7 @@ from swh.model.model import (
     Revision,
     Snapshot,
     SnapshotBranch,
-    TargetType,
+    SnapshotTargetType,
 )
 from swh.model.swhids import ExtendedObjectType
 from swh.storage.algos.directory import directory_get
@@ -108,7 +108,7 @@ class RepoRepresentation:
         heads_logger.debug("Heads known in the archive:")
         for base_snapshot in self.base_snapshots:
             for branch_name, branch in base_snapshot.branches.items():
-                if not branch or branch.target_type == TargetType.ALIAS:
+                if not branch or branch.target_type == SnapshotTargetType.ALIAS:
                     continue
                 heads_logger.debug("    %r: %s", branch_name, branch.target.hex())
                 self.local_heads.add(HexBytes(hashutil.hash_to_bytehex(branch.target)))
@@ -226,7 +226,7 @@ class GitLoader(BaseGitLoader):
         # state initialized in fetch_data
         self.remote_refs: Dict[bytes, HexBytes] = {}
         self.symbolic_refs: Dict[bytes, HexBytes] = {}
-        self.ref_object_types: Dict[bytes, Optional[TargetType]] = {}
+        self.ref_object_types: Dict[bytes, Optional[SnapshotTargetType]] = {}
         self.ext_refs: Dict[bytes, Optional[Tuple[int, bytes]]] = {}
         self.repo_pack_size_bytes = 0
         self.urllib3_extra_kwargs = urllib3_extra_kwargs
@@ -609,7 +609,7 @@ class GitLoader(BaseGitLoader):
         """Format the blobs from the git repository as swh contents"""
         for raw_obj in self.iter_objects(b"blob"):
             if raw_obj.id in self.ref_object_types:
-                self.ref_object_types[raw_obj.id] = TargetType.CONTENT
+                self.ref_object_types[raw_obj.id] = SnapshotTargetType.CONTENT
 
             yield converters.dulwich_blob_to_content(
                 raw_obj, max_content_size=self.max_content_size
@@ -619,7 +619,7 @@ class GitLoader(BaseGitLoader):
         """Format the trees as swh directories"""
         for raw_obj in self.iter_objects(b"tree"):
             if raw_obj.id in self.ref_object_types:
-                self.ref_object_types[raw_obj.id] = TargetType.DIRECTORY
+                self.ref_object_types[raw_obj.id] = SnapshotTargetType.DIRECTORY
 
             yield converters.dulwich_tree_to_directory(raw_obj)
 
@@ -627,7 +627,7 @@ class GitLoader(BaseGitLoader):
         """Format commits as swh revisions"""
         for raw_obj in self.iter_objects(b"commit"):
             if raw_obj.id in self.ref_object_types:
-                self.ref_object_types[raw_obj.id] = TargetType.REVISION
+                self.ref_object_types[raw_obj.id] = SnapshotTargetType.REVISION
 
             yield converters.dulwich_commit_to_revision(raw_obj)
 
@@ -635,7 +635,7 @@ class GitLoader(BaseGitLoader):
         """Retrieve all the release objects from the git repository"""
         for raw_obj in self.iter_objects(b"tag"):
             if raw_obj.id in self.ref_object_types:
-                self.ref_object_types[raw_obj.id] = TargetType.RELEASE
+                self.ref_object_types[raw_obj.id] = SnapshotTargetType.RELEASE
 
             yield converters.dulwich_tag_to_release(raw_obj)
 
@@ -679,7 +679,7 @@ class GitLoader(BaseGitLoader):
         # Handle symbolic references as alias branches
         for ref_name, target in self.symbolic_refs.items():
             branches[ref_name] = SnapshotBranch(
-                target_type=TargetType.ALIAS,
+                target_type=SnapshotTargetType.ALIAS,
                 target=target,
             )
             if target not in branches and target not in unfetched_refs:
@@ -698,12 +698,12 @@ class GitLoader(BaseGitLoader):
                 branch.target: branch
                 for base_snapshot in reversed(self.base_snapshots)
                 for branch in base_snapshot.branches.values()
-                if branch and branch.target_type != TargetType.ALIAS
+                if branch and branch.target_type != SnapshotTargetType.ALIAS
             }
             assert all(
                 base_snapshot_reverse_branches[branch.target] == branch
                 for branch in self.prev_snapshot.branches.values()
-                if branch and branch.target_type != TargetType.ALIAS
+                if branch and branch.target_type != SnapshotTargetType.ALIAS
             ), "base_snapshot_reverse_branches is not a superset of prev_snapshot"
 
             for ref_name, target in unfetched_refs.items():
@@ -725,10 +725,13 @@ class GitLoader(BaseGitLoader):
                 targets_unknown = set(refs_for_target)
 
                 for method, target_type in (
-                    (self.storage.revision_missing, TargetType.REVISION),
-                    (self.storage.release_missing, TargetType.RELEASE),
-                    (self.storage.directory_missing, TargetType.DIRECTORY),
-                    (self.storage.content_missing_per_sha1_git, TargetType.CONTENT),
+                    (self.storage.revision_missing, SnapshotTargetType.REVISION),
+                    (self.storage.release_missing, SnapshotTargetType.RELEASE),
+                    (self.storage.directory_missing, SnapshotTargetType.DIRECTORY),
+                    (
+                        self.storage.content_missing_per_sha1_git,
+                        SnapshotTargetType.CONTENT,
+                    ),
                 ):
                     missing = set(method(list(targets_unknown)))
                     known = targets_unknown - missing

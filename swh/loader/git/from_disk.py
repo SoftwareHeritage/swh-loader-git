@@ -17,7 +17,7 @@ import dulwich.repo
 
 from swh.loader.git.utils import raise_not_found_repository
 from swh.model import hashutil
-from swh.model.model import Snapshot, SnapshotBranch, TargetType
+from swh.model.model import Snapshot, SnapshotBranch, SnapshotTargetType
 from swh.storage.algos.origin import origin_get_latest_visit_status
 from swh.storage.interface import StorageInterface
 
@@ -317,7 +317,9 @@ class GitLoaderFromDisk(BaseGitLoader):
         for ref, target in self.repo.refs.get_symrefs().items():
             if utils.ignore_branch_name(ref):
                 continue
-            branches[ref] = SnapshotBranch(target=target, target_type=TargetType.ALIAS)
+            branches[ref] = SnapshotBranch(
+                target=target, target_type=SnapshotTargetType.ALIAS
+            )
             if target not in branches:
                 # This handles the case where the pointer is "dangling".
                 # There's a chance that a further symbolic reference will

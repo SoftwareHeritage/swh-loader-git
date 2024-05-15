@@ -15,7 +15,7 @@ from swh.loader.core.loader import BaseDirectoryLoader
 from swh.loader.exception import NotFound
 from swh.loader.git.utils import raise_not_found_repository
 from swh.model.from_disk import ignore_empty_directories, ignore_named_directories
-from swh.model.model import Snapshot, SnapshotBranch, TargetType
+from swh.model.model import Snapshot, SnapshotBranch, SnapshotTargetType
 
 
 def git() -> str:
@@ -143,12 +143,12 @@ class GitCheckoutLoader(BaseDirectoryLoader):
         return Snapshot(
             branches={
                 b"HEAD": SnapshotBranch(
-                    target_type=TargetType.ALIAS,
+                    target_type=SnapshotTargetType.ALIAS,
                     target=branch_name,
                 ),
                 branch_name: SnapshotBranch(
                     target=self.directory.hash,
-                    target_type=TargetType.DIRECTORY,
+                    target_type=SnapshotTargetType.DIRECTORY,
                 ),
             }
         )
