@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023  The Software Heritage developers
+# Copyright (C) 2018-2024  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -13,12 +13,13 @@ import subprocess
 import sys
 from tempfile import SpooledTemporaryFile
 from threading import Thread
+import time
 from unittest.mock import MagicMock, call
 
 import attr
 from dulwich.errors import GitProtocolError, NotGitRepository, ObjectFormatException
 from dulwich.pack import REF_DELTA
-from dulwich.porcelain import push
+from dulwich.porcelain import get_user_timezones, push
 import dulwich.repo
 from dulwich.tests.utils import build_pack
 import pytest
@@ -293,8 +294,12 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         def add_tag(tag_name, tag_message, commit):
             tag = dulwich.objects.Tag()
             tag.name = tag_name
+            tag.tagger = b"John Doe <john.doe@example.org>"
             tag.message = tag_message
             tag.object = (dulwich.objects.Commit, commit)
+            tag.tag_time = int(time.time())
+            tag.tag_timezone = get_user_timezones()[0]
+            tag.check()
             self.repo.object_store.add_object(tag)
             self.repo[b"refs/tags/" + tag_name] = tag.id
             return tag
@@ -350,18 +355,30 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         # get all object ids that will be in storage after third load
         objects_third_load = set(iter(self.repo.object_store))
 
-        # create a pack file containing full objects for newly added blob, tree,
-        # commit and tag in latest commit but also external references to objects
-        # that were discovered during the second loading of the repository
+        # create a pack file containing deltified objects for newly added blob, tree,
+        # commit and tag in latest commit whose bases are external objects that were
+        # discovered during the second loading of the repository
         objects = []
-        new_objects_second_load = objects_second_load - objects_first_load
-        new_objects_third_load = objects_third_load - objects_second_load
-        for obj_id in new_objects_third_load:
-            obj = self.repo.object_store[obj_id]
-            objects.append((obj.type_num, obj.as_raw_string()))
-        for obj_id in new_objects_second_load:
-            obj = self.repo.object_store[obj_id]
-            objects.append((REF_DELTA, (obj_id, obj.as_raw_string())))
+        new_objects_second_load = [
+            self.repo.object_store[obj_id]
+            for obj_id in (objects_second_load - objects_first_load)
+        ]
+        new_objects_third_load = [
+            self.repo.object_store[obj_id]
+            for obj_id in (objects_third_load - objects_second_load)
+        ]
+        for new_obj in new_objects_third_load:
+            base_obj = next(
+                obj
+                for obj in new_objects_second_load
+                if obj.type_num == new_obj.type_num
+            )
+            objects.append(
+                (
+                    REF_DELTA,
+                    (base_obj.id, new_obj.as_raw_string()),
+                )
+            )
         buffer = io.BytesIO()
         build_pack(buffer, objects, self.repo.object_store)
 
