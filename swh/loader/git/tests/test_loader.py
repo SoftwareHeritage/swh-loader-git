@@ -506,14 +506,14 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
                 self.repo_url,
                 allowed_statuses=None,
                 require_snapshot=True,
-                type=None,
+                type="git",
             ),
             # As it does not already have a snapshot, fall back to the parent origin
             call(
                 f"base://{self.repo_url}",
                 allowed_statuses=None,
                 require_snapshot=True,
-                type=None,
+                type="git",
             ),
         ]
 
@@ -579,14 +579,14 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
                 self.repo_url,
                 allowed_statuses=None,
                 require_snapshot=True,
-                type=None,
+                type="git",
             ),
             # As it does not already have a snapshot, fall back to the parent origin
             call(
                 f"base://{self.repo_url}",
                 allowed_statuses=None,
                 require_snapshot=True,
-                type=None,
+                type="git",
             ),
         ]
 
@@ -636,7 +636,7 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             # Tries the same origin, and finds a snapshot
             call(
                 self.repo_url,
-                type=None,
+                type="git",
                 allowed_statuses=None,
                 require_snapshot=True,
             ),
@@ -644,7 +644,7 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             # since the last visit
             call(
                 f"base://{self.repo_url}",
-                type=None,
+                type="git",
                 allowed_statuses=None,
                 require_snapshot=True,
             ),
@@ -762,14 +762,14 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
                 self.repo_url,
                 allowed_statuses=None,
                 require_snapshot=True,
-                type=None,
+                type="git",
             ),
             # As it does not already have a snapshot, fall back to the parent origin
             call(
                 f"base://{self.repo_url}",
                 allowed_statuses=None,
                 require_snapshot=True,
-                type=None,
+                type="git",
             ),
         ]
 

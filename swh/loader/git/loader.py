@@ -308,7 +308,11 @@ class GitLoader(BaseGitLoader):
         )
 
     def get_full_snapshot(self, origin_url) -> Optional[Snapshot]:
-        return snapshot_get_latest(self.storage, origin_url)
+        return snapshot_get_latest(
+            self.storage,
+            origin_url,
+            visit_type=self.visit_type,
+        )
 
     def load_metadata_objects(
         self, metadata_objects: List[RawExtrinsicMetadata]
