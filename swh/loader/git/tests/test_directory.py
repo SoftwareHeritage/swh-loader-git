@@ -69,7 +69,7 @@ def test_list_git_tree(datadir, tmp_path):
 
     assert empty_bar_found is True
 
-    dir2 = Directory.from_disk(path=repo_path, dir_filter=list_git_tree)
+    dir2 = Directory.from_disk(path=repo_path, path_filter=list_git_tree)
     dir2_entries = [d["name"] for d in dir2.entries]
     assert b".git" not in dir2_entries
     assert b"empty-foo" not in dir2_entries
@@ -176,8 +176,6 @@ def test_git_loader_directory(swh_storage, datadir, tmp_path, reference):
         checksum_layout="nar",
         checksums=checksums,
     )
-
-    assert loader.dir_filter == list_git_tree
 
     actual_result = loader.load()
 

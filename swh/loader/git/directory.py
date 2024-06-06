@@ -107,7 +107,7 @@ class GitCheckoutLoader(BaseDirectoryLoader):
         self.git_ref = kwargs.pop("ref")
         self.submodules = kwargs.pop("submodules", False)
         # We use a filter which ignore the .git folder and the empty git trees
-        super().__init__(*args, dir_filter=list_git_tree, **kwargs)
+        super().__init__(*args, path_filter=list_git_tree, **kwargs)
 
     def fetch_artifact(self) -> Iterator[Path]:
         with raise_not_found_repository():
