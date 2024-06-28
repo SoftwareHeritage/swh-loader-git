@@ -1010,7 +1010,7 @@ class TestDumbGitLoaderWithPack(DumbGitLoaderTestBase):
 
     def test_http_get_retry(self, mocker, requests_mock):
         requests_mock.real_http = True
-        sleep = mocker.patch.object(dumb.GitObjectsFetcher._http_get.retry, "sleep")
+        sleep = mocker.patch("time.sleep")
 
         nb_files = 0
 
@@ -1040,7 +1040,7 @@ class TestDumbGitLoaderWithPack(DumbGitLoaderTestBase):
         assert res == {"status": "eventful"}
         sleep.assert_has_calls([mocker.call(param) for param in [1] * nb_files])
 
-        sleep = mocker.patch.object(dumb.check_protocol.retry, "sleep")
+        sleep = mocker.patch("time.sleep")
         with open(os.path.join(self.bare_repo_path, "info/refs"), "rb") as refs_data:
             requests_mock.get(
                 f"{self.repo_url}/info/refs",

@@ -1,5 +1,5 @@
 swh.core >= 2.22.0
-swh.loader.core >= 5.18.1
+swh.loader.core >= 5.18.3
 swh.model >= 6.13.0
 swh.scheduler >= 0.0.39
 swh.storage >= 2.4.1
