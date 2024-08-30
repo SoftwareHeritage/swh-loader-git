@@ -41,8 +41,7 @@ fetch_pack_logger = logger.getChild("fetch_pack")
 
 
 class BytesWriter(Protocol):
-    def write(self, data: bytes):
-        ...
+    def write(self, data: bytes): ...
 
 
 def requests_kwargs(kwargs: Dict[str, Any]) -> Dict[str, Any]:

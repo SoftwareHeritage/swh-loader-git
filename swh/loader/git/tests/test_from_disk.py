@@ -226,18 +226,21 @@ class CommonGitLoaderTests:
             branches={interesting_branch: SNAPSHOT1.branches[interesting_branch]}
         )
 
-        with patch.object(
-            utils,
-            "ignore_branch_name",
-            lambda name: name != interesting_branch,
-        ), patch.object(
-            utils,
-            "filter_refs",
-            lambda refs: {
-                ref_name: utils.HexBytes(target)
-                for ref_name, target in refs.items()
-                if ref_name == interesting_branch
-            },
+        with (
+            patch.object(
+                utils,
+                "ignore_branch_name",
+                lambda name: name != interesting_branch,
+            ),
+            patch.object(
+                utils,
+                "filter_refs",
+                lambda refs: {
+                    ref_name: utils.HexBytes(target)
+                    for ref_name, target in refs.items()
+                    if ref_name == interesting_branch
+                },
+            ),
         ):
             # Ensure that only the interesting branch is loaded
             res = self.loader.load()

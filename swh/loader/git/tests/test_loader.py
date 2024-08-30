@@ -72,9 +72,9 @@ class CommonGitLoaderNotFound:
             "swh.loader.git.loader.GitLoader.fetch_pack_from_origin"
         ).side_effect = failure_exception
 
-        self.mocker.patch(
-            "swh.loader.git.loader.dumb.check_protocol"
-        ).side_effect = HTTPError("404 not found")
+        self.mocker.patch("swh.loader.git.loader.dumb.check_protocol").side_effect = (
+            HTTPError("404 not found")
+        )
 
         res = self.loader.load()
         assert res == {"status": "uneventful"}
