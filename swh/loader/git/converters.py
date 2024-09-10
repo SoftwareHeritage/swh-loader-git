@@ -207,8 +207,8 @@ def dulwich_commit_to_revision(obj: ShaFile) -> Revision:
             assert raw_string.endswith(b"\n")
             extra_headers.append((b"mergetag", raw_string[:-1]))
 
-    if commit.extra:
-        extra_headers.extend((k, v) for k, v in commit.extra)
+    if commit._extra:
+        extra_headers.extend((k, v) for k, v in commit._extra)
 
     if commit.gpgsig:
         extra_headers.append((b"gpgsig", commit.gpgsig))
