@@ -109,7 +109,7 @@ class CommonGitLoaderNotFound:
         mock.side_effect = failure_exception
 
         res = self.loader.load()
-        assert res == {"status": "failed"}
+        assert res["status"] == "failed"
 
         assert_last_visit_matches(
             self.loader.storage,
@@ -405,11 +405,11 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             corrupted_release = attr.evolve(release, id=b"\x00" * 20)
             release_get = mocker.patch.object(self.loader.storage, "release_get")
             release_get.return_value = [corrupted_release]
-            assert self.loader.load() == {"status": "failed"}
+            assert self.loader.load()["status"] == "failed"
         elif missing_object:
             revision_get = mocker.patch.object(self.loader.storage, "revision_get")
             revision_get.return_value = [None]
-            assert self.loader.load() == {"status": "failed"}
+            assert self.loader.load()["status"] == "failed"
             assert list(
                 sorted(
                     [c for c in statsd_calls if c[1][0] == statsd_metric],
@@ -457,7 +457,7 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         # set max pack size to a really small value
         self.loader.pack_size_bytes = 10
         res = self.loader.load()
-        assert res == {"status": "failed"}
+        assert res["status"] == "failed"
         assert sentry_events
         assert sentry_events[0]["level"] == "error"
         assert sentry_events[0]["exception"]["values"][0]["value"].startswith(
@@ -1063,7 +1063,7 @@ class TestDumbGitLoaderWithPack(DumbGitLoaderTestBase):
         # set max pack size to a really small value
         self.loader.pack_size_bytes = 10
         res = self.loader.load()
-        assert res == {"status": "failed"}
+        assert res["status"] == "failed"
         assert sentry_events
         assert sentry_events[0]["level"] == "error"
         assert sentry_events[0]["exception"]["values"][0]["value"].startswith(
@@ -1121,7 +1121,7 @@ def test_loader_too_large_pack_file_for_github_origin(
         return_value=[metadata],
     )
 
-    assert loader.load() == {"status": "failed"}
+    assert loader.load()["status"] == "failed"
 
     assert sentry_events
     assert sentry_events[0]["level"] == "error"

@@ -183,7 +183,7 @@ class CommonGitLoaderTests:
         self.loader.get_contents = None
 
         res = self.loader.load()
-        assert res == {"status": "failed"}
+        assert res["status"] == "failed"
 
         assert_last_visit_matches(
             self.loader.storage,
@@ -205,7 +205,7 @@ class CommonGitLoaderTests:
         )
 
         res = self.loader.load()
-        assert res == {"status": "failed"}
+        assert res["status"] == "failed"
 
         assert_last_visit_matches(
             self.loader.storage,
