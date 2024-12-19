@@ -128,11 +128,9 @@ class GitObjectsFetcher:
         commit_objects = []
         for ref in wants:
             ref_object = self._get_git_object(ref)
-            if ref_object.type_num == Commit.type_num:
+            self.objects[ref_object.type_name].add(ref)
+            if ref_object.type_name == Commit.type_name:
                 commit_objects.append(cast(Commit, ref_object))
-                self.objects[b"commit"].add(ref)
-            else:
-                self.objects[b"tag"].add(ref)
 
         # perform DFS on commits graph
         while commit_objects:

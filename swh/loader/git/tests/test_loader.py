@@ -34,6 +34,7 @@ from swh.loader.tests import (
     get_stats,
     prepare_repository_from_archive,
 )
+from swh.model.hashutil import hash_to_bytes
 from swh.model.model import (
     MetadataAuthority,
     MetadataAuthorityType,
@@ -43,6 +44,8 @@ from swh.model.model import (
     OriginVisitStatus,
     RawExtrinsicMetadata,
     Snapshot,
+    SnapshotBranch,
+    SnapshotTargetType,
 )
 
 
@@ -973,6 +976,42 @@ class DumbGitLoaderTestBase(FullGitLoaderTests):
         assert res == {"status": "eventful"}
         assert b"HEAD" in self.loader.snapshot.branches
         assert self.loader.snapshot.branches[b"HEAD"].target == b"refs/heads/master"
+
+    def test_load_refs_targeting_tree_or_blob(self, mocker):
+        known_tree = "fbf70528223d263661b5ad4b80f26caf3860eb8e"
+        known_blob = "534d61ecee4f6da4d6ca6ddd8abf258208d2d1bc"
+        tree_ref = "refs/tree"
+        blob_ref = "refs/blob"
+
+        class GitObjectsFetcherTreeAndBlobRefs(dumb.GitObjectsFetcher):
+            def _http_get(self, path: str) -> SpooledTemporaryFile:
+                buffer = super()._http_get(path)
+                if path == "info/refs":
+                    # Add two refs targeting blob and tree in the refs list
+                    refs = buffer.read().decode("utf-8")
+                    buffer.seek(0)
+                    buffer.write(
+                        (
+                            f"{known_tree}\t{tree_ref}\n"
+                            f"{known_blob}\t{blob_ref}\n" + refs
+                        ).encode()
+                    )
+                    buffer.flush()
+                    buffer.seek(0)
+                return buffer
+
+        mocker.patch.object(dumb, "GitObjectsFetcher", GitObjectsFetcherTreeAndBlobRefs)
+
+        res = self.loader.load()
+        assert res == {"status": "eventful"}
+
+        assert self.loader.snapshot.branches[tree_ref.encode()] == SnapshotBranch(
+            target=hash_to_bytes(known_tree), target_type=SnapshotTargetType.DIRECTORY
+        )
+
+        assert self.loader.snapshot.branches[blob_ref.encode()] == SnapshotBranch(
+            target=hash_to_bytes(known_blob), target_type=SnapshotTargetType.CONTENT
+        )
 
 
 class TestDumbGitLoaderWithPack(DumbGitLoaderTestBase):
