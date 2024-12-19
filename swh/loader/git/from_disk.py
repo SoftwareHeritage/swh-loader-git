@@ -1,7 +1,8 @@
-# Copyright (C) 2015-2023  The Software Heritage developers
+# Copyright (C) 2015-2024  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
+
 from collections import defaultdict
 from datetime import datetime
 import logging
@@ -12,7 +13,7 @@ from typing import Dict, Optional
 from deprecated import deprecated
 from dulwich.errors import ObjectFormatException
 import dulwich.objects
-from dulwich.objects import EmptyFileException
+from dulwich.objects import Blob, Commit, EmptyFileException, Tag, Tree
 import dulwich.repo
 
 from swh.loader.git.utils import raise_not_found_repository
@@ -221,11 +222,11 @@ class GitLoaderFromDisk(BaseGitLoader):
 
     def has_contents(self):
         """Checks whether we need to load contents"""
-        return bool(self.type_to_ids[b"blob"])
+        return bool(self.type_to_ids[Blob.type_name])
 
     def get_content_ids(self):
         """Get the content identifiers from the git repository"""
-        for oid in self.type_to_ids[b"blob"]:
+        for oid in self.type_to_ids[Blob.type_name]:
             yield converters.dulwich_blob_to_content_id(self.repo[oid])
 
     def get_contents(self):
@@ -241,11 +242,14 @@ class GitLoaderFromDisk(BaseGitLoader):
 
     def has_directories(self):
         """Checks whether we need to load directories"""
-        return bool(self.type_to_ids[b"tree"])
+        return bool(self.type_to_ids[Tree.type_name])
 
     def get_directory_ids(self):
         """Get the directory identifiers from the git repository"""
-        return (hashutil.hash_to_bytes(id.decode()) for id in self.type_to_ids[b"tree"])
+        return (
+            hashutil.hash_to_bytes(id.decode())
+            for id in self.type_to_ids[Tree.type_name]
+        )
 
     def get_directories(self):
         """Get the directories that need to be loaded"""
@@ -260,12 +264,13 @@ class GitLoaderFromDisk(BaseGitLoader):
 
     def has_revisions(self):
         """Checks whether we need to load revisions"""
-        return bool(self.type_to_ids[b"commit"])
+        return bool(self.type_to_ids[Commit.type_name])
 
     def get_revision_ids(self):
         """Get the revision identifiers from the git repository"""
         return (
-            hashutil.hash_to_bytes(id.decode()) for id in self.type_to_ids[b"commit"]
+            hashutil.hash_to_bytes(id.decode())
+            for id in self.type_to_ids[Commit.type_name]
         )
 
     def get_revisions(self):
@@ -281,11 +286,14 @@ class GitLoaderFromDisk(BaseGitLoader):
 
     def has_releases(self):
         """Checks whether we need to load releases"""
-        return bool(self.type_to_ids[b"tag"])
+        return bool(self.type_to_ids[Tag.type_name])
 
     def get_release_ids(self):
         """Get the release identifiers from the git repository"""
-        return (hashutil.hash_to_bytes(id.decode()) for id in self.type_to_ids[b"tag"])
+        return (
+            hashutil.hash_to_bytes(id.decode())
+            for id in self.type_to_ids[Tag.type_name]
+        )
 
     def get_releases(self):
         """Get the releases that need to be loaded"""

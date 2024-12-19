@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2022  The Software Heritage developers
+# Copyright (C) 2015-2024  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -63,7 +63,7 @@ def check_id(obj: HashableObject) -> None:
 
 def dulwich_blob_to_content_id(obj: ShaFile) -> Dict[str, Any]:
     """Convert a dulwich blob to a Software Heritage content id"""
-    if obj.type_name != b"blob":
+    if obj.type_name != Blob.type_name:
         raise ValueError("Argument is not a blob.")
     blob = cast(Blob, obj)
 
@@ -81,7 +81,7 @@ def dulwich_blob_to_content_id(obj: ShaFile) -> Dict[str, Any]:
 
 def dulwich_blob_to_content(obj: ShaFile, max_content_size=None) -> BaseContent:
     """Convert a dulwich blob to a Software Heritage content"""
-    if obj.type_name != b"blob":
+    if obj.type_name != Blob.type_name:
         raise ValueError("Argument is not a blob.")
     blob = cast(Blob, obj)
 
@@ -102,7 +102,7 @@ def dulwich_blob_to_content(obj: ShaFile, max_content_size=None) -> BaseContent:
 
 def dulwich_tree_to_directory(obj: ShaFile) -> Directory:
     """Format a tree as a directory"""
-    if obj.type_name != b"tree":
+    if obj.type_name != Tree.type_name:
         raise ValueError("Argument is not a tree.")
     tree = cast(Tree, obj)
 
@@ -179,7 +179,7 @@ def dulwich_tsinfo_to_timestamp(
 
 
 def dulwich_commit_to_revision(obj: ShaFile) -> Revision:
-    if obj.type_name != b"commit":
+    if obj.type_name != Commit.type_name:
         raise ValueError("Argument is not a commit.")
     commit = cast(Commit, obj)
 
@@ -256,23 +256,23 @@ def dulwich_commit_to_revision(obj: ShaFile) -> Revision:
 
 
 DULWICH_TARGET_TYPES = {
-    b"blob": SnapshotTargetType.CONTENT,
-    b"tree": SnapshotTargetType.DIRECTORY,
-    b"commit": SnapshotTargetType.REVISION,
-    b"tag": SnapshotTargetType.RELEASE,
+    Blob.type_name: SnapshotTargetType.CONTENT,
+    Tree.type_name: SnapshotTargetType.DIRECTORY,
+    Commit.type_name: SnapshotTargetType.REVISION,
+    Tag.type_name: SnapshotTargetType.RELEASE,
 }
 
 
 DULWICH_OBJECT_TYPES = {
-    b"blob": ObjectType.CONTENT,
-    b"tree": ObjectType.DIRECTORY,
-    b"commit": ObjectType.REVISION,
-    b"tag": ObjectType.RELEASE,
+    Blob.type_name: ObjectType.CONTENT,
+    Tree.type_name: ObjectType.DIRECTORY,
+    Commit.type_name: ObjectType.REVISION,
+    Tag.type_name: ObjectType.RELEASE,
 }
 
 
 def dulwich_tag_to_release(obj: ShaFile) -> Release:
-    if obj.type_name != b"tag":
+    if obj.type_name != Tag.type_name:
         raise ValueError("Argument is not a tag.")
     tag = cast(Tag, obj)
 

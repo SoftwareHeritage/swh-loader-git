@@ -611,7 +611,7 @@ class GitLoader(BaseGitLoader):
 
     def get_contents(self) -> Iterable[BaseContent]:
         """Format the blobs from the git repository as swh contents"""
-        for raw_obj in self.iter_objects(b"blob"):
+        for raw_obj in self.iter_objects(Blob.type_name):
             if raw_obj.id in self.ref_object_types:
                 self.ref_object_types[raw_obj.id] = SnapshotTargetType.CONTENT
 
@@ -621,7 +621,7 @@ class GitLoader(BaseGitLoader):
 
     def get_directories(self) -> Iterable[Directory]:
         """Format the trees as swh directories"""
-        for raw_obj in self.iter_objects(b"tree"):
+        for raw_obj in self.iter_objects(Tree.type_name):
             if raw_obj.id in self.ref_object_types:
                 self.ref_object_types[raw_obj.id] = SnapshotTargetType.DIRECTORY
 
@@ -629,7 +629,7 @@ class GitLoader(BaseGitLoader):
 
     def get_revisions(self) -> Iterable[Revision]:
         """Format commits as swh revisions"""
-        for raw_obj in self.iter_objects(b"commit"):
+        for raw_obj in self.iter_objects(Commit.type_name):
             if raw_obj.id in self.ref_object_types:
                 self.ref_object_types[raw_obj.id] = SnapshotTargetType.REVISION
 
@@ -637,7 +637,7 @@ class GitLoader(BaseGitLoader):
 
     def get_releases(self) -> Iterable[Release]:
         """Retrieve all the release objects from the git repository"""
-        for raw_obj in self.iter_objects(b"tag"):
+        for raw_obj in self.iter_objects(Tag.type_name):
             if raw_obj.id in self.ref_object_types:
                 self.ref_object_types[raw_obj.id] = SnapshotTargetType.RELEASE
 

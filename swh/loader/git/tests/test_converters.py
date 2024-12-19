@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2022  The Software Heritage developers
+# Copyright (C) 2015-2024  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import tempfile
 
-import dulwich.objects
+from dulwich.objects import Commit, Tag, Tree
 import dulwich.repo
 import pytest
 
@@ -170,7 +170,7 @@ class TestConverters:
     def test_corrupt_tree(self):
         sha1 = b"a9b41fc6347d778f16c4380b598d8083e9b4c1fb"
         target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
-        tree = dulwich.objects.Tree()
+        tree = Tree()
         tree.add(b"file1", 0o644, target)
         assert tree.sha().hexdigest() == sha1.decode()
         converters.dulwich_tree_to_directory(tree)
@@ -195,7 +195,7 @@ class TestConverters:
             b"d\x1f\xb6\xe0\x8d\xdb.O\xd0\x96\xdc\xf1\x8e\x80\xb8\x94\xbf~%\xce"
         )
 
-        tree = dulwich.objects.Tree.from_raw_string(b"tree", raw_string)
+        tree = Tree.from_raw_string(Tree.type_name, raw_string)
 
         assert converters.dulwich_tree_to_directory(tree) == Directory(
             entries=(
@@ -232,7 +232,7 @@ class TestConverters:
             (b"tree_normal", 0o040000, "dir"),
         ]
 
-        tree = dulwich.objects.Tree()
+        tree = Tree()
         for name, mode, _ in entries:
             tree.add(name, mode, b"00" * 20)
 
@@ -257,7 +257,7 @@ class TestConverters:
             b"\x1d\xd3\xec\x83\x94+\xbc\x04\xde\xee\x7f\xc6\xbe\x8b\x9cnp=W\xf9"
         )
 
-        tree = dulwich.objects.Tree.from_raw_string(b"tree", raw_string)
+        tree = Tree.from_raw_string(Tree.type_name, raw_string)
 
         dir_ = Directory(
             entries=(
@@ -386,7 +386,7 @@ class TestConverters:
         author = Person(
             fullname=b"Foo <foo@example.org>", name=b"Foo", email=b"foo@example.org"
         )
-        commit = dulwich.objects.Commit()
+        commit = Commit()
         commit.tree = target
         commit.message = message
         commit.author = commit.committer = b"Foo <foo@example.org>"
@@ -416,7 +416,7 @@ class TestConverters:
         sha = hash_to_bytes("3f0ac5a6d15d89cf928209a57334e3b77c5651b9")
         target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
         message = b"some commit message"
-        commit = dulwich.objects.Commit()
+        commit = Commit()
         commit.tree = target
         commit.message = message
         commit.gpgsig = GPGSIG
@@ -496,7 +496,7 @@ class TestConverters:
             b"committer Foo <foo@example.org> 1640191028 +0200\n\n"
             b"some commit message"
         )
-        commit = dulwich.objects.Commit.from_raw_string(b"commit", raw_string)
+        commit = Commit.from_raw_string(Commit.type_name, raw_string)
         date = TimestampWithTimezone(
             timestamp=Timestamp(seconds=1640191028, microseconds=0),
             offset_bytes=b"+0200",
@@ -519,7 +519,7 @@ class TestConverters:
 
         # Mess with the offset
         raw_string2 = raw_string.replace(b"+0200", b"+200")
-        commit = dulwich.objects.Commit.from_raw_string(b"commit", raw_string2)
+        commit = Commit.from_raw_string(Commit.type_name, raw_string2)
         date = TimestampWithTimezone(
             timestamp=Timestamp(seconds=1640191028, microseconds=0),
             offset_bytes=b"+200",
@@ -545,7 +545,7 @@ class TestConverters:
             b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce",
             b"641FB6E08DDB2E4FD096DCF18E80B894BF7E25CE",
         )
-        commit = dulwich.objects.Commit.from_raw_string(b"commit", raw_string2)
+        commit = Commit.from_raw_string(Commit.type_name, raw_string2)
         date = TimestampWithTimezone(
             timestamp=Timestamp(seconds=1640191028, microseconds=0),
             offset_bytes=b"+0200",
@@ -611,9 +611,9 @@ class TestConverters:
         sha = hash_to_bytes("f6e367357b446bd1315276de5e88ba3d0d99e136")
         target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
         message = b"some release message"
-        tag = dulwich.objects.Tag()
+        tag = Tag()
         tag.name = b"blah"
-        tag.object = (dulwich.objects.Commit, target)
+        tag.object = (Commit, target)
         tag.message = message
         tag.signature = None
         tag.tagger = None
@@ -649,9 +649,9 @@ class TestConverters:
             datetime.datetime(2007, 12, 5, tzinfo=datetime.timezone.utc).timestamp()
         )
 
-        tag = dulwich.objects.Tag()
+        tag = Tag()
         tag.name = b"blah"
-        tag.object = (dulwich.objects.Commit, target)
+        tag.object = (Commit, target)
         tag.message = message
         tag.signature = None
         tag.tagger = tagger
@@ -693,9 +693,9 @@ class TestConverters:
         tagger = b"hey dude <hello@mail.org>"
         target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
         message = b"some release message"
-        tag = dulwich.objects.Tag()
+        tag = Tag()
         tag.name = b"blah"
-        tag.object = (dulwich.objects.Commit, target)
+        tag.object = (Commit, target)
         tag.message = message
         tag.signature = None
         tag.tagger = tagger
@@ -734,9 +734,9 @@ class TestConverters:
         date = int(
             datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc).timestamp()
         )
-        tag = dulwich.objects.Tag()
+        tag = Tag()
         tag.name = b"blah"
-        tag.object = (dulwich.objects.Commit, target)
+        tag.object = (Commit, target)
         tag.message = message
         tag.signature = None
         tag.tagger = tagger
@@ -776,9 +776,9 @@ class TestConverters:
         target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
         message = b"some release message"
         sha = hash_to_bytes("46fff489610ed733d2cc904e363070dadee05c71")
-        tag = dulwich.objects.Tag()
+        tag = Tag()
         tag.name = b"blah"
-        tag.object = (dulwich.objects.Commit, target)
+        tag.object = (Commit, target)
         tag.message = message
         tag.signature = GPGSIG
         tag.tagger = None
@@ -809,9 +809,9 @@ class TestConverters:
         sha = hash_to_bytes("46fff489610ed733d2cc904e363070dadee05c71")
         target = b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"
         message = b"some release message"
-        tag = dulwich.objects.Tag()
+        tag = Tag()
         tag.name = b"blah"
-        tag.object = (dulwich.objects.Commit, target)
+        tag.object = (Commit, target)
         tag.message = message
         tag.signature = GPGSIG
         tag.tagger = None
@@ -846,7 +846,7 @@ class TestConverters:
             b"tagger Foo <foo@example.org> 1640191027 +0200\n\n"
             b"some release message"
         )
-        tag = dulwich.objects.Tag.from_raw_string(b"tag", raw_string)
+        tag = Tag.from_raw_string(Tag.type_name, raw_string)
         assert converters.dulwich_tag_to_release(tag) == Release(
             name=b"blah",
             message=b"some release message",
@@ -865,7 +865,7 @@ class TestConverters:
 
         # Mess with the offset (negative UTC)
         raw_string2 = raw_string.replace(b"+0200", b"-0000")
-        tag = dulwich.objects.Tag.from_raw_string(b"tag", raw_string2)
+        tag = Tag.from_raw_string(Tag.type_name, raw_string2)
         assert converters.dulwich_tag_to_release(tag) == Release(
             name=b"blah",
             message=b"some release message",
@@ -883,7 +883,7 @@ class TestConverters:
 
         # Mess with the offset (other)
         raw_string2 = raw_string.replace(b"+0200", b"+200")
-        tag = dulwich.objects.Tag.from_raw_string(b"tag", raw_string2)
+        tag = Tag.from_raw_string(Tag.type_name, raw_string2)
         assert converters.dulwich_tag_to_release(tag) == Release(
             name=b"blah",
             message=b"some release message",
@@ -904,7 +904,7 @@ class TestConverters:
             b"641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce",
             b"641FB6E08DDB2E4FD096DCF18E80B894BF7E25CE",
         )
-        tag = dulwich.objects.Tag.from_raw_string(b"tag", raw_string2)
+        tag = Tag.from_raw_string(Tag.type_name, raw_string2)
         assert converters.dulwich_tag_to_release(tag) == Release(
             name=b"blah",
             message=b"some release message",

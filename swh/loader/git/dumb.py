@@ -25,7 +25,7 @@ from typing import (
 import urllib.parse
 
 from dulwich.errors import NotGitRepository
-from dulwich.objects import S_IFGITLINK, Commit, ShaFile, Tree
+from dulwich.objects import S_IFGITLINK, Blob, Commit, ShaFile, Tree
 from dulwich.pack import Pack, PackData, PackIndex, load_pack_index_file
 import requests
 from tenacity.before_sleep import before_sleep_log
@@ -140,18 +140,19 @@ class GitObjectsFetcher:
             for parent in commit.parents:
                 if (
                     # commit not already seen in the current load
-                    parent not in self.objects[b"commit"]
+                    parent not in self.objects[Commit.type_name]
                     # commit not already archived by a previous load
                     and parent not in self.base_repo.local_heads
                 ):
                     commit_objects.append(cast(Commit, self._get_git_object(parent)))
-                    self.objects[b"commit"].add(parent)
+                    self.objects[Commit.type_name].add(parent)
 
     def iter_objects(self, object_type: bytes) -> Iterable[ShaFile]:
         """Returns a generator on fetched git objects per type.
 
         Args:
-            object_type: Git object type, either b"blob", b"commit", b"tag" or b"tree"
+            object_type: Git object type, either Blob.type_name, Commit.type_name,
+                Tag.type_name or Tree.type_name
 
         Returns:
             A generator fetching git objects on the fly.
@@ -256,9 +257,9 @@ class GitObjectsFetcher:
         return ShaFile.from_file(self._http_get(object_path))
 
     def _fetch_tree_objects(self, sha: bytes) -> None:
-        if sha not in self.objects[b"tree"]:
+        if sha not in self.objects[Tree.type_name]:
             tree = cast(Tree, self._get_git_object(sha))
-            self.objects[b"tree"].add(sha)
+            self.objects[Tree.type_name].add(sha)
             for item in tree.items():
                 if item.mode == S_IFGITLINK:
                     # skip submodules as objects are not stored in repository
@@ -266,4 +267,4 @@ class GitObjectsFetcher:
                 if item.mode & stat.S_IFDIR:
                     self._fetch_tree_objects(item.sha)
                 else:
-                    self.objects[b"blob"].add(item.sha)
+                    self.objects[Blob.type_name].add(item.sha)
