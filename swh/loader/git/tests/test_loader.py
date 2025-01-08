@@ -1127,7 +1127,7 @@ def test_loader_too_large_pack_file_for_github_origin(
     assert sentry_events[0]["level"] == "error"
     assert sentry_events[0]["exception"]["values"][0]["value"] == (
         f"Pack file too big for repository {repo_url}, "
-        f"limit is {loader.pack_size_bytes} bytes, current size is {big_size_kib*1024}"
+        f"limit is {loader.pack_size_bytes} bytes, current size is {big_size_kib * 1024}"
     )
 
 
