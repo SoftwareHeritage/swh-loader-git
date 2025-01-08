@@ -219,14 +219,14 @@ def dulwich_commit_to_revision(obj: ShaFile) -> Revision:
         date=dulwich_tsinfo_to_timestamp(
             commit.author_time,
             commit.author_timezone,
-            commit._author_timezone_neg_utc,
+            bool(commit._author_timezone_neg_utc),
             author_timezone,
         ),
         committer=parse_author(commit.committer),
         committer_date=dulwich_tsinfo_to_timestamp(
             commit.commit_time,
             commit.commit_timezone,
-            commit._commit_timezone_neg_utc,
+            bool(commit._commit_timezone_neg_utc),
             committer_timezone,
         ),
         type=RevisionType.GIT,
