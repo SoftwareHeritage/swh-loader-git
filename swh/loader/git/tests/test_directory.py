@@ -336,6 +336,11 @@ def test_loader_git_directory_without_or_with_submodule(
             check=True,
             cwd=repo.path,
         )
+        run(
+            ["git", "config", "commit.gpgsign", "false"],
+            check=True,
+            cwd=repo.path,
+        )
         # add the repository served by the simple_git_repository_url fixture as a
         # submodule in it
         run(
