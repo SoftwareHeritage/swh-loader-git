@@ -85,7 +85,6 @@ class SWHObjectType:
         self.type_name = type_name
 
 
-@pytest.mark.fs
 class TestConverters:
     @classmethod
     def setup_class(cls):
