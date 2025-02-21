@@ -53,6 +53,7 @@ from swh.model.model import (
     SnapshotTargetType,
 )
 from swh.model.swhids import ExtendedObjectType
+from swh.objstorage.interface import objid_from_dict
 from swh.storage.algos.directory import directory_get
 from swh.storage.algos.snapshot import snapshot_get_latest
 from swh.storage.interface import StorageInterface
@@ -549,7 +550,7 @@ class GitLoader(BaseGitLoader):
             if cnts and cnts[0] is not None:
                 cnt = cnts[0]
                 d = cnt.to_dict()
-                d["data"] = storage.content_get_data(cnt.sha1)
+                d["data"] = storage.content_get_data(objid_from_dict(d))
                 cnt = Content.from_dict(d)
                 cnt.check()
                 set_ext_ref(Blob.type_num, content_git_object(cnt), "content")
