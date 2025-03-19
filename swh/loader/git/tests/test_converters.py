@@ -566,6 +566,69 @@ class TestConverters:
             raw_manifest=b"commit 161\x00" + raw_string2,
         )
 
+    def test_commit_timestamp_overflow(self):
+        """Checks raw_manifest is set when the commit cannot fit the data model"""
+
+        # Well-formed manifest
+        raw_string = (
+            b"tree 641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce\n"
+            b"author Foo <foo@example.org> 99999999999999999 +0200\n"
+            b"committer Foo <foo@example.org> 99999999999999999 +0200\n\n"
+            b"some commit message"
+        )
+        commit = Commit.from_raw_string(Commit.type_name, raw_string)
+        date = TimestampWithTimezone(
+            timestamp=Timestamp(seconds=0, microseconds=0),
+            offset_bytes=b"+0200",
+        )
+        assert converters.dulwich_commit_to_revision(commit) == Revision(
+            message=b"some commit message",
+            directory=hash_to_bytes("641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"),
+            synthetic=False,
+            author=Person.from_fullname(
+                b"Foo <foo@example.org>",
+            ),
+            committer=Person.from_fullname(
+                b"Foo <foo@example.org>",
+            ),
+            date=date,
+            committer_date=date,
+            type=RevisionType.GIT,
+            raw_manifest=b"commit 175\x00" + raw_string,
+        )
+
+    def test_commit_timestamp_large_offset(self):
+        """Checks commits with an offset too large to fit in :class:`datetime` can
+        still be parsed."""
+
+        # Well-formed manifest
+        raw_string = (
+            b"tree 641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce\n"
+            b"author Foo <foo@example.org> 1640191028 +99999999\n"
+            b"committer Foo <foo@example.org> 1640191028 +99999999\n\n"
+            b"some commit message"
+        )
+        commit = Commit.from_raw_string(Commit.type_name, raw_string)
+        date = TimestampWithTimezone(
+            timestamp=Timestamp(seconds=1640191028, microseconds=0),
+            offset_bytes=b"+99999999",
+        )
+        assert converters.dulwich_commit_to_revision(commit) == Revision(
+            message=b"some commit message",
+            directory=hash_to_bytes("641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce"),
+            synthetic=False,
+            author=Person.from_fullname(
+                b"Foo <foo@example.org>",
+            ),
+            committer=Person.from_fullname(
+                b"Foo <foo@example.org>",
+            ),
+            date=date,
+            committer_date=date,
+            type=RevisionType.GIT,
+            raw_manifest=None,
+        )
+
     def test_author_line_to_author(self):
         # edge case out of the way
         with pytest.raises(TypeError):

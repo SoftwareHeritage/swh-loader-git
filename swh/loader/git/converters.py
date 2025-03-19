@@ -33,6 +33,7 @@ from swh.model.model import (
     SkippedContent,
     SnapshotTargetType,
     Timestamp,
+    TimestampOverflowException,
     TimestampWithTimezone,
 )
 
@@ -161,11 +162,13 @@ def dulwich_tsinfo_to_timestamp(
     timezone_bytes: Optional[bytes],
 ) -> TimestampWithTimezone:
     """Convert the dulwich timestamp information to a structure compatible with
-    Software Heritage."""
-    ts = Timestamp(
-        seconds=int(timestamp),
-        microseconds=0,
-    )
+    Software Heritage.
+
+    Returns epoch if the timestamp overflows :class:`Timestamp`."""
+    try:
+        ts = Timestamp(seconds=int(timestamp), microseconds=0)
+    except TimestampOverflowException:
+        ts = Timestamp(seconds=0, microseconds=0)
     if timezone_bytes is None:
         # Failed to parse from the raw manifest, fallback to what Dulwich managed to
         # parse.
