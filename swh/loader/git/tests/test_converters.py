@@ -598,7 +598,8 @@ class TestConverters:
         )
 
     def test_commit_timestamp_large_offset(self):
-        """Checks raw_manifest is set when the commit cannot fit the data model"""
+        """Checks commits with an offset too large to fit in :class:`datetime` can
+        still be parsed."""
 
         # Well-formed manifest
         raw_string = (
