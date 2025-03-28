@@ -3,7 +3,7 @@ pytest >= 8.1
 pytest-mock
 requests_mock
 swh.loader.core[testing] >= 5.18.1
-swh.scheduler[testing] >= 0.5.0
+swh.scheduler[pytest] >= 3.1.0
 swh.storage[pytest] >= 3.1.0
 types-Deprecated
 types-click
