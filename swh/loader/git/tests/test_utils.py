@@ -25,7 +25,10 @@ class TestUtils:
         """From a give threshold, check will no longer works."""
         exp = 38
         timestamp = 2**exp
-        with pytest.raises(ValueError, match=".*is out of range.*"):
+        with pytest.raises(
+            ValueError,
+            match=".*(is out of range|year must be in).*",
+        ):
             utils.check_date_time(timestamp)
 
 
