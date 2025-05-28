@@ -46,7 +46,7 @@ def test_list_git_tree(datadir, tmp_path):
     os.makedirs(os.path.join(repo_dir, ".git", "empty-foobar"), exist_ok=True)
 
     repo_path = repo_dir.encode()
-    dir1 = Directory.from_disk(path=repo_path)
+    dir1 = Directory.from_disk(path=repo_path, max_content_length=None)
 
     def names(entries):
         return [d["name"] for d in entries]
@@ -69,7 +69,9 @@ def test_list_git_tree(datadir, tmp_path):
 
     assert empty_bar_found is True
 
-    dir2 = Directory.from_disk(path=repo_path, path_filter=list_git_tree)
+    dir2 = Directory.from_disk(
+        path=repo_path, path_filter=list_git_tree, max_content_length=None
+    )
     dir2_entries = [d["name"] for d in dir2.entries]
     assert b".git" not in dir2_entries
     assert b"empty-foo" not in dir2_entries
