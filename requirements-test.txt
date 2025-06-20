@@ -6,5 +6,4 @@ swh.loader.core[testing] >= 5.18.1
 swh.scheduler[pytest] >= 3.1.0
 swh.storage[pytest] >= 3.1.0
 types-Deprecated
-types-click
 types-urllib3
