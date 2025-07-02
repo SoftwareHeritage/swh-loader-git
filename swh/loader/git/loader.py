@@ -1,4 +1,4 @@
-# Copyright (C) 2016-2024 The Software Heritage developers
+# Copyright (C) 2016-2025 The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -58,7 +58,7 @@ from swh.storage.algos.directory import directory_get
 from swh.storage.algos.snapshot import snapshot_get_latest
 from swh.storage.interface import StorageInterface
 
-from . import converters, dumb, utils
+from . import converters, utils
 from .base import BaseGitLoader
 from .utils import LOGGING_INTERVAL, HexBytes, PackWriter
 
@@ -295,11 +295,10 @@ class GitLoader(BaseGitLoader):
         pack_buffer.seek(0)
 
         logger.debug("fetched_pack_size=%s", pack_size)
-
-        # check if repository only supports git dumb transfer protocol,
-        # fetched pack file will be empty in that case as dulwich do
-        # not support it and do not fetch any refs
-        self.dumb = transport_url.startswith("http") and getattr(client, "dumb", False)
+        logger.debug(
+            "Protocol used for communication: %s",
+            "dumb" if getattr(client, "dumb", False) else "smart",
+        )
 
         return FetchPackReturn(
             remote_refs=utils.filter_refs(remote_refs),
@@ -454,37 +453,15 @@ class GitLoader(BaseGitLoader):
             # NotFound inherits from ValueError and should not be caught
             # by the next exception handler
             raise
-        except (AttributeError, NotImplementedError, ValueError):
-            # with old dulwich versions, those exceptions types can be raised
-            # by the fetch_pack operation when encountering a repository with
-            # dumb transfer protocol so we check if the repository supports it
-            # here to continue the loading if it is the case
-            self.dumb = dumb.check_protocol(self.origin.url, self.requests_extra_kwargs)
-            if not self.dumb:
-                raise
         else:
             # Always log what remains in the next_line_buf, if it's not empty
             maybe_log_elision(force=True)
             log_remote_message(next_line_buf)
 
-        logger.debug(
-            "Protocol used for communication: %s", "dumb" if self.dumb else "smart"
-        )
-        if self.dumb:
-            self.dumb_fetcher = dumb.GitObjectsFetcher(
-                repo_url=self.origin.url,
-                base_repo=base_repo,
-                pack_size_limit=self.pack_size_bytes,
-                requests_extra_kwargs=self.requests_extra_kwargs,
-            )
-            self.dumb_fetcher.fetch_object_ids()
-            self.remote_refs = utils.filter_refs(self.dumb_fetcher.refs)
-            self.symbolic_refs = utils.filter_refs(self.dumb_fetcher.head)
-        else:
-            self.pack_buffer = fetch_info.pack_buffer
-            self.pack_size = fetch_info.pack_size
-            self.remote_refs = fetch_info.remote_refs
-            self.symbolic_refs = fetch_info.symbolic_refs
+        self.pack_buffer = fetch_info.pack_buffer
+        self.pack_size = fetch_info.pack_size
+        self.remote_refs = fetch_info.remote_refs
+        self.symbolic_refs = fetch_info.symbolic_refs
 
         self.ref_object_types = {sha1: None for sha1 in self.remote_refs.values()}
 
@@ -592,9 +569,7 @@ class GitLoader(BaseGitLoader):
 
     def iter_objects(self, object_type: bytes) -> Iterator[ShaFile]:
         """Read all the objects of type `object_type` from the packfile"""
-        if self.dumb:
-            yield from self.dumb_fetcher.iter_objects(object_type)
-        elif self.pack_size > 0:
+        if self.pack_size > 0:
             self.pack_buffer.seek(0)
             count = 0
             for obj in PackInflater.for_pack_data(

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024  The Software Heritage developers
+# Copyright (C) 2018-2025  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -23,10 +23,9 @@ from dulwich.porcelain import get_user_timezones, push
 import dulwich.repo
 from dulwich.tests.utils import build_pack
 import pytest
-from requests import HTTPError
 import sentry_sdk
 
-from swh.loader.git import converters, dumb
+from swh.loader.git import converters
 from swh.loader.git.loader import FetchPackReturn, GitLoader, split_lines_and_remainder
 from swh.loader.git.tests.test_from_disk import SNAPSHOT1, FullGitLoaderTests
 from swh.loader.tests import (
@@ -34,7 +33,6 @@ from swh.loader.tests import (
     get_stats,
     prepare_repository_from_archive,
 )
-from swh.model.hashutil import hash_to_bytes
 from swh.model.model import (
     MetadataAuthority,
     MetadataAuthorityType,
@@ -44,8 +42,6 @@ from swh.model.model import (
     OriginVisitStatus,
     RawExtrinsicMetadata,
     Snapshot,
-    SnapshotBranch,
-    SnapshotTargetType,
 )
 
 
@@ -74,10 +70,6 @@ class CommonGitLoaderNotFound:
         self.mocker.patch(
             "swh.loader.git.loader.GitLoader.fetch_pack_from_origin"
         ).side_effect = failure_exception
-
-        self.mocker.patch("swh.loader.git.loader.dumb.check_protocol").side_effect = (
-            HTTPError("404 not found")
-        )
 
         res = self.loader.load()
         assert res == {"status": "uneventful"}
@@ -276,7 +268,6 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             pack_buffer=SpooledTemporaryFile(),
             pack_size=0,
         )
-        self.loader.dumb = False
         assert self.loader.load() == {"status": "uneventful"}
 
     @pytest.mark.parametrize(
@@ -912,187 +903,11 @@ class DumbGitLoaderTestBase(FullGitLoaderTests):
         if https_proxy:
             os.environ["https_proxy"] = https_proxy
 
-    @pytest.mark.parametrize(
-        "failure_exception", [AttributeError, NotImplementedError, ValueError]
-    )
-    def test_load_despite_dulwich_exception(self, mocker, failure_exception):
-        """Checks repository can still be loaded when dulwich raises exception
-        when encountering a repository with dumb transfer protocol.
-        """
-
-        fetch_pack_from_origin = mocker.patch(
-            "swh.loader.git.loader.GitLoader.fetch_pack_from_origin"
-        )
-
-        fetch_pack_from_origin.side_effect = failure_exception("failure")
-
-        res = self.loader.load()
-
-        assert res == {"status": "eventful"}
-
-        stats = get_stats(self.loader.storage)
-        assert stats == {
-            "content": 4,
-            "directory": 7,
-            "origin": 1,
-            "origin_visit": 1,
-            "release": 0,
-            "revision": 7,
-            "skipped_content": 0,
-            "snapshot": 1,
-        }
-
-    def test_load_empty_repository(self, mocker):
-        class GitObjectsFetcherNoRefs(dumb.GitObjectsFetcher):
-            def _get_refs(self):
-                return {}
-
-        mocker.patch.object(dumb, "GitObjectsFetcher", GitObjectsFetcherNoRefs)
-
-        res = self.loader.load()
-
-        assert res == {"status": "uneventful"}
-
-        stats = get_stats(self.loader.storage)
-        assert stats == {
-            "content": 0,
-            "directory": 0,
-            "origin": 1,
-            "origin_visit": 1,
-            "release": 0,
-            "revision": 0,
-            "skipped_content": 0,
-            "snapshot": 1,
-        }
-
-    def test_load_head_legacy_format(self, requests_mock):
-        # mock a single request and let the others pass through as real ones
-        requests_mock.real_http = True
-        requests_mock.get(
-            self.repo_url + "/HEAD", content=self.repo.refs[b"refs/heads/master"]
-        )
-
-        res = self.loader.load()
-        assert res == {"status": "eventful"}
-        assert b"HEAD" in self.loader.snapshot.branches
-        assert self.loader.snapshot.branches[b"HEAD"].target == b"refs/heads/master"
-
-    def test_load_refs_targeting_tree_or_blob(self, mocker):
-        known_tree = "fbf70528223d263661b5ad4b80f26caf3860eb8e"
-        known_blob = "534d61ecee4f6da4d6ca6ddd8abf258208d2d1bc"
-        tree_ref = "refs/tree"
-        blob_ref = "refs/blob"
-
-        class GitObjectsFetcherTreeAndBlobRefs(dumb.GitObjectsFetcher):
-            def _http_get(self, path: str) -> SpooledTemporaryFile:
-                buffer = super()._http_get(path)
-                if path == "info/refs":
-                    # Add two refs targeting blob and tree in the refs list
-                    refs = buffer.read().decode("utf-8")
-                    buffer.seek(0)
-                    buffer.write(
-                        (
-                            f"{known_tree}\t{tree_ref}\n"
-                            f"{known_blob}\t{blob_ref}\n" + refs
-                        ).encode()
-                    )
-                    buffer.flush()
-                    buffer.seek(0)
-                return buffer
-
-        mocker.patch.object(dumb, "GitObjectsFetcher", GitObjectsFetcherTreeAndBlobRefs)
-
-        res = self.loader.load()
-        assert res == {"status": "eventful"}
-
-        assert self.loader.snapshot.branches[tree_ref.encode()] == SnapshotBranch(
-            target=hash_to_bytes(known_tree), target_type=SnapshotTargetType.DIRECTORY
-        )
-
-        assert self.loader.snapshot.branches[blob_ref.encode()] == SnapshotBranch(
-            target=hash_to_bytes(known_blob), target_type=SnapshotTargetType.CONTENT
-        )
-
 
 class TestDumbGitLoaderWithPack(DumbGitLoaderTestBase):
     @classmethod
     def setup_class(cls):
         cls.with_pack_files = True
-
-    def test_load_with_missing_pack(self, mocker):
-        """Some dumb git servers might reference a no longer existing pack file
-        while it is possible to load a repository without it.
-        """
-
-        class GitObjectsFetcherMissingPack(dumb.GitObjectsFetcher):
-            def _http_get(self, path: str) -> SpooledTemporaryFile:
-                buffer = super()._http_get(path)
-                if path == "objects/info/packs":
-                    # prepend a non existing pack to the returned packs list
-                    packs = buffer.read().decode("utf-8")
-                    buffer.seek(0)
-                    buffer.write(
-                        (
-                            "P pack-a70762ba1a901af3a0e76de02fc3a99226842745.pack\n"
-                            + packs
-                        ).encode()
-                    )
-                    buffer.flush()
-                    buffer.seek(0)
-                return buffer
-
-        mocker.patch.object(dumb, "GitObjectsFetcher", GitObjectsFetcherMissingPack)
-
-        res = self.loader.load()
-
-        assert res == {"status": "eventful"}
-
-    def test_http_get_retry(self, mocker, requests_mock):
-        requests_mock.real_http = True
-        sleep = mocker.patch("time.sleep")
-
-        nb_files = 0
-
-        # mock requests for getting packs data
-        for root, _, files in os.walk(
-            os.path.join(self.bare_repo_path, "objects/pack")
-        ):
-            for pack in files:
-                if not pack.endswith((".idx", ".pack")):
-                    # Spurious file created by recent git versions, will not be
-                    # used by the dumb protocol loader
-                    continue
-
-                nb_files += 1
-                with open(os.path.join(root, pack), "rb") as pack_data:
-                    requests_mock.get(
-                        f"{self.repo_url}/objects/pack/{pack}",
-                        [
-                            # first request fails
-                            {"status_code": 502},
-                            # next one succeeds
-                            {"status_code": 200, "content": pack_data.read()},
-                        ],
-                    )
-
-        res = self.loader.load()
-        assert res == {"status": "eventful"}
-        sleep.assert_has_calls([mocker.call(param) for param in [1] * nb_files])
-
-        sleep = mocker.patch("time.sleep")
-        with open(os.path.join(self.bare_repo_path, "info/refs"), "rb") as refs_data:
-            requests_mock.get(
-                f"{self.repo_url}/info/refs",
-                [
-                    # first request fails
-                    {"status_code": 502},
-                    # next one succeeds
-                    {"status_code": 200, "content": refs_data.read()},
-                ],
-            )
-
-        assert dumb.check_protocol(self.repo_url)
-        sleep.assert_has_calls([mocker.call(1)])
 
     def test_load_pack_size_limit(self, sentry_events):
         # without that hack, the following error is raised when running test
