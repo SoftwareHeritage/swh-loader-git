@@ -297,7 +297,7 @@ def dulwich_tag_to_release(obj: ShaFile) -> Release:
             date = dulwich_tsinfo_to_timestamp(
                 tag.tag_time,
                 tag.tag_timezone,
-                tag._tag_timezone_neg_utc,
+                bool(tag._tag_timezone_neg_utc),
                 tagger_timezone,
             )
     else:
