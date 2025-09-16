@@ -147,7 +147,7 @@ class GitCheckoutLoader(BaseDirectoryLoader):
                     target=branch_name,
                 ),
                 branch_name: SnapshotBranch(
-                    target=self.directory.hash,
+                    target=self.directory.id,
                     target_type=SnapshotTargetType.DIRECTORY,
                 ),
             }
