@@ -14,7 +14,7 @@ from dulwich.repo import Repo
 from dulwich.server import DictBackend, TCPGitServer
 import pytest
 
-from swh.core.nar import Nar
+from swh.core.nar import Nar, NarHashAlgo
 from swh.loader.exception import NotFound
 from swh.loader.git.directory import (
     GitCheckoutLoader,
@@ -88,7 +88,7 @@ def test_list_git_tree(datadir, tmp_path):
 
 
 def compute_nar_hash_for_ref(
-    repo_url: str, ref: str, hash_name: str = "sha256", temp_dir: str = "/tmp"
+    repo_url: str, ref: str, hash_name: NarHashAlgo = "sha256", temp_dir: str = "/tmp"
 ) -> str:
     """Compute the nar from a git checked out by git."""
     tmp_path = Path(os.path.join(temp_dir, "compute-nar"))
