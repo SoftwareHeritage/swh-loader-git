@@ -19,6 +19,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Mapping,
     Optional,
     Set,
     Tuple,
@@ -117,7 +118,9 @@ class RepoRepresentation:
     def graph_walker(self) -> ObjectStoreGraphWalker:
         return ObjectStoreGraphWalker(self.local_heads, get_parents=lambda commit: [])
 
-    def determine_wants(self, refs: Dict[bytes, HexBytes]) -> List[HexBytes]:
+    def determine_wants(
+        self, refs: Mapping[bytes, bytes], depth: Optional[int] = None
+    ) -> List[bytes]:
         """Get the list of bytehex sha1s that the git loader should fetch.
 
         This compares the remote refs sent by the server with the base snapshot
@@ -133,7 +136,7 @@ class RepoRepresentation:
                 heads_logger.debug("    %r: %s", name, value.decode())
 
         # Get the remote heads that we want to fetch
-        remote_heads: Set[HexBytes] = set()
+        remote_heads: Set[bytes] = set()
         for ref_name, ref_target in refs.items():
             if utils.ignore_branch_name(ref_name):
                 continue
@@ -204,7 +207,6 @@ class GitLoader(BaseGitLoader):
         read_timeout: float = 60,
         verify_certs: bool = True,
         urllib3_extra_kwargs: Dict[str, Any] = {},
-        requests_extra_kwargs: Dict[str, Any] = {},
         **kwargs: Any,
     ):
         """Initialize the bulk updater.
@@ -228,18 +230,14 @@ class GitLoader(BaseGitLoader):
         self.remote_refs: Dict[bytes, HexBytes] = {}
         self.symbolic_refs: Dict[bytes, HexBytes] = {}
         self.ref_object_types: Dict[bytes, Optional[SnapshotTargetType]] = {}
-        self.ext_refs: Dict[bytes, Optional[Tuple[int, bytes]]] = {}
+        self.ext_refs: Dict[bytes, Optional[Tuple[int, List[bytes]]]] = {}
         self.repo_pack_size_bytes = 0
         self.urllib3_extra_kwargs = urllib3_extra_kwargs
         self.urllib3_extra_kwargs["timeout"] = urllib3.util.Timeout(
             connect=connect_timeout, read=read_timeout
         )
-        self.requests_extra_kwargs = requests_extra_kwargs
-        self.requests_extra_kwargs["timeout"] = (connect_timeout, read_timeout)
-
         if not verify_certs:
             self.urllib3_extra_kwargs["cert_reqs"] = "CERT_NONE"
-            self.requests_extra_kwargs["verify"] = False
 
     def fetch_pack_from_origin(
         self,
@@ -280,7 +278,7 @@ class GitLoader(BaseGitLoader):
         )
 
         pack_result = client.fetch_pack(
-            path,
+            path.encode(),
             base_repo.determine_wants,
             base_repo.graph_walker(),
             pack_writer.write,
@@ -502,7 +500,7 @@ class GitLoader(BaseGitLoader):
         with open(os.path.join(pack_dir, refs_name), "xb") as f:
             pickle.dump(self.remote_refs, f)
 
-    def _resolve_ext_ref(self, sha1: bytes) -> Tuple[int, bytes]:
+    def _resolve_ext_ref(self, sha1: bytes) -> Tuple[int, List[bytes]]:
         """Resolve external references to git objects a pack file might contain
         by getting associated git manifests from the archive.
         """
@@ -511,7 +509,7 @@ class GitLoader(BaseGitLoader):
         statsd_metric = "swh_loader_git_external_reference_fetch_total"
 
         def set_ext_ref(type_num, manifest, swh_type):
-            ext_refs[sha1] = (type_num, manifest.split(b"\x00", maxsplit=1)[1])
+            ext_refs[sha1] = (type_num, [manifest.split(b"\x00", maxsplit=1)[1]])
             self.statsd.increment(
                 statsd_metric,
                 tags={"type": swh_type, "result": "found"},

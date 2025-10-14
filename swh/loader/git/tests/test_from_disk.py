@@ -508,6 +508,7 @@ class FullGitLoaderTests(CommonGitLoaderTests):
             message=message,
             annotated=True,
             objectish=new_revision,
+            sign=False,
         )
 
         res = self.loader.load()
