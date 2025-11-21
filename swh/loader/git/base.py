@@ -134,6 +134,7 @@ class BaseGitLoader(BaseLoader):
 
                 maybe_log_summary("In contents")
 
+            storage_summary.update(self.flush())
             maybe_log_summary("After contents", force=True)
 
         if self.has_directories():
@@ -142,6 +143,7 @@ class BaseGitLoader(BaseLoader):
                 storage_summary.update(self.storage.directory_add([directory]))
                 maybe_log_summary("In directories")
 
+            storage_summary.update(self.flush())
             maybe_log_summary("After directories", force=True)
 
         if self.has_revisions():
@@ -150,6 +152,7 @@ class BaseGitLoader(BaseLoader):
                 storage_summary.update(self.storage.revision_add([revision]))
                 maybe_log_summary("In revisions")
 
+            storage_summary.update(self.flush())
             maybe_log_summary("After revisions", force=True)
 
         if self.has_releases():
@@ -157,6 +160,9 @@ class BaseGitLoader(BaseLoader):
                 counts["release"] += 1
                 storage_summary.update(self.storage.release_add([release]))
                 maybe_log_summary("In releases")
+
+            storage_summary.update(self.flush())
+            maybe_log_summary("After releases", force=True)
 
         snapshot = self.get_snapshot()
         counts["snapshot"] += 1
