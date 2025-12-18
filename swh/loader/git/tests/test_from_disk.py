@@ -295,8 +295,10 @@ class FullGitLoaderTests(CommonGitLoaderTests):
         with open(os.path.join(self.destination_path, "hello.py"), "a") as fd:
             fd.write("print('Hello world')\n")
 
-        self.repo.stage([b"hello.py"])
-        new_revision = self.repo.do_commit(b"Hello world\n").decode()
+        self.repo.get_worktree().stage([b"hello.py"])
+        new_revision = (
+            self.repo.get_worktree().commit(b"Hello world\n", sign=False).decode()
+        )
         new_dir = "85dae072a5aa9923ffa7a7568f819ff21bf49858"
 
         assert self.repo[new_revision.encode()].tree == new_dir.encode()
@@ -353,8 +355,11 @@ class FullGitLoaderTests(CommonGitLoaderTests):
         assert merged_tree.id.decode() == merged_dir_id
         self.repo.object_store.add_object(merged_tree)
 
-        merge_commit = self.repo.do_commit(
-            b"merge.\n", tree=merged_tree.id, merge_heads=[branch1.id]
+        merge_commit = self.repo.get_worktree().commit(
+            b"merge.\n",
+            tree=merged_tree.id,
+            merge_heads=[branch1.id],
+            sign=False,
         )
 
         assert merge_commit.decode() not in revisions
@@ -476,7 +481,9 @@ class FullGitLoaderTests(CommonGitLoaderTests):
         assert empty_tree.id.decode() == empty_dir_id
         self.repo.object_store.add_object(empty_tree)
 
-        self.repo.do_commit(b"remove all bugs\n", tree=empty_tree.id)
+        self.repo.get_worktree().commit(
+            b"remove all bugs\n", tree=empty_tree.id, sign=False
+        )
 
         res = self.loader.load()
         assert res == {"status": "eventful"}
@@ -493,8 +500,8 @@ class FullGitLoaderTests(CommonGitLoaderTests):
         with open(os.path.join(self.destination_path, "hello.py"), "a") as fd:
             fd.write("print('Hello world')\n")
 
-        self.repo.stage([b"hello.py"])
-        new_revision = self.repo.do_commit(b"Hello world\n")
+        self.repo.get_worktree().stage([b"hello.py"])
+        new_revision = self.repo.get_worktree().commit(b"Hello world\n", sign=False)
 
         # Newer Dulwich versions always add a \n to tag messages.
         if dulwich.__version__ >= (0, 20, 22):
@@ -536,8 +543,8 @@ class FullGitLoaderTests(CommonGitLoaderTests):
         with open(os.path.join(self.destination_path, "hello.py"), "a") as fd:
             fd.write("print('Hello world')\n")
 
-        self.repo.stage([b"hello.py"])
-        new_revision = self.repo.do_commit(b"Hello world\n")
+        self.repo.get_worktree().stage([b"hello.py"])
+        new_revision = self.repo.get_worktree().commit(b"Hello world\n", sign=False)
 
         # dulwich.porcelain.tag_create doesn't allow creating tags without
         # a tagger or a date, so we have to create it "manually"

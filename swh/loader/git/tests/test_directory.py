@@ -132,7 +132,7 @@ def test_checkout_repository_ref_from(datadir, tmp_path, reference, reference_ty
     checkout, repo_url = prepare_test_git_checkout(
         archive_path, archive_name, tmp_path, reference
     )
-    refs = LocalGitClient().get_refs(repo_url.replace("file://", ""))
+    refs = LocalGitClient().get_refs(repo_url.replace("file://", "")).refs
     # Ensure the repository exists and is at the branch_name required
     if reference_type == "branch":
         ref = f"refs/heads/{reference}".encode()
@@ -289,8 +289,8 @@ def simple_git_repository_url(tmp_path):
     with open(os.path.join(git_repo_path, "file"), "w") as f:
         f.write("foo")
 
-    git_repo.stage(["file"])
-    git_repo.do_commit(
+    git_repo.get_worktree().stage(["file"])
+    git_repo.get_worktree().commit(
         b"file added",
         committer=b"Test Committer <test@example.org>",
         author=b"Test Author <test@example.org>",
@@ -298,6 +298,7 @@ def simple_git_repository_url(tmp_path):
         commit_timezone=0,
         author_timestamp=12395,
         author_timezone=0,
+        sign=False,
     )
 
     backend = DictBackend({b"/": git_repo})

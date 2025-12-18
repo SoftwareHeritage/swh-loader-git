@@ -318,8 +318,8 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         with open(os.path.join(self.destination_path, "hello.py"), "a") as fd:
             fd.write("print('Hello world')\n")
 
-        self.repo.stage([b"hello.py"])
-        new_revision = self.repo.do_commit(b"Hello world\n")
+        self.repo.get_worktree().stage([b"hello.py"])
+        new_revision = self.repo.get_worktree().commit(b"Hello world\n", sign=False)
         first_tag = add_tag(b"v1.0.0", b"First release!\n", new_revision)
 
         # second load of repository
@@ -342,8 +342,8 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         with open(os.path.join(self.destination_path, "foo.py"), "a") as fd:
             fd.write("print('foo')\n")
 
-        self.repo.stage([b"foo.py"])
-        new_revision = self.repo.do_commit(b"Add foo file\n")
+        self.repo.get_worktree().stage([b"foo.py"])
+        new_revision = self.repo.get_worktree().commit(b"Add foo file\n", sign=False)
         second_tag = add_tag(b"v1.1.0", b"Second release!\n", new_revision)
 
         # get all object ids that will be in storage after third load
