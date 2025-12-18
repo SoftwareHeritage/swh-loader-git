@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2024  The Software Heritage developers
+# Copyright (C) 2017-2025  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -12,17 +12,16 @@ import os
 import shutil
 import tempfile
 import time
-from typing import Dict, Mapping, NewType, Optional, Union
+from typing import Dict, Mapping, Optional
 
 from dulwich.client import HTTPUnauthorized
 from dulwich.errors import GitProtocolError, NotGitRepository
+from dulwich.objects import ObjectID
+from dulwich.refs import Ref
 
 from swh.core import tarball
 from swh.loader.exception import NotFound
 from swh.model.model import SnapshotBranch
-
-# The hexadecimal representation of the hash in bytes
-HexBytes = NewType("HexBytes", bytes)
 
 
 def init_git_repo_from_archive(project_name, archive_path, root_temp_dir="/tmp"):
@@ -100,11 +99,22 @@ def ignore_branch_name(branch_name: bytes) -> bool:
 
 
 def filter_refs(
-    refs: Mapping[bytes, Union[Optional[bytes], HexBytes]],
-) -> Dict[bytes, HexBytes]:
+    refs: Mapping[Ref, ObjectID | None],
+) -> Dict[Ref, ObjectID]:
     """Filter the refs dictionary using the policy set in `ignore_branch_name`"""
     return {
-        name: HexBytes(target)
+        name: target
+        for name, target in refs.items()
+        if not ignore_branch_name(name) and target is not None
+    }
+
+
+def filter_symbolic_refs(
+    refs: Mapping[Ref, Ref | None],
+) -> Dict[Ref, Ref]:
+    """Filter the symbolic refs dictionary using the policy set in `ignore_branch_name`"""
+    return {
+        name: target
         for name, target in refs.items()
         if not ignore_branch_name(name) and target is not None
     }
@@ -112,7 +122,7 @@ def filter_refs(
 
 def warn_dangling_branches(
     branches: Dict[bytes, Optional[SnapshotBranch]],
-    dangling_branches: Dict[HexBytes, bytes],
+    dangling_branches: Dict[Ref, Ref],
     logger: logging.Logger,
     origin_url: str,
 ) -> None:

@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024  The Software Heritage developers
+# Copyright (C) 2015-2025  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -188,8 +188,7 @@ def dulwich_commit_to_revision(obj: ShaFile) -> Revision:
 
     author_timezone = None
     committer_timezone = None
-    assert commit._chunked_text is not None  # to keep mypy happy
-    for field, value in _parse_message(commit._chunked_text):
+    for field, value in _parse_message(commit.as_raw_chunks()):
         if field == b"author":
             assert value is not None
             m = AUTHORSHIP_LINE_RE.match(value)

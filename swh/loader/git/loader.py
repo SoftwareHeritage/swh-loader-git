@@ -27,9 +27,11 @@ from typing import (
 )
 
 import dulwich.client
+from dulwich.object_format import SHA1
 from dulwich.object_store import ObjectStoreGraphWalker
-from dulwich.objects import Blob, Commit, ShaFile, Tag, Tree
+from dulwich.objects import Blob, Commit, ObjectID, ShaFile, Tag, Tree, sha_to_hex
 from dulwich.pack import PackData, PackInflater
+from dulwich.refs import Ref
 import urllib3.util
 
 from swh.core.statsd import Statsd
@@ -61,7 +63,7 @@ from swh.storage.interface import StorageInterface
 
 from . import converters, utils
 from .base import BaseGitLoader
-from .utils import LOGGING_INTERVAL, HexBytes, PackWriter
+from .utils import LOGGING_INTERVAL, PackWriter
 
 logger = logging.getLogger(__name__)
 heads_logger = logger.getChild("refs")
@@ -106,21 +108,21 @@ class RepoRepresentation:
             self.base_snapshots = []
 
         # Cache existing heads
-        self.local_heads: Set[HexBytes] = set()
+        self.local_heads: Set[ObjectID] = set()
         heads_logger.debug("Heads known in the archive:")
         for base_snapshot in self.base_snapshots:
             for branch_name, branch in base_snapshot.branches.items():
                 if not branch or branch.target_type == SnapshotTargetType.ALIAS:
                     continue
                 heads_logger.debug("    %r: %s", branch_name, branch.target.hex())
-                self.local_heads.add(HexBytes(hashutil.hash_to_bytehex(branch.target)))
+                self.local_heads.add(sha_to_hex(branch.target))
 
     def graph_walker(self) -> ObjectStoreGraphWalker:
         return ObjectStoreGraphWalker(self.local_heads, get_parents=lambda commit: [])
 
     def determine_wants(
-        self, refs: Mapping[bytes, bytes], depth: Optional[int] = None
-    ) -> List[bytes]:
+        self, refs: Mapping[Ref, ObjectID], depth: Optional[int] = None
+    ) -> List[ObjectID]:
         """Get the list of bytehex sha1s that the git loader should fetch.
 
         This compares the remote refs sent by the server with the base snapshot
@@ -136,7 +138,7 @@ class RepoRepresentation:
                 heads_logger.debug("    %r: %s", name, value.decode())
 
         # Get the remote heads that we want to fetch
-        remote_heads: Set[bytes] = set()
+        remote_heads: Set[ObjectID] = set()
         for ref_name, ref_target in refs.items():
             if utils.ignore_branch_name(ref_name):
                 continue
@@ -163,8 +165,8 @@ class RepoRepresentation:
 
 @dataclass
 class FetchPackReturn:
-    remote_refs: Dict[bytes, HexBytes]
-    symbolic_refs: Dict[bytes, HexBytes]
+    remote_refs: Dict[Ref, ObjectID]
+    symbolic_refs: Dict[Ref, Ref]
     pack_buffer: SpooledTemporaryFile
     pack_size: int
 
@@ -227,8 +229,8 @@ class GitLoader(BaseGitLoader):
         self.pack_size_bytes = pack_size_bytes
         self.temp_file_cutoff = temp_file_cutoff
         # state initialized in fetch_data
-        self.remote_refs: Dict[bytes, HexBytes] = {}
-        self.symbolic_refs: Dict[bytes, HexBytes] = {}
+        self.remote_refs: Dict[Ref, ObjectID] = {}
+        self.symbolic_refs: Dict[Ref, Ref] = {}
         self.ref_object_types: Dict[bytes, Optional[SnapshotTargetType]] = {}
         self.ext_refs: Dict[bytes, Optional[Tuple[int, List[bytes]]]] = {}
         self.repo_pack_size_bytes = 0
@@ -300,7 +302,7 @@ class GitLoader(BaseGitLoader):
 
         return FetchPackReturn(
             remote_refs=utils.filter_refs(remote_refs),
-            symbolic_refs=utils.filter_refs(symbolic_refs),
+            symbolic_refs=utils.filter_symbolic_refs(symbolic_refs),
             pack_buffer=pack_buffer,
             pack_size=pack_size,
         )
@@ -572,8 +574,9 @@ class GitLoader(BaseGitLoader):
             count = 0
             for obj in PackInflater.for_pack_data(
                 PackData.from_file(
-                    self.pack_buffer,
-                    self.pack_size,
+                    file=self.pack_buffer,
+                    size=self.pack_size,
+                    object_format=SHA1,
                 ),
                 resolve_ext_ref=self._resolve_ext_ref,
             ):
@@ -641,31 +644,31 @@ class GitLoader(BaseGitLoader):
         for ref_name, ref_object in self.remote_refs.items():
             if ref_name in self.symbolic_refs:
                 continue
-            target = hashutil.hash_to_bytes(ref_object.decode())
+            ref_target = hashutil.hash_to_bytes(ref_object.decode())
             target_type = self.ref_object_types.get(ref_object)
             if target_type:
                 branches[ref_name] = SnapshotBranch(
-                    target=target, target_type=target_type
+                    target=ref_target, target_type=target_type
                 )
             else:
                 # The object pointed at by this ref was not fetched, supposedly
                 # because it existed in the base snapshot. We record it here,
                 # and we can get it from the base snapshot later.
-                unfetched_refs[ref_name] = target
+                unfetched_refs[ref_name] = ref_target
 
         dangling_branches = {}
         # Handle symbolic references as alias branches
-        for ref_name, target in self.symbolic_refs.items():
-            branches[ref_name] = SnapshotBranch(
+        for sym_ref_name, sym_ref_target in self.symbolic_refs.items():
+            branches[sym_ref_name] = SnapshotBranch(
                 target_type=SnapshotTargetType.ALIAS,
-                target=target,
+                target=sym_ref_target,
             )
-            if target not in branches and target not in unfetched_refs:
+            if sym_ref_target not in branches and sym_ref_target not in unfetched_refs:
                 # This handles the case where the pointer is "dangling".
                 # There's a chance that a further symbolic reference
                 # override this default value, which is totally fine.
-                dangling_branches[target] = ref_name
-                branches[target] = None
+                dangling_branches[sym_ref_target] = sym_ref_name
+                branches[sym_ref_target] = None
 
         if unfetched_refs:
             # Handle inference of object types from the contents of the
@@ -684,11 +687,11 @@ class GitLoader(BaseGitLoader):
                 if branch and branch.target_type != SnapshotTargetType.ALIAS
             ), "base_snapshot_reverse_branches is not a superset of prev_snapshot"
 
-            for ref_name, target in unfetched_refs.items():
+            for unfetched_ref_name, target in unfetched_refs.items():
                 branch = base_snapshot_reverse_branches.get(target)
-                branches[ref_name] = branch
+                branches[unfetched_ref_name] = branch
                 if not branch:
-                    unknown_objects[ref_name] = target
+                    unknown_objects[unfetched_ref_name] = target
 
             if unknown_objects and self.base_snapshots:
                 # The remote has sent us a partial packfile. It will have skipped
@@ -697,8 +700,8 @@ class GitLoader(BaseGitLoader):
                 # have had all their ancestors loaded when the previous snapshot was
                 # loaded.
                 refs_for_target = defaultdict(list)
-                for ref_name, target in unknown_objects.items():
-                    refs_for_target[target].append(ref_name)
+                for unfetched_ref_name, target in unknown_objects.items():
+                    refs_for_target[target].append(unfetched_ref_name)
 
                 targets_unknown = set(refs_for_target)
 
@@ -715,20 +718,20 @@ class GitLoader(BaseGitLoader):
                     known = targets_unknown - missing
 
                     for target in known:
-                        for ref_name in refs_for_target[target]:
+                        for unfetched_ref_name in refs_for_target[target]:
                             logger.debug(
                                 "Inferred type %s for branch %r pointing at unfetched %s",
                                 target_type.name,
-                                ref_name,
+                                unfetched_ref_name,
                                 hashutil.hash_to_hex(target),
                                 extra={
                                     "swh_type": "swh_loader_git_inferred_target_type"
                                 },
                             )
-                            branches[ref_name] = SnapshotBranch(
+                            branches[unfetched_ref_name] = SnapshotBranch(
                                 target=target, target_type=target_type
                             )
-                            del unknown_objects[ref_name]
+                            del unknown_objects[unfetched_ref_name]
 
                     targets_unknown = missing
                     if not targets_unknown:
