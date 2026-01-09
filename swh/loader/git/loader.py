@@ -462,6 +462,15 @@ class GitLoader(BaseGitLoader):
         self.pack_size = fetch_info.pack_size
         self.remote_refs = fetch_info.remote_refs
         self.symbolic_refs = fetch_info.symbolic_refs
+        self.pack_data = (
+            PackData.from_file(
+                file=self.pack_buffer,
+                size=self.pack_size,
+                object_format=SHA1,
+            )
+            if self.pack_size > 0
+            else None
+        )
 
         self.ref_object_types = {sha1: None for sha1 in self.remote_refs.values()}
 
@@ -569,15 +578,11 @@ class GitLoader(BaseGitLoader):
 
     def iter_objects(self, object_type: bytes) -> Iterator[ShaFile]:
         """Read all the objects of type `object_type` from the packfile"""
-        if self.pack_size > 0:
+        if self.pack_data:
             self.pack_buffer.seek(0)
             count = 0
             for obj in PackInflater.for_pack_data(
-                PackData.from_file(
-                    file=self.pack_buffer,
-                    size=self.pack_size,
-                    object_format=SHA1,
-                ),
+                self.pack_data,
                 resolve_ext_ref=self._resolve_ext_ref,
             ):
                 if obj.type_name != object_type:
