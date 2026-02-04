@@ -16,10 +16,13 @@ import time
 from unittest.mock import MagicMock, call
 
 import attr
+from dulwich.bundle import create_bundle_from_repo, write_bundle
+from dulwich.client import Urllib3HttpGitClient
 from dulwich.errors import GitProtocolError, NotGitRepository, ObjectFormatException
+from dulwich.objects import Blob, Commit, Tag, Tree
 from dulwich.pack import REF_DELTA
 from dulwich.porcelain import get_user_timezones, push
-import dulwich.repo
+from dulwich.repo import MemoryRepo, Repo
 from dulwich.tests.utils import build_pack
 import pytest
 import sentry_sdk
@@ -130,7 +133,7 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         )
         self.destination_path = os.path.join(tmp_path, archive_name)
         self.loader = GitLoader(swh_storage, self.repo_url)
-        self.repo = dulwich.repo.Repo(self.destination_path)
+        self.repo = Repo(self.destination_path)
 
     def test_metrics(self, mocker):
         statsd_report = mocker.patch.object(self.loader.statsd, "_report")
@@ -285,11 +288,11 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         statsd_report = mocker.patch.object(self.loader.statsd, "_report")
 
         def add_tag(tag_name, tag_message, commit):
-            tag = dulwich.objects.Tag()
+            tag = Tag()
             tag.name = tag_name
             tag.tagger = b"John Doe <john.doe@example.org>"
             tag.message = tag_message
-            tag.object = (dulwich.objects.Commit, commit)
+            tag.object = (Commit, commit)
             tag.tag_time = int(time.time())
             tag.tag_timezone = get_user_timezones()[0]
             tag.check()
@@ -495,7 +498,7 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             lister_name="fake-lister",
             lister_instance_name="",
         )
-        self.repo = dulwich.repo.Repo(self.destination_path)
+        self.repo = Repo(self.destination_path)
 
     def test_no_previous_snapshot(self, mocker):
         statsd_report = mocker.patch.object(self.loader.statsd, "_report")
@@ -840,7 +843,7 @@ class DumbGitLoaderTestBase(FullGitLoaderTests):
         thread = Thread(target=serve_forever, args=(httpd,))
         thread.start()
 
-        repo = dulwich.repo.Repo(self.destination_path)
+        repo = Repo(self.destination_path)
 
         class DumbGitLoaderTest(GitLoader):
             def load(self):
@@ -988,3 +991,203 @@ def test_loader_too_large_pack_file_for_github_origin(
 )
 def test_split_lines_and_remainder(input, output):
     assert split_lines_and_remainder(input) == output
+
+
+@pytest.fixture
+def sample_git_repo():
+    # Create a simple repository
+    repo = MemoryRepo()
+
+    # Create some objects
+    blob = Blob.from_string(b"Hello world")
+    repo.object_store.add_object(blob)
+
+    tree = Tree()
+    tree.add(b"hello.txt", 0o100644, blob.id)
+    repo.object_store.add_object(tree)
+
+    commit = Commit()
+    commit.tree = tree.id
+    commit.message = b"Initial commit"
+    commit.author = commit.committer = b"Test User <test@example.com>"
+    commit.commit_time = commit.author_time = 1234567890
+    commit.commit_timezone = commit.author_timezone = 0
+    repo.object_store.add_object(commit)
+
+    repo.refs[b"refs/heads/master"] = commit.id
+    repo.refs[b"HEAD"] = commit.id
+
+    tag = Tag()
+    tag.name = b"v0.1"
+    tag.tagger = commit.author
+    tag.message = b"Version 0.1"
+    tag.object = (Commit, commit.id)
+    tag.tag_time = int(time.time())
+    tag.tag_timezone = get_user_timezones()[0]
+
+    repo.object_store.add_object(tag)
+    repo[b"refs/tags/" + tag.name] = tag.id
+
+    return repo
+
+
+class GitHttpClientFetchPackRaise(Urllib3HttpGitClient):
+
+    def fetch_pack(self, *args, **kwargs):
+        raise NotGitRepository()
+
+
+def create_git_bundle(repo: Repo) -> bytes:
+    bundle = create_bundle_from_repo(repo)
+    bundle_data = io.BytesIO()
+    write_bundle(bundle_data, bundle)
+    bundle_data.seek(0)
+    return bundle_data.read()
+
+
+def setup_bundle_test_mocks(
+    origin_url, bundle_data, requests_mock, mocker, content_length=0
+):
+    headers = {
+        "content-type": "application/octet-stream",
+        "content-length": str(content_length if content_length else len(bundle_data)),
+    }
+    requests_mock.head(origin_url, headers=headers)
+    requests_mock.get(origin_url, content=bundle_data, headers=headers)
+
+    mocker.patch("dulwich.client.get_transport_and_path").return_value = (
+        GitHttpClientFetchPackRaise(origin_url),
+        origin_url,
+    )
+
+
+def test_loader_remote_git_bundle(swh_storage, sample_git_repo, requests_mock, mocker):
+    origin_url = "https://example.org/files/git_repo.bundle"
+    bundle_data = create_git_bundle(sample_git_repo)
+    setup_bundle_test_mocks(origin_url, bundle_data, requests_mock, mocker)
+
+    loader = GitLoader(swh_storage, origin_url)
+
+    assert loader.load() == {"status": "eventful"}
+
+    assert get_stats(loader.storage) == {
+        "content": 1,
+        "directory": 1,
+        "origin": 1,
+        "origin_visit": 1,
+        "release": 1,
+        "revision": 1,
+        "skipped_content": 0,
+        "snapshot": 1,
+    }
+
+
+def test_loader_remote_git_bundle_new_visit_after_update(
+    swh_storage, sample_git_repo, requests_mock, mocker, caplog
+):
+    caplog.set_level(logging.DEBUG)
+    origin_url = "https://example.org/files/git_repo.bundle"
+    bundle_data = create_git_bundle(sample_git_repo)
+    setup_bundle_test_mocks(origin_url, bundle_data, requests_mock, mocker)
+
+    loader = GitLoader(swh_storage, origin_url)
+    assert loader.load() == {"status": "eventful"}
+
+    assert {
+        "After contents: processed 1 objects, 1 are new",
+        "After directories: processed 2 objects, 2 are new",
+        "After revisions: processed 3 objects, 3 are new",
+        "After releases: processed 4 objects, 4 are new",
+        "After snapshot: processed 5 objects, 5 are new",
+    }.issubset({rec.message for rec in caplog.records})
+
+    new_blob = Blob.from_string(b"foo")
+    sample_git_repo.object_store.add_object(new_blob)
+
+    new_tree = sample_git_repo[sample_git_repo[sample_git_repo.head()].tree].copy()
+
+    new_tree.add(b"foo.txt", 0o100644, new_blob.id)
+    sample_git_repo.object_store.add_object(new_tree)
+
+    new_commit = Commit()
+    new_commit.tree = new_tree.id
+    new_commit.message = b"New commit"
+    new_commit.author = new_commit.committer = b"Test User <test@example.com>"
+    new_commit.commit_time = new_commit.author_time = 1234567890
+    new_commit.commit_timezone = new_commit.author_timezone = 0
+    sample_git_repo.object_store.add_object(new_commit)
+
+    sample_git_repo.refs[b"refs/heads/master"] = new_commit.id
+    sample_git_repo.refs[b"HEAD"] = new_commit.id
+
+    bundle_data = create_git_bundle(sample_git_repo)
+    setup_bundle_test_mocks(origin_url, bundle_data, requests_mock, mocker)
+
+    caplog.clear()
+
+    loader = GitLoader(swh_storage, origin_url)
+    assert loader.load() == {"status": "eventful"}
+
+    assert get_stats(loader.storage) == {
+        "content": 2,
+        "directory": 2,
+        "origin": 1,
+        "origin_visit": 2,
+        "release": 1,
+        "revision": 2,
+        "skipped_content": 0,
+        "snapshot": 2,
+    }
+
+    assert {
+        "After contents: processed 2 objects, 1 are new",
+        "After directories: processed 4 objects, 2 are new",
+        "After revisions: processed 6 objects, 3 are new",
+        "After releases: processed 7 objects, 3 are new",
+        "After snapshot: processed 8 objects, 4 are new",
+    }.issubset({rec.message for rec in caplog.records})
+
+
+def test_loader_remote_git_bundle_too_big(
+    swh_storage, sample_git_repo, requests_mock, mocker
+):
+    origin_url = "https://example.org/files/git_repo.bundle"
+    bundle_data = create_git_bundle(sample_git_repo)
+
+    loader = GitLoader(swh_storage, origin_url)
+
+    setup_bundle_test_mocks(
+        origin_url,
+        bundle_data,
+        requests_mock,
+        mocker,
+        content_length=2 * loader.pack_size_bytes,
+    )
+
+    assert loader.load() == {
+        "status": "failed",
+        "error": f"Bundle file {origin_url} too big, limit is {loader.pack_size_bytes} bytes",
+    }
+
+
+def test_loader_local_git_bundle(swh_storage, sample_git_repo, tmp_path):
+    bundle_data = create_git_bundle(sample_git_repo)
+    bundle_file = tmp_path / "repo.bundle"
+    bundle_file.write_bytes(bundle_data)
+
+    origin_url = f"file://{str(bundle_file)}"
+
+    loader = GitLoader(swh_storage, origin_url)
+
+    assert loader.load() == {"status": "eventful"}
+
+    assert get_stats(loader.storage) == {
+        "content": 1,
+        "directory": 1,
+        "origin": 1,
+        "origin_visit": 1,
+        "release": 1,
+        "revision": 1,
+        "skipped_content": 0,
+        "snapshot": 1,
+    }

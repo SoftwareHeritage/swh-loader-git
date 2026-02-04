@@ -10,7 +10,7 @@ import json
 import logging
 import os
 import pickle
-from tempfile import SpooledTemporaryFile
+from tempfile import NamedTemporaryFile, SpooledTemporaryFile
 import time
 from typing import (
     Any,
@@ -27,11 +27,14 @@ from typing import (
 )
 
 import dulwich.client
+from dulwich.client import BundleClient, FetchPackResult
+from dulwich.errors import NotGitRepository
 from dulwich.object_format import SHA1
 from dulwich.object_store import ObjectStoreGraphWalker
 from dulwich.objects import Blob, Commit, ObjectID, ShaFile, Tag, Tree, sha_to_hex
 from dulwich.pack import PackData, PackInflater
 from dulwich.refs import Ref
+import requests
 import urllib3.util
 
 from swh.core.statsd import Statsd
@@ -214,11 +217,9 @@ class GitLoader(BaseGitLoader):
         """Initialize the bulk updater.
 
         Args:
-            repo_representation: swh's repository representation
-            which is in charge of filtering between known and remote
-            data.
-            ...
-
+            url: URL targeting a local/remote git repository or a local/remote git bundle file
+            repo_representation: swh's repository representation which is in charge of
+                filtering between known and remote data.
             incremental: If True, the default, this starts from the last known snapshot
                 (if any) references. Otherwise, this loads the full repository.
 
@@ -279,13 +280,50 @@ class GitLoader(BaseGitLoader):
             fetch_pack_logger=fetch_pack_logger,
         )
 
-        pack_result = client.fetch_pack(
-            path.encode(),
-            base_repo.determine_wants,
-            base_repo.graph_walker(),
-            pack_writer.write,
-            progress=do_activity,
-        )
+        def fetch_pack() -> FetchPackResult:
+            return client.fetch_pack(
+                path.encode(),
+                base_repo.determine_wants,
+                base_repo.graph_walker(),
+                pack_writer.write,
+                progress=do_activity,
+            )
+
+        def url_content_info(url: str) -> Tuple[str, int]:
+            head_response = requests.head(url, allow_redirects=True)
+            return (
+                head_response.headers.get("content-type", ""),
+                int(head_response.headers.get("content-length", 0)),
+            )
+
+        try:
+            pack_result = fetch_pack()
+        except NotGitRepository:
+            if transport_url.startswith(("https://", "http://")):
+                content_type, content_length = url_content_info(transport_url)
+                # origin URL could target a git bundle file so we fetch it and switch to
+                # BundleClient before attempting a new fetch_pack operation
+                if content_type == "application/octet-stream":
+                    if content_length > self.pack_size_bytes:
+                        raise IOError(
+                            f"Bundle file {transport_url} too big, "
+                            f"limit is {self.pack_size_bytes} bytes"
+                        )
+                    client = BundleClient()
+                    bundle_buffer = NamedTemporaryFile()
+                    resp = requests.get(transport_url, stream=True)
+                    for data in resp.iter_content(chunk_size=32768):
+                        bundle_buffer.write(data)
+                    bundle_buffer.seek(0)
+                    path = bundle_buffer.name
+            elif transport_url.startswith("file://"):
+                # local file might target a git bundle
+                client = BundleClient()
+
+            if isinstance(client, BundleClient):
+                pack_result = fetch_pack()
+            else:
+                raise
 
         remote_refs = pack_result.refs or {}
         symbolic_refs = pack_result.symrefs or {}

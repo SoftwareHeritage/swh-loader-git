@@ -1,2 +1,4 @@
-dulwich >= 0.25.0
 click
+dulwich >= 0.25.0
+requests
+retrying
