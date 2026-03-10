@@ -410,7 +410,7 @@ class GitLoaderFromArchive(GitLoaderFromDisk):
     def project_name_from_archive(self, archive_path):
         """Compute the project name from the archive's path."""
         archive_name = os.path.basename(archive_path)
-        for ext in (".zip", ".tar.gz", ".tgz"):
+        for ext in (".zip", ".tar.gz", ".tgz", ".tar"):
             if archive_name.lower().endswith(ext):
                 archive_name = archive_name[: -len(ext)]
                 break
