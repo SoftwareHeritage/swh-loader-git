@@ -12,8 +12,10 @@ from typing import Dict, Optional
 
 from deprecated import deprecated
 from dulwich.errors import ObjectFormatException
+from dulwich.object_format import SHA1
 import dulwich.objects
 from dulwich.objects import Blob, Commit, EmptyFileException, Tag, Tree
+from dulwich.pack import PackData
 import dulwich.repo
 
 from swh.loader.git.utils import raise_not_found_repository
@@ -94,15 +96,37 @@ class GitLoaderFromDisk(BaseGitLoader):
         url: str,
         visit_date: Optional[datetime] = None,
         directory: Optional[str] = None,
+        generate_missing_indexes: bool = False,
         **kwargs,
     ):
         super().__init__(storage=storage, origin_url=url, **kwargs)
         if visit_date is not None:
             self.visit_date = visit_date
         self.directory = directory
+        self.generate_missing_indexes = generate_missing_indexes
 
     def prepare(self):
         with raise_not_found_repository():
+            if self.generate_missing_indexes and self.directory:
+                # Check for missing indexes in objects/pack/
+                pack_dir = os.path.join(self.directory, ".git", "objects", "pack")
+                if not os.path.exists(pack_dir):
+                    # Maybe a bare repo
+                    pack_dir = os.path.join(self.directory, "objects", "pack")
+
+                if os.path.exists(pack_dir):
+                    for filename in os.listdir(pack_dir):
+                        if filename.endswith(".pack"):
+                            idx_filename = filename[:-5] + ".idx"
+                            pack_path = os.path.join(pack_dir, filename)
+                            idx_path = os.path.join(pack_dir, idx_filename)
+                            if not os.path.exists(idx_path):
+                                logger.info(
+                                    "Generating missing index for pack %s", pack_path
+                                )
+                                with PackData(pack_path, object_format=SHA1) as pd:
+                                    pd.create_index(idx_path)
+
             self.repo = dulwich.repo.Repo(self.directory)
 
     def iter_objects(self):

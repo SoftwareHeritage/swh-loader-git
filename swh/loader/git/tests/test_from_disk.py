@@ -573,6 +573,38 @@ class FullGitLoaderTests(CommonGitLoaderTests):
             synthetic=False,
         )
 
+    def test_load_generate_missing_indexes(self):
+        """Check that the loader can generate missing indexes on the fly."""
+        # Repositories prepared from archive usually have indexes.
+        # Let's find them and delete them.
+        pack_dir = os.path.join(self.destination_path, ".git", "objects", "pack")
+        packs = [f for f in os.listdir(pack_dir) if f.endswith(".pack")]
+        assert packs, "No pack files found in test repository"
+
+        for p in packs:
+            idx = p[:-5] + ".idx"
+            idx_path = os.path.join(pack_dir, idx)
+            if os.path.exists(idx_path):
+                os.remove(idx_path)
+
+        # Re-instantiate the loader with generate_missing_indexes=True
+        self.loader = GitLoaderFromDisk(
+            self.loader.storage,
+            url=self.repo_url,
+            directory=self.destination_path,
+            generate_missing_indexes=True,
+        )
+
+        # This should now work and regenerate the indexes
+        res = self.loader.load()
+        assert res == {"status": "eventful"}
+
+        # Verify that indexes are back
+        for p in packs:
+            idx = p[:-5] + ".idx"
+            idx_path = os.path.join(pack_dir, idx)
+            assert os.path.exists(idx_path), f"Index {idx_path} was not regenerated"
+
 
 class TestGitLoaderFromDisk(FullGitLoaderTests):
     """Prepare a git directory repository to be loaded through a GitLoaderFromDisk.
