@@ -28,10 +28,14 @@ dependencies = {file = ["requirements.txt", "requirements-swh.txt"]}
 [tool.setuptools.dynamic.optional-dependencies]
 testing = {file = ["requirements.txt", "requirements-swh.txt", "requirements-test.txt"]}
 
+[project.scripts]
+"swh-git-to-tar" = "swh.loader.git.tar_out_cli:main"
+
 [project.entry-points."swh.workers"]
 "loader.git" = "swh.loader.git:register"
 "loader.git_disk" = "swh.loader.git:register_from_disk"
 "loader.git-checkout" = "swh.loader.git:register_checkout"
+"loader.git-tar-out" = "swh.loader.git:register_tar_out"
 
 [project.urls]
 "Homepage" = "https://gitlab.softwareheritage.org/swh/devel/swh-loader-git"

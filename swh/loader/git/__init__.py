@@ -31,3 +31,12 @@ def register_checkout() -> Dict[str, Any]:
         "task_modules": [],
         "loader": GitCheckoutLoader,
     }
+
+
+def register_tar_out() -> Dict[str, Any]:
+    from swh.loader.git.tar_out import GitTarOutLoader
+
+    return {
+        "task_modules": ["%s.tasks" % __name__],
+        "loader": GitTarOutLoader,
+    }
