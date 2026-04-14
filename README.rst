@@ -44,7 +44,6 @@ Dependencies
 
 -   python3
 -   python3-dulwich
--   python3-retrying
 -   python3-swh.core
 -   python3-swh.model
 -   python3-swh.storage
