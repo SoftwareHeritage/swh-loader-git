@@ -21,6 +21,63 @@ The main entry points are:
   at a specific commit, branch or tag.
 
 
+Deployment: gitoxide engine + dulwich fallback
+-----------------------------------------------
+
+As of 2026, the default git loader uses a gitoxide-based Rust engine
+(``swh.loader.git._gix``) for pack fetching and object inflation,
+replacing the previous dulwich-based implementation.  A dulwich-based
+fallback path is available for pathological repositories that gix's
+strict spec enforcement rejects.
+
+**Size-based dispatch.**  The loader supports three size-classed Celery
+queues (``loader.git.small``, ``loader.git.large``, ``loader.git.xl``)
+with a wall-time-based self-promotion safety net.  The zero-refactor
+deployment routes all visits to the ``small`` queue unconditionally;
+the loader self-promotes to ``large`` or ``xl`` when its wall-time clock
+crosses the ``T_class`` threshold.
+
+**Dulwich fallback.**  When the gix engine raises a typed exception
+(``GixPackError``, ``GixObjectParseError``, ``GixTraverseError``) on a
+malformed pack/object, the loader can re-dispatch the visit to a
+dulwich-based fallback worker.  This is controlled by an environment
+variable:
+
+``SWH_LOADER_GIT_DULWICH_FALLBACK``
+    Set to any non-empty value to enable the dulwich fallback dispatch.
+    When unset (default), gix errors propagate as normal visit failures.
+
+    **Staging rollout:** enable on staging from day one.  In production,
+    enable via Helm overlay on 1% of workers, widen to 10% / 50% / 100%
+    over one week.  After one production week at 100% without incidents,
+    make default-on in the Helm chart.
+
+**Fallback queues.**  Three queues mirror the gix-side tiers:
+
++------------------------------------------+-------------------+
+| Queue                                    | Pod spec          |
++==========================================+===================+
+| ``loader.git.dulwich_fallback_small``    | 2 vCPU / 4 GB     |
++------------------------------------------+-------------------+
+| ``loader.git.dulwich_fallback_large``    | 8 vCPU / 16 GB    |
++------------------------------------------+-------------------+
+| ``loader.git.dulwich_fallback_xl``       | 16 vCPU / 64 GB   |
++------------------------------------------+-------------------+
+
+The fallback inherits the tier that gix was running on.  Within the
+fallback path, an OOM-triggered safety net promotes
+``small`` → ``xl`` and ``large`` → ``xl``; ``xl`` is terminal.
+
+**Staging gating values** (proposed starting thresholds):
+
+- Safety-net redispatch rate: < 5%
+- Dulwich fallback rate: < 0.1%
+- Per-tier p95 wall-time vs model prediction: within 30%
+- OOM-kill rate on small tier: zero over 7 days
+
+See ``deploy/HANDOFF-OPS.md`` for the rollout playbook and metric gates.
+
+
 License
 -------
 

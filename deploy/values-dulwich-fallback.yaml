@@ -1,0 +1,125 @@
+# Helm values overlay for the dulwich-fallback worker pools.
+#
+# Include alongside the main loader chart values to add the three
+# dulwich-fallback queues (small / large / xl).  The main gix-based
+# loader workers are configured separately; this file only covers the
+# fallback path.
+#
+# Usage (Helm):
+#   helm upgrade swh-loader-git <chart> \
+#     -f values-base.yaml \
+#     -f values-dulwich-fallback.yaml
+#
+# Feature flag:
+#   The dulwich fallback dispatch is controlled by the env var
+#   SWH_LOADER_GIT_DULWICH_FALLBACK on the *gix-based* workers (not
+#   on these fallback workers).  Set it on the gix workers to enable
+#   them to re-dispatch to these queues.
+#
+# Sizing rationale:
+#   The fallback rate is expected to be < 0.1% of total visits in
+#   steady state (see PLAN-dulwich-fallback-wiring.md §9'.4).  Replica
+#   counts are deliberately small; scale up only if the
+#   git_dulwich_fallback_total Prometheus metric shows sustained
+#   non-negligible rates.
+#
+# Pod specs match the gix-side tiers:
+#   small = 2 vCPU / 4 GB (handles 99%+ of fallback repos)
+#   large = 8 vCPU / 16 GB (for repos that were gix-large at failure time)
+#   xl    = 16 vCPU / 64 GB (terminal tier; handles everything dulwich can)
+#
+# See also:
+#   - README.rst "Deployment" section for env var semantics
+#   - deploy/HANDOFF-OPS.md for the rollout playbook and metric gates
+#   - swh/loader/git/dulwich_fallback.py for the exception classifier
+
+# -----------------------------------------------------------------------
+# Worker pool: dulwich-fallback-small
+# -----------------------------------------------------------------------
+dulwich-fallback-small:
+  enabled: true
+  replicas: 2  # staging: 1
+  celery:
+    task_name: swh.loader.git.tasks.LoadGitDulwichFallbackSmall
+    queue: loader.git.dulwich_fallback_small
+    concurrency: 1  # one visit per worker (matches gix-side pattern)
+  resources:
+    requests:
+      cpu: "1"
+      memory: "2Gi"
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+  env:
+    # No SWH_LOADER_GIT_DULWICH_FALLBACK here — this IS the fallback
+    # worker; the env var controls the GIX-side dispatch decision.
+    []
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# -----------------------------------------------------------------------
+# Worker pool: dulwich-fallback-large
+# -----------------------------------------------------------------------
+dulwich-fallback-large:
+  enabled: true
+  replicas: 1  # staging: 1
+  celery:
+    task_name: swh.loader.git.tasks.LoadGitDulwichFallbackLarge
+    queue: loader.git.dulwich_fallback_large
+    concurrency: 1
+  resources:
+    requests:
+      cpu: "4"
+      memory: "8Gi"
+    limits:
+      cpu: "8"
+      memory: "16Gi"
+  env: []
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# -----------------------------------------------------------------------
+# Worker pool: dulwich-fallback-xl
+# -----------------------------------------------------------------------
+dulwich-fallback-xl:
+  enabled: true
+  replicas: 1  # staging: 0 (spawn on demand); production: 1
+  celery:
+    task_name: swh.loader.git.tasks.LoadGitDulwichFallbackXl
+    queue: loader.git.dulwich_fallback_xl
+    concurrency: 1
+  resources:
+    requests:
+      cpu: "8"
+      memory: "32Gi"
+    limits:
+      cpu: "16"
+      memory: "64Gi"
+  env: []
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# -----------------------------------------------------------------------
+# Prometheus metrics to watch (for alerting / dashboard configuration)
+# -----------------------------------------------------------------------
+# These are emitted by the GIX-side workers, not by the fallback
+# workers.  Configure Prometheus scraping on the gix worker pods.
+#
+# git_dulwich_fallback_total{reason}
+#   Counter.  Incremented each time the gix loader dispatches a visit
+#   to a dulwich fallback queue.  Labels: reason = GixPackError |
+#   GixObjectParseError | GixTraverseError.
+#   Alert threshold: > 0.1% of total visits sustained over 1 hour.
+#
+# git_dulwich_fallback_dispatch_failed_total{reason}
+#   Counter.  Incremented when the apply_async call to the fallback
+#   queue itself fails (broker unreachable, queue misconfigured).
+#   Any non-zero rate is an operational incident.
+#
+# git_safety_net_redispatch_total{from_queue, to_task}
+#   Counter.  Existing metric from the size-dispatch safety net.
+#   Tracks wall-time-triggered tier promotions (small→large, large→xl).
+#   Steady-state rate < 5% of total visits.
