@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025  The Software Heritage developers
+# Copyright (C) 2018-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -11,7 +11,7 @@ import logging
 import os
 import subprocess
 import sys
-from tempfile import SpooledTemporaryFile
+import tempfile
 from threading import Thread
 import time
 from unittest.mock import MagicMock, call
@@ -258,14 +258,16 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         else:
             assert False, "did not find log message for inferred branch target type"
 
-    def test_loader_empty_pack_file(self, mocker):
+    def test_loader_empty_pack_file(self, mocker, tmp_path):
         fetch_pack_from_origin = mocker.patch.object(
             self.loader, "fetch_pack_from_origin"
         )
+        empty_pack = tmp_path / "empty.pack"
+        empty_pack.write_bytes(b"")
         fetch_pack_from_origin.return_value = FetchPackReturn(
             remote_refs={},
             symbolic_refs={},
-            pack_buffer=SpooledTemporaryFile(),
+            pack_path=str(empty_pack),
             pack_size=0,
         )
         assert self.loader.load() == {"status": "uneventful"}
@@ -376,6 +378,13 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         buffer = io.BytesIO()
         build_pack(buffer, objects, self.repo.object_store)
 
+        # The gix-rehaul changed FetchPackReturn from in-memory pack_buffer
+        # to on-disk pack_path; write the test pack to a temp file so the
+        # rest of the loader pipeline (gix iter_pack_objects) can consume it.
+        pack_file = tempfile.NamedTemporaryFile(suffix=".pack", delete=False)
+        pack_file.write(buffer.getvalue())
+        pack_file.flush()
+
         # mock fetch_pack_from_origin method of the loader to return the pack
         # file built above
         fetch_pack_from_origin = mocker.patch.object(
@@ -387,7 +396,7 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
                 b"refs/tags/v1.1.0": second_tag.id,
             },
             symbolic_refs={},
-            pack_buffer=buffer,
+            pack_path=pack_file.name,
             pack_size=buffer.getbuffer().nbytes,
         )
 
@@ -999,3 +1008,75 @@ def test_loader_too_large_pack_file_for_github_origin(
 )
 def test_split_lines_and_remainder(input, output):
     assert split_lines_and_remainder(input) == output
+
+
+class TestConvertObjectPackReaderTreeShape:
+    """Regression tests for ``GitLoader._convert_object`` when ``_gix.PackReader``
+    yields a pre-built ``Directory`` object in a 2-tuple ``(2, Directory)``
+    — the small-pack code path (packs ≤ 100 MB).
+
+    Before the fix, ``_convert_object`` did
+    ``binascii.hexlify(obj_tuple[1])`` before the type dispatch, which
+    crashed with ``TypeError: a bytes-like object is required, not
+    'Directory'`` for tree objects. The defensive
+    ``isinstance(obj_tuple[1], Directory)`` branch on the next lines was
+    therefore unreachable on this code path.
+    """
+
+    @pytest.fixture
+    def loader(self, swh_storage):
+        loader = GitLoader(swh_storage, "https://example.com/repo")
+        loader.ref_object_types = {}
+        return loader
+
+    def test_directory_pack_reader_tuple_does_not_crash(self, loader):
+        """``(2, Directory)`` tuples must round-trip without trying to
+        hexlify the Directory object."""
+        from swh.model.model import Directory
+
+        directory = Directory(entries=())
+        type_name, obj = loader._convert_object((2, directory))
+
+        assert type_name == "directory"
+        assert obj is directory
+
+    def test_directory_pack_reader_updates_ref_object_types(self, loader):
+        """When the Directory's sha matches a ref target, ``ref_object_types``
+        gets the ``DIRECTORY`` tag — same behaviour as the raw-fields path."""
+        import binascii
+
+        from swh.model.model import Directory, SnapshotTargetType
+
+        directory = Directory(entries=())
+        sha_hex = binascii.hexlify(directory.id)
+        loader.ref_object_types[sha_hex] = None
+
+        loader._convert_object((2, directory))
+
+        assert loader.ref_object_types[sha_hex] == SnapshotTargetType.DIRECTORY
+
+    def test_directory_raw_fields_tuple_still_works(self, loader, mocker):
+        """The other tree shape — ``(2, sha, raw, entries, hash_match)`` from
+        ``ParallelPackReader``'s raw-fields path — must still be handled."""
+        from swh.model.model import Directory
+
+        sha1_git = b"\x00" * 20
+        raw_data = b""
+        entries: tuple = ()
+        hash_match = True
+
+        # Patch the converter to avoid pulling in its full dependency chain
+        # for this unit test; we only care that _convert_object dispatches
+        # to it.
+        fake_directory = Directory(entries=())
+        mocker.patch(
+            "swh.loader.git.converters.tree_to_directory_preparsed",
+            return_value=fake_directory,
+        )
+
+        type_name, obj = loader._convert_object(
+            (2, sha1_git, raw_data, entries, hash_match)
+        )
+
+        assert type_name == "directory"
+        assert obj is fake_directory
