@@ -202,6 +202,10 @@ class GitLoader(BaseGitLoader):
         read_timeout: float = 60,
         verify_certs: bool = True,
         urllib3_extra_kwargs: Dict[str, Any] = {},
+        current_size_class: Optional[str] = None,
+        safety_net_enabled: bool = True,
+        safety_net_oversize_factor: float = 2.0,
+        predicted_pack_size_kb: Optional[int] = None,
         **kwargs: Any,
     ):
         """Initialize the bulk updater.
@@ -215,6 +219,28 @@ class GitLoader(BaseGitLoader):
             incremental: If True, the default, this starts from the last known snapshot
                 (if any) references. Otherwise, this loads the full repository.
 
+            current_size_class: the size class of the queue this loader is
+                running on (``"small"``, ``"large"``, ``"xl"``, or None).
+                Set by the corresponding Celery task wrapper
+                (``UpdateGitRepositorySmall``/``Large``/``Xl`` in
+                :mod:`swh.loader.git.tasks`).  ``None`` — the default —
+                disables the safety-net re-queue entirely, preserving
+                legacy behaviour for the ``UpdateGitRepository`` task and
+                for CLI invocations.
+            safety_net_enabled: if True (default) and ``current_size_class``
+                is set, the loader checks the downloaded pack size against
+                the queue's upper bound and re-dispatches to the next
+                larger queue when oversized.  See
+                :meth:`_maybe_redispatch_oversized_pack` and
+                ``notes/PLAN-size-based-dispatch.md``.
+            safety_net_oversize_factor: if the pack is larger than
+                ``safety_net_oversize_factor × predicted_pack_size_kb``
+                the loader re-dispatches even if still within the
+                current queue's hard upper bound.  Default 2.0.
+            predicted_pack_size_kb: the scheduler's estimate of the pack
+                size, propagated from ``ListedOrigin.pack_size_kb``.
+                Used for the soft-threshold check; may be None when the
+                lister did not collect size metadata.
         """
         super().__init__(storage=storage, origin_url=url, **kwargs)
         self.incremental = incremental
@@ -233,6 +259,14 @@ class GitLoader(BaseGitLoader):
         )
         if not verify_certs:
             self.urllib3_extra_kwargs["cert_reqs"] = "CERT_NONE"
+
+        # Size-based dispatch state (see notes/PLAN-size-based-dispatch.md).
+        self.current_size_class: Optional[str] = current_size_class
+        self.safety_net_enabled: bool = safety_net_enabled
+        self.safety_net_oversize_factor: float = safety_net_oversize_factor
+        self.predicted_pack_size_kb: Optional[int] = predicted_pack_size_kb
+        self._delegated: bool = False
+        self._delegated_to: Optional[str] = None
 
     def fetch_pack_from_origin(
         self,
@@ -541,6 +575,30 @@ class GitLoader(BaseGitLoader):
 
         self.pack_path = fetch_info.pack_path
         self.pack_size = fetch_info.pack_size
+
+        # Size-based-dispatch safety net: if this task is running on a
+        # small/large worker queue but the actual downloaded pack is
+        # larger than the queue's budget, re-dispatch to the next larger
+        # queue and exit cleanly.  See notes/PLAN-size-based-dispatch.md.
+        if self._maybe_redispatch_oversized_pack():
+            # Clean up pack state so the base loader sees nothing after
+            # a safety-net re-dispatch.  The gix path uses pack_path
+            # (file on disk, cleaned up by the tempfile machinery); a
+            # legacy dulwich path would use pack_buffer (in-memory).
+            # Guard pack_buffer via getattr — it does not exist on the
+            # gix-only stack, but the dulwich-fallback MR adds it back.
+            buf = getattr(self, "pack_buffer", None)
+            if buf is not None:
+                try:
+                    buf.close()
+                except Exception:
+                    pass
+                self.pack_buffer = None
+            self.pack_data = None
+            self.remote_refs = {}
+            self.symbolic_refs = {}
+            return False
+
         self.remote_refs = fetch_info.remote_refs
         self.symbolic_refs = fetch_info.symbolic_refs
         self.ref_object_types = {sha1: None for sha1 in self.remote_refs.values()}
@@ -558,6 +616,108 @@ class GitLoader(BaseGitLoader):
 
         # No more data to fetch
         return False
+
+    # Size-based dispatch: queue-to-queue escalation rules.  Hard
+    # thresholds are the upper-bound pack size (in KB) that a worker
+    # on each queue is expected to handle; a pack larger than this must
+    # be escalated to the next queue.  The xl queue is terminal (None),
+    # so an xl worker cannot escalate further and must either complete
+    # the load or fail.  Thresholds mirror
+    # :data:`swh.scheduler.backend.SIZE_CLASS_LARGE_THRESHOLD_KB` and
+    # :data:`SIZE_CLASS_XL_THRESHOLD_KB`; duplicated here to avoid a
+    # hard runtime dependency on swh-scheduler from the loader.
+    _SIZE_CLASS_UPPER_KB: Dict[str, Optional[int]] = {
+        "small": 100 * 1024,  # 100 MB
+        "large": 2 * 1024 * 1024,  # 2 GB
+        "xl": None,
+    }
+    _SIZE_CLASS_NEXT_TASK: Dict[str, Optional[str]] = {
+        "small": "swh.loader.git.tasks.UpdateGitRepositoryLarge",
+        "large": "swh.loader.git.tasks.UpdateGitRepositoryXl",
+        "xl": None,
+    }
+
+    def _should_redispatch(self, actual_pack_kb: int) -> Optional[str]:
+        """Decide whether the fetched pack should be re-dispatched to a
+        larger queue, returning the target task name (fully qualified)
+        or None if the loader should process the pack locally."""
+        if not self.safety_net_enabled:
+            return None
+        if self.current_size_class is None:
+            return None
+        upper = self._SIZE_CLASS_UPPER_KB.get(self.current_size_class)
+        next_task = self._SIZE_CLASS_NEXT_TASK.get(self.current_size_class)
+        if upper is None or next_task is None:
+            # Terminal queue (xl) or unknown size class: never redispatch.
+            return None
+        over_hard = actual_pack_kb > upper
+        over_soft = (
+            self.predicted_pack_size_kb is not None
+            and actual_pack_kb
+            > self.safety_net_oversize_factor * max(self.predicted_pack_size_kb, 1)
+        )
+        if over_hard or over_soft:
+            return next_task
+        return None
+
+    def _maybe_redispatch_oversized_pack(self) -> bool:
+        """If the fetched pack is oversized for this worker's queue,
+        re-dispatch to the next larger queue and mark this load as
+        delegated.  Return True iff the load should abandon the current
+        pack (and let the base loader record a non-successful visit)."""
+        assert self.origin is not None
+        # self.pack_size is in bytes; convert to KB.
+        actual_kb = self.pack_size // 1024
+        target = self._should_redispatch(actual_kb)
+        if target is None:
+            return False
+
+        # Build the same kwargs the scheduler would emit for the target
+        # task.  The large/xl worker will re-fetch the pack from the
+        # forge — cheap because the server typically has it cached.
+        forwarded_kwargs: Dict[str, Any] = {
+            "url": self.origin.url,
+            "incremental": self.incremental,
+            # Carry the observed size forward so the next worker knows
+            # what to expect.
+            "predicted_pack_size_kb": actual_kb,
+        }
+
+        try:
+            from celery import current_app
+
+            sig = current_app.signature(target, kwargs=forwarded_kwargs)
+            sig.apply_async()
+        except Exception:
+            # If we can't enqueue the re-dispatch, let the exception
+            # propagate so Celery retries the current task.  The alternative
+            # (silently swallowing the re-dispatch failure) would leak the
+            # origin into a state where nothing is tracking it.
+            self.statsd.increment(
+                "git_safety_net_redispatch_failed_total",
+                tags={"from_queue": self.current_size_class or "none"},
+            )
+            raise
+
+        self._delegated = True
+        self._delegated_to = target
+        self.statsd.increment(
+            "git_safety_net_redispatch_total",
+            tags={
+                "from_queue": self.current_size_class or "none",
+                "to_task": target.rsplit(".", 1)[-1],
+            },
+        )
+        logger.warning(
+            "Pack for %s is %s KB (running on %s queue, predicted %s KB); "
+            "re-dispatching to %s and exiting cleanly",
+            self.origin.url,
+            actual_kb,
+            self.current_size_class,
+            self.predicted_pack_size_kb,
+            target,
+        )
+        return True
 
     def save_data(self) -> None:
         """Store a pack for archival"""
@@ -1033,6 +1193,15 @@ class GitLoader(BaseGitLoader):
     def load_status(self) -> Dict[str, Any]:
         """The load was eventful if the current snapshot is different to
         the one we retrieved at the beginning of the run"""
+        if self._delegated:
+            # The actual work was re-dispatched to a larger worker
+            # queue; nothing was stored by this task.  Report
+            # uneventful but surface the delegation target so ops
+            # tooling can correlate.
+            return {
+                "status": "uneventful",
+                "delegated_to": self._delegated_to,
+            }
         eventful = False
         if self.prev_snapshot and self.snapshot:
             eventful = self.snapshot.id != self.prev_snapshot.id
@@ -1040,6 +1209,29 @@ class GitLoader(BaseGitLoader):
             eventful = bool(self.snapshot.branches)
 
         return {"status": ("eventful" if eventful else "uneventful")}
+
+    def visit_status(self) -> str:
+        """Detailed visit status.
+
+        When the pack was re-dispatched to a larger worker queue we
+        return ``"partial"``.  Because ``loaded_snapshot_id`` is None on
+        the delegated path, the scheduler's journal client translates
+        the combination (``status=partial``, ``snapshot=None``) into
+        ``LastVisitStatus.failed`` — see
+        ``swh-scheduler/swh/scheduler/journal_client.py:127-130``.
+
+        This is an acceptable trade-off: the re-dispatched task will
+        emit a real ``full`` visit (with a real snapshot) once it
+        completes on the larger worker, overriding this transient
+        record.  In the typical case (minutes between dispatch and the
+        larger worker picking up) the failed window is brief.  The
+        alternative — bypassing the visit recording entirely — would
+        require invasive surgery in ``BaseLoader.load()`` and is out of
+        scope for v1 of size-based dispatch.
+        """
+        if self._delegated:
+            return "partial"
+        return super().visit_status()
 
 
 if __name__ == "__main__":

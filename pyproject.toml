@@ -89,6 +89,18 @@ module = [
 ]
 ignore_missing_imports = true
 
+# Internal swh-* packages ship py.typed markers when installed as
+# released wheels, but mypy can't reliably locate those markers
+# through the editable-install shim used in the dev monorepo.
+[[tool.mypy.overrides]]
+module = [
+    "swh.loader.core.*",
+    "swh.loader.exception",
+    "swh.loader.tests",
+    "swh.scheduler.*",
+]
+ignore_missing_imports = true
+
 [tool.flake8]
 select = ["C", "E", "F", "W", "B950"]
 ignore = [
