@@ -31,6 +31,8 @@ import urllib3.util
 
 from swh.core.statsd import Statsd
 from swh.loader.exception import NotFound
+from swh.loader.git._gix import GixObjectParseError, GixPackError, GixTraverseError
+from swh.loader.git.dulwich_fallback import classify_gix_error, record_fallback_metric
 from swh.loader.git.utils import raise_not_found_repository
 from swh.model import hashutil
 from swh.model.git_objects import (
@@ -568,6 +570,10 @@ class GitLoader(BaseGitLoader):
             # NotFound inherits from ValueError and should not be caught
             # by the next exception handler
             raise
+        except (GixPackError, GixObjectParseError, GixTraverseError) as e:
+            if self._maybe_trigger_dulwich_fallback(e):
+                return False  # delegated; exit cleanly
+            raise  # feature flag off; let base class handle
         else:
             # Always log what remains in the next_line_buf, if it's not empty
             maybe_log_elision(force=True)
@@ -583,10 +589,11 @@ class GitLoader(BaseGitLoader):
         if self._maybe_redispatch_oversized_pack():
             # Clean up pack state so the base loader sees nothing after
             # a safety-net re-dispatch.  The gix path uses pack_path
-            # (file on disk, cleaned up by the tempfile machinery); a
-            # legacy dulwich path would use pack_buffer (in-memory).
-            # Guard pack_buffer via getattr — it does not exist on the
-            # gix-only stack, but the dulwich-fallback MR adds it back.
+            # (file on disk, cleaned up by the tempfile machinery); the
+            # dulwich-fallback path uses pack_buffer (in-memory).  Guard
+            # pack_buffer via getattr so this code is safe on the
+            # gix-only stack and on stacks where the dulwich-fallback
+            # adds pack_buffer back.
             buf = getattr(self, "pack_buffer", None)
             if buf is not None:
                 try:
@@ -636,6 +643,75 @@ class GitLoader(BaseGitLoader):
         "large": "swh.loader.git.tasks.UpdateGitRepositoryXl",
         "xl": None,
     }
+
+    # Dulwich-fallback task class mapping. When gix raises a
+    # fallback-eligible exception, the visit is re-dispatched to the
+    # dulwich queue of the **same tier** (inherit-tier rule — §13.3 of
+    # PLAN-dulwich-fallback-wiring.md). The dulwich worker pool at each
+    # tier has its own OOM-triggered promotion path (small→xl, large→xl,
+    # xl terminal).
+    _DULWICH_FALLBACK_TASK: Dict[Optional[str], str] = {
+        "small": "swh.loader.git.tasks.LoadGitDulwichFallbackSmall",
+        "large": "swh.loader.git.tasks.LoadGitDulwichFallbackLarge",
+        "xl": "swh.loader.git.tasks.LoadGitDulwichFallbackXl",
+        None: "swh.loader.git.tasks.LoadGitDulwichFallbackSmall",
+    }
+
+    def _maybe_trigger_dulwich_fallback(self, exc: Exception) -> bool:
+        """If *exc* is a fallback-eligible gix exception and the feature flag
+        is on, dispatch to the dulwich fallback queue and mark this load as
+        delegated.
+
+        Returns True if the visit was re-dispatched (caller should abandon
+        the current load); False if the exception should propagate normally.
+
+        Feature-flagged by ``SWH_LOADER_GIT_DULWICH_FALLBACK`` env var.
+        §13.2 of ``PLAN-dulwich-fallback-wiring.md``: opt-in for the first
+        production window, then default-on.
+        """
+        if not os.environ.get("SWH_LOADER_GIT_DULWICH_FALLBACK"):
+            return False
+        reason = classify_gix_error(exc)
+        if reason is None:
+            return False
+
+        record_fallback_metric(self.statsd, reason)
+
+        target = self._DULWICH_FALLBACK_TASK.get(
+            self.current_size_class,
+            self._DULWICH_FALLBACK_TASK[None],
+        )
+        assert self.origin is not None
+        forwarded_kwargs: Dict[str, Any] = {
+            "url": self.origin.url,
+            "incremental": self.incremental,
+            "predicted_pack_size_kb": (
+                self.pack_size // 1024 if self.pack_size else None
+            ),
+        }
+
+        try:
+            from celery import current_app
+
+            sig = current_app.signature(target, kwargs=forwarded_kwargs)
+            sig.apply_async()
+        except Exception:
+            self.statsd.increment(
+                "git_dulwich_fallback_dispatch_failed_total",
+                tags={"reason": reason},
+            )
+            raise
+
+        self._delegated = True
+        self._delegated_to = target
+        logger.warning(
+            "Gix %s on %s (tier=%s); re-dispatching to dulwich fallback %s",
+            reason,
+            self.origin.url,
+            self.current_size_class,
+            target,
+        )
+        return True
 
     def _should_redispatch(self, actual_pack_kb: int) -> Optional[str]:
         """Decide whether the fetched pack should be re-dispatched to a
@@ -948,15 +1024,20 @@ class GitLoader(BaseGitLoader):
             else:
                 pack_reader = PackReader(self.pack_path)
 
-            for obj_tuple in pack_reader:
-                type_name, model_obj = self._convert_object(obj_tuple)
-                counts[type_name] += 1
-                batches[type_name].append(model_obj)
+            try:
+                for obj_tuple in pack_reader:
+                    type_name, model_obj = self._convert_object(obj_tuple)
+                    counts[type_name] += 1
+                    batches[type_name].append(model_obj)
 
-                if len(batches[type_name]) >= batch_size:
-                    flush_batch(type_name)
+                    if len(batches[type_name]) >= batch_size:
+                        flush_batch(type_name)
 
-                maybe_log_summary("Processing pack")
+                    maybe_log_summary("Processing pack")
+            except (GixPackError, GixObjectParseError, GixTraverseError) as e:
+                if self._maybe_trigger_dulwich_fallback(e):
+                    return  # delegated; exit cleanly
+                raise  # feature flag off; let base class handle
 
         flush_all()
         maybe_log_summary("After pack objects", force=True)
