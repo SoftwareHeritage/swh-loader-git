@@ -84,6 +84,49 @@ def load_git_xl(**kwargs) -> Dict[str, Any]:
     return _load_git_sized("xl", **kwargs)
 
 
+# ---------------------------------------------------------------------------
+# Dulwich-fallback tasks: re-dispatched from the gix loader when it hits
+# a typed exception (GixPackError / GixObjectParseError / GixTraverseError)
+# on a pathological pack/object that dulwich is historically tolerant of.
+#
+# Three tiers mirror the gix-side dispatch (§13.3 wiring plan): the
+# fallback inherits the tier that gix was running on. Each tier has its
+# own OOM-triggered safety-net to the xl-tier fallback (xl is terminal).
+# ---------------------------------------------------------------------------
+
+
+def _load_git_dulwich_fallback(size_class: str, **kwargs) -> Dict[str, Any]:
+    """Shared body for the dulwich-fallback load tasks."""
+    from swh.loader.git.loader_dulwich import GitLoaderDulwich
+
+    kwargs = _process_kwargs(kwargs)
+    loader = GitLoaderDulwich.from_configfile(**kwargs)
+    return loader.load()
+
+
+@shared_task(name=__name__ + ".LoadGitDulwichFallbackSmall")
+def load_git_dulwich_fallback_small(**kwargs) -> Dict[str, Any]:
+    """Dulwich fallback for the small tier.
+
+    Receives visits re-dispatched from the gix loader when gix raises a
+    typed fallback exception on a small-tier worker. Uses the pre-rehaul
+    dulwich-based GitLoaderDulwich (URL-based, not disk-based).
+    """
+    return _load_git_dulwich_fallback("small", **kwargs)
+
+
+@shared_task(name=__name__ + ".LoadGitDulwichFallbackLarge")
+def load_git_dulwich_fallback_large(**kwargs) -> Dict[str, Any]:
+    """Dulwich fallback for the large tier."""
+    return _load_git_dulwich_fallback("large", **kwargs)
+
+
+@shared_task(name=__name__ + ".LoadGitDulwichFallbackXl")
+def load_git_dulwich_fallback_xl(**kwargs) -> Dict[str, Any]:
+    """Dulwich fallback for the xl tier. Terminal — no further re-dispatch."""
+    return _load_git_dulwich_fallback("xl", **kwargs)
+
+
 @shared_task(name=__name__ + ".LoadDiskGitRepository")
 def load_git_from_dir(**kwargs) -> Dict[str, Any]:
     """Import a git repository from a local repository"""
