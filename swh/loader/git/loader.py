@@ -1,8 +1,10 @@
-# Copyright (C) 2016-2025  The Software Heritage developers
+# Copyright (C) 2016-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import binascii
+import collections
 from collections import defaultdict
 from dataclasses import dataclass
 import datetime
@@ -10,14 +12,13 @@ import json
 import logging
 import os
 import pickle
-from tempfile import SpooledTemporaryFile
+import tempfile
 import time
 from typing import (
     Any,
     Callable,
     Dict,
     Iterable,
-    Iterator,
     List,
     Mapping,
     Optional,
@@ -26,12 +27,6 @@ from typing import (
     Type,
 )
 
-import dulwich.client
-from dulwich.object_format import SHA1
-from dulwich.object_store import ObjectStoreGraphWalker
-from dulwich.objects import Blob, Commit, ObjectID, ShaFile, Tag, Tree, sha_to_hex
-from dulwich.pack import PackData, PackInflater
-from dulwich.refs import Ref
 import urllib3.util
 
 from swh.core.statsd import Statsd
@@ -51,6 +46,7 @@ from swh.model.model import (
     RawExtrinsicMetadata,
     Release,
     Revision,
+    SkippedContent,
     Snapshot,
     SnapshotBranch,
     SnapshotTargetType,
@@ -63,7 +59,7 @@ from swh.storage.interface import StorageInterface
 
 from . import converters, utils
 from .base import BaseGitLoader
-from .utils import LOGGING_INTERVAL, PackWriter
+from .utils import LOGGING_INTERVAL
 
 logger = logging.getLogger(__name__)
 heads_logger = logger.getChild("refs")
@@ -108,21 +104,18 @@ class RepoRepresentation:
             self.base_snapshots = []
 
         # Cache existing heads
-        self.local_heads: Set[ObjectID] = set()
+        self.local_heads: Set[bytes] = set()
         heads_logger.debug("Heads known in the archive:")
         for base_snapshot in self.base_snapshots:
             for branch_name, branch in base_snapshot.branches.items():
                 if not branch or branch.target_type == SnapshotTargetType.ALIAS:
                     continue
                 heads_logger.debug("    %r: %s", branch_name, branch.target.hex())
-                self.local_heads.add(sha_to_hex(branch.target))
-
-    def graph_walker(self) -> ObjectStoreGraphWalker:
-        return ObjectStoreGraphWalker(self.local_heads, get_parents=lambda commit: [])
+                self.local_heads.add(binascii.hexlify(branch.target))
 
     def determine_wants(
-        self, refs: Mapping[Ref, ObjectID], depth: Optional[int] = None
-    ) -> List[ObjectID]:
+        self, refs: Mapping[bytes, bytes], depth: Optional[int] = None
+    ) -> List[bytes]:
         """Get the list of bytehex sha1s that the git loader should fetch.
 
         This compares the remote refs sent by the server with the base snapshot
@@ -138,7 +131,7 @@ class RepoRepresentation:
                 heads_logger.debug("    %r: %s", name, value.decode())
 
         # Get the remote heads that we want to fetch
-        remote_heads: Set[ObjectID] = set()
+        remote_heads: Set[bytes] = set()
         for ref_name, ref_target in refs.items():
             if utils.ignore_branch_name(ref_name):
                 continue
@@ -165,9 +158,9 @@ class RepoRepresentation:
 
 @dataclass
 class FetchPackReturn:
-    remote_refs: Dict[Ref, ObjectID]
-    symbolic_refs: Dict[Ref, Ref]
-    pack_buffer: SpooledTemporaryFile
+    remote_refs: Dict[bytes, bytes]
+    symbolic_refs: Dict[bytes, bytes]
+    pack_path: str
     pack_size: int
 
 
@@ -229,8 +222,8 @@ class GitLoader(BaseGitLoader):
         self.pack_size_bytes = pack_size_bytes
         self.temp_file_cutoff = temp_file_cutoff
         # state initialized in fetch_data
-        self.remote_refs: Dict[Ref, ObjectID] = {}
-        self.symbolic_refs: Dict[Ref, Ref] = {}
+        self.remote_refs: Dict[bytes, bytes] = {}
+        self.symbolic_refs: Dict[bytes, bytes] = {}
         self.ref_object_types: Dict[bytes, Optional[SnapshotTargetType]] = {}
         self.ext_refs: Dict[bytes, Optional[Tuple[int, List[bytes]]]] = {}
         self.repo_pack_size_bytes = 0
@@ -247,63 +240,151 @@ class GitLoader(BaseGitLoader):
         base_repo: RepoRepresentation,
         do_activity: Callable[[bytes], None],
     ) -> FetchPackReturn:
-        """Fetch a pack from the origin"""
+        """Fetch a pack from the origin using gitoxide (gix).
 
-        pack_buffer = SpooledTemporaryFile(max_size=self.temp_file_cutoff)
-        transport_url = origin_url
+        The pack is written directly to a temporary file on disk — never
+        held entirely in Python memory.  This allows handling arbitrarily
+        large packs (e.g. 32 GB Chromium) without OOM.
 
-        logger.debug("Transport url to communicate with server: %s", transport_url)
+        ``file://`` URLs route through dulwich's :class:`LocalGitClient`
+        instead of gix.  The gix HTTP backend (curl + openssl) handles
+        ``http(s)://`` correctly, but its ``connect()`` for ``file://``
+        URLs spawns ``git-upload-pack`` as a subprocess and blocks
+        indefinitely on its stdin/stdout — confirmed via py-spy and the
+        Docker test rig in
+        ``notes/git-loader-rehaul/PLAN-test-hang-verification.md``.
+        ``file://`` URLs do not exist in production (every production
+        origin is ``http(s)://`` / ``git://`` / ``ssh://``); they are a
+        test-rig convention used by ``prepare_repository_from_archive``
+        to expose a tarball-extracted bare repo.  Routing them through
+        dulwich is correct (it uses an in-process LocalGitClient, no
+        subprocess) and matches the pre-rehaul behaviour.
+        """
+        if origin_url.startswith("file://"):
+            return self._fetch_pack_from_local_file(origin_url, base_repo, do_activity)
 
-        transport_kwargs: Dict[str, Any] = {"thin_packs": False}
+        from swh.loader.git._gix import fetch_pack as gix_fetch_pack
+        from swh.loader.git._gix import fetch_pack_to_file as gix_fetch_to_file
 
-        if transport_url.startswith(("http://", "https://")):
-            # Inject urllib3 kwargs into the pool manager
-            transport_kwargs["pool_manager"] = dulwich.client.default_urllib3_manager(
-                config=None,
-                **self.urllib3_extra_kwargs,
+        logger.debug("Transport url to communicate with server: %s", origin_url)
+
+        # Step 1: list remote refs (wants=[] → no pack transferred).
+        with utils.raise_not_found_repository():
+            remote_refs_raw, symbolic_refs_raw, _ = gix_fetch_pack(origin_url, [], [])
+
+        remote_refs_hex: Dict[bytes, bytes] = {
+            name: sha.encode() for name, sha in remote_refs_raw.items()
+        }
+
+        # Step 2: compute wants.
+        wants_hex: List[bytes] = base_repo.determine_wants(remote_refs_hex)
+        logger.debug("fetching %d objects", len(wants_hex))
+
+        # Step 3: fetch pack directly to a temp file on disk.
+        wants_bin = [binascii.unhexlify(sha) for sha in wants_hex]
+        haves_bin = [binascii.unhexlify(sha) for sha in base_repo.local_heads]
+
+        self._pack_tmp = tempfile.NamedTemporaryFile(suffix=".pack", delete=True)
+        pack_path = self._pack_tmp.name
+
+        with utils.raise_not_found_repository():
+            _, _, pack_size = gix_fetch_to_file(
+                origin_url,
+                wants_bin,
+                haves_bin,
+                self.pack_size_bytes,
+                pack_path,
             )
 
-        client, path = dulwich.client.get_transport_and_path(
-            location=transport_url,
-            config=None,
-            operation="pull",
-            **transport_kwargs,
-        )
-
-        logger.debug("Client %s to fetch pack at %s", client, path)
-
-        pack_writer = PackWriter(
-            pack_buffer=pack_buffer,
-            size_limit=self.pack_size_bytes,
-            origin_url=origin_url,
-            fetch_pack_logger=fetch_pack_logger,
-        )
-
-        pack_result = client.fetch_pack(
-            path.encode(),
-            base_repo.determine_wants,
-            base_repo.graph_walker(),
-            pack_writer.write,
-            progress=do_activity,
-        )
-
-        remote_refs = pack_result.refs or {}
-        symbolic_refs = pack_result.symrefs or {}
-
-        pack_buffer.flush()
-        pack_size = pack_buffer.tell()
-        pack_buffer.seek(0)
-
         logger.debug("fetched_pack_size=%s", pack_size)
-        logger.debug(
-            "Protocol used for communication: %s",
-            "dumb" if getattr(client, "dumb", False) else "smart",
-        )
 
         return FetchPackReturn(
-            remote_refs=utils.filter_refs(remote_refs),
-            symbolic_refs=utils.filter_symbolic_refs(symbolic_refs),
-            pack_buffer=pack_buffer,
+            remote_refs=utils.filter_refs(remote_refs_hex),
+            symbolic_refs=utils.filter_symbolic_refs(symbolic_refs_raw),
+            pack_path=pack_path,
+            pack_size=pack_size,
+        )
+
+    def _fetch_pack_from_local_file(
+        self,
+        origin_url: str,
+        base_repo: RepoRepresentation,
+        do_activity: Callable[[bytes], None],
+    ) -> FetchPackReturn:
+        """Fetch a pack from a ``file://`` URL via dulwich's LocalGitClient.
+
+        Used as the in-process fallback for ``file://`` URLs because
+        gix-transport's ``connect()`` for them spawns ``git-upload-pack``
+        as a subprocess and blocks indefinitely (see the docstring of
+        :meth:`fetch_pack_from_origin`).  The pack is written to a temp
+        file on disk so the rest of the gix-loader pipeline (which reads
+        from ``pack_path`` via ``_gix.iter_pack_objects``) can consume it
+        without a special case downstream.
+        """
+        import dulwich.client
+        from dulwich.object_store import ObjectStoreGraphWalker
+
+        logger.debug(
+            "file:// URL, routing fetch through dulwich LocalGitClient: %s",
+            origin_url,
+        )
+
+        client, path = dulwich.client.get_transport_and_path(
+            location=origin_url,
+            config=None,
+            operation="pull",
+            thin_packs=False,
+        )
+
+        self._pack_tmp = tempfile.NamedTemporaryFile(suffix=".pack", delete=True)
+        pack_path = self._pack_tmp.name
+        pack_size = 0
+
+        def write_chunk(data: bytes) -> int:
+            # dulwich expects the chunk-writer to return the byte count;
+            # fetch_pack uses it for progress accounting.
+            nonlocal pack_size
+            self._pack_tmp.write(data)
+            pack_size += len(data)
+            return len(data)
+
+        # The gix RepoRepresentation does not provide a ``graph_walker``
+        # method (that is dulwich-specific).  Build one inline from the
+        # ``local_heads`` set, which has the same hex-bytes shape both
+        # dulwich and gix use.  ``get_parents`` returning [] keeps the
+        # walker shallow — adequate because the smart-protocol negotiation
+        # only needs a bounded set of haves to negotiate from.
+        graph_walker = ObjectStoreGraphWalker(
+            base_repo.local_heads,  # type: ignore[arg-type]
+            get_parents=lambda commit: [],
+        )
+
+        # Adapt the gix RepoRepresentation's determine_wants signature to
+        # whatever dulwich's DetermineWantsFunc expects in the installed
+        # version — older dulwich passes `(refs)`, newer passes
+        # `(refs, depth)`.  Accept any trailing args.
+        def _determine_wants(
+            refs: Mapping[bytes, bytes], *_args: Any, **_kw: Any
+        ) -> List[bytes]:
+            return base_repo.determine_wants(refs)
+
+        with raise_not_found_repository():
+            pack_result = client.fetch_pack(
+                path.encode() if isinstance(path, str) else path,
+                _determine_wants,  # type: ignore[arg-type]
+                graph_walker,
+                write_chunk,
+                progress=do_activity,
+            )
+
+        self._pack_tmp.flush()
+        remote_refs_raw = pack_result.refs or {}
+        symbolic_refs_raw = pack_result.symrefs or {}
+
+        return FetchPackReturn(
+            remote_refs=utils.filter_refs(remote_refs_raw),  # type: ignore[arg-type]
+            symbolic_refs=utils.filter_symbolic_refs(symbolic_refs_raw),  # type: ignore[arg-type]
+            pack_path=pack_path,
             pack_size=pack_size,
         )
 
@@ -458,20 +539,10 @@ class GitLoader(BaseGitLoader):
             maybe_log_elision(force=True)
             log_remote_message(next_line_buf)
 
-        self.pack_buffer = fetch_info.pack_buffer
+        self.pack_path = fetch_info.pack_path
         self.pack_size = fetch_info.pack_size
         self.remote_refs = fetch_info.remote_refs
         self.symbolic_refs = fetch_info.symbolic_refs
-        self.pack_data = (
-            PackData.from_file(
-                file=self.pack_buffer,
-                size=self.pack_size,
-                object_format=SHA1,
-            )
-            if self.pack_size > 0
-            else None
-        )
-
         self.ref_object_types = {sha1: None for sha1 in self.remote_refs.values()}
 
         logger.info(
@@ -492,21 +563,18 @@ class GitLoader(BaseGitLoader):
         """Store a pack for archival"""
         assert isinstance(self.visit_date, datetime.datetime)
 
-        write_size = 8192
         pack_dir = self.get_save_data_path()
 
         pack_name = "%s.pack" % self.visit_date.isoformat()
         refs_name = "%s.refs" % self.visit_date.isoformat()
 
-        with open(os.path.join(pack_dir, pack_name), "xb") as f:
-            self.pack_buffer.seek(0)
-            while True:
-                r = self.pack_buffer.read(write_size)
-                if not r:
-                    break
-                f.write(r)
+        import shutil
 
-        self.pack_buffer.seek(0)
+        with (
+            open(self.pack_path, "rb") as src,
+            open(os.path.join(pack_dir, pack_name), "xb") as dst,
+        ):
+            shutil.copyfileobj(src, dst)
 
         with open(os.path.join(pack_dir, refs_name), "xb") as f:
             pickle.dump(self.remote_refs, f)
@@ -539,22 +607,22 @@ class GitLoader(BaseGitLoader):
                 d["data"] = storage.content_get_data(objid_from_dict(d))
                 cnt = Content.from_dict(d)
                 cnt.check()
-                set_ext_ref(Blob.type_num, content_git_object(cnt), "content")
+                set_ext_ref(3, content_git_object(cnt), "content")
         if sha1 not in ext_refs:
             dir = directory_get(storage, sha1)
             if dir is not None:
                 dir.check()
-                set_ext_ref(Tree.type_num, directory_git_object(dir), "directory")
+                set_ext_ref(2, directory_git_object(dir), "directory")
         if sha1 not in ext_refs:
             rev = storage.revision_get([sha1], ignore_displayname=True)[0]
             if rev is not None:
                 rev.check()
-                set_ext_ref(Commit.type_num, revision_git_object(rev), "revision")
+                set_ext_ref(1, revision_git_object(rev), "revision")
         if sha1 not in ext_refs:
             rel = storage.release_get([sha1], ignore_displayname=True)[0]
             if rel is not None:
                 rel.check()
-                set_ext_ref(Tag.type_num, release_git_object(rel), "release")
+                set_ext_ref(4, release_git_object(rel), "release")
 
         if sha1 not in ext_refs:
             self.statsd.increment(
@@ -576,54 +644,246 @@ class GitLoader(BaseGitLoader):
             )
         return ext_ref
 
-    def iter_objects(self, object_type: bytes) -> Iterator[ShaFile]:
-        """Read all the objects of type `object_type` from the packfile"""
-        if self.pack_data:
-            self.pack_buffer.seek(0)
-            count = 0
-            for obj in PackInflater.for_pack_data(
-                self.pack_data,
-                resolve_ext_ref=self._resolve_ext_ref,
-            ):
-                if obj.type_name != object_type:
-                    continue
-                yield obj
-                count += 1
-            logger.debug("packfile_read_count_%s=%s", object_type.decode(), count)
+    # ── Single-pass store_data (overrides BaseGitLoader.store_data) ─────
 
-    def get_contents(self) -> Iterable[BaseContent]:
-        """Format the blobs from the git repository as swh contents"""
-        for raw_obj in self.iter_objects(Blob.type_name):
-            if raw_obj.id in self.ref_object_types:
-                self.ref_object_types[raw_obj.id] = SnapshotTargetType.CONTENT
+    _STORE_BATCH_SIZE = 1000
 
-            yield converters.dulwich_blob_to_content(
-                raw_obj, max_content_size=self.max_content_size
+    def _convert_object(self, obj_tuple):
+        """Convert a PackReader tuple to a SWH model object and update
+        ref_object_types.  Returns ``(type_name, model_object)``."""
+        type_num = obj_tuple[0]
+
+        # Trees from PackReader / ParallelPackReader can come pre-built
+        # as a Directory object in a 2-tuple ``(2, directory)``.  Handle
+        # this fast path before any byte-level extraction: ``obj_tuple[1]``
+        # is the Directory itself (no buffer interface), so calling
+        # ``binascii.hexlify`` on it would crash with ``TypeError: a
+        # bytes-like object is required, not 'Directory'``.
+        if type_num == 2 and isinstance(obj_tuple[1], Directory):
+            directory = obj_tuple[1]
+            sha_hex = binascii.hexlify(directory.id)
+            if sha_hex in self.ref_object_types:
+                self.ref_object_types[sha_hex] = SnapshotTargetType.DIRECTORY
+            return ("directory", directory)
+
+        # All other shapes: ``obj_tuple[1]`` is the raw sha1_git bytes.
+        sha1_git = obj_tuple[1]
+        sha_hex = binascii.hexlify(sha1_git)
+
+        if type_num == 3:  # blob
+            _, _, sha1, sha256, blake2s256, data = obj_tuple
+            if sha_hex in self.ref_object_types:
+                self.ref_object_types[sha_hex] = SnapshotTargetType.CONTENT
+            obj = converters.blob_to_content_precomputed(
+                sha1_git,
+                sha1,
+                sha256,
+                blake2s256,
+                data,
+                max_content_size=self.max_content_size,
+            )
+            if isinstance(obj, SkippedContent):
+                return ("skipped_content", obj)
+            return ("content", obj)
+        elif (
+            type_num == 2
+        ):  # tree (raw fields shape: (2, sha, raw, entries, hash_match))
+            if sha_hex in self.ref_object_types:
+                self.ref_object_types[sha_hex] = SnapshotTargetType.DIRECTORY
+            _, _, raw_data, entries, hash_match = obj_tuple
+            return (
+                "directory",
+                converters.tree_to_directory_preparsed(
+                    sha1_git, raw_data, entries, hash_match
+                ),
+            )
+        elif type_num == 1:  # commit
+            _, _, data, hash_match = obj_tuple
+            if sha_hex in self.ref_object_types:
+                self.ref_object_types[sha_hex] = SnapshotTargetType.REVISION
+            return (
+                "revision",
+                converters.commit_to_revision(sha1_git, data, hash_match),
+            )
+        elif type_num == 4:  # tag
+            _, _, data, hash_match = obj_tuple
+            if sha_hex in self.ref_object_types:
+                self.ref_object_types[sha_hex] = SnapshotTargetType.RELEASE
+            return (
+                "release",
+                converters.tag_to_release(sha1_git, data, hash_match),
+            )
+        else:
+            raise ValueError(f"Unknown object type: {type_num}")
+
+    def store_data(self) -> None:
+        """Store fetched data with a single pass through the pack file.
+
+        Overrides :meth:`BaseGitLoader.store_data` to iterate the pack
+        exactly once, dispatching each object to a type-specific batch.
+        Batches are flushed to storage every :attr:`_STORE_BATCH_SIZE`
+        objects per type.
+
+        This is safe because:
+        - Storage ``*_add()`` methods are idempotent.
+        - No FK constraints between object types in PostgreSQL or Cassandra.
+        - BufferingProxyStorage (if configured) enforces topological flush
+          ordering automatically.
+        """
+        assert self.origin
+        if self.save_data_path:
+            self.save_data()
+
+        counts: Dict[str, int] = collections.defaultdict(int)
+        storage_summary: Dict[str, int] = collections.Counter()
+
+        def sum_counts():
+            return sum(counts.values())
+
+        def sum_storage():
+            return sum(storage_summary[f"{t}:add"] for t in counts)
+
+        def maybe_log_summary(msg, force=False):
+            self.maybe_log(
+                msg + ": processed %s objects, %s are new",
+                sum_counts,
+                sum_storage,
+                force=force,
             )
 
-    def get_directories(self) -> Iterable[Directory]:
-        """Format the trees as swh directories"""
-        for raw_obj in self.iter_objects(Tree.type_name):
-            if raw_obj.id in self.ref_object_types:
-                self.ref_object_types[raw_obj.id] = SnapshotTargetType.DIRECTORY
+        _ADD = {
+            "content": self.storage.content_add,
+            "skipped_content": self.storage.skipped_content_add,
+            "directory": self.storage.directory_add,
+            "revision": self.storage.revision_add,
+            "release": self.storage.release_add,
+        }
+        batches: Dict[str, list] = {k: [] for k in _ADD}
+        batch_size = self._STORE_BATCH_SIZE
 
-            yield converters.dulwich_tree_to_directory(raw_obj)
+        def flush_batch(type_name: str) -> None:
+            if batches[type_name]:
+                storage_summary.update(_ADD[type_name](batches[type_name]))
+                batches[type_name] = []
+
+        def flush_all() -> None:
+            for t in ("content", "skipped_content", "directory", "revision", "release"):
+                flush_batch(t)
+            storage_summary.update(self.flush())
+
+        if self.pack_size > 0:
+            from swh.loader.git._gix import PackReader, ParallelPackReader
+
+            # Use parallel inflation for packs > 100 MB
+            pack_reader: Iterable
+            if self.pack_size > 100_000_000:
+                pack_reader = ParallelPackReader(self.pack_path, channel_bound=4096)
+            else:
+                pack_reader = PackReader(self.pack_path)
+
+            for obj_tuple in pack_reader:
+                type_name, model_obj = self._convert_object(obj_tuple)
+                counts[type_name] += 1
+                batches[type_name].append(model_obj)
+
+                if len(batches[type_name]) >= batch_size:
+                    flush_batch(type_name)
+
+                maybe_log_summary("Processing pack")
+
+        flush_all()
+        maybe_log_summary("After pack objects", force=True)
+
+        snapshot = self.get_snapshot()
+        counts["snapshot"] += 1
+        storage_summary.update(self.storage.snapshot_add([snapshot]))
+        storage_summary.update(self.flush())
+        self.loaded_snapshot_id = snapshot.id
+
+        for object_type, total in counts.items():
+            filtered = total - storage_summary[f"{object_type}:add"]
+            assert 0 <= filtered <= total, (filtered, total)
+            if total == 0:
+                continue
+            tags = {"object_type": object_type}
+            self.statsd.histogram(
+                "filtered_objects_percent", filtered / total, tags=tags
+            )
+            self.statsd.increment("filtered_objects_total_sum", filtered, tags=tags)
+            self.statsd.increment("filtered_objects_total_count", total, tags=tags)
+
+        maybe_log_summary("After snapshot", force=True)
+
+    # Keep get_* methods for from_disk.py compatibility (they use the base
+    # store_data which calls them sequentially).
+
+    def get_contents(self) -> Iterable[BaseContent]:
+        if self.pack_size <= 0:
+            return
+        from swh.loader.git._gix import PackReader
+
+        for obj_tuple in PackReader(self.pack_path):
+            if obj_tuple[0] == 3:
+                _, sha1_git, sha1, sha256, blake2s256, data = obj_tuple
+                sha_hex = binascii.hexlify(sha1_git)
+                if sha_hex in self.ref_object_types:
+                    self.ref_object_types[sha_hex] = SnapshotTargetType.CONTENT
+                yield converters.blob_to_content_precomputed(
+                    sha1_git,
+                    sha1,
+                    sha256,
+                    blake2s256,
+                    data,
+                    max_content_size=self.max_content_size,
+                )
+
+    def get_directories(self) -> Iterable[Directory]:
+        if self.pack_size <= 0:
+            return
+        from swh.loader.git._gix import PackReader
+
+        for obj_tuple in PackReader(self.pack_path):
+            if obj_tuple[0] == 2:
+                if isinstance(obj_tuple[1], Directory):
+                    dir_obj = obj_tuple[1]
+                    sha_hex = binascii.hexlify(dir_obj.id)
+                    if sha_hex in self.ref_object_types:
+                        self.ref_object_types[sha_hex] = SnapshotTargetType.DIRECTORY
+                    yield dir_obj
+                else:
+                    _, sha1_git, raw_data, entries, hash_match = obj_tuple
+                    sha_hex = binascii.hexlify(sha1_git)
+                    if sha_hex in self.ref_object_types:
+                        self.ref_object_types[sha_hex] = SnapshotTargetType.DIRECTORY
+                    yield converters.tree_to_directory_preparsed(
+                        sha1_git, raw_data, entries, hash_match
+                    )
 
     def get_revisions(self) -> Iterable[Revision]:
-        """Format commits as swh revisions"""
-        for raw_obj in self.iter_objects(Commit.type_name):
-            if raw_obj.id in self.ref_object_types:
-                self.ref_object_types[raw_obj.id] = SnapshotTargetType.REVISION
+        if self.pack_size <= 0:
+            return
+        from swh.loader.git._gix import PackReader
 
-            yield converters.dulwich_commit_to_revision(raw_obj)
+        for obj_tuple in PackReader(self.pack_path):
+            if obj_tuple[0] == 1:
+                _, sha1_git, data, hash_match = obj_tuple
+                sha_hex = binascii.hexlify(sha1_git)
+                if sha_hex in self.ref_object_types:
+                    self.ref_object_types[sha_hex] = SnapshotTargetType.REVISION
+                yield converters.commit_to_revision(sha1_git, data, hash_match)
 
     def get_releases(self) -> Iterable[Release]:
-        """Retrieve all the release objects from the git repository"""
-        for raw_obj in self.iter_objects(Tag.type_name):
-            if raw_obj.id in self.ref_object_types:
-                self.ref_object_types[raw_obj.id] = SnapshotTargetType.RELEASE
+        if self.pack_size <= 0:
+            return
+        from swh.loader.git._gix import PackReader
 
-            yield converters.dulwich_tag_to_release(raw_obj)
+        for obj_tuple in PackReader(self.pack_path):
+            if obj_tuple[0] == 4:
+                _, sha1_git, data, hash_match = obj_tuple
+                sha_hex = binascii.hexlify(sha1_git)
+                if sha_hex in self.ref_object_types:
+                    self.ref_object_types[sha_hex] = SnapshotTargetType.RELEASE
+                yield converters.tag_to_release(sha1_git, data, hash_match)
 
     def get_snapshot(self) -> Snapshot:
         """Get the snapshot for the current visit.

@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2025  The Software Heritage developers
+# Copyright (C) 2017-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -13,11 +13,6 @@ import shutil
 import tempfile
 import time
 from typing import Dict, Mapping, Optional
-
-from dulwich.client import HTTPUnauthorized
-from dulwich.errors import GitProtocolError, NotGitRepository
-from dulwich.objects import ObjectID
-from dulwich.refs import Ref
 
 from swh.core import tarball
 from swh.loader.exception import NotFound
@@ -99,8 +94,8 @@ def ignore_branch_name(branch_name: bytes) -> bool:
 
 
 def filter_refs(
-    refs: Mapping[Ref, ObjectID | None],
-) -> Dict[Ref, ObjectID]:
+    refs: Mapping[bytes, bytes | None],
+) -> Dict[bytes, bytes]:
     """Filter the refs dictionary using the policy set in `ignore_branch_name`"""
     return {
         name: target
@@ -110,8 +105,8 @@ def filter_refs(
 
 
 def filter_symbolic_refs(
-    refs: Mapping[Ref, Ref | None],
-) -> Dict[Ref, Ref]:
+    refs: Mapping[bytes, bytes | None],
+) -> Dict[bytes, bytes]:
     """Filter the symbolic refs dictionary using the policy set in `ignore_branch_name`"""
     return {
         name: target
@@ -122,7 +117,7 @@ def filter_symbolic_refs(
 
 def warn_dangling_branches(
     branches: Dict[bytes, Optional[SnapshotBranch]],
-    dangling_branches: Dict[Ref, Ref],
+    dangling_branches: Dict[bytes, bytes],
     logger: logging.Logger,
     origin_url: str,
 ) -> None:
@@ -146,33 +141,48 @@ def warn_dangling_branches(
 
 @contextmanager
 def raise_not_found_repository():
-    """Catches all kinds of exceptions which translate to an inexistent repository and
-    reraise as a NotFound exception. Any other exceptions are propagated to the caller.
+    """Catches transport-level exceptions that indicate an inexistent
+    repository and re-raises them as :class:`NotFound`.
 
-    Raises:
-        NotFound: instead of HTTPUnauthorized, NotGitRepository and any GitProtocol with
-            specific error message relative to an inexistent repository.
-        *: Any other exceptions raised within the try block
-
+    Handles both gix (``ValueError``) and dulwich error types (lazily
+    imported so the network loader doesn't pull in dulwich).
     """
     try:
         yield
-    except (HTTPUnauthorized, NotGitRepository) as e:
-        raise NotFound(e)
-    except GitProtocolError as e:
-        # that kind of error is unfortunately not specific to a not found scenario... It
-        # depends on the value of message within the exception. So parse the exception
-        # message to detect if it's a not found or not.
-        for msg in [
-            " unavailable",  # e.g DMCA takedown
-            " not found",
-            "unexpected http resp 401",
-            "unexpected http resp 403",
-            "unexpected http resp 410",
+    except NotFound:
+        raise
+    except ValueError as e:
+        msg = str(e.args[0]) if e.args else ""
+        for pattern in [
+            "status code 401",
+            "status code 403",
+            "status code 404",
+            "status code 410",
+            "unavailable",
+            "not found",
+            "[22]",
         ]:
-            if msg in str(e.args[0]):
+            if pattern in msg:
                 raise NotFound(e)
-        # otherwise transmit the error
+        raise
+    except Exception as e:
+        try:
+            from dulwich.client import HTTPUnauthorized
+            from dulwich.errors import GitProtocolError, NotGitRepository
+        except ImportError:
+            raise e
+        if isinstance(e, (HTTPUnauthorized, NotGitRepository)):
+            raise NotFound(e)
+        if isinstance(e, GitProtocolError):
+            for msg in [
+                " unavailable",
+                " not found",
+                "unexpected http resp 401",
+                "unexpected http resp 403",
+                "unexpected http resp 410",
+            ]:
+                if msg in str(e.args[0]):
+                    raise NotFound(e)
         raise
 
 
