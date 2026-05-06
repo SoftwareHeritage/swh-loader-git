@@ -1,0 +1,17 @@
+[package]
+name = "swh-loader-git-gix-py"
+version.workspace = true
+edition = "2021"
+license.workspace = true
+repository.workspace = true
+description = "PyO3 bindings for swh-loader-git-gix"
+
+[lib]
+name = "_gix"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+anyhow = "1"
+pyo3.workspace = true
+swh-loader-git-gix.workspace = true
