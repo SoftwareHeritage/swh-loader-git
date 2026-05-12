@@ -1,6 +1,8 @@
 #!/bin/bash
 # Driver script for the multi-size testbed benchmark suite.
-# Run this on maxxi after a fresh .so has been built.
+# Run this on a bench host (e.g., maxxi) after a fresh ``_gix.*.so`` has
+# been built via ``maturin develop`` (see benchmarks/README.md for the
+# full setup).
 #
 # Usage:
 #   ./run_testbed_suite.sh small           # ~minutes
@@ -9,11 +11,16 @@
 #   ./run_testbed_suite.sh xl-bg           # linux, background
 #   ./run_testbed_suite.sh all-staged      # small foreground, medium foreground, large+xl background
 #
+# Working directory: defaults to the swh-loader-git checkout containing
+# this script.  Override with the SWH_LOADER_GIT_DIR environment variable
+# if you need a different checkout (e.g., a stale clone with a pre-built
+# .so).
+#
 # Results are appended to ~/testbed-results.jsonl
 
 set -euo pipefail
 
-cd ~/gix-bench/swh-loader-git
+cd "${SWH_LOADER_GIT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 source ~/.cargo/env 2>/dev/null || true
 unset CONDA_PREFIX || true
 export PYTHONPATH="$PWD"

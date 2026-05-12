@@ -111,6 +111,25 @@ at collection time mean step 1 is missing; failures of the form
 ``ExecutableMissingException: Could not found /usr/lib/postgresql/17/bin/pg_ctl``
 during fixture setup mean step 2 is missing.
 
+Benchmarks
+----------
+
+The ``benchmarks/`` directory contains scripts that compare the
+gitoxide-based pack pipeline against the legacy dulwich path, both at
+component level (fetch, inflate, channel I/O) and end-to-end (full
+loader).  See ``benchmarks/README.md`` for the per-script catalogue,
+prerequisites, and how to read the JSON-lines results.
+
+The recommended entry point is the multi-size testbed runner::
+
+   ./benchmarks/run_testbed_suite.sh small      # ~minutes
+   ./benchmarks/run_testbed_suite.sh medium     # ~30-60 min
+   ./benchmarks/run_testbed_suite.sh all-staged # small/medium foreground, large/xl background
+
+Override the working directory with the ``SWH_LOADER_GIT_DIR``
+environment variable if invoking from a non-default checkout location.
+The script defaults to the directory containing it.
+
 Requirements
 ------------
 
