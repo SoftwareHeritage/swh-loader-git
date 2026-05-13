@@ -103,3 +103,8 @@ extend-exclude = ["build/"]
 [tool.pytest.ini_options]
 norecursedirs = "build docs .*"
 consider_namespace_packages = true
+# Skip the maturin-develop shim during --doctest-modules collection: when
+# the setuptools-rust build sits ``_gix.cpython-*.so`` next to ``_gix.py``,
+# Python imports the .so as ``swh.loader.git._gix`` and pytest then errors
+# on the .py with "import file mismatch". The shim has no doctests.
+addopts = "--ignore-glob=**/_gix.py"

@@ -725,6 +725,7 @@ class GitLoader(BaseGitLoader):
         objects per type.
 
         This is safe because:
+
         - Storage ``*_add()`` methods are idempotent.
         - No FK constraints between object types in PostgreSQL or Cassandra.
         - BufferingProxyStorage (if configured) enforces topological flush
@@ -751,7 +752,13 @@ class GitLoader(BaseGitLoader):
                 force=force,
             )
 
-        _ADD = {
+        # Explicit Callable annotation so mypy can typecheck the
+        # ``_ADD[type_name](batches[type_name])`` call below: the dict
+        # value types from the StorageInterface methods are slightly
+        # different per row (their argument types disagree), so without
+        # this annotation mypy unifies them as ``object`` and reports
+        # "Cannot call function of unknown type [operator]".
+        _ADD: Dict[str, Callable[[List[Any]], Dict[str, int]]] = {
             "content": self.storage.content_add,
             "skipped_content": self.storage.skipped_content_add,
             "directory": self.storage.directory_add,
