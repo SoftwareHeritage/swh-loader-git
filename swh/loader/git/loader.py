@@ -1,4 +1,4 @@
-# Copyright (C) 2016-2025  The Software Heritage developers
+# Copyright (C) 2016-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -579,16 +579,41 @@ class GitLoader(BaseGitLoader):
     def iter_objects(self, object_type: bytes) -> Iterator[ShaFile]:
         """Read all the objects of type `object_type` from the packfile"""
         if self.pack_data:
+
             self.pack_buffer.seek(0)
             count = 0
-            for obj in PackInflater.for_pack_data(
-                self.pack_data,
-                resolve_ext_ref=self._resolve_ext_ref,
-            ):
-                if obj.type_name != object_type:
-                    continue
-                yield obj
-                count += 1
+
+            start_time = time.monotonic()
+            obj_iter = iter(
+                PackInflater.for_pack_data(
+                    self.pack_data,
+                    resolve_ext_ref=self._resolve_ext_ref,
+                )
+            )
+            total_time_inflate_packfile = time.monotonic() - start_time
+
+            while True:
+                objs = []
+
+                # batch pack inflation to avoid too many time.monotonic() calls
+                start_time = time.monotonic()
+                for obj in obj_iter:
+                    if obj.type_name == object_type:
+                        objs.append(obj)
+                        if len(objs) > 1000:
+                            break
+                total_time_inflate_packfile += time.monotonic() - start_time
+
+                if not objs:
+                    break
+
+                # yield the batch
+                yield from objs
+                count += len(objs)
+
+            self.statsd_timing(
+                "inflate_git_packfile", total_time_inflate_packfile * 1000.0
+            )
             logger.debug("packfile_read_count_%s=%s", object_type.decode(), count)
 
     def get_contents(self) -> Iterable[BaseContent]:
