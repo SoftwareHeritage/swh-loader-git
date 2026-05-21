@@ -206,7 +206,7 @@ class GitLoader(BaseGitLoader):
         pack_size_bytes: int = 4 * 1024 * 1024 * 1024,
         temp_file_cutoff: int = 100 * 1024 * 1024,
         connect_timeout: float = 120,
-        read_timeout: float = 60,
+        read_timeout: float = 600,
         verify_certs: bool = True,
         urllib3_extra_kwargs: Dict[str, Any] = {},
         **kwargs: Any,
