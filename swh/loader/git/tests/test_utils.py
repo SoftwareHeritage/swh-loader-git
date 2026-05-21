@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023  The Software Heritage developers
+# Copyright (C) 2015-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -41,6 +41,9 @@ def test_ignore_branch_name():
         b"refs/pull/100/head",
         b"refs/pull/xyz/merge",  # auto-merged GitHub pull requests filtered out
         b"refs/^{}",  # Peeled refs filtered out
+        b"refs/merge-requests/xyz/head",
+        b"refs/merge-requests/xyz/merge",  # auto-merged GitLab merge requests filtered out
+        b"refs/pipelines/7856448",  # GitLab CI pipeline branches filtered out
     }
 
     actual_branches = {b for b in branches if not utils.ignore_branch_name(b)}
@@ -52,6 +55,7 @@ def test_ignore_branch_name():
             b"refs/{}",
             b"refs/pull/10/head",
             b"refs/pull/100/head",
+            b"refs/merge-requests/xyz/head",
         ]
     )
 
