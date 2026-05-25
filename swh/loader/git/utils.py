@@ -99,8 +99,8 @@ def ignore_branch_name(branch_name: bytes) -> bool:
     ):
         # We filter-out auto-merged GitLab merge requests
         return True
-    elif branch_name.startswith(b"refs/pipelines/"):
-        # We filter-out branches related to GitLab CI pipelines
+    elif branch_name.startswith((b"refs/pipelines/", b"refs/changes/")):
+        # We filter-out branches related to GitLab CI pipelines or Gerrit change request history
         return True
 
     return False

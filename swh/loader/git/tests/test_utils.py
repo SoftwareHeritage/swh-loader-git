@@ -44,6 +44,7 @@ def test_ignore_branch_name():
         b"refs/merge-requests/xyz/head",
         b"refs/merge-requests/xyz/merge",  # auto-merged GitLab merge requests filtered out
         b"refs/pipelines/7856448",  # GitLab CI pipeline branches filtered out
+        b"refs/changes/31/788231/1",  # Gerrit change request history branches filtered out
     }
 
     actual_branches = {b for b in branches if not utils.ignore_branch_name(b)}
