@@ -22,6 +22,9 @@ dynamic = ["version", "dependencies", "optional-dependencies"]
 [tool.setuptools.packages.find]
 include = ["swh.*"]
 
+[tool.setuptools.package-data]
+"*" = ["*.pyi"]
+
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt", "requirements-swh.txt"]}
 
@@ -41,8 +44,12 @@ testing = {file = ["requirements.txt", "requirements-swh.txt", "requirements-tes
 "Source" = "https://gitlab.softwareheritage.org/swh/devel/swh-loader-git.git"
 
 [build-system]
-requires = ["setuptools", "setuptools-scm"]
+requires = ["setuptools", "setuptools-rust", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
+
+[[tool.setuptools-rust.ext-modules]]
+path = "gix-py/Cargo.toml"
+target = "swh.loader.git._gix"
 
 [tool.setuptools_scm]
 fallback_version = "0.0.1"
@@ -69,13 +76,18 @@ explicit_package_bases = true
 
 plugins = []
 
-# 3rd party libraries without stubs (yet)
-# [[tool.mypy.overrides]]
-# module = [
-#     "package1.*",
-#     "package2.*",
-# ]
-# ignore_missing_imports = true
+# 3rd party libraries without stubs or py.typed markers
+[[tool.mypy.overrides]]
+module = [
+    "celery.*",
+    "deprecated.*",
+    "dulwich.*",
+    "swh.loader.core.*",
+    "swh.loader.exception",
+    "swh.loader.tests",
+    "swh.scheduler.*",
+]
+ignore_missing_imports = true
 
 [tool.flake8]
 select = ["C", "E", "F", "W", "B950"]
@@ -91,3 +103,8 @@ extend-exclude = ["build/"]
 [tool.pytest.ini_options]
 norecursedirs = "build docs .*"
 consider_namespace_packages = true
+# Skip the maturin-develop shim during --doctest-modules collection: when
+# the setuptools-rust build sits ``_gix.cpython-*.so`` next to ``_gix.py``,
+# Python imports the .so as ``swh.loader.git._gix`` and pytest then errors
+# on the .py with "import file mismatch". The shim has no doctests.
+addopts = "--ignore-glob=**/_gix.py"
