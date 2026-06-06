@@ -1,0 +1,65 @@
+[workspace]
+resolver = "2"
+members = ["gix-lib"]
+
+[workspace.package]
+repository = "https://gitlab.softwareheritage.org/swh/devel/swh-loader-git"
+license = "GPL-3.0-or-later"
+version = "0.1.0"
+
+# All gix-* crates patched to a public SWH fork of GitoxideLabs/gitoxide
+# (https://gitlab.softwareheritage.org/swh/devel/gitoxide), pinned to
+# commit 7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba on the
+# `swh/expose-delta-tree` branch.
+#
+# The fork carries a single 1-line visibility change on top of
+# upstream's release line: "Make cache::delta module public for
+# external pack traversal" — needed by `run_indexed_traverse` in
+# `gix-lib/src/lib.rs` (cf. `gix_pack::cache::delta::traverse::{Context,
+# Options}` references).
+#
+# Why ALL 25 entries instead of just gix-pack: when cargo patches a
+# single crate via git, the patched crate pulls its sibling deps from
+# its own workspace, which causes version drift against the rest of the
+# graph (gix-hash 0.23.0 on crates.io vs gix-hash from the fork
+# workspace, etc.). Patching the whole gix-* family at the same commit
+# keeps cargo's resolver happy with a single coherent version set.
+#
+# Tracked as a follow-up: upstream the visibility change to
+# GitoxideLabs and, once a gix-pack release includes it, drop this
+# entire patch section and use the crates.io versions.
+[patch.crates-io]
+gix-pack = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+gix-hash = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+gix-object = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+gix-features = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+gix-chunk = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+gix-error = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+gix-path = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+gix-hashtable = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+gix-tempfile = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+gix-actor = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+gix-date = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+gix-validate = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+gix-utils = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+gix-trace = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+gix-fs = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+gix-glob = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+gix-url = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+gix-transport = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+gix-protocol = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+gix-packetline = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+gix-sec = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+gix-command = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+gix-quote = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+gix-credentials = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+gix-prompt = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+gix-config-value = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+overflow-checks = false
+debug = true
+debug-assertions = false
+codegen-units = 1

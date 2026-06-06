@@ -1,0 +1,39 @@
+[package]
+name = "swh-loader-git-gix"
+version.workspace = true
+edition = "2021"
+license.workspace = true
+repository.workspace = true
+description = "Gitoxide-backed git fetch and pack parsing for swh-loader-git"
+
+[dependencies]
+anyhow = { version = "1", features = ["backtrace"] }
+bstr = "1"
+gix-features = { version = "0.46", features = ["zlib", "parallel", "progress"] }
+gix-hash = { version = "0.23", features = ["sha1"] }
+gix-url = "0.35"
+gix-transport = { version = "0.55", default-features = false, features = [
+    # OpenSSL-backed curl: uses the system CA bundle automatically via
+    # openssl-probe, matches git's own TLS stack, and avoids rustls's
+    # mandatory-cert-verifier configuration step. Was previously
+    # `http-client-curl-rust-tls`, which depends on `curl/rustls` — that
+    # feature pulls in rustls but does NOT wire a default cert verifier,
+    # so any HTTPS fetch fails at runtime with
+    # "no server certificate verifier was configured on the client config
+    # builder" (rustls 0.23+ made the verifier mandatory). The curl crate
+    # has no companion `rustls-native-roots` feature, so the rustls path
+    # is non-trivial to use; OpenSSL is the simpler, more maintainable
+    # choice for SWH's Linux deployment.
+    "http-client-curl-openssl",
+] }
+gix-protocol = { version = "0.59", features = ["blocking-client"] }
+gix-object = "0.58"
+gix-pack = { version = "0.68", default-features = false, features = [
+    "streaming-input",
+    "pack-cache-lru-static",
+] }
+tempfile = "3"
+sha1_smol = { package = "sha1", version = "0.10" }
+sha2 = "0.10"
+blake2 = "0.10"
+digest = "0.10"

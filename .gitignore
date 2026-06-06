@@ -1,3 +1,7 @@
+# Rust build artefacts
+target/
+*.so
+
 *.egg-info/
 *.pyc
 .coverage
