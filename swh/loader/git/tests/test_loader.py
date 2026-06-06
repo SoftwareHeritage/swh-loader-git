@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025  The Software Heritage developers
+# Copyright (C) 2018-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -11,7 +11,7 @@ import logging
 import os
 import subprocess
 import sys
-from tempfile import SpooledTemporaryFile
+import tempfile
 from threading import Thread
 import time
 from unittest.mock import MagicMock, call
@@ -258,17 +258,44 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         else:
             assert False, "did not find log message for inferred branch target type"
 
-    def test_loader_empty_pack_file(self, mocker):
+    def test_loader_empty_pack_file(self, mocker, tmp_path):
         fetch_pack_from_origin = mocker.patch.object(
             self.loader, "fetch_pack_from_origin"
         )
+        empty_pack = tmp_path / "empty.pack"
+        empty_pack.write_bytes(b"")
         fetch_pack_from_origin.return_value = FetchPackReturn(
             remote_refs={},
             symbolic_refs={},
-            pack_buffer=SpooledTemporaryFile(),
+            pack_path=str(empty_pack),
             pack_size=0,
         )
         assert self.loader.load() == {"status": "uneventful"}
+
+    def test_loader_truncated_pack_file(self, mocker, tmp_path):
+        """A pack that breaks off mid-stream (network corruption, broken
+        mirror) must fail the visit cleanly — typed error from the gix
+        reader, visit status 'failed' — not crash or store a partial
+        snapshot."""
+        fetch_pack_from_origin = mocker.patch.object(
+            self.loader, "fetch_pack_from_origin"
+        )
+        truncated_pack = tmp_path / "truncated.pack"
+        # Valid 12-byte header (PACK, version 2, claims 5 objects), then EOF.
+        truncated_pack.write_bytes(
+            b"PACK" + (2).to_bytes(4, "big") + (5).to_bytes(4, "big")
+        )
+        fetch_pack_from_origin.return_value = FetchPackReturn(
+            remote_refs={b"refs/heads/master": b"0" * 40},
+            symbolic_refs={},
+            pack_path=str(truncated_pack),
+            pack_size=12,
+        )
+        res = self.loader.load()
+        assert res["status"] == "failed"
+        assert_last_visit_matches(
+            self.loader.storage, self.repo_url, status="failed", type="git"
+        )
 
     @pytest.mark.parametrize(
         "corrupted_object,missing_object",
@@ -376,6 +403,13 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         buffer = io.BytesIO()
         build_pack(buffer, objects, self.repo.object_store)
 
+        # The gix-rehaul changed FetchPackReturn from in-memory pack_buffer
+        # to on-disk pack_path; write the test pack to a temp file so the
+        # rest of the loader pipeline (gix iter_pack_objects) can consume it.
+        pack_file = tempfile.NamedTemporaryFile(suffix=".pack", delete=False)
+        pack_file.write(buffer.getvalue())
+        pack_file.flush()
+
         # mock fetch_pack_from_origin method of the loader to return the pack
         # file built above
         fetch_pack_from_origin = mocker.patch.object(
@@ -387,7 +421,7 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
                 b"refs/tags/v1.1.0": second_tag.id,
             },
             symbolic_refs={},
-            pack_buffer=buffer,
+            pack_path=pack_file.name,
             pack_size=buffer.getbuffer().nbytes,
         )
 
@@ -999,3 +1033,221 @@ def test_loader_too_large_pack_file_for_github_origin(
 )
 def test_split_lines_and_remainder(input, output):
     assert split_lines_and_remainder(input) == output
+
+
+class TestConvertObjectPackReaderTreeShape:
+    """Regression tests for ``GitLoader._convert_object`` when ``_gix.PackReader``
+    yields a pre-built ``Directory`` object in a 2-tuple ``(2, Directory)``
+    — the small-pack code path (packs ≤ 100 MB).
+
+    Before the fix, ``_convert_object`` did
+    ``binascii.hexlify(obj_tuple[1])`` before the type dispatch, which
+    crashed with ``TypeError: a bytes-like object is required, not
+    'Directory'`` for tree objects. The defensive
+    ``isinstance(obj_tuple[1], Directory)`` branch on the next lines was
+    therefore unreachable on this code path.
+    """
+
+    @pytest.fixture
+    def loader(self, swh_storage):
+        loader = GitLoader(swh_storage, "https://example.com/repo")
+        loader.ref_object_types = {}
+        return loader
+
+    def test_directory_pack_reader_tuple_does_not_crash(self, loader):
+        """``(2, Directory)`` tuples must round-trip without trying to
+        hexlify the Directory object."""
+        from swh.model.model import Directory
+
+        directory = Directory(entries=())
+        type_name, obj = loader._convert_object((2, directory))
+
+        assert type_name == "directory"
+        assert obj is directory
+
+    def test_directory_pack_reader_updates_ref_object_types(self, loader):
+        """When the Directory's sha matches a ref target, ``ref_object_types``
+        gets the ``DIRECTORY`` tag — same behaviour as the raw-fields path."""
+        import binascii
+
+        from swh.model.model import Directory, SnapshotTargetType
+
+        directory = Directory(entries=())
+        sha_hex = binascii.hexlify(directory.id)
+        loader.ref_object_types[sha_hex] = None
+
+        loader._convert_object((2, directory))
+
+        assert loader.ref_object_types[sha_hex] == SnapshotTargetType.DIRECTORY
+
+    def test_directory_raw_fields_tuple_still_works(self, loader, mocker):
+        """The other tree shape — ``(2, sha, raw, entries, hash_match)`` from
+        ``ParallelPackReader``'s raw-fields path — must still be handled."""
+        from swh.model.model import Directory
+
+        sha1_git = b"\x00" * 20
+        raw_data = b""
+        entries: tuple = ()
+        hash_match = True
+
+        # Patch the converter to avoid pulling in its full dependency chain
+        # for this unit test; we only care that _convert_object dispatches
+        # to it.
+        fake_directory = Directory(entries=())
+        mocker.patch(
+            "swh.loader.git.converters.tree_to_directory_preparsed",
+            return_value=fake_directory,
+        )
+
+        type_name, obj = loader._convert_object(
+            (2, sha1_git, raw_data, entries, hash_match)
+        )
+
+        assert type_name == "directory"
+        assert obj is fake_directory
+
+
+class TestGitLoaderGixDulwichEquivalence:
+    """Cross-engine equivalence check.
+
+    The loader's fetch + pack-inflation path runs on the gix engine; the
+    ``converters.dulwich_*`` functions are the pre-rehaul reference
+    implementation.  This test walks the fixture repository with dulwich,
+    derives every expected SWH object from it, and asserts the gix-loaded
+    storage contains each one.
+
+    Because SWH ids are intrinsic (Merkle hashes of the object fields),
+    presence of every dulwich-computed id already proves the gix path
+    serialized the same bytes.  The field-level comparisons additionally
+    guard against an id-preserving but field-mangling conversion: on the
+    gix path ids are carried from the pack, not recomputed from the
+    converted fields.
+    """
+
+    @pytest.fixture(autouse=True)
+    def init(self, swh_storage, datadir, tmp_path):
+        archive_name = "testrepo"
+        archive_path = os.path.join(datadir, f"{archive_name}.tgz")
+        tmp_path = str(tmp_path)
+        self.repo_url = prepare_repository_from_archive(
+            archive_path, archive_name, tmp_path=tmp_path
+        )
+        self.destination_path = os.path.join(tmp_path, archive_name)
+        self.loader = GitLoader(swh_storage, self.repo_url)
+        self.repo = dulwich.repo.Repo(self.destination_path)
+
+    def test_loaded_objects_match_dulwich_reference(self):
+        assert self.loader.load() == {"status": "eventful"}
+        storage = self.loader.storage
+
+        expected_contents = []
+        expected_directories = []
+        expected_revisions = []
+        expected_releases = []
+        for sha in iter(self.repo.object_store):
+            obj = self.repo.object_store[sha]
+            if obj.type_name == b"blob":
+                expected_contents.append(converters.dulwich_blob_to_content(obj))
+            elif obj.type_name == b"tree":
+                expected_directories.append(converters.dulwich_tree_to_directory(obj))
+            elif obj.type_name == b"commit":
+                expected_revisions.append(converters.dulwich_commit_to_revision(obj))
+            elif obj.type_name == b"tag":
+                expected_releases.append(converters.dulwich_tag_to_release(obj))
+
+        # The fixture is non-trivial in every object type we load.
+        assert expected_contents
+        assert expected_directories
+        assert expected_revisions
+
+        # Intrinsic-id presence: every dulwich-derived id must exist.
+        assert (
+            list(
+                storage.content_missing_per_sha1_git(
+                    [c.sha1_git for c in expected_contents]
+                )
+            )
+            == []
+        )
+        assert (
+            list(storage.directory_missing([d.id for d in expected_directories])) == []
+        )
+        assert list(storage.revision_missing([r.id for r in expected_revisions])) == []
+        assert list(storage.release_missing([r.id for r in expected_releases])) == []
+
+        # Field-level equality, content hashes.
+        got_contents = storage.content_get(
+            [c.sha1 for c in expected_contents], algo="sha1"
+        )
+        for expected, got in zip(expected_contents, got_contents):
+            assert got is not None, expected.hashes()
+            assert got.hashes() == expected.hashes()
+
+        # Field-level equality, directory entries.
+        for expected_dir in expected_directories:
+            got_entries = {
+                entry["name"]: (entry["target"], entry["type"], entry["perms"])
+                for entry in storage.directory_ls(expected_dir.id)
+            }
+            exp_entries = {
+                entry.name: (entry.target, entry.type, entry.perms)
+                for entry in expected_dir.entries
+            }
+            assert got_entries == exp_entries, expected_dir.id.hex()
+
+        # Field-level equality, full revision objects (author, committer,
+        # dates, message, parents).
+        got_revisions = storage.revision_get([r.id for r in expected_revisions])
+        got_by_id = {r.id: r for r in got_revisions if r is not None}
+        for expected_rev in expected_revisions:
+            got = got_by_id.get(expected_rev.id)
+            assert got is not None, expected_rev.id.hex()
+            assert got == expected_rev, expected_rev.id.hex()
+
+        # Field-level equality, full release objects.
+        got_releases = storage.release_get([r.id for r in expected_releases])
+        for expected_rel, got in zip(expected_releases, got_releases):
+            assert got is not None and got == expected_rel
+
+
+class TestGitLoaderParallelPackReader:
+    """Run a full load through ParallelPackReader by lowering the size
+    threshold below the fixture pack size — the >100 MB production path
+    is otherwise never exercised by the (tiny) test fixtures."""
+
+    @pytest.fixture(autouse=True)
+    def init(self, swh_storage, datadir, tmp_path):
+        archive_name = "testrepo"
+        archive_path = os.path.join(datadir, f"{archive_name}.tgz")
+        tmp_path = str(tmp_path)
+        self.repo_url = prepare_repository_from_archive(
+            archive_path, archive_name, tmp_path=tmp_path
+        )
+        self.loader = GitLoader(
+            swh_storage, self.repo_url, parallel_pack_threshold_bytes=1
+        )
+
+    def test_load_via_parallel_pack_reader(self, mocker):
+        import swh.loader.git._gix as gix_module
+
+        parallel_reader = mocker.patch.object(
+            gix_module,
+            "ParallelPackReader",
+            wraps=gix_module.ParallelPackReader,
+        )
+
+        assert self.loader.load() == {"status": "eventful"}
+        # The parallel path was actually taken...
+        parallel_reader.assert_called_once()
+        # ...and produced the same archive state as the sequential path
+        # (cf. the identical assertion in test_loader_with_ref_delta_in_pack).
+        assert get_stats(self.loader.storage) == {
+            "content": 4,
+            "directory": 7,
+            "origin": 1,
+            "origin_visit": 1,
+            "release": 0,
+            "revision": 7,
+            "skipped_content": 0,
+            "snapshot": 1,
+        }
