@@ -148,10 +148,22 @@ pub fn fetch_pack(
             }
             Ref::Peeled {
                 full_ref_name,
+                tag,
                 object,
-                ..
             } => {
-                // Peeled tag target — store under `<name>^{}` (standard git convention).
+                // Bare ref name → the annotated-tag object's own OID.  This is
+                // what becomes the SWH Release and the snapshot branch target;
+                // it mirrors dulwich, which reports the un-peeled tag target.
+                // gitoxide consolidates the `<name>` and `<name>^{}` advertised
+                // lines into a single `Ref::Peeled` carrying both OIDs, so this
+                // bare-name entry exists nowhere else.  Dropping `tag` here (the
+                // former `..`) meant the tag OID reached neither `wants` nor
+                // `remote_refs` and every annotated tag — and its Release — was
+                // silently lost.
+                remote_refs.insert(full_ref_name.clone(), tag.to_hex().to_string());
+                // Peeled target — the commit the tag dereferences to, stored
+                // under `<name>^{}` (standard git convention).  Filtered out
+                // downstream, but kept for parity with dulwich's refs dict.
                 let mut peeled_name = full_ref_name.clone();
                 peeled_name.extend_from_slice(b"^{}");
                 remote_refs.insert(peeled_name, object.to_hex().to_string());
@@ -298,9 +310,13 @@ pub fn fetch_pack_to_file(
             }
             Ref::Peeled {
                 full_ref_name,
+                tag,
                 object,
-                ..
             } => {
+                // Bare ref name → annotated-tag object OID (becomes the SWH
+                // Release / snapshot branch target); mirrors dulwich.  See the
+                // matching arm in `fetch_pack` for the full rationale.
+                remote_refs.insert(full_ref_name.clone(), tag.to_hex().to_string());
                 let mut peeled_name = full_ref_name.clone();
                 peeled_name.extend_from_slice(b"^{}");
                 remote_refs.insert(peeled_name, object.to_hex().to_string());
