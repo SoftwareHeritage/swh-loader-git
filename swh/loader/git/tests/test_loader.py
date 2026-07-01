@@ -19,8 +19,9 @@ from unittest.mock import MagicMock, call
 import attr
 from dulwich.errors import GitProtocolError, NotGitRepository, ObjectFormatException
 from dulwich.pack import REF_DELTA
-from dulwich.porcelain import get_user_timezones, push
+from dulwich.porcelain import get_user_timezones, push, tag_create
 import dulwich.repo
+from dulwich.server import DictBackend, TCPGitServer
 from dulwich.tests.utils import build_pack
 import pytest
 import sentry_sdk
@@ -42,6 +43,7 @@ from swh.model.model import (
     OriginVisitStatus,
     RawExtrinsicMetadata,
     Snapshot,
+    SnapshotTargetType,
 )
 
 
@@ -1208,6 +1210,93 @@ class TestGitLoaderGixDulwichEquivalence:
         got_releases = storage.release_get([r.id for r in expected_releases])
         for expected_rel, got in zip(expected_releases, got_releases):
             assert got is not None and got == expected_rel
+
+
+class TestGitLoaderGixAnnotatedTagsOverGitProtocol:
+    """Regression test: the gix smart-protocol fetch must not drop annotated tags.
+
+    Annotated-tag handling only reaches the gix Rust ref-parser over a network
+    protocol.  Every other loader test serves repositories over ``file://``,
+    which ``GitLoader.fetch_pack_from_origin`` deliberately routes through
+    dulwich (never the gix engine) — so no existing test exercises the buggy
+    path.  Here we serve a repository holding an annotated tag over ``git://``
+    (dulwich ``TCPGitServer``, the smart protocol), so the load drives
+    ``_gix.fetch_pack`` / ``_gix.fetch_pack_to_file``.
+
+    Before the ``Ref::Peeled`` fix in ``gix-lib/src/fetch.rs``, the
+    annotated-tag object OID was discarded from ``remote_refs``, so the tag was
+    never wanted, no ``Release`` was produced, and the ``refs/tags/*`` branch
+    vanished from the snapshot (silently — the peeled commit stayed reachable).
+    A local ``git://`` server keeps this test self-contained and CI-safe: raw
+    TCP, unaffected by the session ``swh_proxy`` fixture, no network access, no
+    ``@network`` marker.
+    """
+
+    @pytest.fixture(autouse=True)
+    def init(self, swh_storage, tmp_path):
+        self.swh_storage = swh_storage
+        repo_path = os.path.join(str(tmp_path), "annotated_tag_repo")
+        repo = dulwich.repo.Repo.init(repo_path, mkdir=True)
+
+        with open(os.path.join(repo_path, "hello.py"), "w") as f:
+            f.write("print('Hello world')\n")
+        repo.get_worktree().stage([b"hello.py"])
+        self.commit = repo.get_worktree().commit(
+            b"Hello world\n",
+            committer=b"Test Committer <test@example.org>",
+            author=b"Test Author <test@example.org>",
+            commit_timestamp=12395,
+            commit_timezone=0,
+            author_timestamp=12395,
+            author_timezone=0,
+            sign=False,
+        )
+        # Annotated tag -> becomes a SWH Release.  This is the object the gix
+        # engine dropped before the fix.
+        tag_create(
+            repo,
+            b"v1.0.0",
+            message=b"First release!",
+            annotated=True,
+            objectish=self.commit,
+            sign=False,
+        )
+        # git sha (hex bytes) of the annotated-tag object itself.
+        self.tag_id = repo[b"refs/tags/v1.0.0"]
+
+        backend = DictBackend({b"/": repo})
+        self.git_server = TCPGitServer(backend, b"localhost", 0)
+        self.server_thread = Thread(target=self.git_server.serve)
+        self.server_thread.start()
+        _, port = self.git_server.socket.getsockname()
+        # git:// (not file://) -> routed through the gix engine.
+        self.repo_url = f"git://localhost:{port}/"
+
+        yield
+
+        self.git_server.shutdown()
+        self.git_server.server_close()
+        self.server_thread.join()
+
+    def test_annotated_tag_produces_release_over_gix(self):
+        loader = GitLoader(self.swh_storage, self.repo_url)
+        assert loader.load() == {"status": "eventful"}
+
+        # A Release object was produced (0 before the fix).
+        assert get_stats(loader.storage)["release"] == 1
+
+        # ... and the snapshot references it under refs/tags/v1.0.0.
+        branches = loader.storage.snapshot_get_branches(loader.snapshot.id)
+        branch = branches["branches"][b"refs/tags/v1.0.0"]
+        assert branch.target_type == SnapshotTargetType.RELEASE
+        # The Release id is the intrinsic git sha of the annotated-tag object.
+        assert branch.target == bytes.fromhex(self.tag_id.decode())
+
+        release = loader.storage.release_get([branch.target])[0]
+        assert release is not None
+        assert release.name == b"v1.0.0"
+        # The tag dereferences to the commit we created.
+        assert release.target == bytes.fromhex(self.commit.decode())
 
 
 class TestGitLoaderParallelPackReader:
