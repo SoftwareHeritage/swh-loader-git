@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025  The Software Heritage developers
+# Copyright (C) 2018-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -10,7 +10,6 @@ import io
 import logging
 import os
 import subprocess
-import sys
 from tempfile import SpooledTemporaryFile
 from threading import Thread
 import time
@@ -618,17 +617,7 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
 
         self.fetcher.reset_mock()
         self.fetcher_cls.reset_mock()
-        if sys.version_info >= (3, 9, 0):
-            self.loader.storage.reset_mock(return_value=True, side_effect=True)
-        else:
-            # Reimplement https://github.com/python/cpython/commit/aef7dc89879d099dc704bd8037b8a7686fb72838  # noqa
-            # for old Python versions:
-            def reset_mock(m):
-                m.reset_mock(return_value=True, side_effect=True)
-                for child in m._mock_children.values():
-                    reset_mock(child)
-
-            reset_mock(self.loader.storage)
+        self.loader.storage.reset_mock(return_value=True, side_effect=True)
         statsd_report.reset_mock()
 
         # Load again
