@@ -430,9 +430,15 @@ fn run_direct_tree_traverse(
                 tree.add_child(base_offset, offset, ())?;
             }
             RefDelta { base_id } => {
+                // In-pack REF_DELTA bases are handled by ParallelInflater
+                // (git index-pack resolves them regardless of delta
+                // encoding).  External bases (thin packs) are supported by
+                // NO inflation path — which is why fetch.rs never
+                // negotiates the thin-pack capability in the first place.
                 anyhow::bail!(
                     "ref-delta at offset {offset} (base {base_id}): direct tree traversal \
-                     requires ofs-delta only packs. Use ParallelInflater for thin packs."
+                     requires a self-contained ofs-delta pack. Use ParallelInflater for \
+                     packs containing ref-delta entries."
                 );
             }
         }

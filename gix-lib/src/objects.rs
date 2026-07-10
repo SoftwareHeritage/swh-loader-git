@@ -70,13 +70,19 @@ pub(crate) fn tree_hash_will_match(raw_data: &[u8], entries: &[TreeEntry]) -> bo
     buf == raw_data
 }
 
-/// Check whether the SWH model's re-serialization of a parsed commit
-/// produces bytes identical to the original raw git commit data.
+/// Check whether a parsed commit re-serializes byte-identically **in its
+/// original header order**.
 ///
-/// The SWH model parses headers (joining continuation lines) then
-/// re-serializes with `escape_newlines` (replacing `\n` with `\n `).
-/// If this round-trip is exact, `Revision.compute_hash()` will return
-/// sha1_git and Python can skip the verification.
+/// ADVISORY ONLY — the Python side must NOT use this flag to skip
+/// `Revision.compute_hash()`.  This check round-trips headers in parse
+/// order, but swh-model re-serializes them in canonical field order with
+/// value normalization (e.g. `int()` on timestamps): a commit with
+/// reordered or duplicated headers, or a zero-padded timestamp, passes
+/// this check yet hashes differently after the model transform.  The
+/// tree check (`tree_hash_will_match`) has no such gap because it
+/// mirrors the exact Python transform; commits and tags are always
+/// re-verified in Python (see `converters.commit_to_revision`).  The
+/// flag stays in the tuple ABI as a cheap diagnostic signal.
 pub(crate) fn commit_hash_will_match(raw_data: &[u8]) -> bool {
     // Parse headers and body, then re-serialize using the SWH format.
     // The SWH format (format_git_object_from_headers):
@@ -172,17 +178,24 @@ pub enum TypedObject {
         entries: Vec<TreeEntry>,
         /// True if the SWH model's re-serialization will produce the same
         /// bytes as raw_data, meaning `Directory.compute_hash()` would
-        /// return sha1_git.  When true, Python can skip re-verification.
+        /// return sha1_git.  When true, consumers may skip hash
+        /// re-verification — but must still check entry-name uniqueness
+        /// after the '/'→'_' rename before bypassing model validation
+        /// (git tolerates duplicate names; the SWH model does not).
         hash_match: bool,
     },
     Commit {
         sha1_git: [u8; 20],
         data: Vec<u8>,
+        /// Advisory/diagnostic only — see [`commit_hash_will_match`]:
+        /// parse-order round-trip equality does not imply canonical-order
+        /// hash equality, so Python always re-verifies commits.
         hash_match: bool,
     },
     Tag {
         sha1_git: [u8; 20],
         data: Vec<u8>,
+        /// Advisory/diagnostic only — same caveat as `Commit::hash_match`.
         hash_match: bool,
     },
 }

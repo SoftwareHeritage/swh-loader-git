@@ -1,11 +1,15 @@
 [workspace]
 resolver = "2"
-members = ["gix-lib"]
+members = ["gix-lib", "gix-py"]
 
 [workspace.package]
 repository = "https://gitlab.softwareheritage.org/swh/devel/swh-loader-git"
 license = "GPL-3.0-or-later"
 version = "0.1.0"
+
+[workspace.dependencies]
+pyo3 = { version = "0.25", features = ["abi3-py39", "extension-module"] }
+swh-loader-git-gix = { path = "./gix-lib" }
 
 # All gix-* crates patched to a public SWH fork of GitoxideLabs/gitoxide
 # (https://gitlab.softwareheritage.org/swh/devel/gitoxide), pinned to
@@ -14,9 +18,13 @@ version = "0.1.0"
 #
 # The fork carries a single 1-line visibility change on top of
 # upstream's release line: "Make cache::delta module public for
-# external pack traversal" — needed by `run_indexed_traverse` in
-# `gix-lib/src/lib.rs` (cf. `gix_pack::cache::delta::traverse::{Context,
-# Options}` references).
+# external pack traversal" — needed ONLY by `run_direct_tree_traverse`
+# in `gix-lib/src/traverse.rs` (the `DirectTreeInflater` engine, cf.
+# `gix_pack::cache::delta::{Tree, traverse}` references).  The
+# production inflation paths (`PackReader` sequential decode,
+# `ParallelInflater` via `git index-pack` + the already-public
+# `gix_pack::index::traverse`) do NOT need the patch: DirectTreeInflater
+# is currently exercised by the benchmark harness only.
 #
 # Why ALL 25 entries instead of just gix-pack: when cargo patches a
 # single crate via git, the patched crate pulls its sibling deps from

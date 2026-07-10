@@ -53,6 +53,54 @@ fn http_timeout_options(
     Some(opts)
 }
 
+/// Features to negotiate for a fetch: the server-advertised defaults,
+/// with `thin-pack` stripped whenever we send haves.
+///
+/// A thin pack may contain REF_DELTA entries whose base object is not in
+/// the pack itself — the server deltas against objects the client claimed
+/// to have.  None of our inflation paths can resolve such external bases:
+/// the streaming inflater has no object store to consult (`inflate.rs`
+/// passes a `None` resolver), and `ParallelInflater` runs `git index-pack`
+/// on a bare pack file without `--fix-thin`.  The dulwich engine this
+/// replaces disabled the capability for the same reason
+/// (`thin_packs=False`).  Without it, the server must send a
+/// self-contained pack: incremental fetches cost more bandwidth, but
+/// every delta base is guaranteed present.
+///
+/// With an EMPTY have-set (initial clone), a thin pack is impossible by
+/// definition — there is nothing external to delta against — so the
+/// advertisement is harmless and we keep it.  Keeping it also matters
+/// for compatibility: dulwich-based git servers *require* clients to
+/// advertise `thin-pack` (`UploadPackHandler.required_capabilities`) and
+/// reject the fetch outright otherwise, so stripping it unconditionally
+/// would break every initial clone from such servers (including the
+/// dulwich `TCPGitServer` used by our own git:// regression tests).
+///
+/// Protocol note: we pin V1 in `ConnectOptions`, and a server cannot
+/// unilaterally upgrade — V2 requires client opt-in.  The guard below is
+/// belt-and-braces: gix-protocol's V2 argument builder re-adds `thin-pack`
+/// unconditionally (`Command::initial_v2_arguments`), so if V2 ever became
+/// reachable here we would silently regress into broken incremental
+/// visits.  Fail loudly instead.
+fn negotiated_features(
+    actual_protocol: Protocol,
+    capabilities: &gix_transport::client::Capabilities,
+    have_haves: bool,
+) -> Result<Vec<gix_protocol::command::Feature>> {
+    if actual_protocol == Protocol::V2 {
+        anyhow::bail!(
+            "server negotiated protocol V2, but this client pins V1: \
+             the V2 argument builder would re-enable thin-pack, which no \
+             inflation path supports"
+        );
+    }
+    Ok(gix_protocol::Command::Fetch
+        .default_features(actual_protocol, capabilities)
+        .into_iter()
+        .filter(|(name, _)| !(have_haves && *name == "thin-pack"))
+        .collect())
+}
+
 /// Apply [`http_timeout_options`] to a freshly-connected transport.
 /// Must be called before the handshake; the curl backend reads the
 /// options on each request it executes.
@@ -183,9 +231,9 @@ pub fn fetch_pack(
         });
     }
 
-    // 6. Build fetch arguments.
+    // 6. Build fetch arguments (thin-pack stripped — see `negotiated_features`).
     let features =
-        gix_protocol::Command::Fetch.default_features(actual_protocol, &capabilities);
+        negotiated_features(actual_protocol, &capabilities, !haves.is_empty())?;
     let mut args = gix_protocol::fetch::Arguments::new(actual_protocol, features, false);
 
     for sha in &wants {
@@ -334,8 +382,9 @@ pub fn fetch_pack_to_file(
         });
     }
 
+    // Thin-pack stripped — see `negotiated_features`.
     let features =
-        gix_protocol::Command::Fetch.default_features(actual_protocol, &capabilities);
+        negotiated_features(actual_protocol, &capabilities, !haves.is_empty())?;
     let mut args = gix_protocol::fetch::Arguments::new(actual_protocol, features, false);
     for sha in &wants {
         args.want(ObjectId::from_bytes_or_panic(sha));
