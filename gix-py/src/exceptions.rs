@@ -24,10 +24,12 @@
 //! `swh/loader/git/tests/test_gix_exceptions.py`, and adjusting to an
 //! upstream rename is a single-table change. The alternative — matching
 //! on gitoxide's concrete error *types* — would couple this crate to many
-//! unstable enum variants across a dozen gix-* crates instead. When in
-//! doubt the mapping falls through to `GixFatalError`, which callers must
-//! treat as non-retriable, so a missed keyword degrades to a conservative
-//! outcome, never a wrong retry.
+//! unstable enum variants across a dozen gix-* crates instead. When no
+//! pattern matches, the mapping falls through to a bare `ValueError` (the
+//! common parent of all four classes): the dispatch layer only ever
+//! retries on the three specific recoverable classes, so an unmatched
+//! keyword degrades to the conservative outcome — visit failed, no
+//! fallback retry — never a wrong retry.
 //!
 //! All four classes inherit from `ValueError` so existing
 //! `except ValueError` code paths keep working; new callers catch the
@@ -113,7 +115,7 @@ pub fn map_gix_error(e: anyhow::Error) -> pyo3::PyErr {
     const TRAVERSE_PATTERNS: &[&str] = &[
         "ref-delta",
         "direct tree traversal",
-        "ofs-delta only packs",
+        "self-contained ofs-delta pack",
     ];
 
     // GixObjectParseError: object-level parsing failures.

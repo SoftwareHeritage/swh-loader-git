@@ -397,9 +397,29 @@ impl PackReader {
                         entries,
                         hash_match,
                     } => {
-                        if hash_match {
+                        // The fast path below bypasses Directory.check_entries,
+                        // so a byte-exact round-trip (hash_match) is not enough:
+                        // git tolerates duplicate entry names, the SWH model
+                        // does not, and the '/'→'_' rename can even manufacture
+                        // a collision (b"a/b" vs b"a_b").  Such trees take the
+                        // tuple path so Python handles them like any other
+                        // model-invalid tree.
+                        let unique_names = hash_match && {
+                            let mut seen =
+                                std::collections::HashSet::with_capacity(entries.len());
+                            entries.iter().all(|e| {
+                                seen.insert(
+                                    e.name
+                                        .iter()
+                                        .map(|&b| if b == b'/' { b'_' } else { b })
+                                        .collect::<Vec<u8>>(),
+                                )
+                            })
+                        };
+                        if unique_names {
                             // Fast path: create Directory via __new__ + object.__setattr__,
-                            // bypassing attrs frozen-class validators (data verified by Rust).
+                            // bypassing attrs frozen-class validators (data verified by Rust,
+                            // name uniqueness verified just above).
                             let de_cls = self.de_cls.bind(py);
                             let dir_cls = self.dir_cls.bind(py);
                             let obj_sa = py.import("builtins")?.getattr("object")?

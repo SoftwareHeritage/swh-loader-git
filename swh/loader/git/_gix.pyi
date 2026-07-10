@@ -75,8 +75,11 @@ def iter_pack_objects(
     ----------
     pack_bytes:
         A complete pack file (PACK header + objects + trailer).  Non-thin packs
-        only; the caller is responsible for ensuring no external ref-delta bases
-        are needed.
+        only: no inflation path resolves external ref-delta bases.  Packs
+        obtained via :func:`fetch_pack` / :func:`fetch_pack_to_file` satisfy
+        this by construction — the fetch strips the ``thin-pack`` capability
+        whenever haves are sent (with no haves a thin pack is impossible),
+        so a compliant server always sends self-contained packs.
 
     Returns
     -------

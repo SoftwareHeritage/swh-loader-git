@@ -29,6 +29,7 @@ to the top-level ``_gix`` package (which ``maturin`` keeps current), so
 ``.so`` first and this file is ignored — so production behaviour is
 unchanged.
 """
+
 from _gix import *  # type: ignore  # noqa: F401, F403
 from _gix import _gix as _native_module  # type: ignore
 
