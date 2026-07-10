@@ -107,4 +107,8 @@ consider_namespace_packages = true
 # the setuptools-rust build sits ``_gix.cpython-*.so`` next to ``_gix.py``,
 # Python imports the .so as ``swh.loader.git._gix`` and pytest then errors
 # on the .py with "import file mismatch". The shim has no doctests.
-addopts = "--ignore-glob=**/_gix.py"
+# --timeout: fail a hung test with a traceback instead of letting CI
+# abort the whole job at its 10-minute cap (promised in the !217 thread).
+# method=thread because a test blocked inside a Rust FFI call never
+# regains the GIL, so signal-based timeouts would not fire.
+addopts = "--ignore-glob=**/_gix.py --timeout=300 --timeout-method=thread"
