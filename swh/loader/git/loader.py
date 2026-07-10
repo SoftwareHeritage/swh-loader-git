@@ -710,20 +710,25 @@ class GitLoader(BaseGitLoader):
                 ),
             )
         elif type_num == 1:  # commit
-            _, _, data, hash_match = obj_tuple
+            # The tuple's 4th element is the Rust round-trip flag; it is
+            # deliberately NOT forwarded: parse-order byte equality does
+            # not imply canonical-order hash equality for commits/tags
+            # (see converters.commit_to_revision), so the converter
+            # always verifies.
+            _, _, data, _ = obj_tuple
             if sha_hex in self.ref_object_types:
                 self.ref_object_types[sha_hex] = SnapshotTargetType.REVISION
             return (
                 "revision",
-                converters.commit_to_revision(sha1_git, data, hash_match),
+                converters.commit_to_revision(sha1_git, data),
             )
         elif type_num == 4:  # tag
-            _, _, data, hash_match = obj_tuple
+            _, _, data, _ = obj_tuple
             if sha_hex in self.ref_object_types:
                 self.ref_object_types[sha_hex] = SnapshotTargetType.RELEASE
             return (
                 "release",
-                converters.tag_to_release(sha1_git, data, hash_match),
+                converters.tag_to_release(sha1_git, data),
             )
         else:
             raise ValueError(f"Unknown object type: {type_num}")
@@ -906,11 +911,11 @@ class GitLoader(BaseGitLoader):
 
         for obj_tuple in PackReader(self.pack_path):
             if obj_tuple[0] == 1:
-                _, sha1_git, data, hash_match = obj_tuple
+                _, sha1_git, data, _ = obj_tuple
                 sha_hex = binascii.hexlify(sha1_git)
                 if sha_hex in self.ref_object_types:
                     self.ref_object_types[sha_hex] = SnapshotTargetType.REVISION
-                yield converters.commit_to_revision(sha1_git, data, hash_match)
+                yield converters.commit_to_revision(sha1_git, data)
 
     def get_releases(self) -> Iterable[Release]:
         if self.pack_size <= 0:
@@ -919,11 +924,11 @@ class GitLoader(BaseGitLoader):
 
         for obj_tuple in PackReader(self.pack_path):
             if obj_tuple[0] == 4:
-                _, sha1_git, data, hash_match = obj_tuple
+                _, sha1_git, data, _ = obj_tuple
                 sha_hex = binascii.hexlify(sha1_git)
                 if sha_hex in self.ref_object_types:
                     self.ref_object_types[sha_hex] = SnapshotTargetType.RELEASE
-                yield converters.tag_to_release(sha1_git, data, hash_match)
+                yield converters.tag_to_release(sha1_git, data)
 
     def get_snapshot(self) -> Snapshot:
         """Get the snapshot for the current visit.

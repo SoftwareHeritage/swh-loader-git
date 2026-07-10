@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024  The Software Heritage developers
+# Copyright (C) 2015-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -983,3 +983,139 @@ class TestConverters:
             ),
             raw_manifest=b"tag 136\x00" + raw_string2,
         )
+
+
+class TestPackPathVerificationRegression:
+    """Regression tests for the removed hash_match verification skip.
+
+    The Rust pack readers emit a per-object ``hash_match`` flag computed
+    by re-serializing the object in its original parse order.  For
+    commits and tags that signal is UNSOUND as a verification shortcut:
+    swh-model re-serializes headers in canonical field order with value
+    normalization, so an object can round-trip byte-exactly in parse
+    order yet hash differently after the model transform.  The pack-path
+    converters therefore always verify, and these objects must all come
+    out with ``compute_hash() == id`` — via ``raw_manifest`` when the
+    field-level model cannot represent them.  Before the fix, each of
+    them was archived with ``raw_manifest=None`` and an id its fields no
+    longer hashed to.
+    """
+
+    @staticmethod
+    def _sha1_git(obj_type: str, raw: bytes) -> bytes:
+        import hashlib
+
+        from swh.model.git_objects import git_object_header
+
+        return hashlib.sha1(git_object_header(obj_type, len(raw)) + raw).digest()
+
+    def test_commit_reordered_headers_records_raw_manifest(self):
+        # committer before author: parse-order round-trip is byte-exact,
+        # canonical-order re-serialization is not.
+        raw = (
+            b"tree 641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce\n"
+            b"committer Foo <foo@example.org> 1640191028 +0200\n"
+            b"author Foo <foo@example.org> 1640191028 +0200\n"
+            b"\n"
+            b"some commit message"
+        )
+        sha1_git = self._sha1_git("commit", raw)
+        rev = converters.commit_to_revision(sha1_git, raw)
+        assert rev.id == sha1_git
+        assert rev.raw_manifest is not None
+        assert rev.compute_hash() == sha1_git
+
+    def test_commit_zero_padded_timestamp_records_raw_manifest(self):
+        # int() normalization drops the leading zeros on re-serialization.
+        raw = (
+            b"tree 641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce\n"
+            b"author Foo <foo@example.org> 0001640191028 +0200\n"
+            b"committer Foo <foo@example.org> 1640191028 +0200\n"
+            b"\n"
+            b"some commit message"
+        )
+        sha1_git = self._sha1_git("commit", raw)
+        rev = converters.commit_to_revision(sha1_git, raw)
+        assert rev.id == sha1_git
+        assert rev.raw_manifest is not None
+        assert rev.compute_hash() == sha1_git
+
+    def test_tag_reordered_headers_records_raw_manifest(self):
+        raw = (
+            b"object 641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce\n"
+            b"tag blah\n"
+            b"type commit\n"
+            b"tagger Foo <foo@example.org> 1640191027 +0200\n"
+            b"\n"
+            b"some release message"
+        )
+        sha1_git = self._sha1_git("tag", raw)
+        rel = converters.tag_to_release(sha1_git, raw)
+        assert rel.id == sha1_git
+        assert rel.raw_manifest is not None
+        assert rel.compute_hash() == sha1_git
+
+    def test_commit_mergetag_no_double_strip(self):
+        # The mergetag value ends exactly where the header continuation
+        # ends; stripping an extra newline (as the converter once did)
+        # corrupts the extra_headers value and breaks hash equality.
+        mergetag = (
+            b"object 9768d0b576dbaaecd80abedad6dfd0d72f1476da\n"
+            b"type commit\n"
+            b"tag v0.0.1\n"
+            b"tagger Foo <foo@example.org> 1640191027 +0200\n"
+            b"\n"
+            b"v0.0.1\n"
+        )
+        raw = (
+            b"tree 641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce\n"
+            b"parent 9768d0b576dbaaecd80abedad6dfd0d72f1476da\n"
+            b"author Foo <foo@example.org> 1640191028 +0200\n"
+            b"committer Foo <foo@example.org> 1640191028 +0200\n"
+            b"mergetag " + mergetag.replace(b"\n", b"\n ") + b"\n"
+            b"\n"
+            b"merge commit message"
+        )
+        sha1_git = self._sha1_git("commit", raw)
+        rev = converters.commit_to_revision(sha1_git, raw)
+        assert rev.id == sha1_git
+        # The model represents this commit exactly: no raw_manifest needed.
+        assert rev.raw_manifest is None
+        assert rev.compute_hash() == sha1_git
+        assert dict(rev.extra_headers)[b"mergetag"] == mergetag
+
+    def test_tree_duplicate_entry_names_takes_slow_path(self):
+        # git tolerates duplicate entry names; the SWH model does not.
+        # hash_match=True is realistic here (byte-exact round-trip), but
+        # the fast path must refuse to bypass Directory.check_entries.
+        target_a = bytes(range(20))
+        target_b = bytes(range(1, 21))
+        raw = b"100644 dup\x00" + target_a + b"100644 dup\x00" + target_b
+        sha1_git = self._sha1_git("tree", raw)
+        entries = [(0o100644, b"dup", target_a), (0o100644, b"dup", target_b)]
+        dir_ = converters.tree_to_directory_preparsed(
+            sha1_git, raw, entries, hash_match=True
+        )
+        names = [e.name for e in dir_.entries]
+        assert len(set(names)) == len(names), "duplicate names must be renamed"
+        assert dir_.raw_manifest is not None
+        assert dir_.id == sha1_git
+        assert dir_.compute_hash() == sha1_git
+
+    def test_tree_slash_rename_collision_takes_slow_path(self):
+        # The '/' -> '_' rename can manufacture a duplicate: b"a/b" and
+        # b"a_b" collide after the transform.  Previously this crashed
+        # the slow path with a ValueError from Directory's validator.
+        target_a = bytes(range(20))
+        target_b = bytes(range(1, 21))
+        raw = b"100644 a/b\x00" + target_a + b"100644 a_b\x00" + target_b
+        sha1_git = self._sha1_git("tree", raw)
+        entries = [(0o100644, b"a/b", target_a), (0o100644, b"a_b", target_b)]
+        dir_ = converters.tree_to_directory_preparsed(
+            sha1_git, raw, entries, hash_match=False
+        )
+        names = [e.name for e in dir_.entries]
+        assert len(set(names)) == len(names)
+        assert dir_.raw_manifest is not None
+        assert dir_.id == sha1_git
+        assert dir_.compute_hash() == sha1_git

@@ -132,7 +132,7 @@ def parse_git_headers(
             if line == b"\n":
                 # Blank line → end of headers
                 break
-            (k, v) = line.split(b" ", 1)
+            k, v = line.split(b" ", 1)
     else:
         # Reached EOF before a blank-line separator
         eof = True
@@ -383,10 +383,19 @@ def tree_to_directory(sha1_git: bytes, raw_data: bytes) -> Directory:
             )
         )
 
-    dir_ = Directory(
-        id=sha1_git,
-        entries=tuple(entries),
-    )
+    try:
+        dir_ = Directory(
+            id=sha1_git,
+            entries=tuple(entries),
+        )
+    except ValueError:
+        # Duplicate entry names — see tree_to_directory_preparsed for the
+        # full rationale (git tolerates them, the SWH model does not).
+        _, dir_ = Directory.from_possibly_duplicated_entries(
+            entries=tuple(entries),
+            id=sha1_git,
+            raw_manifest=git_object_header("tree", len(raw_data)) + raw_data,
+        )
 
     computed = dir_.compute_hash()
     if computed != dir_.id:
@@ -450,9 +459,15 @@ def tree_to_directory_preparsed(
     produced by the Rust layer.  ``raw_data`` is retained for the
     raw_manifest fallback when the hash doesn't match.
 
-    If *hash_match* is True (verified by Rust), the SWH model's
-    re-serialization is known to produce identical bytes, so
-    ``compute_hash()`` is skipped entirely.
+    If *hash_match* is True (verified by Rust: the tree re-serializes
+    byte-identically through the same transform swh-model applies) AND
+    the entry names are unique after the ``/`` → ``_`` rename,
+    ``compute_hash()`` is skipped.  Trees are the only type with such a
+    fast path: the Rust round-trip check for trees mirrors the Python
+    transform completely, whereas commits and tags cannot be checked
+    this way (swh-model re-serializes their headers in canonical order
+    with value normalization, which a byte-level round-trip in parse
+    order does not model — see ``commit_to_revision``).
 
     Bypass attrs validators (``__new__`` + ``object.__setattr__``) for the
     Directory instance as well — the entries have just been built and
@@ -461,14 +476,34 @@ def tree_to_directory_preparsed(
     (measured with ``benchmarks/bench_direct_tree.py``).
     """
     entries = _entries_to_directory_entries(parsed_entries)
-    if hash_match:
+    if hash_match and len({e.name for e in entries}) == len(entries):
+        # The uniqueness check matters because this constructor bypasses
+        # Directory.check_entries: a byte-exact round-trip (hash_match)
+        # does NOT imply the SWH model invariants hold — git tolerates
+        # duplicate entry names, and the '/'→'_' rename above can even
+        # manufacture a collision (b"a/b" vs b"a_b").  Such trees must
+        # take the slow path below, which handles them like any other
+        # model-invalid tree.
         dir_ = Directory.__new__(Directory)
         object.__setattr__(dir_, "entries", entries)
         object.__setattr__(dir_, "id", sha1_git)
         object.__setattr__(dir_, "raw_manifest", None)
         return dir_
 
-    dir_ = Directory(id=sha1_git, entries=entries)
+    try:
+        dir_ = Directory(id=sha1_git, entries=entries)
+    except ValueError:
+        # Duplicate entry names: legal in git's wild history, invalid in
+        # the SWH model.  Keep the pack's own bytes as raw_manifest (so
+        # the id stays verifiable) and let swh-model rename duplicates.
+        # dulwich reached the same end state by accident — its Tree type
+        # stores entries in a dict, silently collapsing duplicates, which
+        # then failed the hash check and recorded raw_manifest.
+        _, dir_ = Directory.from_possibly_duplicated_entries(
+            entries=entries,
+            id=sha1_git,
+            raw_manifest=git_object_header("tree", len(raw_data)) + raw_data,
+        )
 
     computed = dir_.compute_hash()
     if computed != dir_.id:
@@ -490,10 +525,20 @@ def tree_to_directory_preparsed(
     return dir_
 
 
-def commit_to_revision(
-    sha1_git: bytes, raw_data: bytes, hash_match: bool = False
-) -> Revision:
-    """Convert raw commit bytes to a Software Heritage :class:`Revision`."""
+def commit_to_revision(sha1_git: bytes, raw_data: bytes) -> Revision:
+    """Convert raw commit bytes to a Software Heritage :class:`Revision`.
+
+    Unlike trees, commits and tags get NO verification fast path: the
+    Rust-side round-trip check re-serializes headers in their original
+    parse order, but swh-model re-serializes in canonical field order
+    with value normalization (e.g. ``int()`` on timestamps).  A commit
+    with reordered or duplicated headers, or a zero-padded timestamp,
+    round-trips byte-exactly in parse order yet hashes differently after
+    the model transform — so skipping ``compute_hash()`` on that signal
+    would store the object under an id its fields no longer hash to,
+    with no ``raw_manifest`` to recover from.  ``compute_hash()`` on a
+    commit costs microseconds; blobs, not commits, are the hot path.
+    """
     headers, body = parse_git_headers(raw_data)
 
     tree_sha: Optional[bytes] = None
@@ -520,12 +565,7 @@ def commit_to_revision(
         elif field == b"encoding":
             extra_headers.append((b"encoding", value))
         elif field == b"mergetag":
-            # The raw mergetag value ends with \n in the parsed form;
-            # dulwich strips that trailing newline when storing.
-            v = value
-            if v.endswith(b"\n"):
-                v = v[:-1]
-            extra_headers.append((b"mergetag", v))
+            extra_headers.append((b"mergetag", value))
         elif field == b"gpgsig":
             extra_headers.append((b"gpgsig", value))
         else:
@@ -545,9 +585,6 @@ def commit_to_revision(
         synthetic=False,
         parents=tuple(parents),
     )
-
-    if hash_match:
-        return rev
 
     computed = rev.compute_hash()
     if computed != rev.id:
@@ -569,10 +606,13 @@ def commit_to_revision(
     return rev
 
 
-def tag_to_release(
-    sha1_git: bytes, raw_data: bytes, hash_match: bool = False
-) -> Release:
-    """Convert raw tag bytes to a Software Heritage :class:`Release`."""
+def tag_to_release(sha1_git: bytes, raw_data: bytes) -> Release:
+    """Convert raw tag bytes to a Software Heritage :class:`Release`.
+
+    No verification fast path, for the same reason as
+    :func:`commit_to_revision`: parse-order byte round-trip does not
+    imply canonical-order hash equality.
+    """
     headers, body = parse_git_headers(raw_data)
 
     target_sha: Optional[bytes] = None
@@ -613,9 +653,6 @@ def tag_to_release(
         metadata=None,
         synthetic=False,
     )
-
-    if hash_match:
-        return rel
 
     computed = rel.compute_hash()
     if computed != rel.id:
