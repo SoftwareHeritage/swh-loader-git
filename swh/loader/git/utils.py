@@ -12,7 +12,7 @@ import os
 import shutil
 import tempfile
 import time
-from typing import Dict, Mapping, Optional
+from typing import IO, Dict, Mapping, Optional
 
 from swh.core import tarball
 from swh.loader.exception import NotFound
@@ -204,7 +204,7 @@ class PackWriter:
 
     def __init__(
         self,
-        pack_buffer: tempfile.SpooledTemporaryFile,
+        pack_buffer: IO[bytes],
         size_limit: int,
         origin_url: str,
         fetch_pack_logger: logging.Logger,

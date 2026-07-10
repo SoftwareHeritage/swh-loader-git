@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025  The Software Heritage developers
+# Copyright (C) 2018-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -179,8 +179,12 @@ class CommonGitLoaderTests:
     def test_load_visit_without_snapshot_so_status_failed(self):
         # unfortunately, monkey-patch the hard way, self.loader is already instantiated
         # (patching won't work self.loader is already instantiated)
-        # Make get_contents fail for some reason
-        self.loader.get_contents = None
+        # Make get_snapshot fail: it is on the load path of BOTH loader
+        # variants sharing this suite — GitLoaderFromDisk's sequential
+        # store_data and GitLoader's single-pass store_data.  (The
+        # previous sabotage point, get_contents, is no longer called by
+        # the network loader since the gix single-pass rework.)
+        self.loader.get_snapshot = None
 
         res = self.loader.load()
         assert res["status"] == "failed"

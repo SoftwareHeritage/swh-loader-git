@@ -33,15 +33,8 @@ from swh.core.statsd import Statsd
 from swh.loader.exception import NotFound
 from swh.loader.git.utils import raise_not_found_repository
 from swh.model import hashutil
-from swh.model.git_objects import (
-    content_git_object,
-    directory_git_object,
-    release_git_object,
-    revision_git_object,
-)
 from swh.model.model import (
     BaseContent,
-    Content,
     Directory,
     RawExtrinsicMetadata,
     Release,
@@ -52,8 +45,6 @@ from swh.model.model import (
     SnapshotTargetType,
 )
 from swh.model.swhids import ExtendedObjectType
-from swh.objstorage.interface import objid_from_dict
-from swh.storage.algos.directory import directory_get
 from swh.storage.algos.snapshot import snapshot_get_latest
 from swh.storage.interface import StorageInterface
 
@@ -221,16 +212,19 @@ class GitLoader(BaseGitLoader):
         self.incremental = incremental
         self.repo_representation = repo_representation
         self.pack_size_bytes = pack_size_bytes
+        # Accepted for configuration compatibility with the dulwich-based
+        # loader (which spooled packs in memory below this cutoff), but
+        # unused: the gix engine streams every pack to disk.
         self.temp_file_cutoff = temp_file_cutoff
         self.parallel_pack_threshold_bytes = parallel_pack_threshold_bytes
         # state initialized in fetch_data
         self.remote_refs: Dict[bytes, bytes] = {}
         self.symbolic_refs: Dict[bytes, bytes] = {}
         self.ref_object_types: Dict[bytes, Optional[SnapshotTargetType]] = {}
-        self.ext_refs: Dict[bytes, Optional[Tuple[int, List[bytes]]]] = {}
         self.repo_pack_size_bytes = 0
         # Raw values for the gix fetch path (curl-side timeouts); the
-        # urllib3 Timeout below serves the dulwich (dumb-protocol) path.
+        # urllib3 Timeout below serves the dulwich paths (file:// and the
+        # dumb-HTTP fallback in fetch_pack_from_origin).
         self.connect_timeout = connect_timeout
         self.read_timeout = read_timeout
         self.urllib3_extra_kwargs = urllib3_extra_kwargs
@@ -252,35 +246,59 @@ class GitLoader(BaseGitLoader):
         held entirely in Python memory.  This allows handling arbitrarily
         large packs (e.g. 32 GB Chromium) without OOM.
 
-        ``file://`` URLs route through dulwich's :class:`LocalGitClient`
-        instead of gix.  The gix HTTP backend (curl + openssl) handles
-        ``http(s)://`` correctly, but its ``connect()`` for ``file://``
-        URLs spawns ``git-upload-pack`` as a subprocess and blocks
-        indefinitely on its stdin/stdout (observed under py-spy).
-        ``file://`` URLs do not exist in production (every production
-        origin is ``http(s)://`` / ``git://`` / ``ssh://``); they are a
-        test-rig convention used by ``prepare_repository_from_archive``
-        to expose a tarball-extracted bare repo.  Routing them through
-        dulwich is correct (it uses an in-process LocalGitClient, no
-        subprocess) and matches the pre-rehaul behaviour.
+        Two origin categories route through dulwich instead of gix (see
+        :meth:`_fetch_pack_via_dulwich`):
+
+        - ``file://`` URLs, up front: the gix HTTP backend handles
+          ``http(s)://`` correctly, but its ``connect()`` for ``file://``
+          URLs spawns ``git-upload-pack`` as a subprocess and blocks
+          indefinitely on its stdin/stdout (observed under py-spy).
+          ``file://`` URLs do not exist in production; they are a test-rig
+          convention used by ``prepare_repository_from_archive``.
+        - dumb-HTTP servers, on fallback: gix implements only the smart
+          protocol and fails the handshake with a typed error on
+          dumb-only servers.  Master's dulwich engine handled those
+          transparently, and some production origins (static-file hosting)
+          still speak only dumb HTTP, so we keep that capability by
+          catching the handshake error and retrying via dulwich.
         """
         if origin_url.startswith("file://"):
-            return self._fetch_pack_from_local_file(origin_url, base_repo, do_activity)
+            return self._fetch_pack_via_dulwich(origin_url, base_repo, do_activity)
 
+        from swh.loader.git._gix import GixFatalError
         from swh.loader.git._gix import fetch_pack as gix_fetch_pack
         from swh.loader.git._gix import fetch_pack_to_file as gix_fetch_to_file
 
         logger.debug("Transport url to communicate with server: %s", origin_url)
 
         # Step 1: list remote refs (wants=[] → no pack transferred).
-        with utils.raise_not_found_repository():
-            remote_refs_raw, symbolic_refs_raw, _ = gix_fetch_pack(
+        dumb_http = False
+        try:
+            with utils.raise_not_found_repository():
+                remote_refs_raw, symbolic_refs_raw, _ = gix_fetch_pack(
+                    origin_url,
+                    [],
+                    [],
+                    connect_timeout=int(self.connect_timeout),
+                    read_timeout=int(self.read_timeout),
+                )
+        except GixFatalError as e:
+            if "dumb" not in str(e).lower():
+                raise
+            # Dumb-HTTP-only server: gix speaks only the smart protocol
+            # and rejects the handshake in under a second ("the 'dumb'
+            # protocol is not supported").  Retry the whole fetch via
+            # dulwich, which implements dumb HTTP.  The retry happens
+            # OUTSIDE this handler so that any later failure (e.g. the
+            # pack-size limit) is not chained onto the handshake error —
+            # Sentry and logs must report the real failure first.
+            dumb_http = True
+        if dumb_http:
+            logger.debug(
+                "dumb-HTTP origin, routing fetch through dulwich: %s",
                 origin_url,
-                [],
-                [],
-                connect_timeout=int(self.connect_timeout),
-                read_timeout=int(self.read_timeout),
             )
+            return self._fetch_pack_via_dulwich(origin_url, base_repo, do_activity)
 
         remote_refs_hex: Dict[bytes, bytes] = {
             name: sha.encode() for name, sha in remote_refs_raw.items()
@@ -317,46 +335,60 @@ class GitLoader(BaseGitLoader):
             pack_size=pack_size,
         )
 
-    def _fetch_pack_from_local_file(
+    def _fetch_pack_via_dulwich(
         self,
         origin_url: str,
         base_repo: RepoRepresentation,
         do_activity: Callable[[bytes], None],
     ) -> FetchPackReturn:
-        """Fetch a pack from a ``file://`` URL via dulwich's LocalGitClient.
+        """Fetch a pack via dulwich, for the origins gix cannot serve.
 
-        Used as the in-process fallback for ``file://`` URLs because
-        gix-transport's ``connect()`` for them spawns ``git-upload-pack``
-        as a subprocess and blocks indefinitely (see the docstring of
-        :meth:`fetch_pack_from_origin`).  The pack is written to a temp
-        file on disk so the rest of the gix-loader pipeline (which reads
-        from ``pack_path`` via ``_gix.iter_pack_objects``) can consume it
-        without a special case downstream.
+        Two cases route here (see :meth:`fetch_pack_from_origin`):
+        ``file://`` URLs (gix spawns a blocking subprocess for those) and
+        dumb-HTTP-only servers (gix implements only the smart protocol).
+        The pack is written to a temp file on disk so the rest of the
+        gix-loader pipeline (which reads from ``pack_path`` via
+        ``_gix.iter_pack_objects``) consumes it without a special case
+        downstream.  The configured ``pack_size_bytes`` limit is enforced
+        chunk-by-chunk during the download, exactly as on the gix path.
         """
         import dulwich.client
         from dulwich.object_store import ObjectStoreGraphWalker
 
-        logger.debug(
-            "file:// URL, routing fetch through dulwich LocalGitClient: %s",
-            origin_url,
-        )
+        transport_kwargs: Dict[str, Any] = {"thin_packs": False}
+        if origin_url.startswith(("http://", "https://")):
+            # Inject urllib3 kwargs (timeouts, cert handling) into the
+            # pool manager, as master's dulwich engine did.
+            transport_kwargs["pool_manager"] = dulwich.client.default_urllib3_manager(
+                config=None,
+                **self.urllib3_extra_kwargs,
+            )
 
         client, path = dulwich.client.get_transport_and_path(
             location=origin_url,
             config=None,
             operation="pull",
-            thin_packs=False,
+            **transport_kwargs,
         )
+        logger.debug("Client %s to fetch pack at %s", client, path)
 
         self._pack_tmp = tempfile.NamedTemporaryFile(suffix=".pack", delete=True)
         pack_path = self._pack_tmp.name
         pack_size = 0
 
+        pack_writer = utils.PackWriter(
+            pack_buffer=self._pack_tmp,
+            size_limit=self.pack_size_bytes,
+            origin_url=origin_url,
+            fetch_pack_logger=fetch_pack_logger,
+        )
+
         def write_chunk(data: bytes) -> int:
-            # dulwich expects the chunk-writer to return the byte count;
-            # fetch_pack uses it for progress accounting.
+            # PackWriter enforces the pack_size_bytes limit (raises
+            # IOError → visit failed) and logs download progress.  The
+            # byte count is returned for dulwich's progress accounting.
             nonlocal pack_size
-            self._pack_tmp.write(data)
+            pack_writer.write(data)
             pack_size += len(data)
             return len(data)
 
@@ -591,71 +623,6 @@ class GitLoader(BaseGitLoader):
         with open(os.path.join(pack_dir, refs_name), "xb") as f:
             pickle.dump(self.remote_refs, f)
 
-    def _resolve_ext_ref(self, sha1: bytes) -> Tuple[int, List[bytes]]:
-        """Resolve external references to git objects a pack file might contain
-        by getting associated git manifests from the archive.
-        """
-        storage = self.storage
-        ext_refs = self.ext_refs
-        statsd_metric = "swh_loader_git_external_reference_fetch_total"
-
-        def set_ext_ref(type_num, manifest, swh_type):
-            ext_refs[sha1] = (type_num, [manifest.split(b"\x00", maxsplit=1)[1]])
-            self.statsd.increment(
-                statsd_metric,
-                tags={"type": swh_type, "result": "found"},
-            )
-            self.log.debug(
-                "External reference %s of type %s in the pack file resolved from the archive",
-                hashutil.hash_to_hex(sha1),
-                swh_type,
-            )
-
-        if sha1 not in ext_refs:
-            cnts = storage.content_find({"sha1_git": sha1})
-            if cnts and cnts[0] is not None:
-                cnt = cnts[0]
-                d = cnt.to_dict()
-                d["data"] = storage.content_get_data(objid_from_dict(d))
-                cnt = Content.from_dict(d)
-                cnt.check()
-                set_ext_ref(3, content_git_object(cnt), "content")
-        if sha1 not in ext_refs:
-            dir = directory_get(storage, sha1)
-            if dir is not None:
-                dir.check()
-                set_ext_ref(2, directory_git_object(dir), "directory")
-        if sha1 not in ext_refs:
-            rev = storage.revision_get([sha1], ignore_displayname=True)[0]
-            if rev is not None:
-                rev.check()
-                set_ext_ref(1, revision_git_object(rev), "revision")
-        if sha1 not in ext_refs:
-            rel = storage.release_get([sha1], ignore_displayname=True)[0]
-            if rel is not None:
-                rel.check()
-                set_ext_ref(4, release_git_object(rel), "release")
-
-        if sha1 not in ext_refs:
-            self.statsd.increment(
-                statsd_metric,
-                tags={"type": "unknown", "result": "not_found"},
-            )
-            self.log.debug(
-                "External reference %s in the pack file could not be resolved from the archive",
-                hashutil.hash_to_hex(sha1),
-            )
-            ext_refs[sha1] = None
-
-        ext_ref = ext_refs[sha1]
-        if ext_ref is None:
-            # dulwich catches this exception but checks for pending objects in the pack once
-            # all ref chains have been walked
-            raise KeyError(
-                f"Object with sha1_git {hashutil.hash_to_hex(sha1)} not found in the archive"
-            )
-        return ext_ref
-
     # ── Single-pass store_data (overrides BaseGitLoader.store_data) ─────
 
     _STORE_BATCH_SIZE = 1000
@@ -745,8 +712,19 @@ class GitLoader(BaseGitLoader):
 
         - Storage ``*_add()`` methods are idempotent.
         - No FK constraints between object types in PostgreSQL or Cassandra.
-        - BufferingProxyStorage (if configured) enforces topological flush
-          ordering automatically.
+
+        Ordering caveat: packs are typically commits-first, so revisions
+        can reach storage (and the journal) before the directories and
+        contents they reference.  BufferingProxyStorage, if configured,
+        type-orders each flush it performs, but only over what is
+        currently buffered — it does NOT provide visit-wide topological
+        ordering across flushes.  A visit interrupted mid-pack can
+        therefore leave revisions whose root directory arrives only on a
+        later successful visit.  The dulwich engine's four-pass walk
+        (contents, then directories, revisions, releases) did guarantee
+        that order; whether the stream-order write is acceptable is an
+        explicit sign-off item for the storage owners in the design
+        review, not an assumption of this code.
         """
         assert self.origin
         if self.save_data_path:
@@ -832,9 +810,7 @@ class GitLoader(BaseGitLoader):
 
                 maybe_log_summary("Processing pack")
 
-            self.statsd_timing(
-                "inflate_git_packfile", total_inflate_time * 1000.0
-            )
+            self.statsd_timing("inflate_git_packfile", total_inflate_time * 1000.0)
 
         flush_all()
         maybe_log_summary("After pack objects", force=True)
@@ -845,7 +821,18 @@ class GitLoader(BaseGitLoader):
         storage_summary.update(self.flush())
         self.loaded_snapshot_id = snapshot.id
 
-        for object_type, total in counts.items():
+        # Fixed iteration order (not pack-encounter order, which is
+        # typically commits-first): keeps the emitted metric sequence
+        # deterministic and identical to the dulwich engine's.
+        for object_type in (
+            "content",
+            "skipped_content",
+            "directory",
+            "revision",
+            "release",
+            "snapshot",
+        ):
+            total = counts[object_type]
             filtered = total - storage_summary[f"{object_type}:add"]
             assert 0 <= filtered <= total, (filtered, total)
             if total == 0:

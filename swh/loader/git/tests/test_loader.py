@@ -16,7 +16,6 @@ from threading import Thread
 import time
 from unittest.mock import MagicMock, call
 
-import attr
 from dulwich.errors import GitProtocolError, NotGitRepository, ObjectFormatException
 from dulwich.pack import REF_DELTA
 from dulwich.porcelain import get_user_timezones, push, tag_create
@@ -299,20 +298,22 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             self.loader.storage, self.repo_url, status="failed", type="git"
         )
 
-    @pytest.mark.parametrize(
-        "corrupted_object,missing_object",
-        [(False, False), (True, False), (False, True)],
-    )
-    def test_loader_with_ref_delta_in_pack(
-        self, mocker, corrupted_object, missing_object
-    ):
-        """Check that the git loader can successfully process objects of type OBJ_REF_DELTA
-        contained in a pack file. Such objects are not stored in the pack file and must be
-        resolved from the object store of the local repository. In our case we resolve them
-        from the archive instead.
-        """
+    def test_loader_with_ref_delta_in_pack(self, mocker):
+        """A pack whose REF_DELTA bases are NOT in the pack (a thin pack)
+        must fail the visit cleanly.
 
-        statsd_report = mocker.patch.object(self.loader.statsd, "_report")
+        The gix engine strips the thin-pack capability whenever haves
+        are sent (``negotiated_features`` in ``gix-lib/src/fetch.rs``),
+        and with no haves a thin pack is impossible by definition — so a
+        compliant server always sends self-contained packs, on initial
+        and incremental fetches alike.  A pack like the one built here
+        can only come from a server violating the negotiated
+        capabilities; the engine rejects it with a typed error and the
+        visit fails without recording a snapshot.  (The dulwich engine
+        instead advertised thin-pack support and resolved external bases
+        from the archive; that resolution machinery was removed together
+        with the capability that made it reachable.)
+        """
 
         def add_tag(tag_name, tag_message, commit):
             tag = dulwich.objects.Tag()
@@ -349,7 +350,7 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
 
         self.repo.get_worktree().stage([b"hello.py"])
         new_revision = self.repo.get_worktree().commit(b"Hello world\n", sign=False)
-        first_tag = add_tag(b"v1.0.0", b"First release!\n", new_revision)
+        add_tag(b"v1.0.0", b"First release!\n", new_revision)
 
         # second load of repository
         assert self.loader.load() == {"status": "eventful"}
@@ -427,61 +428,29 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             pack_size=buffer.getbuffer().nbytes,
         )
 
-        statsd_calls = statsd_report.mock_calls
-        statsd_metric = "swh_loader_git_external_reference_fetch_total"
-
-        if corrupted_object:
-            release = self.loader.storage.release_get([first_tag.sha().digest()])[0]
-            corrupted_release = attr.evolve(release, id=b"\x00" * 20)
-            release_get = mocker.patch.object(self.loader.storage, "release_get")
-            release_get.return_value = [corrupted_release]
-            assert self.loader.load()["status"] == "failed"
-        elif missing_object:
-            revision_get = mocker.patch.object(self.loader.storage, "revision_get")
-            revision_get.return_value = [None]
-            assert self.loader.load()["status"] == "failed"
-            assert list(
-                sorted(
-                    [c for c in statsd_calls if c[1][0] == statsd_metric],
-                    key=lambda c: c[1][3]["type"],
-                )
-            ) == [
-                call(statsd_metric, "c", 1, {"type": "content", "result": "found"}, 1),
-                call(
-                    statsd_metric, "c", 1, {"type": "directory", "result": "found"}, 1
-                ),
-                call(statsd_metric, "c", 1, {"type": "release", "result": "found"}, 1),
-                call(
-                    statsd_metric, "c", 1, {"type": "unknown", "result": "not_found"}, 1
-                ),
-            ]
-        else:
-            # check that data for external references in the pack file are fetched
-            # from the archive
-            assert self.loader.load() == {"status": "eventful"}
-            assert get_stats(self.loader.storage) == {
-                "content": 6,
-                "directory": 9,
-                "origin": 1,
-                "origin_visit": 3,
-                "release": 2,
-                "revision": 9,
-                "skipped_content": 0,
-                "snapshot": 3,
-            }
-            assert list(
-                sorted(
-                    [c for c in statsd_calls if c[1][0] == statsd_metric],
-                    key=lambda c: c[1][3]["type"],
-                )
-            ) == [
-                call(statsd_metric, "c", 1, {"type": "content", "result": "found"}, 1),
-                call(
-                    statsd_metric, "c", 1, {"type": "directory", "result": "found"}, 1
-                ),
-                call(statsd_metric, "c", 1, {"type": "release", "result": "found"}, 1),
-                call(statsd_metric, "c", 1, {"type": "revision", "result": "found"}, 1),
-            ]
+        # The engine cannot resolve the external bases: the load must
+        # fail with a typed error, without recording a new snapshot.
+        # The visit status is "partial" (not "failed") because this
+        # loader instance already recorded a snapshot in the successful
+        # second load above, and loader-core reports partial whenever
+        # loaded_snapshot_id is set.
+        res = self.loader.load()
+        assert res["status"] == "failed"
+        assert_last_visit_matches(
+            self.loader.storage, self.repo_url, status="partial", type="git"
+        )
+        # Nothing beyond the failed visit was added to the archive: the
+        # object counts are unchanged from the second (successful) load.
+        assert get_stats(self.loader.storage) == {
+            "content": 5,
+            "directory": 8,
+            "origin": 1,
+            "origin_visit": 3,
+            "release": 1,
+            "revision": 8,
+            "skipped_content": 0,
+            "snapshot": 2,
+        }
 
     def test_load_pack_size_limit(self, sentry_events):
         # set max pack size to a really small value
@@ -1262,15 +1231,22 @@ class TestGitLoaderGixAnnotatedTagsOverGitProtocol:
             sign=False,
         )
         # git sha (hex bytes) of the annotated-tag object itself.
-        self.tag_id = repo[b"refs/tags/v1.0.0"]
+        # (repo.refs[...] returns the sha; repo[...] would return the
+        # parsed Tag object.)
+        self.tag_id = repo.refs[b"refs/tags/v1.0.0"]
 
         backend = DictBackend({b"/": repo})
-        self.git_server = TCPGitServer(backend, b"localhost", 0)
+        # Literal 127.0.0.1, NOT "localhost": TCPGitServer binds a single
+        # IPv4 socket, while gix's git:// connector resolves "localhost"
+        # to ::1 first on IPv6-enabled hosts (e.g. Jenkins) and does not
+        # fall back to the A record — the connection would fail before
+        # reaching the code under test.
+        self.git_server = TCPGitServer(backend, b"127.0.0.1", 0)
         self.server_thread = Thread(target=self.git_server.serve)
         self.server_thread.start()
         _, port = self.git_server.socket.getsockname()
         # git:// (not file://) -> routed through the gix engine.
-        self.repo_url = f"git://localhost:{port}/"
+        self.repo_url = f"git://127.0.0.1:{port}/"
 
         yield
 
@@ -1297,6 +1273,139 @@ class TestGitLoaderGixAnnotatedTagsOverGitProtocol:
         assert release.name == b"v1.0.0"
         # The tag dereferences to the commit we created.
         assert release.target == bytes.fromhex(self.commit.decode())
+
+
+def _git_daemon_available() -> bool:
+    """True if the real ``git daemon`` subcommand can be run."""
+    try:
+        exec_path = subprocess.run(
+            ["git", "--exec-path"], capture_output=True, text=True, check=True
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return False
+    return os.path.exists(os.path.join(exec_path, "git-daemon"))
+
+
+@pytest.mark.skipif(not _git_daemon_available(), reason="git daemon not available")
+class TestGitLoaderIncrementalOverGitProtocol:
+    """Regression test: incremental fetches (with haves) must succeed
+    against a real git server.
+
+    The gix engine strips the ``thin-pack`` capability from the fetch
+    negotiation whenever haves are sent (``negotiated_features`` in
+    ``gix-lib/src/fetch.rs``) because no gix inflation path can resolve
+    REF_DELTA bases that are absent from the pack.  Before that fix, gix's default features
+    advertised thin-pack whenever the server supported it; on an
+    incremental visit the loader sends haves, a real ``git daemon`` may
+    then delta new objects against a have and omit the base — and the
+    load fails in pack inflation.
+
+    dulwich's ``TCPGitServer`` never produces thin packs, so only a real
+    ``git daemon`` can exercise this path; the test is skipped where the
+    git-daemon subcommand is unavailable (it is present on CI).
+    """
+
+    @pytest.fixture(autouse=True)
+    def init(self, swh_storage, tmp_path):
+        import socket
+
+        self.swh_storage = swh_storage
+        repo_path = os.path.join(str(tmp_path), "served_repo")
+        os.makedirs(repo_path)
+
+        env = {
+            **os.environ,
+            "GIT_AUTHOR_NAME": "Test Author",
+            "GIT_AUTHOR_EMAIL": "test@example.org",
+            "GIT_COMMITTER_NAME": "Test Committer",
+            "GIT_COMMITTER_EMAIL": "test@example.org",
+        }
+
+        def git(*args):
+            subprocess.run(
+                ["git", *args],
+                cwd=repo_path,
+                env=env,
+                check=True,
+                capture_output=True,
+            )
+
+        git("init", "-b", "main")
+        # A compressible file large enough that git prefers storing the
+        # second version as a delta against the first.
+        self.big_file = os.path.join(repo_path, "data.txt")
+        with open(self.big_file, "w") as f:
+            f.writelines(f"line {i}: some repetitive content\n" for i in range(5000))
+        git("add", "data.txt")
+        git("commit", "-m", "initial commit")
+
+        # Pick a free port and start git daemon on it.  The bind-probe /
+        # daemon-start pair can race with other tests' servers under a
+        # loaded suite, so retry on a fresh port a few times.
+        self.daemon = None
+        self._git = git
+        for _attempt in range(3):
+            probe = socket.socket()
+            probe.bind(("127.0.0.1", 0))
+            port = probe.getsockname()[1]
+            probe.close()
+            daemon = subprocess.Popen(
+                [
+                    "git",
+                    "daemon",
+                    "--reuseaddr",
+                    "--listen=127.0.0.1",
+                    "--export-all",
+                    f"--port={port}",
+                    f"--base-path={tmp_path}",
+                    str(tmp_path),
+                ],
+                stderr=subprocess.DEVNULL,
+            )
+            for _ in range(50):
+                if daemon.poll() is not None:
+                    break  # daemon exited (e.g. port taken): next attempt
+                try:
+                    socket.create_connection(("127.0.0.1", port), timeout=0.2).close()
+                    self.daemon = daemon
+                    break
+                except OSError:
+                    time.sleep(0.1)
+            if self.daemon is not None:
+                break
+            daemon.terminate()
+            daemon.wait()
+        if self.daemon is None:
+            pytest.skip("git daemon did not start")
+        self.repo_url = f"git://127.0.0.1:{port}/served_repo"
+
+        yield
+
+        self.daemon.terminate()
+        self.daemon.wait()
+
+    def test_incremental_visit_succeeds(self):
+        # Initial visit: full clone.
+        loader = GitLoader(self.swh_storage, self.repo_url)
+        assert loader.load() == {"status": "eventful"}
+        stats = get_stats(loader.storage)
+        assert stats["revision"] == 1
+
+        # Server-side change: modify the large file so the new blob is a
+        # prime delta candidate against the blob the archive already has.
+        with open(self.big_file, "a") as f:
+            f.write("one more line\n")
+        self._git("add", "data.txt")
+        self._git("commit", "-m", "second commit")
+
+        # Incremental visit: the loader sends the previous snapshot's
+        # heads as haves.  Must succeed with a self-contained pack.
+        loader2 = GitLoader(self.swh_storage, self.repo_url)
+        assert loader2.load() == {"status": "eventful"}
+        assert_last_visit_matches(
+            loader2.storage, self.repo_url, status="full", type="git"
+        )
+        assert get_stats(loader2.storage)["revision"] == 2
 
 
 class TestGitLoaderParallelPackReader:
