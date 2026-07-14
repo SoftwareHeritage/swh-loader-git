@@ -27,11 +27,11 @@ gives an empty ``haves`` set, hence a complete pack.
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
 import json
 import os
 import shutil
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Mapping, Optional
 
 from swh.storage import get_storage
