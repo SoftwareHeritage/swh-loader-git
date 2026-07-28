@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025  The Software Heritage developers
+# Copyright (C) 2018-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -15,6 +15,7 @@ import pytest
 
 from swh.loader.git import utils
 from swh.loader.git.from_disk import GitLoaderFromArchive, GitLoaderFromDisk
+from swh.loader.git.loader import GitLoader
 from swh.loader.tests import (
     assert_last_visit_matches,
     check_snapshot,
@@ -612,7 +613,51 @@ class TestGitLoaderFromArchive(CommonGitLoaderTests):
             swh_storage,
             url=self.repo_url,
             archive_path=archive_path,
-            visit_date=datetime.datetime(
-                2016, 5, 3, 15, 16, 32, tzinfo=datetime.timezone.utc
-            ),
         )
+
+
+def test_git_loader_from_archive_repo_with_missing_objects(
+    swh_storage, datadir, tmp_path
+):
+    # try to load repository with standard GitLoader first
+    archive_name = "repo_with_missing_objects"
+    archive_path = os.path.join(datadir, f"{archive_name}.tgz")
+    repo_url = prepare_repository_from_archive(
+        archive_path, archive_name, tmp_path=tmp_path
+    )
+    loader = GitLoader(swh_storage, url=repo_url)
+
+    # GitLoader does not support loading of a repository with missing objects
+    assert loader.load()["status"] == "failed"
+    stats = get_stats(loader.storage)
+    assert stats == {
+        "content": 0,
+        "directory": 0,
+        "origin": 1,
+        "origin_visit": 1,
+        "release": 0,
+        "revision": 0,
+        "skipped_content": 0,
+        "snapshot": 0,
+    }
+
+    # now use GitLoaderFromArchive to load the repository
+    origin_url = "https://git.example.org/project/user"
+    loader = GitLoaderFromArchive(
+        swh_storage, url=origin_url, archive_path=archive_path
+    )
+
+    # it worked but some referenced objects in the archive are dangling,
+    # use that loader for tests only
+    assert loader.load()["status"] == "eventful"
+    stats = get_stats(loader.storage)
+    assert stats == {
+        "content": 4,
+        "directory": 3,
+        "origin": 2,
+        "origin_visit": 2,
+        "release": 0,
+        "revision": 13,
+        "skipped_content": 0,
+        "snapshot": 1,
+    }

@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024  The Software Heritage developers
+# Copyright (C) 2015-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -7,15 +7,18 @@ from collections import defaultdict
 from datetime import datetime
 import logging
 import os
-import shutil
-from typing import Dict, Optional
+import tempfile
+from typing import Callable, Dict, Optional
 
 from deprecated import deprecated
 from dulwich.errors import ObjectFormatException
+from dulwich.object_format import DEFAULT_OBJECT_FORMAT
 import dulwich.objects
 from dulwich.objects import Blob, Commit, EmptyFileException, Tag, Tree
+from dulwich.pack import generate_unpacked_objects, write_pack_data
 import dulwich.repo
 
+from swh.loader.git.loader import FetchPackReturn, GitLoader, RepoRepresentation
 from swh.loader.git.utils import raise_not_found_repository
 from swh.model import hashutil
 from swh.model.model import Snapshot, SnapshotBranch, SnapshotTargetType
@@ -359,11 +362,25 @@ class GitLoaderFromDisk(BaseGitLoader):
         return {"status": ("eventful" if eventful else "uneventful")}
 
 
-class GitLoaderFromArchive(GitLoaderFromDisk):
+class GitLoaderFromArchive(GitLoader):
     """Load a git repository from an archive.
 
     This loader ingests a git repository compressed into an archive.
     The supported archive formats are ``.zip`` and ``.tar.gz``.
+
+    It notably supports the loading of a repository with missing objects
+    that can be obtained by using the filter option from the git clone
+    command (requires git server to have such feature implemented),
+    for instance::
+
+        # clone a repository without fetching blobs not reachable from HEAD
+        $ git clone <repo_url> --filter=blob:none
+
+        # clone a repository without fetching trees and blobs not reachable from HEAD
+        $ git clone <repo_url> --filter=tree:0
+
+    It can be useful to load such repositories when writing tests that do not need to
+    process blob and tree objects so we can produce an archive of smaller size.
 
     From an input tarball named ``my-git-repo.zip``, the following layout is
     expected in it::
@@ -402,9 +419,8 @@ class GitLoaderFromArchive(GitLoaderFromDisk):
 
     """
 
-    def __init__(self, *args, archive_path, **kwargs):
+    def __init__(self, *args, archive_path: str, **kwargs):
         super().__init__(*args, **kwargs)
-        self.temp_dir = self.repo_path = None
         self.archive_path = archive_path
 
     def project_name_from_archive(self, archive_path):
@@ -416,30 +432,38 @@ class GitLoaderFromArchive(GitLoaderFromDisk):
                 break
         return archive_name
 
-    def prepare(self):
-        """1. Uncompress the archive in temporary location.
-        2. Prepare as the GitLoaderFromDisk does
-        3. Load as GitLoaderFromDisk does
+    def fetch_pack_from_origin(
+        self,
+        origin_url: str,
+        base_repo: RepoRepresentation,
+        do_activity: Callable[[bytes], None],
+    ):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_name = self.project_name_from_archive(self.archive_path)
+            _, repo_path = utils.init_git_repo_from_archive(
+                project_name, self.archive_path, root_temp_dir=tmp_dir
+            )
+            pack_buffer = tempfile.SpooledTemporaryFile(max_size=self.temp_file_cutoff)
+            with dulwich.repo.Repo(repo_path) as repo:
+                # create a pack file with all objects referenced in the repository so
+                # we can load it even if it has missing objects
+                unpacked_objects = generate_unpacked_objects(
+                    repo.object_store,
+                    list(map(lambda sha: (sha, None), repo.object_store)),
+                )
+                write_pack_data(
+                    pack_buffer.write,
+                    records=unpacked_objects,
+                    object_format=DEFAULT_OBJECT_FORMAT,
+                    num_records=sum(1 for _ in repo.object_store),
+                )
+                pack_buffer.flush()
+                pack_size = pack_buffer.tell()
+                pack_buffer.seek(0)
 
-        """
-        project_name = self.project_name_from_archive(self.archive_path)
-        self.temp_dir, self.repo_path = utils.init_git_repo_from_archive(
-            project_name, self.archive_path
-        )
-
-        logger.info(
-            "Project %s - Uncompressing archive %s at %s",
-            self.origin.url,
-            os.path.basename(self.archive_path),
-            self.repo_path,
-        )
-        self.directory = self.repo_path
-        super().prepare()
-
-    def cleanup(self):
-        """Cleanup the temporary location (if it exists)."""
-        if self.temp_dir and os.path.exists(self.temp_dir):
-            shutil.rmtree(self.temp_dir)
-        logger.info(
-            "Project %s - Done injecting %s" % (self.origin.url, self.repo_path)
-        )
+                return FetchPackReturn(
+                    remote_refs=utils.filter_refs(repo.refs.as_dict()),
+                    symbolic_refs=utils.filter_symbolic_refs(repo.refs.get_symrefs()),
+                    pack_buffer=pack_buffer,
+                    pack_size=pack_size,
+                )

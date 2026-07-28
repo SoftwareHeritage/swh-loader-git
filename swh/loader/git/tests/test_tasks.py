@@ -66,25 +66,14 @@ def test_git_loader_from_disk_for_listed_origin(
     )
 
 
-@pytest.mark.parametrize(
-    "extra_loader_arguments",
-    [
-        {
-            "archive_path": "/some/repo",
-        },
-        {
-            "archive_path": "/some/repo",
-            "visit_date": "now",
-        },
-    ],
-)
 def test_git_loader_from_archive_for_listed_origin(
     loading_task_creation_for_listed_origin_test,
     git_lister,
     git_listed_origin,
-    extra_loader_arguments,
 ):
-    git_listed_origin.extra_loader_arguments = extra_loader_arguments
+    git_listed_origin.extra_loader_arguments = {
+        "archive_path": "/some/repo",
+    }
 
     loading_task_creation_for_listed_origin_test(
         loader_class_name=f"{NAMESPACE}.from_disk.GitLoaderFromArchive",
