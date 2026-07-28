@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023  The Software Heritage developers
+# Copyright (C) 2018-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -33,34 +33,6 @@ def test_git_loader_for_listed_origin(
     loading_task_creation_for_listed_origin_test(
         loader_class_name=f"{NAMESPACE}.loader.GitLoader",
         task_function_name=f"{NAMESPACE}.tasks.UpdateGitRepository",
-        lister=git_lister,
-        listed_origin=git_listed_origin,
-    )
-
-
-@pytest.mark.parametrize(
-    "extra_loader_arguments",
-    [
-        {
-            "directory": "/some/repo",
-        },
-        {
-            "directory": "/some/repo",
-            "visit_date": "now",
-        },
-    ],
-)
-def test_git_loader_from_disk_for_listed_origin(
-    loading_task_creation_for_listed_origin_test,
-    git_lister,
-    git_listed_origin,
-    extra_loader_arguments,
-):
-    git_listed_origin.extra_loader_arguments = extra_loader_arguments
-
-    loading_task_creation_for_listed_origin_test(
-        loader_class_name=f"{NAMESPACE}.from_disk.GitLoaderFromDisk",
-        task_function_name=f"{NAMESPACE}.tasks.LoadDiskGitRepository",
         lister=git_lister,
         listed_origin=git_listed_origin,
     )

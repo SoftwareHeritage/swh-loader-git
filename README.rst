@@ -11,11 +11,8 @@ The main entry points are:
   either local or remote git repository's contents. This is the main
   implementation deployed in production.
 
-- ``swh.loader.git.from_disk.GitLoaderFromDisk`` which ingests only local
-  git clone repository.
-
 - ``swh.loader.git.loader.GitLoaderFromArchive`` which ingests a git
-  repository wrapped in an archive.
+  repository from an archive.
 
 - ``swh.loader.git.directory.GitCheckoutLoader`` which ingests a git tree
   at a specific commit, branch or tag.

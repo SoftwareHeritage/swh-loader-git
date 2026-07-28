@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023  The Software Heritage developers
+# Copyright (C) 2015-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -9,7 +9,7 @@ from celery import shared_task
 
 from swh.loader.core.utils import parse_visit_date
 from swh.loader.git.directory import GitCheckoutLoader
-from swh.loader.git.from_disk import GitLoaderFromArchive, GitLoaderFromDisk
+from swh.loader.git.from_disk import GitLoaderFromArchive
 from swh.loader.git.loader import GitLoader
 
 
@@ -23,13 +23,6 @@ def _process_kwargs(kwargs):
 def load_git(**kwargs) -> Dict[str, Any]:
     """Import a git repository from a remote location"""
     loader = GitLoader.from_configfile(**_process_kwargs(kwargs))
-    return loader.load()
-
-
-@shared_task(name=__name__ + ".LoadDiskGitRepository")
-def load_git_from_dir(**kwargs) -> Dict[str, Any]:
-    """Import a git repository from a local repository"""
-    loader = GitLoaderFromDisk.from_configfile(**_process_kwargs(kwargs))
     return loader.load()
 
 

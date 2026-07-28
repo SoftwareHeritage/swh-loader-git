@@ -4,7 +4,6 @@
 # See top-level LICENSE file for more information
 
 import copy
-import datetime
 import os.path
 from unittest.mock import patch
 
@@ -14,7 +13,7 @@ import dulwich.repo
 import pytest
 
 from swh.loader.git import utils
-from swh.loader.git.from_disk import GitLoaderFromArchive, GitLoaderFromDisk
+from swh.loader.git.from_disk import GitLoaderFromArchive
 from swh.loader.git.loader import GitLoader
 from swh.loader.tests import (
     assert_last_visit_matches,
@@ -573,32 +572,6 @@ class FullGitLoaderTests(CommonGitLoaderTests):
             target=bytehex_to_hash(new_revision),
             synthetic=False,
         )
-
-
-class TestGitLoaderFromDisk(FullGitLoaderTests):
-    """Prepare a git directory repository to be loaded through a GitLoaderFromDisk.
-    This tests all git loader scenario.
-
-    """
-
-    @pytest.fixture(autouse=True)
-    def init(self, swh_storage, datadir, tmp_path):
-        archive_name = "testrepo"
-        archive_path = os.path.join(datadir, f"{archive_name}.tgz")
-        tmp_path = str(tmp_path)
-        self.repo_url = prepare_repository_from_archive(
-            archive_path, archive_name, tmp_path=tmp_path
-        )
-        self.destination_path = os.path.join(tmp_path, archive_name)
-        self.loader = GitLoaderFromDisk(
-            swh_storage,
-            url=self.repo_url,
-            visit_date=datetime.datetime(
-                2016, 5, 3, 15, 16, 32, tzinfo=datetime.timezone.utc
-            ),
-            directory=self.destination_path,
-        )
-        self.repo = dulwich.repo.Repo(self.destination_path)
 
 
 class TestGitLoaderFromArchive(CommonGitLoaderTests):

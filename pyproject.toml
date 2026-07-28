@@ -22,7 +22,6 @@ dynamic = ["version", "dependencies", "optional-dependencies"]
 
 [project.entry-points."swh.workers"]
 "loader.git" = "swh.loader.git:register"
-"loader.git_disk" = "swh.loader.git:register_from_disk"
 "loader.git-checkout" = "swh.loader.git:register_checkout"
 "loader.git-from-archive" = "swh.loader.git:register_from_archive"
 
