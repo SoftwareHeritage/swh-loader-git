@@ -31,3 +31,12 @@ def register_checkout() -> Dict[str, Any]:
         "task_modules": [],
         "loader": GitCheckoutLoader,
     }
+
+
+def register_from_archive() -> Dict[str, Any]:
+    from swh.loader.git.from_disk import GitLoaderFromArchive
+
+    return {
+        "task_modules": [],
+        "loader": GitLoaderFromArchive,
+    }
