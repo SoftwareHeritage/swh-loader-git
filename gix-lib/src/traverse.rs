@@ -8,7 +8,7 @@
 
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Condvar};
 use std::time::Instant;
 
 use anyhow::{Context, Result};
@@ -300,6 +300,80 @@ fn run_indexed_traverse(
 }
 
 // ---------------------------------------------------------------------------
+// Byte-based backpressure for the inflation channel
+// ---------------------------------------------------------------------------
+
+/// Bounds the *bytes* of decoded objects in flight between the parallel
+/// traversal producers and the Python consumer.
+///
+/// The `std::sync::mpsc::sync_channel` used by the inflaters bounds the channel
+/// by message *count*. For a pack of large blobs that lets thousands of
+/// multi-MB objects pile up (tens of GB of committed memory) whenever the
+/// consumer is slower than the decoders. This gate additionally caps the total
+/// decoded bytes queued: a producer blocks in [`acquire`](ByteBudget::acquire)
+/// before sending once `used + n` would exceed `cap`; the consumer refunds via
+/// [`release`](ByteBudget::release) on receipt. A single object larger than
+/// `cap` is admitted when nothing else is in flight, to avoid deadlocking on a
+/// giant blob. `cap == 0` disables the gate (unbounded, legacy behaviour).
+struct ByteBudget {
+    used: std::sync::Mutex<usize>,
+    cv: Condvar,
+    cap: usize,
+}
+
+impl ByteBudget {
+    fn new(cap: usize) -> Self {
+        ByteBudget {
+            used: std::sync::Mutex::new(0),
+            cv: Condvar::new(),
+            cap,
+        }
+    }
+
+    /// Charge `n` bytes, blocking until they fit under `cap` (or the channel is
+    /// empty, so an oversized object can pass through solo).
+    fn acquire(&self, n: usize) {
+        if self.cap == 0 {
+            return;
+        }
+        let mut used = self
+            .used
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        while *used != 0 && used.saturating_add(n) > self.cap {
+            used = self
+                .cv
+                .wait(used)
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+        }
+        *used += n;
+    }
+
+    /// Refund `n` bytes and wake any producer blocked in [`acquire`].
+    fn release(&self, n: usize) {
+        if self.cap == 0 {
+            return;
+        }
+        let mut used = self
+            .used
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        *used = used.saturating_sub(n);
+        self.cv.notify_all();
+    }
+}
+
+/// Decoded-data byte size of an object, used to charge/refund the byte budget.
+fn object_data_len(obj: &TypedObject) -> usize {
+    match obj {
+        TypedObject::Blob { data, .. } => data.len(),
+        TypedObject::Tree { raw_data, .. } => raw_data.len(),
+        TypedObject::Commit { data, .. } => data.len(),
+        TypedObject::Tag { data, .. } => data.len(),
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Direct delta-tree traversal (no git index-pack, no .idx file)
 // ---------------------------------------------------------------------------
 
@@ -316,6 +390,7 @@ fn run_indexed_traverse(
 /// in parallel as before.
 pub struct DirectTreeInflater {
     receiver: std::sync::Mutex<std::sync::mpsc::Receiver<Result<TypedObject>>>,
+    budget: Arc<ByteBudget>,
     _handle: Option<std::thread::JoinHandle<()>>,
 }
 
@@ -328,15 +403,25 @@ impl DirectTreeInflater {
     /// REF_DELTA is encountered, returns an error.
     ///
     /// `channel_bound` controls the bounded channel capacity (back-pressure).
-    pub fn open(pack_path: &Path, channel_bound: usize) -> Result<Self> {
+    pub fn open(
+        pack_path: &Path,
+        channel_bound: usize,
+        byte_budget: usize,
+    ) -> Result<Self> {
         let (sender, receiver) = std::sync::mpsc::sync_channel(channel_bound);
+        let budget = Arc::new(ByteBudget::new(byte_budget));
 
         let pack_path_owned = pack_path.to_owned();
+        let budget_producer = Arc::clone(&budget);
         let handle = std::thread::spawn(move || {
             // Same catch_unwind rationale as ParallelInflater::open: a panic
             // must surface as an Err, not as a silently-truncated stream.
             let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                run_direct_tree_traverse(&pack_path_owned, sender.clone())
+                run_direct_tree_traverse(
+                    &pack_path_owned,
+                    sender.clone(),
+                    &budget_producer,
+                )
             }));
             match outcome {
                 Ok(Ok(())) => {}
@@ -354,6 +439,7 @@ impl DirectTreeInflater {
 
         Ok(DirectTreeInflater {
             receiver: std::sync::Mutex::new(receiver),
+            budget,
             _handle: Some(handle),
         })
     }
@@ -366,7 +452,13 @@ impl DirectTreeInflater {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         match rx.recv() {
-            Ok(result) => result.map(Some),
+            Ok(Ok(obj)) => {
+                // Refund the byte budget now that this object has left the
+                // channel; wakes any producer blocked in ByteBudget::acquire.
+                self.budget.release(object_data_len(&obj));
+                Ok(Some(obj))
+            }
+            Ok(Err(e)) => Err(e),
             Err(_) => Ok(None), // channel closed = done
         }
     }
@@ -386,6 +478,7 @@ impl DirectTreeInflater {
 fn run_direct_tree_traverse(
     pack_path: &Path,
     output_sender: std::sync::mpsc::SyncSender<Result<TypedObject>>,
+    budget: &Arc<ByteBudget>,
 ) -> Result<()> {
     // Open the memory-mapped pack (used by traverse for random-access reads).
     let pack = gix_pack::data::File::at(pack_path, gix_hash::Kind::Sha1)
@@ -458,6 +551,7 @@ fn run_direct_tree_traverse(
     let processor = {
         let sender = sender.clone();
         let stats = Arc::clone(&stats);
+        let budget = Arc::clone(budget);
         move |_data: &mut (),
               _progress: &dyn gix_features::progress::Progress,
               ctx: gix_pack::cache::delta::traverse::Context<'_>|
@@ -478,6 +572,13 @@ fn run_direct_tree_traverse(
             stats
                 .hash_ns
                 .fetch_add(t0.elapsed().as_nanos() as u64, Ordering::Relaxed);
+
+            // Byte-budget backpressure: block before materialising and sending
+            // this object once the in-flight decoded bytes would exceed the
+            // cap, so peak channel memory is bounded by bytes rather than the
+            // message count. Charged on the decoded length here; refunded in
+            // DirectTreeInflater::next_object when the consumer receives it.
+            budget.acquire(ctx.decompressed.len());
 
             let typed_obj = match kind {
                 ObjectKind::Blob => {

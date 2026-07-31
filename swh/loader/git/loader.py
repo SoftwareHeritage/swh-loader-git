@@ -190,6 +190,7 @@ class GitLoader(BaseGitLoader):
         pack_size_bytes: int = 4 * 1024 * 1024 * 1024,
         temp_file_cutoff: int = 100 * 1024 * 1024,
         parallel_pack_threshold_bytes: int = 100 * 1000 * 1000,
+        parallel_inflate_byte_budget_bytes: int = 2 * 1024 * 1024 * 1024,
         connect_timeout: float = 120,
         read_timeout: float = 600,
         verify_certs: bool = True,
@@ -217,6 +218,7 @@ class GitLoader(BaseGitLoader):
         # unused: the gix engine streams every pack to disk.
         self.temp_file_cutoff = temp_file_cutoff
         self.parallel_pack_threshold_bytes = parallel_pack_threshold_bytes
+        self.parallel_inflate_byte_budget_bytes = parallel_inflate_byte_budget_bytes
         # state initialized in fetch_data
         self.remote_refs: Dict[bytes, bytes] = {}
         self.symbolic_refs: Dict[bytes, bytes] = {}
@@ -774,12 +776,24 @@ class GitLoader(BaseGitLoader):
             storage_summary.update(self.flush())
 
         if self.pack_size > 0:
-            from swh.loader.git._gix import PackReader, ParallelPackReader
+            from swh.loader.git._gix import DirectTreePackReader, PackReader
 
-            # Use parallel inflation for packs above the configured threshold
+            # Use parallel inflation for packs above the configured threshold.
+            # DirectTreePackReader does index-less parallel delta-tree traversal
+            # (no `git index-pack` subprocess, no `.idx`) and is bounded by
+            # *bytes* in flight (parallel_inflate_byte_budget_bytes) rather than
+            # the channel's message count, so a pack of large blobs cannot pile
+            # thousands of multi-MB objects up to the count and blow up memory.
+            # It requires a self-contained OFS_DELTA pack (what our fetch
+            # produces); a REF_DELTA pack raises GixTraverseError and is routed
+            # to the dulwich fallback like any other gix-rejected input.
             pack_reader: Iterable
             if self.pack_size > self.parallel_pack_threshold_bytes:
-                pack_reader = ParallelPackReader(self.pack_path, channel_bound=4096)
+                pack_reader = DirectTreePackReader(
+                    self.pack_path,
+                    channel_bound=4096,
+                    byte_budget=self.parallel_inflate_byte_budget_bytes,
+                )
             else:
                 pack_reader = PackReader(self.pack_path)
 

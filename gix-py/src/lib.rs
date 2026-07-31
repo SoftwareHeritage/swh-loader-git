@@ -670,12 +670,22 @@ struct DirectTreePackReader {
 #[pymethods]
 impl DirectTreePackReader {
     #[new]
-    #[pyo3(signature = (pack_path, channel_bound=None))]
-    fn new(_py: Python<'_>, pack_path: &str, channel_bound: Option<usize>) -> PyResult<Self> {
+    #[pyo3(signature = (pack_path, channel_bound=None, byte_budget=None))]
+    fn new(
+        _py: Python<'_>,
+        pack_path: &str,
+        channel_bound: Option<usize>,
+        byte_budget: Option<usize>,
+    ) -> PyResult<Self> {
         let bound = channel_bound.unwrap_or(65536);
+        // Bytes of decoded objects allowed in flight (0 = unbounded). The
+        // default caps a pack of large blobs from piling multi-MB objects up
+        // to the message count; tune per available memory.
+        let budget = byte_budget.unwrap_or(2 * 1024 * 1024 * 1024);
         let inner = swh_loader_git_gix::DirectTreeInflater::open(
             std::path::Path::new(pack_path),
             bound,
+            budget,
         )
         .map_err(map_gix_error)?;
         Ok(DirectTreePackReader { inner })
