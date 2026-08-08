@@ -1,12 +1,13 @@
-# Copyright (C) 2023-2025  The Software Heritage developers
+# Copyright (C) 2023-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
 import os
 from pathlib import Path
-from subprocess import run
+from subprocess import CalledProcessError, TimeoutExpired, run
 import threading
+import time
 from typing import Tuple
 
 from dulwich.client import LocalGitClient
@@ -16,9 +17,12 @@ import pytest
 
 from swh.core.nar import Nar, NarHashAlgo
 from swh.loader.exception import NotFound
+from swh.loader.git import directory as git_directory
 from swh.loader.git.directory import (
     GitCheckoutLoader,
+    TreeTooLarge,
     checkout_repository_ref,
+    count_tree_entries,
     list_git_tree,
 )
 from swh.loader.tests import (
@@ -387,3 +391,281 @@ def test_loader_git_directory_without_or_with_submodule(
         status="full",
         type="git-checkout",
     )
+
+
+def _git(cmd, cwd, stdin=None) -> str:
+    """Run a git command and return its stripped standard output."""
+    proc = run(["git"] + cmd, cwd=cwd, input=stdin, check=True, capture_output=True)
+    return proc.stdout.decode().strip()
+
+
+def _make_deep_shared_tree(path: Path, levels: int = 6, fanout: int = 4) -> str:
+    """Build a small, deeply-shared tree and return its commit id.
+
+    Each level is a tree whose ``fanout`` entries all name the *same*
+    next-level tree, so the repository stays a handful of objects while the
+    checked-out tree is ``fanout ** levels`` files, plus the directories that
+    hold them. Kept small enough to check out safely if the guard fails, so a
+    regression is a failing assertion rather than a filled disk.
+    """
+    _git(["init", "--initial-branch=main", str(path)], cwd=path.parent)
+    _git(["config", "user.email", "t@example.org"], cwd=path)
+    _git(["config", "user.name", "t"], cwd=path)
+
+    # bottom of the pyramid: a single blob, reached by every path
+    blob = _git(["hash-object", "-w", "--stdin"], cwd=path, stdin=b"boom\n")
+    level = _git(["mktree"], cwd=path, stdin=f"100644 blob {blob}\tf\n".encode())
+
+    for _ in range(levels):
+        spec = "".join(f"040000 tree {level}\td{i}\n" for i in range(fanout))
+        level = _git(["mktree"], cwd=path, stdin=spec.encode())
+
+    commit = _git(["commit-tree", level, "-m", "tree"], cwd=path)
+    _git(["update-ref", "refs/heads/main", commit], cwd=path)
+    return commit
+
+
+def _inodes_on_disk(root: Path) -> int:
+    """Count what is actually on disk under ``root``, ignoring ``.git``.
+
+    The ground truth the counter is checked against: every file and every
+    directory a checkout leaves behind is one inode.
+    """
+    return sum(1 for p in root.rglob("*") if ".git" not in p.relative_to(root).parts)
+
+
+def test_count_tree_entries_counts_exactly(tmp_path):
+    """The counter must agree with what a checkout would actually write.
+
+    Asserted against the working tree itself rather than against arithmetic, so
+    the test cannot drift with the implementation: four files and one directory
+    are five inodes, and five is what the counter has to say.
+
+    The pathname with an embedded newline is the reason ``-z`` is used: without
+    it git quotes such a name and the record separator becomes ambiguous.
+    """
+    repo = tmp_path / "small"
+    repo.mkdir()
+    _git(["init", "--initial-branch=main", "."], cwd=repo)
+    _git(["config", "user.email", "t@example.org"], cwd=repo)
+    _git(["config", "user.name", "t"], cwd=repo)
+    (repo / "a").write_text("a")
+    (repo / "we\nird").write_text("w")
+    (repo / "sub").mkdir()
+    (repo / "sub" / "b").write_text("b")
+    (repo / "sub" / "c").write_text("c")
+    _git(["add", "-A"], cwd=repo)
+    _git(["commit", "-m", "x"], cwd=repo)
+
+    assert _inodes_on_disk(repo) == 5
+    assert count_tree_entries(str(repo), "HEAD", limit=100) == 5
+
+
+def test_count_tree_entries_times_out_rather_than_undercounting(tmp_path):
+    """A git that stops emitting must raise, never return a short count.
+
+    The subtle half: killing git closes the pipe, so the read returns b"" just
+    as it does at a legitimate end of output. Believing that would hand back
+    whatever had been counted so far -- an undercount, which is the one
+    direction this guard may never fail in. So a timeout has to be
+    distinguishable from EOF, and it has to raise.
+
+    Simulated with a timeout of zero rather than a wedged git, so the test is
+    deterministic and costs nothing.
+    """
+    repo = tmp_path / "shared"
+    repo.mkdir()
+    _make_deep_shared_tree(repo, levels=6, fanout=4)
+
+    with pytest.raises(TimeoutExpired):
+        count_tree_entries(str(repo), "HEAD", limit=1_000_000, timeout=0.000001)
+
+
+def test_count_tree_entries_reports_a_git_failure(tmp_path):
+    """An unresolvable revision must raise, not silently count zero."""
+    repo = tmp_path / "empty"
+    repo.mkdir()
+    _git(["init", "--initial-branch=main", "."], cwd=repo)
+
+    with pytest.raises(CalledProcessError):
+        count_tree_entries(str(repo), "no-such-ref", limit=100)
+
+
+def test_count_tree_entries_rejects_an_oversized_tree(tmp_path):
+    """9556 inodes from ~8 objects; the limit must bite.
+
+    4**6 = 4096 of those are files and the remaining 5460 are the directories
+    holding them, which is why the golden value is not a power of four.
+    """
+    repo = tmp_path / "shared"
+    repo.mkdir()
+    _make_deep_shared_tree(repo, levels=6, fanout=4)
+
+    # exact count, when we allow it
+    assert count_tree_entries(str(repo), "HEAD", limit=100_000) == 9556
+
+    # and refused, when we do not
+    with pytest.raises(TreeTooLarge):
+        count_tree_entries(str(repo), "HEAD", limit=100)
+
+
+def test_count_tree_entries_counts_directories_not_only_files(tmp_path):
+    """A tree whose cost is carried by directories must still be counted.
+
+    This is the test that fails if ``-t`` is ever dropped from the ``ls-tree``
+    invocation. The tree below holds a single file at the bottom of a chain of
+    sixty directories: leaves-only counting calls it 1, a checkout creates 61
+    inodes, and a limit of 50 has to refuse it.
+
+    Nothing about "files" bounds this shape, which is why the guard counts
+    inodes rather than blobs.
+    """
+    repo = tmp_path / "chain"
+    repo.mkdir()
+    _git(["init", "--initial-branch=main", "."], cwd=repo)
+    _git(["config", "user.email", "t@example.org"], cwd=repo)
+    _git(["config", "user.name", "t"], cwd=repo)
+
+    deep = repo.joinpath(*(f"d{i}" for i in range(60)))
+    deep.mkdir(parents=True)
+    (deep / "f").write_text("x")
+    _git(["add", "-A"], cwd=repo)
+    _git(["commit", "-m", "chain"], cwd=repo)
+
+    assert _inodes_on_disk(repo) == 61
+    assert count_tree_entries(str(repo), "HEAD", limit=1000) == 61
+
+    with pytest.raises(TreeTooLarge):
+        count_tree_entries(str(repo), "HEAD", limit=50)
+
+
+def test_count_tree_entries_is_cheap_regardless_of_expansion(tmp_path):
+    """The whole point: rejection must not depend on the expanded size.
+
+    A deeper tree has vastly more entries but the counter still stops after
+    `limit` of them, so the two rejections cost about the same.
+    """
+    repo = tmp_path / "deep"
+    repo.mkdir()
+    _make_deep_shared_tree(repo, levels=12, fanout=4)  # 39M inodes, 8 objects
+
+    t0 = time.monotonic()
+    with pytest.raises(TreeTooLarge):
+        count_tree_entries(str(repo), "HEAD", limit=1000)
+    elapsed = time.monotonic() - t0
+    # generous bound: this is about not being O(expanded), not a benchmark
+    assert elapsed < 30, f"rejection took {elapsed:.1f}s -- is it streaming?"
+
+
+def test_checkout_refuses_an_oversized_tree_without_writing_it(tmp_path):
+    """End to end: the tree is refused and nothing is materialised."""
+    remote = tmp_path / "remote"
+    remote.mkdir()
+    _make_deep_shared_tree(remote, levels=6, fanout=4)
+
+    target = tmp_path / "target"
+    target.mkdir()
+    with pytest.raises(TreeTooLarge):
+        checkout_repository_ref(
+            f"file://{remote}", "main", target=target, max_tree_entries=100
+        )
+
+    # the working tree was never written: only .git exists under the clone
+    clone = target / "remote"
+    materialised = [p for p in clone.rglob("*") if ".git" not in p.parts]
+    assert materialised == [], f"checkout wrote {len(materialised)} paths anyway"
+
+
+def test_checkout_still_works_under_the_limit(tmp_path):
+    """The guard must not break ordinary repositories."""
+    remote = tmp_path / "ok-remote"
+    remote.mkdir()
+    _make_deep_shared_tree(remote, levels=3, fanout=2)  # 22 inodes
+
+    target = tmp_path / "ok-target"
+    target.mkdir()
+    path = checkout_repository_ref(
+        f"file://{remote}", "main", target=target, max_tree_entries=1000
+    )
+    assert (path / "d0" / "d0" / "d0" / "f").exists()
+
+
+def test_checkout_still_works_when_the_shallow_fetch_fails(tmp_path, mocker):
+    """The full-fetch fallback must keep working.
+
+    On that path no local branch exists yet, only ``refs/remotes/origin/main``.
+    ``git checkout main`` resolves it anyway, but plumbing such as
+    ``git ls-tree`` does not, so the entry count has to resolve the ref first.
+    """
+    remote = tmp_path / "fallback-remote"
+    remote.mkdir()
+    _make_deep_shared_tree(remote, levels=3, fanout=2)  # 22 inodes
+
+    # force the `git fetch --depth 1` attempt to fail, without touching the
+    # other git invocations
+    real_check_output = git_directory.check_output
+
+    def fail_shallow_fetch(cmd, *args, **kwargs):
+        if "--depth" in cmd:
+            raise CalledProcessError(1, cmd, stderr=b"shallow not supported\n")
+        return real_check_output(cmd, *args, **kwargs)
+
+    mocker.patch.object(git_directory, "check_output", side_effect=fail_shallow_fetch)
+
+    target = tmp_path / "fallback-target"
+    target.mkdir()
+    path = checkout_repository_ref(f"file://{remote}", "main", target=target)
+    assert (path / "d0" / "d0" / "d0" / "f").exists()
+
+
+def test_checkout_does_not_report_a_timeout_as_not_found(tmp_path, mocker):
+    """A timeout must surface as a failure, never as a ``not_found`` visit.
+
+    ``subprocess.TimeoutExpired`` is a sibling of ``CalledProcessError``, not a
+    subclass, so it flows past the ``except CalledProcessError`` handler that
+    translates unreachable remotes into :exc:`NotFound`.
+    """
+    remote = tmp_path / "slow-remote"
+    remote.mkdir()
+    _make_deep_shared_tree(remote, levels=3, fanout=2)
+
+    mocker.patch.object(
+        git_directory,
+        "check_output",
+        side_effect=TimeoutExpired(cmd=["git"], timeout=1),
+    )
+
+    target = tmp_path / "slow-target"
+    target.mkdir()
+    with pytest.raises(TimeoutExpired):
+        checkout_repository_ref(f"file://{remote}", "main", target=target)
+
+
+def test_loader_threads_the_limits_down_to_the_checkout(swh_storage, tmp_path, mocker):
+    """The constructor kwargs must reach `checkout_repository_ref`.
+
+    They are how an operator tunes the guard: `from_configfile` passes anything
+    in the loader configuration through to `__init__`.
+    """
+    remote = tmp_path / "kwargs-remote"
+    remote.mkdir()
+    _make_deep_shared_tree(remote, levels=6, fanout=4)  # 9556 inodes
+
+    loader = GitCheckoutLoader(
+        swh_storage,
+        f"file://{remote}",
+        ref="main",
+        checksum_layout="standard",
+        checksums={},
+        max_tree_entries="100",  # a string, as a YAML config would give it
+        git_timeout="120",
+    )
+    assert loader.max_tree_entries == 100
+    assert loader.git_timeout == 120
+
+    spy = mocker.spy(git_directory, "checkout_repository_ref")
+
+    result = loader.load()
+    assert result["status"] == "failed"
+    assert spy.call_args.kwargs["max_tree_entries"] == 100
+    assert spy.call_args.kwargs["timeout"] == 120
