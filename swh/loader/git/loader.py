@@ -32,8 +32,17 @@ from dulwich.client import BundleClient, FetchPackResult
 from dulwich.errors import NotGitRepository
 from dulwich.object_format import SHA1
 from dulwich.object_store import ObjectStoreGraphWalker
-from dulwich.objects import Blob, Commit, ObjectID, ShaFile, Tag, Tree, sha_to_hex
-from dulwich.pack import PackData, PackInflater
+from dulwich.objects import (
+    Blob,
+    Commit,
+    ObjectID,
+    ShaFile,
+    Tag,
+    Tree,
+    object_class,
+    sha_to_hex,
+)
+from dulwich.pack import PackData, UnpackedObjectIterator
 from dulwich.refs import Ref
 import requests
 import urllib3.util
@@ -619,17 +628,23 @@ class GitLoader(BaseGitLoader):
     def iter_objects(self, object_type: bytes) -> Iterator[ShaFile]:
         """Read all the objects of type `object_type` from the packfile"""
         if self.pack_data:
+            object_cls = object_class(object_type)
+            assert object_cls is not None, f"Unknown object type {object_type!r}"
 
             self.pack_buffer.seek(0)
             count = 0
 
             start_time = time.monotonic()
-            obj_iter = iter(
-                PackInflater.for_pack_data(
-                    self.pack_data,
-                    resolve_ext_ref=self._resolve_ext_ref,
-                )
+            # Using UnpackedObjectIterator instead of PackInflater to avoid unnecessary
+            # deserializations, as we discard 75% of objects without reading them.
+
+            # Note: delta_chain_iterator is actually not an iterator, but an iterable
+            delta_chain_iterator = UnpackedObjectIterator.for_pack_data(
+                self.pack_data,
+                resolve_ext_ref=self._resolve_ext_ref,
             )
+            object_format = delta_chain_iterator._object_format
+            obj_iter = iter(delta_chain_iterator)
             total_time_inflate_packfile = time.monotonic() - start_time
 
             while True:
@@ -637,8 +652,15 @@ class GitLoader(BaseGitLoader):
 
                 # batch pack inflation to avoid too many time.monotonic() calls
                 start_time = time.monotonic()
-                for obj in obj_iter:
-                    if obj.type_name == object_type:
+                for unpacked_obj in obj_iter:
+                    assert unpacked_obj.obj_type_num is not None
+                    assert unpacked_obj.obj_chunks is not None
+                    if unpacked_obj.obj_type_num == object_cls.type_num:
+                        assert unpacked_obj.obj_chunks is not None
+                        obj = object_cls()
+                        obj.set_raw_chunks(
+                            unpacked_obj.obj_chunks, object_format=object_format
+                        )
                         objs.append(obj)
                         if len(objs) > 1000:
                             break
