@@ -4,6 +4,7 @@
 # See top-level LICENSE file for more information
 
 from collections import defaultdict
+import contextlib
 from dataclasses import dataclass
 import datetime
 import json
@@ -280,7 +281,7 @@ class GitLoader(BaseGitLoader):
             fetch_pack_logger=fetch_pack_logger,
         )
 
-        def fetch_pack() -> FetchPackResult:
+        def fetch_pack(path: str) -> FetchPackResult:
             return client.fetch_pack(
                 path.encode(),
                 base_repo.determine_wants,
@@ -296,34 +297,35 @@ class GitLoader(BaseGitLoader):
                 int(head_response.headers.get("content-length", 0)),
             )
 
-        try:
-            pack_result = fetch_pack()
-        except NotGitRepository:
-            if transport_url.startswith(("https://", "http://")):
-                content_type, content_length = url_content_info(transport_url)
-                # origin URL could target a git bundle file so we fetch it and switch to
-                # BundleClient before attempting a new fetch_pack operation
-                if content_type == "application/octet-stream":
-                    if content_length > self.pack_size_bytes:
-                        raise IOError(
-                            f"Bundle file {transport_url} too big, "
-                            f"limit is {self.pack_size_bytes} bytes"
-                        )
+        with contextlib.ExitStack() as exit_stack:
+            try:
+                pack_result = fetch_pack(path)
+            except NotGitRepository:
+                if transport_url.startswith(("https://", "http://")):
+                    content_type, content_length = url_content_info(transport_url)
+                    # origin URL could target a git bundle file so we fetch it and switch to
+                    # BundleClient before attempting a new fetch_pack operation
+                    if content_type == "application/octet-stream":
+                        if content_length > self.pack_size_bytes:
+                            raise IOError(
+                                f"Bundle file {transport_url} too big, "
+                                f"limit is {self.pack_size_bytes} bytes"
+                            )
+                        client = BundleClient()
+                        bundle_buffer = exit_stack.enter_context(NamedTemporaryFile())
+                        resp = requests.get(transport_url, stream=True)
+                        for data in resp.iter_content(chunk_size=32768):
+                            bundle_buffer.write(data)
+                        bundle_buffer.flush()
+                        path = bundle_buffer.name
+                elif transport_url.startswith("file://"):
+                    # local file might target a git bundle
                     client = BundleClient()
-                    bundle_buffer = NamedTemporaryFile()
-                    resp = requests.get(transport_url, stream=True)
-                    for data in resp.iter_content(chunk_size=32768):
-                        bundle_buffer.write(data)
-                    bundle_buffer.seek(0)
-                    path = bundle_buffer.name
-            elif transport_url.startswith("file://"):
-                # local file might target a git bundle
-                client = BundleClient()
 
-            if isinstance(client, BundleClient):
-                pack_result = fetch_pack()
-            else:
-                raise
+                if isinstance(client, BundleClient):
+                    pack_result = fetch_pack(path)
+                else:
+                    raise
 
         remote_refs = pack_result.refs or {}
         symbolic_refs = pack_result.symrefs or {}
