@@ -659,7 +659,12 @@ class GitLoader(BaseGitLoader):
                         assert unpacked_obj.obj_chunks is not None
                         obj = object_cls()
                         obj.set_raw_chunks(
-                            unpacked_obj.obj_chunks, object_format=object_format
+                            unpacked_obj.obj_chunks,
+                            object_format=object_format,
+                            # 'sha' is optional, but if we compute it here with
+                            # unpacked_obj.sha() then it's cached in unpacked_obj, and
+                            # DeltaChainIterator._follow_chain can reuse the value.
+                            sha=sha_to_hex(unpacked_obj.sha()),
                         )
                         objs.append(obj)
                         if len(objs) > 1000:
