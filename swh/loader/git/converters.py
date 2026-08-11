@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2025  The Software Heritage developers
+# Copyright (C) 2015-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -133,9 +133,9 @@ def dulwich_tree_to_directory(obj: ShaFile) -> Directory:
         entries=tuple(entries),
     )
 
-    if dir_.compute_hash() != dir_.id:
+    actual_id = dir_.compute_hash()
+    if actual_id != dir_.id:
         expected_id = dir_.id
-        actual_id = dir_.compute_hash()
         logger.warning(
             "Expected directory to have id %s, but got %s. Recording raw_manifest.",
             hash_to_hex(expected_id),
@@ -145,8 +145,8 @@ def dulwich_tree_to_directory(obj: ShaFile) -> Directory:
         dir_ = attr.evolve(
             dir_, raw_manifest=git_object_header("tree", len(raw_string)) + raw_string
         )
+        check_id(dir_)
 
-    check_id(dir_)
     return dir_
 
 
@@ -240,9 +240,9 @@ def dulwich_commit_to_revision(obj: ShaFile) -> Revision:
         parents=tuple(bytes.fromhex(p.decode()) for p in commit.parents),
     )
 
-    if rev.compute_hash() != rev.id:
+    actual_id = rev.compute_hash()
+    if actual_id != rev.id:
         expected_id = rev.id
-        actual_id = rev.compute_hash()
         logger.warning(
             "Expected revision to have id %s, but got %s. Recording raw_manifest.",
             hash_to_hex(expected_id),
@@ -252,8 +252,8 @@ def dulwich_commit_to_revision(obj: ShaFile) -> Revision:
         rev = attr.evolve(
             rev, raw_manifest=git_object_header("commit", len(raw_string)) + raw_string
         )
+        check_id(rev)
 
-    check_id(rev)
     return rev
 
 
@@ -318,9 +318,9 @@ def dulwich_tag_to_release(obj: ShaFile) -> Release:
         synthetic=False,
     )
 
-    if rel.compute_hash() != rel.id:
+    actual_id = rel.compute_hash()
+    if actual_id != rel.id:
         expected_id = rel.id
-        actual_id = rel.compute_hash()
         logger.warning(
             "Expected release to have id %s, but got %s. Recording raw_manifest.",
             hash_to_hex(expected_id),
@@ -330,6 +330,6 @@ def dulwich_tag_to_release(obj: ShaFile) -> Release:
         rel = attr.evolve(
             rel, raw_manifest=git_object_header("tag", len(raw_string)) + raw_string
         )
+        check_id(rel)
 
-    check_id(rel)
     return rel
