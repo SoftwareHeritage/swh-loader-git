@@ -776,7 +776,12 @@ class GitLoader(BaseGitLoader):
             storage_summary.update(self.flush())
 
         if self.pack_size > 0:
-            from swh.loader.git._gix import DirectTreePackReader, PackReader
+            from swh.loader.git._gix import (
+                DirectTreePackReader,
+                GixTraverseError,
+                PackReader,
+                ParallelPackReader,
+            )
 
             # Use parallel inflation for packs above the configured threshold.
             # DirectTreePackReader does index-less parallel delta-tree traversal
@@ -784,9 +789,11 @@ class GitLoader(BaseGitLoader):
             # *bytes* in flight (parallel_inflate_byte_budget_bytes) rather than
             # the channel's message count, so a pack of large blobs cannot pile
             # thousands of multi-MB objects up to the count and blow up memory.
-            # It requires a self-contained OFS_DELTA pack (what our fetch
-            # produces); a REF_DELTA pack raises GixTraverseError and is routed
-            # to the dulwich fallback like any other gix-rejected input.
+            # It handles OFS_DELTA packs (what our fetch produces). A pack that
+            # still carries in-pack REF_DELTA entries makes DirectTree raise
+            # GixTraverseError during its Phase-1 scan, before any object is
+            # yielded; we catch that in the loop below and restart the pack with
+            # ParallelPackReader, which resolves ref-deltas via git index-pack.
             pack_reader: Iterable
             if self.pack_size > self.parallel_pack_threshold_bytes:
                 pack_reader = DirectTreePackReader(
@@ -806,6 +813,8 @@ class GitLoader(BaseGitLoader):
             # per-object processing.
             total_inflate_time = 0.0
             reader_iter = iter(pack_reader)
+            objects_seen = 0
+            fell_back = False
             while True:
                 t0 = time.monotonic()
                 try:
@@ -813,7 +822,28 @@ class GitLoader(BaseGitLoader):
                 except StopIteration:
                     total_inflate_time += time.monotonic() - t0
                     break
+                except GixTraverseError:
+                    # In-pack REF_DELTA: DirectTreePackReader only handles
+                    # OFS_DELTA and raises during its Phase-1 scan, before any
+                    # object is yielded. ParallelPackReader resolves ref-deltas
+                    # (via git index-pack), so restart this pack with it. Only
+                    # safe before any object has been emitted; otherwise
+                    # re-raise rather than risk re-emitting stored objects.
+                    total_inflate_time += time.monotonic() - t0
+                    if fell_back or objects_seen > 0:
+                        raise
+                    assert self.origin is not None
+                    logger.warning(
+                        "DirectTreePackReader hit an in-pack ref-delta for "
+                        "%s; restarting the pack with ParallelPackReader.",
+                        self.origin.url,
+                    )
+                    pack_reader = ParallelPackReader(self.pack_path, channel_bound=4096)
+                    reader_iter = iter(pack_reader)
+                    fell_back = True
+                    continue
                 total_inflate_time += time.monotonic() - t0
+                objects_seen += 1
 
                 type_name, model_obj = self._convert_object(obj_tuple)
                 counts[type_name] += 1
