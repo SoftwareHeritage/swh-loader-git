@@ -191,6 +191,7 @@ class GitLoader(BaseGitLoader):
         temp_file_cutoff: int = 100 * 1024 * 1024,
         parallel_pack_threshold_bytes: int = 100 * 1000 * 1000,
         parallel_inflate_byte_budget_bytes: int = 2 * 1024 * 1024 * 1024,
+        parallel_inflate_thread_limit: Optional[int] = None,
         connect_timeout: float = 120,
         read_timeout: float = 600,
         verify_certs: bool = True,
@@ -219,6 +220,10 @@ class GitLoader(BaseGitLoader):
         self.temp_file_cutoff = temp_file_cutoff
         self.parallel_pack_threshold_bytes = parallel_pack_threshold_bytes
         self.parallel_inflate_byte_budget_bytes = parallel_inflate_byte_budget_bytes
+        # None = let gix (Rayon) use every core for parallel inflation; set a
+        # positive cap to keep a worker from oversubscribing a shared node when
+        # many loaders run side by side.
+        self.parallel_inflate_thread_limit = parallel_inflate_thread_limit
         # state initialized in fetch_data
         self.remote_refs: Dict[bytes, bytes] = {}
         self.symbolic_refs: Dict[bytes, bytes] = {}
@@ -800,6 +805,7 @@ class GitLoader(BaseGitLoader):
                     self.pack_path,
                     channel_bound=4096,
                     byte_budget=self.parallel_inflate_byte_budget_bytes,
+                    thread_limit=self.parallel_inflate_thread_limit,
                 )
             else:
                 pack_reader = PackReader(self.pack_path)
@@ -838,7 +844,11 @@ class GitLoader(BaseGitLoader):
                         "%s; restarting the pack with ParallelPackReader.",
                         self.origin.url,
                     )
-                    pack_reader = ParallelPackReader(self.pack_path, channel_bound=4096)
+                    pack_reader = ParallelPackReader(
+                        self.pack_path,
+                        channel_bound=4096,
+                        thread_limit=self.parallel_inflate_thread_limit,
+                    )
                     reader_iter = iter(pack_reader)
                     fell_back = True
                     continue

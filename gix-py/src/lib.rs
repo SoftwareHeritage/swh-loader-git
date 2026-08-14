@@ -536,12 +536,20 @@ struct ParallelPackReader {
 #[pymethods]
 impl ParallelPackReader {
     #[new]
-    #[pyo3(signature = (pack_path, channel_bound=None))]
-    fn new(_py: Python<'_>, pack_path: &str, channel_bound: Option<usize>) -> PyResult<Self> {
+    #[pyo3(signature = (pack_path, channel_bound=None, thread_limit=None))]
+    fn new(
+        _py: Python<'_>,
+        pack_path: &str,
+        channel_bound: Option<usize>,
+        thread_limit: Option<usize>,
+    ) -> PyResult<Self> {
         let bound = channel_bound.unwrap_or(65536);
-        let inner =
-            swh_loader_git_gix::ParallelInflater::open(std::path::Path::new(pack_path), bound)
-                .map_err(map_gix_error)?;
+        let inner = swh_loader_git_gix::ParallelInflater::open(
+            std::path::Path::new(pack_path),
+            bound,
+            thread_limit,
+        )
+        .map_err(map_gix_error)?;
         Ok(ParallelPackReader { inner })
     }
 
@@ -670,12 +678,13 @@ struct DirectTreePackReader {
 #[pymethods]
 impl DirectTreePackReader {
     #[new]
-    #[pyo3(signature = (pack_path, channel_bound=None, byte_budget=None))]
+    #[pyo3(signature = (pack_path, channel_bound=None, byte_budget=None, thread_limit=None))]
     fn new(
         _py: Python<'_>,
         pack_path: &str,
         channel_bound: Option<usize>,
         byte_budget: Option<usize>,
+        thread_limit: Option<usize>,
     ) -> PyResult<Self> {
         let bound = channel_bound.unwrap_or(65536);
         // Bytes of decoded objects allowed in flight (0 = unbounded). The
@@ -686,6 +695,7 @@ impl DirectTreePackReader {
             std::path::Path::new(pack_path),
             bound,
             budget,
+            thread_limit,
         )
         .map_err(map_gix_error)?;
         Ok(DirectTreePackReader { inner })

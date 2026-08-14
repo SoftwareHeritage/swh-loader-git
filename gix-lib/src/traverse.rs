@@ -71,7 +71,11 @@ impl ParallelInflater {
     /// in parallel, sending results through a bounded channel.
     ///
     /// `channel_bound` controls the bounded channel capacity (back-pressure).
-    pub fn open(pack_path: &Path, channel_bound: usize) -> Result<Self> {
+    pub fn open(
+        pack_path: &Path,
+        channel_bound: usize,
+        thread_limit: Option<usize>,
+    ) -> Result<Self> {
         // Step 1: generate pack index via git index-pack (skip if .idx already exists).
         let idx_path = pack_path.with_extension("idx");
         if idx_path.exists() {
@@ -107,7 +111,12 @@ impl ParallelInflater {
             // reports end-of-channel, and the consumer would mistake a
             // half-processed pack for a complete one.
             let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                run_indexed_traverse(&pack_path_owned, &idx_path_owned, sender.clone())
+                run_indexed_traverse(
+                    &pack_path_owned,
+                    &idx_path_owned,
+                    sender.clone(),
+                    thread_limit,
+                )
             }));
             match outcome {
                 Ok(Ok(())) => {}
@@ -181,6 +190,7 @@ fn run_indexed_traverse(
     pack_path: &Path,
     idx_path: &Path,
     output_sender: std::sync::mpsc::SyncSender<Result<TypedObject>>,
+    thread_limit: Option<usize>,
 ) -> Result<()> {
     let index = gix_pack::index::File::at(idx_path, gix_hash::Kind::Sha1)
         .context("failed to open pack index")?;
@@ -278,7 +288,7 @@ fn run_indexed_traverse(
             &mut progress,
             &should_interrupt,
             gix_pack::index::traverse::with_index::Options {
-                thread_limit: None, // use all available cores
+                thread_limit, // None = all cores; Some(n) caps the Rayon pool
                 check: gix_pack::index::traverse::SafetyCheck::SkipFileAndObjectChecksumVerification,
             },
         )
@@ -407,6 +417,7 @@ impl DirectTreeInflater {
         pack_path: &Path,
         channel_bound: usize,
         byte_budget: usize,
+        thread_limit: Option<usize>,
     ) -> Result<Self> {
         let (sender, receiver) = std::sync::mpsc::sync_channel(channel_bound);
         let budget = Arc::new(ByteBudget::new(byte_budget));
@@ -421,6 +432,7 @@ impl DirectTreeInflater {
                     &pack_path_owned,
                     sender.clone(),
                     &budget_producer,
+                    thread_limit,
                 )
             }));
             match outcome {
@@ -479,6 +491,7 @@ fn run_direct_tree_traverse(
     pack_path: &Path,
     output_sender: std::sync::mpsc::SyncSender<Result<TypedObject>>,
     budget: &Arc<ByteBudget>,
+    thread_limit: Option<usize>,
 ) -> Result<()> {
     // Open the memory-mapped pack (used by traverse for random-access reads).
     let pack = gix_pack::data::File::at(pack_path, gix_hash::Kind::Sha1)
@@ -657,7 +670,7 @@ fn run_direct_tree_traverse(
         gix_pack::cache::delta::traverse::Options {
             object_progress: Box::new(gix_features::progress::Discard),
             size_progress: &mut gix_features::progress::Discard,
-            thread_limit: None, // use all available cores
+            thread_limit, // None = all cores; Some(n) caps the Rayon pool
             should_interrupt: &should_interrupt,
             object_hash: gix_hash::Kind::Sha1,
         },
