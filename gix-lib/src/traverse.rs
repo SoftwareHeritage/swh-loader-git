@@ -376,9 +376,10 @@ impl DirectTreeInflater {
 ///
 /// Phase 1 (sequential): Iterate pack entries with `BytesToEntriesIter` using
 /// `Mode::AsIs` + `EntryDataMode::Ignore` — this inflates compressed data to
-/// /dev/null just to find entry boundaries.  For each entry, we read the header
-/// (type + base distance for deltas) and build the tree directly via
-/// `Tree::add_root()` / `Tree::add_child()`.
+/// /dev/null just to find entry boundaries — and collect every object's pack
+/// offset.  The delta dependency tree is then built with the public,
+/// index-less `Tree::from_offsets_in_pack()` entry point (merged upstream as
+/// GitoxideLabs/gitoxide#2923).
 ///
 /// Phase 2 (parallel): `tree.traverse()` decompresses every object using
 /// work-stealing threads, calling our processor to hash, parse, and send
@@ -391,7 +392,14 @@ fn run_direct_tree_traverse(
     let pack = gix_pack::data::File::at(pack_path, gix_hash::Kind::Sha1)
         .context("failed to open pack data file")?;
 
-    // Phase 1: streaming scan to build delta tree.
+    // Phase 1a: streaming header scan to enumerate every object's pack offset.
+    //
+    // `from_offsets_in_pack` (the public, index-less tree builder) needs the
+    // list of pack offsets in ascending order.  `BytesToEntriesIter` with
+    // `Mode::AsIs` + `EntryDataMode::Ignore` walks the pack in offset order,
+    // inflating compressed data to /dev/null only to find entry boundaries.
+    // We reject ref-delta packs here so the caller gets a clear message
+    // instead of the generic `UnresolvedRefDelta` the tree builder would raise.
     let scan_start = Instant::now();
     let reader = std::io::BufReader::with_capacity(
         64 * 1024,
@@ -406,43 +414,31 @@ fn run_direct_tree_traverse(
     )
     .context("failed to create pack entry iterator")?;
 
-    let num_objects = iter.size_hint().1.unwrap_or(0);
-    let mut tree = gix_pack::cache::delta::Tree::with_capacity(num_objects)
-        .context("failed to allocate delta tree")?;
-
+    let mut offsets: Vec<u64> = Vec::with_capacity(iter.size_hint().1.unwrap_or(0));
     for entry_result in iter {
         let entry = entry_result.map_err(|e| anyhow::anyhow!("pack scan: {e}"))?;
-        let offset = entry.pack_offset;
 
         use gix_pack::data::entry::Header::*;
         match entry.header {
-            Tree | Blob | Commit | Tag => {
-                tree.add_root(offset, ())?;
-            }
-            OfsDelta { base_distance } => {
-                let base_offset = offset
-                    .checked_sub(base_distance)
-                    .ok_or_else(|| {
-                        anyhow::anyhow!(
-                            "ofs-delta at offset {offset}: base_distance {base_distance} exceeds offset"
-                        )
-                    })?;
-                tree.add_child(base_offset, offset, ())?;
+            Tree | Blob | Commit | Tag | OfsDelta { .. } => {
+                offsets.push(entry.pack_offset);
             }
             RefDelta { base_id } => {
                 // In-pack REF_DELTA bases are handled by ParallelInflater
                 // (git index-pack resolves them regardless of delta
-                // encoding).  External bases (thin packs) are supported by
-                // NO inflation path — which is why fetch.rs never
-                // negotiates the thin-pack capability in the first place.
+                // encoding).  External bases (thin packs) have no inflation
+                // path here — which is why fetch.rs never negotiates the
+                // thin-pack capability in the first place.
                 anyhow::bail!(
-                    "ref-delta at offset {offset} (base {base_id}): direct tree traversal \
+                    "ref-delta at offset {} (base {base_id}): direct tree traversal \
                      requires a self-contained ofs-delta pack. Use ParallelInflater for \
-                     packs containing ref-delta entries."
+                     packs containing ref-delta entries.",
+                    entry.pack_offset
                 );
             }
         }
     }
+    let num_objects = offsets.len();
     let scan_elapsed = scan_start.elapsed();
     eprintln!(
         "[direct-tree stats] scan={:.1}s objects={}",
@@ -450,15 +446,37 @@ fn run_direct_tree_traverse(
         num_objects,
     );
 
-    // Phase 2: parallel traversal.
+    // Phase 1b: build the delta dependency tree from the collected offsets via
+    // the public `from_offsets_in_pack` API.  Offsets are already ascending
+    // (pack order); each node carries its own offset as data and
+    // `get_pack_offset` is the identity.  `resolve_in_pack_id` returns `None`
+    // because a self-contained ofs-delta pack never needs ref-delta base
+    // resolution (ref-deltas are rejected in phase 1a).
     let should_interrupt = AtomicBool::new(false);
+    let build_start = Instant::now();
+    let tree = gix_pack::cache::delta::Tree::from_offsets_in_pack(
+        pack_path,
+        offsets.into_iter(),
+        &|offset: &u64| *offset,
+        &|_id| None,
+        &mut gix_features::progress::Discard,
+        &should_interrupt,
+        gix_hash::Kind::Sha1,
+    )
+    .context("failed to build delta tree from pack offsets")?;
+    eprintln!(
+        "[direct-tree stats] tree_build={:.1}s",
+        build_start.elapsed().as_secs_f64(),
+    );
+
+    // Phase 2: parallel traversal.
     let stats = Arc::new(TraverseStats::new());
     let sender = output_sender;
 
     let processor = {
         let sender = sender.clone();
         let stats = Arc::clone(&stats);
-        move |_data: &mut (),
+        move |_data: &mut u64,
               _progress: &dyn gix_features::progress::Progress,
               ctx: gix_pack::cache::delta::traverse::Context<'_>|
               -> std::result::Result<(), TraverseProcessorError> {
