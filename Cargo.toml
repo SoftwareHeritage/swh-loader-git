@@ -16,15 +16,18 @@ swh-loader-git-gix = { path = "./gix-lib" }
 # commit 7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba on the
 # `swh/expose-delta-tree` branch.
 #
-# The fork carries a single 1-line visibility change on top of
-# upstream's release line: "Make cache::delta module public for
-# external pack traversal" — needed ONLY by `run_direct_tree_traverse`
-# in `gix-lib/src/traverse.rs` (the `DirectTreeInflater` engine, cf.
-# `gix_pack::cache::delta::{Tree, traverse}` references).  The
-# production inflation paths (`PackReader` sequential decode,
-# `ParallelInflater` via `git index-pack` + the already-public
-# `gix_pack::index::traverse`) do NOT need the patch: DirectTreeInflater
-# is currently exercised by the benchmark harness only.
+# The fork exposes the index-less delta-tree traversal on top of
+# upstream's release line (`pub mod cache::delta` + the public
+# `Tree::from_offsets_in_pack`) — needed ONLY by
+# `run_direct_tree_traverse` in `gix-lib/src/traverse.rs` (the
+# `DirectTreeInflater` engine, cf. the `gix_pack::cache::delta::{Tree,
+# traverse}` references).  Our loader now calls the public
+# `Tree::from_offsets_in_pack` entry point, i.e. exactly the public API
+# that landed upstream (see the merge note below), so no fork-only
+# method is used.  The production inflation paths (`PackReader`
+# sequential decode, `ParallelInflater` via `git index-pack` + the
+# already-public `gix_pack::index::traverse`) do NOT need the patch:
+# DirectTreeInflater is currently exercised by the benchmark harness only.
 #
 # Why ALL 25 entries instead of just gix-pack: when cargo patches a
 # single crate via git, the patched crate pulls its sibling deps from
@@ -33,9 +36,18 @@ swh-loader-git-gix = { path = "./gix-lib" }
 # workspace, etc.). Patching the whole gix-* family at the same commit
 # keeps cargo's resolver happy with a single coherent version set.
 #
-# Tracked as a follow-up: upstream the visibility change to
-# GitoxideLabs and, once a gix-pack release includes it, drop this
-# entire patch section and use the crates.io versions.
+# Status: the index-less traversal API is now MERGED upstream as
+# GitoxideLabs/gitoxide#2923 (merge commit c4426f0, 2026-08-17).
+# Upstream exposes the same public entry point our loader uses,
+# `Tree::from_offsets_in_pack` (the manual `add_root`/`add_child`
+# builders stay pub(crate) upstream — which is why we migrated off
+# them).  It is not yet in a crates.io gix-pack release: the latest
+# published gix-pack is 0.73.0 (2026-07-23), predating the merge.
+# Until a release ships the API, this patch keeps pointing at our fork
+# branch, which mirrors the merged contract at our current 0.68 base.
+# When a gix-pack release includes it, drop this entire patch section
+# and bump the crates.io versions in gix-lib/Cargo.toml — no source
+# change is then required, since the public API is identical.
 [patch.crates-io]
 gix-pack = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
 gix-hash = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
