@@ -11,70 +11,55 @@ version = "0.1.0"
 pyo3 = { version = "0.25", features = ["abi3-py39", "extension-module"] }
 swh-loader-git-gix = { path = "./gix-lib" }
 
-# All gix-* crates patched to a public SWH fork of GitoxideLabs/gitoxide
-# (https://gitlab.softwareheritage.org/swh/devel/gitoxide), pinned to
-# commit 7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba on the
-# `swh/expose-delta-tree` branch.
+# All gix-* crates patched to UPSTREAM GitoxideLabs/gitoxide, pinned to
+# merge commit c4426f034d5423c66cc5c15725587d9688deada3 on `main`.
 #
-# The fork exposes the index-less delta-tree traversal on top of
-# upstream's release line (`pub mod cache::delta` + the public
-# `Tree::from_offsets_in_pack`) — needed ONLY by
-# `run_direct_tree_traverse` in `gix-lib/src/traverse.rs` (the
-# `DirectTreeInflater` engine, cf. the `gix_pack::cache::delta::{Tree,
-# traverse}` references).  Our loader now calls the public
-# `Tree::from_offsets_in_pack` entry point, i.e. exactly the public API
-# that landed upstream (see the merge note below), so no fork-only
-# method is used.  The production inflation paths (`PackReader`
-# sequential decode, `ParallelInflater` via `git index-pack` + the
-# already-public `gix_pack::index::traverse`) do NOT need the patch:
-# DirectTreeInflater is currently exercised by the benchmark harness only.
+# This is the index-less parallel pack traversal we contributed and got
+# merged as GitoxideLabs/gitoxide#2923 (2026-08-17): `pub mod
+# cache::delta` + the public `Tree::from_offsets_in_pack`, which the
+# direct-tree traversal in `gix-lib/src/traverse.rs` calls (cf. the
+# `gix_pack::cache::delta::{Tree, traverse}` references).  We no longer
+# maintain an SWH fork of gitoxide -- this consumes upstream unmodified.
 #
-# Why ALL 25 entries instead of just gix-pack: when cargo patches a
-# single crate via git, the patched crate pulls its sibling deps from
-# its own workspace, which causes version drift against the rest of the
-# graph (gix-hash 0.23.0 on crates.io vs gix-hash from the fork
-# workspace, etc.). Patching the whole gix-* family at the same commit
-# keeps cargo's resolver happy with a single coherent version set.
+# Why a git pin rather than crates.io: the merge is not yet in a
+# published gix-pack release (latest is 0.73.0, 2026-07-23, predating
+# the merge).  As soon as a release ships #2923, delete this entire
+# [patch] section and rely on the crates.io versions already declared in
+# gix-lib/Cargo.toml -- no source change is then required.
 #
-# Status: the index-less traversal API is now MERGED upstream as
-# GitoxideLabs/gitoxide#2923 (merge commit c4426f0, 2026-08-17).
-# Upstream exposes the same public entry point our loader uses,
-# `Tree::from_offsets_in_pack` (the manual `add_root`/`add_child`
-# builders stay pub(crate) upstream — which is why we migrated off
-# them).  It is not yet in a crates.io gix-pack release: the latest
-# published gix-pack is 0.73.0 (2026-07-23), predating the merge.
-# Until a release ships the API, this patch keeps pointing at our fork
-# branch, which mirrors the merged contract at our current 0.68 base.
-# When a gix-pack release includes it, drop this entire patch section
-# and bump the crates.io versions in gix-lib/Cargo.toml — no source
-# change is then required, since the public API is identical.
+# Why ALL gix-* entries rather than just gix-pack: when cargo patches a
+# single crate via git, that crate pulls its sibling deps from its own
+# workspace, causing version drift against the rest of the graph.
+# Patching the whole gix-* family at the same commit keeps cargo's
+# resolver on a single coherent version set.
 [patch.crates-io]
-gix-pack = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
-gix-hash = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
-gix-object = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
-gix-features = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
-gix-chunk = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
-gix-error = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
-gix-path = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
-gix-hashtable = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
-gix-tempfile = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
-gix-actor = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
-gix-date = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
-gix-validate = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
-gix-utils = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
-gix-trace = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
-gix-fs = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
-gix-glob = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
-gix-url = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
-gix-transport = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
-gix-protocol = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
-gix-packetline = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
-gix-sec = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
-gix-command = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
-gix-quote = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
-gix-credentials = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
-gix-prompt = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
-gix-config-value = { git = "https://gitlab.softwareheritage.org/swh/devel/gitoxide.git", rev = "7b7ae4d520a10cb29c79cabb7f1a82e333ee86ba" }
+gix-pack = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
+gix-hash = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
+gix-object = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
+gix-features = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
+gix-chunk = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
+gix-error = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
+gix-path = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
+gix-hashtable = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
+gix-tempfile = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
+gix-actor = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
+gix-date = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
+gix-validate = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
+gix-utils = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
+gix-trace = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
+gix-fs = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
+gix-glob = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
+gix-url = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
+gix-transport = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
+gix-protocol = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
+gix-packetline = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
+gix-sec = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
+gix-command = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
+gix-quote = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
+gix-credentials = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
+gix-prompt = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
+gix-config-value = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
+gix-zlib = { git = "https://github.com/GitoxideLabs/gitoxide.git", rev = "c4426f034d5423c66cc5c15725587d9688deada3" }
 
 [profile.release]
 opt-level = 3

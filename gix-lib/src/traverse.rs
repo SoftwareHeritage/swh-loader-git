@@ -280,6 +280,7 @@ fn run_indexed_traverse(
             gix_pack::index::traverse::with_index::Options {
                 thread_limit: None, // use all available cores
                 check: gix_pack::index::traverse::SafetyCheck::SkipFileAndObjectChecksumVerification,
+                alloc_limit_bytes: None, // no per-allocation cap (upstream 0.73+)
             },
         )
         .map_err(|e| anyhow::anyhow!("{e}"))?;
@@ -577,6 +578,7 @@ fn run_direct_tree_traverse(
             thread_limit: None, // use all available cores
             should_interrupt: &should_interrupt,
             object_hash: gix_hash::Kind::Sha1,
+            alloc_limit_bytes: None, // no per-allocation cap (upstream 0.73+)
         },
     )
     .map_err(|e| anyhow::anyhow!("{e}"))?;
