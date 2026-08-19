@@ -134,7 +134,7 @@ pub fn fetch_pack(
 ) -> Result<FetchPackResult> {
     // 1. Parse URL
     let url_parsed =
-        gix_url::parse(url.into()).with_context(|| format!("invalid git URL: {url}"))?;
+        gix_url::parse(url).with_context(|| format!("invalid git URL: {url}"))?;
 
     // 2. Connect (blocking HTTP transport via curl).
     let options = ConnectOptions {
@@ -309,7 +309,7 @@ pub fn fetch_pack_to_file(
     read_timeout_secs: Option<u64>,
 ) -> Result<FetchPackFileResult> {
     let url_parsed =
-        gix_url::parse(url.into()).with_context(|| format!("invalid git URL: {url}"))?;
+        gix_url::parse(url).with_context(|| format!("invalid git URL: {url}"))?;
     let options = ConnectOptions {
         version: Protocol::V1,
         ..Default::default()

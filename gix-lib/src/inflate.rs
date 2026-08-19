@@ -9,7 +9,7 @@ use std::io::Write;
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use gix_features::zlib::Inflate;
+use gix_zlib::Inflate;
 use gix_object::Kind as ObjectKind;
 use gix_pack::data::decode::entry::ResolvedBase;
 
