@@ -789,6 +789,17 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             call("git_known_refs_percent", "h", expected_git_known_refs_percent, {}, 1),
         ]
 
+        missing_revisions = [
+            # we loaded incrementally from a snapshot that referenced this revision,
+            # so the loader should not load the revision.
+            SNAPSHOT1.branches[b"refs/heads/master"],
+            # ditto, this is its parent revision
+            bytes.fromhex("b6f40292c4e94a8f7e7b4aff50e6c7429ab98e2a"),
+        ]
+        assert set(self.loader.storage.revision_missing(missing_revisions)) == set(
+            missing_revisions
+        )
+
 
 class DumbGitLoaderTestBase(FullGitLoaderTests):
     """Prepare a git repository to be loaded using the HTTP dumb transfer protocol."""
