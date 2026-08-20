@@ -792,7 +792,7 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
         missing_revisions = [
             # we loaded incrementally from a snapshot that referenced this revision,
             # so the loader should not load the revision.
-            SNAPSHOT1.branches[b"refs/heads/master"],
+            SNAPSHOT1.branches[b"refs/heads/master"].target,
             # ditto, this is its parent revision
             bytes.fromhex("b6f40292c4e94a8f7e7b4aff50e6c7429ab98e2a"),
         ]
