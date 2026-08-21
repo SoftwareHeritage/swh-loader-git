@@ -456,6 +456,8 @@ class GitLoader(BaseGitLoader):
                 case _:
                     logger.error("Unknown stream %s: %r", stream_code, line)
 
+        proc.kill()
+
         pack_buffer.flush()
         pack_size = pack_buffer.tell()
         pack_buffer.seek(0)
