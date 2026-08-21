@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import pickle
+import subprocess
 from tempfile import NamedTemporaryFile, SpooledTemporaryFile
 import time
 from typing import (
@@ -259,6 +260,10 @@ class GitLoader(BaseGitLoader):
         do_activity: Callable[[bytes], None],
     ) -> FetchPackReturn:
         """Fetch a pack from the origin"""
+        if origin_url.startswith(("file://", "/")):
+            return self._fetch_pack_from_local_repo(
+                origin_url.removeprefix("file://"), base_repo, do_activity
+            )
 
         pack_buffer = SpooledTemporaryFile(max_size=self.temp_file_cutoff)
         transport_url = origin_url
@@ -348,6 +353,114 @@ class GitLoader(BaseGitLoader):
             "Protocol used for communication: %s",
             "dumb" if getattr(client, "dumb", False) else "smart",
         )
+
+        return FetchPackReturn(
+            remote_refs=utils.filter_refs(remote_refs),
+            symbolic_refs=utils.filter_symbolic_refs(symbolic_refs),
+            pack_buffer=pack_buffer,
+            pack_size=pack_size,
+        )
+
+    def _fetch_pack_from_local_repo(
+        self,
+        origin_path: str,
+        base_repo: RepoRepresentation,
+        do_activity: Callable[[bytes], None],
+    ) -> FetchPackReturn:
+        """Fetch a pack from the origin"""
+        pack_buffer = SpooledTemporaryFile(max_size=self.temp_file_cutoff)
+        transport_url = origin_path
+
+        logger.debug("Fetching pack from local repository: %s", origin_path)
+
+        client, path = dulwich.client.get_transport_and_path(
+            location=transport_url,
+            config=None,
+            operation="pull",
+        )
+
+        logger.debug("Client %s to list refs at %s", client, path)
+
+        ls_result = client.get_refs(path)  # type: ignore[arg-type]
+
+        remote_refs = ls_result.refs or {}
+        symbolic_refs = ls_result.symrefs or {}
+
+        proc = subprocess.Popen(
+            ["git-upload-pack", origin_path],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            env={"GIT_PROTOCOL": "version=2"},
+        )
+        assert proc.stdout is not None  # for mypy
+        assert proc.stdin is not None  # for mypy
+        proc_stdout = proc.stdout
+        proc_stdin = proc.stdin
+
+        def read_pkt_line() -> bytes:
+            length = int(proc_stdout.read(4), 16)
+            if length == 0:
+                # flush pkt, we just return an empty bytestring.
+                return b""
+
+            # TODO: 1: delim. 2: response end
+            assert length not in (1, 2)
+
+            return proc_stdout.read(length - 4)  # 4 bytes for the length itself
+
+        def write_pkt_line(line: bytes):
+            # four char zero-padded hexadecimal line length
+            prefix = f"{len(line) + 4 + 1:0>4x}".encode()
+            line = prefix + line + b"\n"
+            proc_stdin.write(line)
+            proc_stdin.flush()
+
+        logger.debug("server version: %r", read_pkt_line())
+        while line := read_pkt_line():
+            logger.debug("server line: %r", line)
+
+        # command
+        write_pkt_line(b"command=fetch")
+
+        # capability-list: empty
+
+        proc.stdin.write(b"0001")  # delim
+
+        # command-args
+        for ref, target in utils.filter_refs(remote_refs).items():
+            write_pkt_line(b"want " + target)
+        # TODO: request oids pointed by refs, pointed by symref we want.
+        # this is needed when symrefs (eg. HEAD) point to a ignored refs
+        # (eg. refs/pull/xxx/merge)
+
+        for target in base_repo.local_heads:
+            write_pkt_line(b"have " + target)
+
+        write_pkt_line(b"done")
+        proc.stdin.write(b"0000")  # flush
+        proc.stdin.flush()
+
+        line = read_pkt_line()
+        assert line.rstrip() == b"packfile", line
+
+        while line := read_pkt_line():
+            stream_code = line[0]
+            line = line[1:]
+            match stream_code:
+                case 1:  # pack data
+                    pack_buffer.write(line)
+                case 2:  # progress messages
+                    logger.info("Progress: %s", line.decode())
+                case 3:  # fatal error
+                    logger.error("Fatal Git error: %s", line.decode())
+                case _:
+                    logger.error("Unknown stream %s: %r", stream_code, line)
+
+        pack_buffer.flush()
+        pack_size = pack_buffer.tell()
+        pack_buffer.seek(0)
+
+        logger.debug("fetched_pack_size=%s", pack_size)
 
         return FetchPackReturn(
             remote_refs=utils.filter_refs(remote_refs),
