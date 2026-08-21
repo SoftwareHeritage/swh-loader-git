@@ -774,41 +774,96 @@ class GitLoader(BaseGitLoader):
             storage_summary.update(self.flush())
 
         if self.pack_size > 0:
-            from swh.loader.git._gix import PackReader, ParallelPackReader
+            from swh.loader.git._gix import (
+                GixPackError,
+                GixTraverseError,
+                PackReader,
+                ParallelPackReader,
+            )
 
-            # Use parallel inflation for packs above the configured threshold
-            pack_reader: Iterable
-            if self.pack_size > self.parallel_pack_threshold_bytes:
-                pack_reader = ParallelPackReader(self.pack_path, channel_bound=4096)
+            # Object-model batch types filled from the pack (reset on a
+            # ref-delta restart, see below).
+            _pack_batch_types = (
+                "content",
+                "skipped_content",
+                "directory",
+                "revision",
+                "release",
+            )
+
+            def _drain(reader: Iterable) -> float:
+                """Drain a pack reader into the per-type batches, returning the
+                time spent inside the reader (the pack-inflation cost).
+
+                Time spent inside the reader's ``__next__`` is the Rust-side
+                decode + delta resolution.  Emitted under the same metric name
+                as the previous dulwich implementation for dashboard
+                continuity.  The two ``monotonic()`` calls per object are
+                ~50 ns against >1 us of per-object processing.
+                """
+                inflate_time = 0.0
+                reader_iter = iter(reader)
+                while True:
+                    t0 = time.monotonic()
+                    try:
+                        obj_tuple = next(reader_iter)
+                    except StopIteration:
+                        inflate_time += time.monotonic() - t0
+                        break
+                    inflate_time += time.monotonic() - t0
+
+                    type_name, model_obj = self._convert_object(obj_tuple)
+                    counts[type_name] += 1
+                    batches[type_name].append(model_obj)
+
+                    if len(batches[type_name]) >= batch_size:
+                        flush_batch(type_name)
+
+                    maybe_log_summary("Processing pack")
+                return inflate_time
+
+            # Reader selection.  Above the configured threshold the parallel
+            # reader is used; below it the sequential reader.  Neither the
+            # sequential PackReader (its delta base resolver is a hardcoded
+            # None) nor the index-less DirectTreePackReader can resolve an
+            # in-pack REF_DELTA (a delta whose base is named by object id
+            # rather than by offset); only ParallelPackReader can, via
+            # ``git index-pack``.  We therefore fall back to it on the
+            # REF_DELTA error below rather than failing the visit.
+            use_parallel = self.pack_size > self.parallel_pack_threshold_bytes
+            if use_parallel:
+                reader: Iterable = ParallelPackReader(
+                    self.pack_path, channel_bound=4096
+                )
             else:
-                pack_reader = PackReader(self.pack_path)
+                reader = PackReader(self.pack_path)
 
-            # Time spent inside the reader's __next__ is the pack-inflation
-            # cost (Rust-side decode + delta resolution).  Emitted under the
-            # same metric name as the previous dulwich implementation for
-            # dashboard continuity; there it measured the PackInflater
-            # passes, here the single-pass streaming equivalent.  The two
-            # monotonic() calls per object are ~50 ns against >1 us of
-            # per-object processing.
-            total_inflate_time = 0.0
-            reader_iter = iter(pack_reader)
-            while True:
-                t0 = time.monotonic()
-                try:
-                    obj_tuple = next(reader_iter)
-                except StopIteration:
-                    total_inflate_time += time.monotonic() - t0
-                    break
-                total_inflate_time += time.monotonic() - t0
-
-                type_name, model_obj = self._convert_object(obj_tuple)
-                counts[type_name] += 1
-                batches[type_name].append(model_obj)
-
-                if len(batches[type_name]) >= batch_size:
-                    flush_batch(type_name)
-
-                maybe_log_summary("Processing pack")
+            try:
+                total_inflate_time = _drain(reader)
+            except (GixPackError, GixTraverseError) as e:
+                if use_parallel:
+                    # ParallelPackReader already resolves in-pack ref-deltas;
+                    # a failure here is a genuine error, not something a
+                    # different reader would fix.
+                    raise
+                # In-pack REF_DELTA: restart the whole pack with
+                # ParallelPackReader.  Storage adds are idempotent (content-
+                # addressed), so any batch already flushed before the failure
+                # is re-added as a no-op; we discard the partial in-memory
+                # batches and reset the per-type counts so the summary reflects
+                # the complete ParallelPackReader pass.  Observed on ~0.5% of
+                # repositories in the Adastra bulk run.
+                logger.info(
+                    "sequential pack reader failed (%s); restarting this pack "
+                    "with ParallelPackReader (resolves in-pack ref-deltas)",
+                    e,
+                )
+                for t in _pack_batch_types:
+                    batches[t] = []
+                    counts[t] = 0
+                total_inflate_time = _drain(
+                    ParallelPackReader(self.pack_path, channel_bound=4096)
+                )
 
             self.statsd_timing("inflate_git_packfile", total_inflate_time * 1000.0)
 
