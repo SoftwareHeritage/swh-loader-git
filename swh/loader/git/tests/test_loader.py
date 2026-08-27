@@ -3,6 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+from contextlib import contextmanager
 import datetime
 from functools import partial
 from http.server import HTTPServer, SimpleHTTPRequestHandler
@@ -44,6 +45,32 @@ from swh.model.model import (
     Snapshot,
     SnapshotTargetType,
 )
+
+
+@contextmanager
+def serve_repo_over_git_protocol(repo):
+    """Serve a live dulwich ``Repo`` over ``git://`` and yield its URL, shutting
+    the server down on exit.
+
+    A ``git://`` origin is what makes ``GitLoader`` drive the **gix** engine;
+    a ``file://`` origin routes to dulwich instead (see ``GitLoader``).  So this
+    is the hook used to run a file://-based test class against gix.
+
+    Binds ``127.0.0.1`` literally, not ``localhost``: ``TCPGitServer`` opens a
+    single IPv4 socket, while gix's git:// connector resolves ``localhost`` to
+    ``::1`` first on IPv6-enabled hosts (e.g. Jenkins) and does not fall back to
+    the A record, so ``localhost`` would fail before reaching the engine.
+    """
+    server = TCPGitServer(DictBackend({b"/": repo}), b"127.0.0.1", 0)
+    thread = Thread(target=server.serve)
+    thread.start()
+    try:
+        _, port = server.socket.getsockname()
+        yield f"git://127.0.0.1:{port}/"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
 
 
 class CommonGitLoaderNotFound:
@@ -313,6 +340,12 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         instead advertised thin-pack support and resolved external bases
         from the archive; that resolution machinery was removed together
         with the capability that made it reachable.)
+
+        The master version of this test was parametrised over
+        ``(corrupted_object, missing_object)`` to exercise dulwich's
+        robustness while resolving those external bases.  gix does not
+        resolve external bases at all, so there is nothing to corrupt or
+        miss: the single rejection assertion below subsumes all three cases.
         """
 
         def add_tag(tag_name, tag_message, commit):
@@ -803,6 +836,70 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
         ]
 
 
+class TestGitLoaderOverGitProtocol(TestGitLoader):
+    """Run the full :class:`TestGitLoader` suite against the **gix** engine.
+
+    :class:`TestGitLoader` prepares a ``file://`` origin, which ``GitLoader``
+    routes to dulwich, so that class exercises the dulwich fetch path.  Here we
+    serve the same fixture repository over ``git://`` (the smart protocol),
+    which ``GitLoader`` drives through gix, so every inherited scenario runs end
+    to end on the new engine.
+    """
+
+    @pytest.fixture(autouse=True)
+    def init(self, swh_storage, datadir, tmp_path):
+        archive_name = "testrepo"
+        archive_path = os.path.join(datadir, f"{archive_name}.tgz")
+        tmp_path = str(tmp_path)
+        # Extract the fixture repository to disk; we serve it over git:// below
+        # rather than through the file:// URL this returns.
+        prepare_repository_from_archive(archive_path, archive_name, tmp_path=tmp_path)
+        self.destination_path = os.path.join(tmp_path, archive_name)
+        self.repo = dulwich.repo.Repo(self.destination_path)
+        with serve_repo_over_git_protocol(self.repo) as repo_url:
+            self.repo_url = repo_url
+            self.loader = GitLoader(swh_storage, self.repo_url)
+            yield
+
+
+class TestGitLoader2OverGitProtocol(TestGitLoader2):
+    """:class:`TestGitLoader2` (the parent-origin / forge-fork scenario) run
+    against the **gix** engine, serving the fixture over ``git://`` instead of
+    ``file://``.  See :class:`TestGitLoaderOverGitProtocol`.
+    """
+
+    @pytest.fixture(autouse=True)
+    def init(self, swh_storage, datadir, tmp_path, mocker):
+        archive_name = "testrepo"
+        archive_path = os.path.join(datadir, f"{archive_name}.tgz")
+        tmp_path = str(tmp_path)
+        prepare_repository_from_archive(archive_path, archive_name, tmp_path=tmp_path)
+        self.destination_path = os.path.join(tmp_path, archive_name)
+        self.repo = dulwich.repo.Repo(self.destination_path)
+
+        self.fetcher = MagicMock()
+        self.fetcher.get_origin_metadata.return_value = []
+
+        with serve_repo_over_git_protocol(self.repo) as repo_url:
+            self.repo_url = repo_url
+            self.fetcher.get_parent_origins.return_value = [
+                Origin(url=f"base://{self.repo_url}")
+            ]
+            self.fetcher_cls = MagicMock(return_value=self.fetcher)
+            self.fetcher_cls.SUPPORTED_LISTERS = ["fake-lister"]
+            mocker.patch(
+                "swh.loader.core.metadata_fetchers._fetchers",
+                return_value=[self.fetcher_cls],
+            )
+            self.loader = GitLoader(
+                MagicMock(wraps=swh_storage),
+                self.repo_url,
+                lister_name="fake-lister",
+                lister_instance_name="",
+            )
+            yield
+
+
 class DumbGitLoaderTestBase(FullGitLoaderTests):
     """Prepare a git repository to be loaded using the HTTP dumb transfer protocol."""
 
@@ -1235,24 +1332,9 @@ class TestGitLoaderGixAnnotatedTagsOverGitProtocol:
         # parsed Tag object.)
         self.tag_id = repo.refs[b"refs/tags/v1.0.0"]
 
-        backend = DictBackend({b"/": repo})
-        # Literal 127.0.0.1, NOT "localhost": TCPGitServer binds a single
-        # IPv4 socket, while gix's git:// connector resolves "localhost"
-        # to ::1 first on IPv6-enabled hosts (e.g. Jenkins) and does not
-        # fall back to the A record — the connection would fail before
-        # reaching the code under test.
-        self.git_server = TCPGitServer(backend, b"127.0.0.1", 0)
-        self.server_thread = Thread(target=self.git_server.serve)
-        self.server_thread.start()
-        _, port = self.git_server.socket.getsockname()
-        # git:// (not file://) -> routed through the gix engine.
-        self.repo_url = f"git://127.0.0.1:{port}/"
-
-        yield
-
-        self.git_server.shutdown()
-        self.git_server.server_close()
-        self.server_thread.join()
+        with serve_repo_over_git_protocol(repo) as repo_url:
+            self.repo_url = repo_url
+            yield
 
     def test_annotated_tag_produces_release_over_gix(self):
         loader = GitLoader(self.swh_storage, self.repo_url)
