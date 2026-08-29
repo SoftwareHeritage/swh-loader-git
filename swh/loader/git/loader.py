@@ -778,6 +778,7 @@ class GitLoader(BaseGitLoader):
         if self.pack_size > 0:
             from swh.loader.git._gix import (
                 DirectTreePackReader,
+                GixPackError,
                 GixTraverseError,
                 PackReader,
                 ParallelPackReader,
@@ -822,24 +823,44 @@ class GitLoader(BaseGitLoader):
                 except StopIteration:
                     total_inflate_time += time.monotonic() - t0
                     break
-                except GixTraverseError:
-                    # In-pack REF_DELTA: DirectTreePackReader only handles
-                    # OFS_DELTA and raises during its Phase-1 scan, before any
-                    # object is yielded. ParallelPackReader resolves ref-deltas
-                    # (via git index-pack), so restart this pack with it. Only
-                    # safe before any object has been emitted; otherwise
-                    # re-raise rather than risk re-emitting stored objects.
+                except (GixTraverseError, GixPackError):
+                    # In-pack REF_DELTA. Neither streaming reader can follow a
+                    # ref-delta whose base it has not already seen:
+                    # DirectTreePackReader raises GixTraverseError during its
+                    # Phase-1 scan, and PackReader raises GixPackError when it
+                    # reaches the entry. ParallelPackReader resolves ref-deltas
+                    # (via git index-pack), so restart this pack with it.
+                    # Catching both matters because the pack-size threshold
+                    # decides which reader runs, so a caller that raises the
+                    # threshold to keep workers single-threaded would otherwise
+                    # lose the rescue entirely. Only safe before any object has
+                    # been emitted; otherwise re-raise rather than risk
+                    # re-emitting stored objects.
+                    #
+                    # PackReader fails mid-stream, not before its first yield:
+                    # it decodes entries in pack order and only reaches the
+                    # ref-delta after emitting everything ahead of it. Refusing
+                    # to restart once anything had been emitted therefore made
+                    # the rescue unreachable for it in practice. Re-emitting is
+                    # safe: every object here is content-addressed and the
+                    # storage add methods are add-if-absent, so a restart can
+                    # only repeat work, never change what is stored. `fell_back`
+                    # still bounds this to a single retry per pack.
                     total_inflate_time += time.monotonic() - t0
-                    if fell_back or objects_seen > 0:
+                    if fell_back:
                         raise
                     assert self.origin is not None
                     logger.warning(
-                        "DirectTreePackReader hit an in-pack ref-delta for "
-                        "%s; restarting the pack with ParallelPackReader.",
+                        "%s hit an in-pack ref-delta for %s after %d "
+                        "object(s); restarting the pack with "
+                        "ParallelPackReader.",
+                        type(pack_reader).__name__,
                         self.origin.url,
+                        objects_seen,
                     )
                     pack_reader = ParallelPackReader(self.pack_path, channel_bound=4096)
                     reader_iter = iter(pack_reader)
+                    objects_seen = 0
                     fell_back = True
                     continue
                 total_inflate_time += time.monotonic() - t0
