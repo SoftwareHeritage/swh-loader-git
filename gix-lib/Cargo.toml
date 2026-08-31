@@ -36,5 +36,5 @@ gix-pack = { version = "0.73", default-features = false, features = [
 tempfile = "3"
 sha1_smol = { package = "sha1", version = "0.10" }
 sha2 = "0.10"
-blake2 = "0.10"
+blake2s_simd = "1.0"
 digest = "0.10"
