@@ -7,7 +7,6 @@
 //! blob multi-hashing, and SWH-model round-trip hash checks.
 
 use anyhow::{Context, Result};
-use blake2::Blake2s256;
 use digest::Digest;
 use sha1_smol::Sha1 as Sha1Hash;
 use sha2::Sha256;
@@ -251,14 +250,18 @@ pub struct InflateResult {
 pub(crate) fn hash_blob(data: &[u8]) -> ([u8; 20], [u8; 32], [u8; 32]) {
     let sha1 = Sha1Hash::digest(data);
     let sha256 = Sha256::digest(data);
-    let blake2s = Blake2s256::digest(data);
+    // blake2s_simd (SSE4.1/AVX2) instead of the portable RustCrypto blake2:
+    // blake2s256 is the single biggest CPU cost and has no CPU hardware
+    // acceleration path in the portable crate. Output is standard BLAKE2s-256,
+    // byte-identical to blake2::Blake2s256 (guarded by a parity test).
+    let blake2s = blake2s_simd::blake2s(data);
 
     let mut s1 = [0u8; 20];
     s1.copy_from_slice(&sha1);
     let mut s256 = [0u8; 32];
     s256.copy_from_slice(&sha256);
     let mut b2s = [0u8; 32];
-    b2s.copy_from_slice(&blake2s);
+    b2s.copy_from_slice(blake2s.as_bytes());
 
     (s1, s256, b2s)
 }
