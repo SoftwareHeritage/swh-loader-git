@@ -265,6 +265,12 @@ class GitLoader(BaseGitLoader):
         if origin_url.startswith("file://"):
             return self._fetch_pack_via_dulwich(origin_url, base_repo, do_activity)
 
+        # Bench-only: force the dulwich fetch path for ANY url (used to A/B the
+        # engines over the same server in the failure-discrimination matrix).
+        # Unset in production.
+        if os.environ.get("SWH_GIX_FORCE_ENGINE") == "dulwich":
+            return self._fetch_pack_via_dulwich(origin_url, base_repo, do_activity)
+
         from swh.loader.git._gix import GixFatalError
         from swh.loader.git._gix import fetch_pack as gix_fetch_pack
         from swh.loader.git._gix import fetch_pack_to_file as gix_fetch_to_file
