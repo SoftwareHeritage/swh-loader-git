@@ -476,14 +476,11 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
                     (base_obj.id, new_obj.as_raw_string()),
                 )
             )
-        buffer = io.BytesIO()
-        build_pack(buffer, objects, self.repo.object_store)
-
         # The gix-rehaul changed FetchPackReturn from in-memory pack_buffer
-        # to on-disk pack_path; write the test pack to a temp file so the
-        # rest of the loader pipeline (gix iter_pack_objects) can consume it.
+        # to on-disk pack_path; build the test pack straight into a temp file
+        # so the loader pipeline (gix iter_pack_objects) can consume it.
         pack_file = tempfile.NamedTemporaryFile(suffix=".pack", delete=False)
-        pack_file.write(buffer.getvalue())
+        build_pack(pack_file, objects, self.repo.object_store)
         pack_file.flush()
 
         # mock fetch_pack_from_origin method of the loader to return the pack
@@ -498,7 +495,7 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             },
             symbolic_refs={},
             pack_path=pack_file.name,
-            pack_size=buffer.getbuffer().nbytes,
+            pack_size=os.path.getsize(pack_file.name),
         )
 
         # The engine cannot resolve the external bases: the load must
@@ -524,6 +521,69 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             "skipped_content": 0,
             "snapshot": 2,
         }
+
+    def test_loader_with_in_pack_ref_delta(self, mocker, caplog):
+        """A self-contained pack that encodes deltas by object id (REF_DELTA)
+        against bases present IN the same pack must load fully.
+
+        This is the (corrupted=False, missing=False) case of the master
+        parametrization: the base is neither corrupted nor missing, it is simply
+        referenced by id rather than by offset.  The sequential ``PackReader``
+        cannot resolve in-pack ref-deltas (its base resolver is a hardcoded
+        ``None``), so ``store_data`` falls back to ``ParallelPackReader``, which
+        resolves them via ``git index-pack``.  Regression test for that fallback.
+        """
+        # Build a self-contained pack from the whole object store, but express
+        # one blob as a REF_DELTA against another blob that IS also in the pack.
+        # The result is a non-thin pack (every base present) that nonetheless
+        # carries an in-pack ref-delta, deterministically, without relying on
+        # git's delta heuristics.
+        all_objects = [
+            self.repo.object_store[obj_id] for obj_id in self.repo.object_store
+        ]
+        blobs = [obj for obj in all_objects if obj.type_num == 3]  # Blob.type_num
+        assert len(blobs) >= 2, "fixture must have at least two blobs"
+        base_blob, delta_blob = blobs[0], blobs[1]
+        objects = []
+        for obj in all_objects:
+            if obj.id == delta_blob.id:
+                # deltify this blob against another blob present in the pack
+                objects.append((REF_DELTA, (base_blob.id, obj.as_raw_string())))
+            else:
+                objects.append((obj.type_num, obj.as_raw_string()))
+
+        pack_file = tempfile.NamedTemporaryFile(suffix=".pack", delete=False)
+        build_pack(pack_file, objects, self.repo.object_store)
+        pack_file.flush()
+
+        remote_refs = {
+            name: target
+            for name, target in self.repo.get_refs().items()
+            if name.startswith((b"refs/heads/", b"refs/tags/"))
+            and not name.endswith(b"^{}")
+        }
+        mocker.patch.object(
+            self.loader, "fetch_pack_from_origin"
+        ).return_value = FetchPackReturn(
+            remote_refs=remote_refs,
+            symbolic_refs={},
+            pack_path=pack_file.name,
+            pack_size=os.path.getsize(pack_file.name),
+        )
+
+        with caplog.at_level(logging.INFO):
+            assert self.loader.load() == {"status": "eventful"}
+
+        # The sequential reader hit the in-pack ref-delta and fell back to
+        # ParallelPackReader, which resolved it (otherwise the load would have
+        # failed with a GixPackError). This asserts the fallback actually fired.
+        assert any(
+            "ParallelPackReader" in r.getMessage() for r in caplog.records
+        ), "expected the in-pack ref-delta fallback to ParallelPackReader to fire"
+
+        assert_last_visit_matches(
+            self.loader.storage, self.repo_url, status="full", type="git"
+        )
 
     def test_load_pack_size_limit(self, sentry_events):
         # set max pack size to a really small value
