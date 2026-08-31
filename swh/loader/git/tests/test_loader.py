@@ -10,6 +10,7 @@ from http.server import HTTPServer, SimpleHTTPRequestHandler
 import io
 import logging
 import os
+import socket
 import subprocess
 import sys
 import tempfile
@@ -56,21 +57,60 @@ def serve_repo_over_git_protocol(repo):
     a ``file://`` origin routes to dulwich instead (see ``GitLoader``).  So this
     is the hook used to run a file://-based test class against gix.
 
-    Binds ``127.0.0.1`` literally, not ``localhost``: ``TCPGitServer`` opens a
-    single IPv4 socket, while gix's git:// connector resolves ``localhost`` to
-    ``::1`` first on IPv6-enabled hosts (e.g. Jenkins) and does not fall back to
-    the A record, so ``localhost`` would fail before reaching the engine.
+    Served by a real ``git daemon`` (not dulwich's ``TCPGitServer``) so the
+    server reads the repository from disk on every request.  That matters for
+    the inherited incremental tests, which commit to the repo between two loads:
+    a cached in-process server view would still advertise the new ref while
+    failing to pack the new objects, whereas ``git daemon`` always serves the
+    current on-disk state.
+
+    Binds ``127.0.0.1`` literally, not ``localhost``: gix's git:// connector
+    resolves ``localhost`` to ``::1`` first on IPv6-enabled hosts (e.g. Jenkins)
+    and does not fall back to the A record, so ``localhost`` would fail before
+    reaching the engine.
     """
-    server = TCPGitServer(DictBackend({b"/": repo}), b"127.0.0.1", 0)
-    thread = Thread(target=server.serve)
-    thread.start()
+    gitdir = os.path.abspath(repo.controldir())
+    base = os.path.dirname(gitdir)
+    name = os.path.basename(gitdir)  # ".git" for a non-bare repo
+
+    # Reserve a free port, then hand it to git daemon.
+    s = socket.socket()
+    s.bind(("127.0.0.1", 0))
+    port = s.getsockname()[1]
+    s.close()
+
+    proc = subprocess.Popen(
+        [
+            "git", "daemon",
+            "--reuseaddr",
+            "--listen=127.0.0.1",
+            f"--port={port}",
+            f"--base-path={base}",
+            "--export-all",
+            "--informative-errors",
+            base,
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
     try:
-        _, port = server.socket.getsockname()
-        yield f"git://127.0.0.1:{port}/"
+        # Wait until the daemon is accepting connections.
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            try:
+                with socket.create_connection(("127.0.0.1", port), timeout=0.2):
+                    break
+            except OSError:
+                time.sleep(0.05)
+        else:
+            raise RuntimeError("git daemon did not start in time")
+        yield f"git://127.0.0.1:{port}/{name}"
     finally:
-        server.shutdown()
-        server.server_close()
-        thread.join()
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
 
 
 class CommonGitLoaderNotFound:
@@ -861,6 +901,30 @@ class TestGitLoaderOverGitProtocol(TestGitLoader):
             self.loader = GitLoader(swh_storage, self.repo_url)
             yield
 
+    # --- scenarios that legitimately differ over the git:// smart protocol ---
+    # Each was verified NOT to be a gix bug: it fails identically on the dulwich
+    # engine over the same git:// server (SWH_GIX_FORCE_ENGINE discrimination).
+
+    @pytest.mark.skip(
+        reason="A dangling .git/HEAD symref is a working-copy / file:// concept "
+        "the git smart protocol does not advertise, so the ALIAS branch this "
+        "asserts cannot be conveyed over git://. Verified: fails identically on "
+        "the dulwich engine over the same git:// server."
+    )
+    def test_load_dangling_symref(self):
+        pass
+
+    def test_load_pack_size_limit(self, sentry_events):
+        # Over git:// the pack-size limit is enforced by the gix fetch and the
+        # visit correctly fails with a logged error; only the message text
+        # differs from dulwich's "Pack file too big for repository" (it is
+        # raised by _gix). Assert the enforcement, not the engine-specific text.
+        self.loader.pack_size_bytes = 10
+        res = self.loader.load()
+        assert res["status"] == "failed"
+        assert sentry_events
+        assert sentry_events[0]["level"] == "error"
+
 
 class TestGitLoader2OverGitProtocol(TestGitLoader2):
     """:class:`TestGitLoader2` (the parent-origin / forge-fork scenario) run
@@ -898,6 +962,28 @@ class TestGitLoader2OverGitProtocol(TestGitLoader2):
                 lister_instance_name="",
             )
             yield
+
+    # See TestGitLoaderOverGitProtocol: same git://-protocol-specific overrides,
+    # each verified not a gix bug (fails identically on dulwich over git://).
+
+    @pytest.mark.skip(
+        reason="A dangling .git/HEAD symref is a working-copy / file:// concept "
+        "the git smart protocol does not advertise, so the ALIAS branch this "
+        "asserts cannot be conveyed over git://. Verified: fails identically on "
+        "the dulwich engine over the same git:// server."
+    )
+    def test_load_dangling_symref(self):
+        pass
+
+    def test_load_pack_size_limit(self, sentry_events):
+        # See TestGitLoaderOverGitProtocol.test_load_pack_size_limit: the limit
+        # is enforced (visit fails with a logged error); only the message text
+        # differs from dulwich's, so assert the enforcement, not the text.
+        self.loader.pack_size_bytes = 10
+        res = self.loader.load()
+        assert res["status"] == "failed"
+        assert sentry_events
+        assert sentry_events[0]["level"] == "error"
 
 
 class DumbGitLoaderTestBase(FullGitLoaderTests):
