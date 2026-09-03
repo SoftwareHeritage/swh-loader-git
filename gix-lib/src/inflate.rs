@@ -22,6 +22,55 @@ use crate::objects::{
 // Streaming pack iterator
 // ---------------------------------------------------------------------------
 
+/// Callback resolving a REF_DELTA base object that is **not** present in the
+/// pack (an "external reference").
+///
+/// Given the base object's id, it returns that object's kind and its raw git
+/// body (the object payload, without the `<kind> <len>\0` header), or `None`
+/// when the base cannot be found.
+///
+/// This mirrors dulwich's `resolve_ext_ref` callback on `PackInflater`, which
+/// the production loader backs with swh-storage lookups.  GitHub is known to
+/// send packs carrying external references even when `thin-pack` was never
+/// negotiated (see swh-loader-git commit 5d93f40a), so a reader without this
+/// capability fails such visits outright instead of loading them.
+/// The callback is deliberately expressed in plain types (the raw 20-byte
+/// object id, and the dulwich-compatible type number used elsewhere in this
+/// crate: 1=commit, 2=tree, 3=blob, 4=tag) so the FFI boundary does not leak
+/// gitoxide types into the PyO3 layer.
+pub type ExtRefResolver<'a> = &'a dyn Fn(&[u8]) -> Option<(u8, Vec<u8>)>;
+
+/// Map a dulwich-compatible type number onto a gitoxide object kind.
+fn kind_from_type_num(type_num: u8) -> Option<ObjectKind> {
+    match type_num {
+        1 => Some(ObjectKind::Commit),
+        2 => Some(ObjectKind::Tree),
+        3 => Some(ObjectKind::Blob),
+        4 => Some(ObjectKind::Tag),
+        _ => None,
+    }
+}
+
+/// Build the `decode_entry` resolver from an optional external-ref callback.
+///
+/// `gix_pack` hands the resolver the output buffer and expects the base object
+/// to occupy `out[..end]`, with `ResolvedBase::OutOfPack { end, .. }` reporting
+/// that length; deltas are then applied starting at `end`.
+fn ext_ref_base_resolver<'a>(
+    resolve_ext: Option<ExtRefResolver<'a>>,
+) -> impl Fn(&gix_hash::oid, &mut Vec<u8>) -> Option<ResolvedBase> + 'a {
+    move |id, out| {
+        let (type_num, data) = resolve_ext?(id.as_bytes())?;
+        let kind = kind_from_type_num(type_num)?;
+        out.clear();
+        out.extend_from_slice(&data);
+        Some(ResolvedBase::OutOfPack {
+            kind,
+            end: out.len(),
+        })
+    }
+}
+
 /// Streaming iterator over objects in a pack file on disk.
 ///
 /// Memory usage is O(largest single object), not O(total pack).
@@ -50,14 +99,28 @@ impl PackIterator {
     }
 
     /// Decode and return the next object, or `None` if all objects consumed.
+    ///
+    /// REF_DELTA entries whose base is absent from the pack fail with a
+    /// delta-base error; use [`PackIterator::next_object_with`] to supply a
+    /// resolver for those external bases.
     pub fn next_object(&mut self) -> Result<Option<TypedObject>> {
+        self.next_object_with(None)
+    }
+
+    /// Like [`PackIterator::next_object`], but resolves REF_DELTA bases that
+    /// are missing from the pack through `resolve_ext` (see
+    /// [`ExtRefResolver`]).
+    pub fn next_object_with(
+        &mut self,
+        resolve_ext: Option<ExtRefResolver<'_>>,
+    ) -> Result<Option<TypedObject>> {
         if self.remaining == 0 {
             return Ok(None);
         }
         self.remaining -= 1;
 
-        let resolve: &dyn Fn(&gix_hash::oid, &mut Vec<u8>) -> Option<ResolvedBase> =
-            &|_, _| None;
+        let resolver = ext_ref_base_resolver(resolve_ext);
+        let resolve: &dyn Fn(&gix_hash::oid, &mut Vec<u8>) -> Option<ResolvedBase> = &resolver;
 
         let entry = self
             .pack_file

@@ -19,6 +19,7 @@ import time
 from unittest.mock import MagicMock, call
 
 from dulwich.errors import GitProtocolError, NotGitRepository, ObjectFormatException
+from dulwich.object_store import MemoryObjectStore
 from dulwich.pack import REF_DELTA
 from dulwich.porcelain import get_user_timezones, push, tag_create
 import dulwich.repo
@@ -498,29 +499,48 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             pack_size=os.path.getsize(pack_file.name),
         )
 
-        # The engine cannot resolve the external bases: the load must
-        # fail with a typed error, without recording a new snapshot.
-        # The visit status is "partial" (not "failed") because this
-        # loader instance already recorded a snapshot in the successful
-        # second load above, and loader-core reports partial whenever
-        # loaded_snapshot_id is set.
+        # The bases of these deltas are absent from the pack but PRESENT in the
+        # archive (they were stored by the second load above), so the loader
+        # resolves them through _resolve_ext_ref and the visit succeeds.  This
+        # is the (corrupted=False, missing=False) case of the master
+        # parametrization, and it matches the dulwich engine's behaviour.
         res = self.loader.load()
-        assert res["status"] == "failed"
+        assert res["status"] == "eventful"
         assert_last_visit_matches(
-            self.loader.storage, self.repo_url, status="partial", type="git"
+            self.loader.storage, self.repo_url, status="full", type="git"
         )
-        # Nothing beyond the failed visit was added to the archive: the
-        # object counts are unchanged from the second (successful) load.
-        assert get_stats(self.loader.storage) == {
-            "content": 5,
-            "directory": 8,
-            "origin": 1,
-            "origin_visit": 3,
-            "release": 1,
-            "revision": 8,
-            "skipped_content": 0,
-            "snapshot": 2,
-        }
+        # The newly deltified objects were added on top of the second load.
+        stats = get_stats(self.loader.storage)
+        assert stats["origin_visit"] == 3
+        assert stats["snapshot"] == 3
+
+    def test_loader_with_unresolvable_ref_delta(self, mocker):
+        """A REF_DELTA whose base is in neither the pack nor the archive
+        cannot be resolved, so the visit fails cleanly.
+
+        This is the (missing=True) case: _resolve_ext_ref returns None, the
+        reader reports an unresolved delta base, and nothing is recorded.
+        """
+        # A delta against a base that exists nowhere: build it from a blob the
+        # archive has never seen.
+        stranger = dulwich.objects.Blob.from_string(b"never archived\n" * 20)
+        store = MemoryObjectStore()
+        store.add_object(stranger)
+        objects = [(REF_DELTA, (stranger.id, b"never archived\n" * 20 + b"tail\n"))]
+        pack_file = tempfile.NamedTemporaryFile(suffix=".pack", delete=False)
+        build_pack(pack_file, objects, store)
+        pack_file.flush()
+
+        mocker.patch.object(
+            self.loader, "fetch_pack_from_origin"
+        ).return_value = FetchPackReturn(
+            remote_refs={b"refs/heads/master": self.repo.refs[b"refs/heads/master"]},
+            symbolic_refs={},
+            pack_path=pack_file.name,
+            pack_size=os.path.getsize(pack_file.name),
+        )
+
+        assert self.loader.load()["status"] == "failed"
 
     def test_loader_with_in_pack_ref_delta(self, mocker, caplog):
         """A self-contained pack that encodes deltas by object id (REF_DELTA)

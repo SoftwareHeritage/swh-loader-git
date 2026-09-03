@@ -14,7 +14,7 @@ mod objects;
 mod traverse;
 
 pub use fetch::{fetch_pack, fetch_pack_to_file, FetchPackFileResult, FetchPackResult};
-pub use inflate::{inflate_pack_typed, iter_pack_objects, PackIterator};
+pub use inflate::{inflate_pack_typed, iter_pack_objects, ExtRefResolver, PackIterator};
 pub use objects::{
     BlobResult, InflateResult, PackObject, RawResult, TreeEntry, TreeResult, TypedObject,
 };

@@ -1,5 +1,7 @@
 """Type stubs for the swh.loader.git._gix compiled extension (gitoxide bindings)."""
 
+from typing import Callable, Optional
+
 # Typed exception classes raised by the gix bindings (one per Rust error
 # family, see ``gix-py/src/exceptions.rs``).  The split exists so callers
 # can decide on exception *type* whether retrying with another pack
@@ -75,7 +77,8 @@ def iter_pack_objects(
     ----------
     pack_bytes:
         A complete pack file (PACK header + objects + trailer).  Non-thin packs
-        only: no inflation path resolves external ref-delta bases.  Packs
+        only: this batch entry point takes no external-base resolver (unlike
+        :class:`PackReader`, which accepts ``resolve_ext_ref``).  Packs
         obtained via :func:`fetch_pack` / :func:`fetch_pack_to_file` satisfy
         this by construction — the fetch strips the ``thin-pack`` capability
         whenever haves are sent (with no haves a thin pack is impossible),
@@ -146,7 +149,28 @@ def inflate_types(
 class PackReader:
     """Streaming iterator over objects in a pack file on disk."""
 
-    def __init__(self, pack_path: str) -> None: ...
+    def __init__(
+        self,
+        pack_path: str,
+        resolve_ext_ref: Optional[Callable[[bytes], Optional[tuple]]] = None,
+    ) -> None:
+        """
+        Parameters
+        ----------
+        pack_path:
+            Path to the pack file to stream.
+        resolve_ext_ref:
+            Optional callback resolving a REF_DELTA base that is absent from
+            the pack (an "external reference").  Called with the base's raw
+            20-byte object id; returns ``(type_num, body)`` where *type_num*
+            is the dulwich-compatible number (1=commit, 2=tree, 3=blob,
+            4=tag) and *body* is the raw git object body (no header), or
+            ``None`` if the base cannot be found.  Mirrors dulwich's
+            ``resolve_ext_ref``.  An exception raised inside the callback
+            propagates out of ``__next__`` rather than being read as a miss.
+            Without it, such a pack fails with a delta-base error.
+        """
+        ...
     def __iter__(self) -> "PackReader": ...
     def __next__(self) -> tuple: ...
 

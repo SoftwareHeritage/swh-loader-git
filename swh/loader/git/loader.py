@@ -33,8 +33,15 @@ from swh.core.statsd import Statsd
 from swh.loader.exception import NotFound
 from swh.loader.git.utils import raise_not_found_repository
 from swh.model import hashutil
+from swh.model.git_objects import (
+    content_git_object,
+    directory_git_object,
+    release_git_object,
+    revision_git_object,
+)
 from swh.model.model import (
     BaseContent,
+    Content,
     Directory,
     RawExtrinsicMetadata,
     Release,
@@ -45,6 +52,8 @@ from swh.model.model import (
     SnapshotTargetType,
 )
 from swh.model.swhids import ExtendedObjectType
+from swh.objstorage.interface import objid_from_dict
+from swh.storage.algos.directory import directory_get
 from swh.storage.algos.snapshot import snapshot_get_latest
 from swh.storage.interface import StorageInterface
 
@@ -217,6 +226,9 @@ class GitLoader(BaseGitLoader):
         # unused: the gix engine streams every pack to disk.
         self.temp_file_cutoff = temp_file_cutoff
         self.parallel_pack_threshold_bytes = parallel_pack_threshold_bytes
+        # Cache for external REF_DELTA bases resolved from the archive, keyed
+        # by sha1_git.  ``None`` records a miss so a second lookup is skipped.
+        self.ext_refs: Dict[bytes, Optional[Tuple[int, bytes]]] = {}
         # state initialized in fetch_data
         self.remote_refs: Dict[bytes, bytes] = {}
         self.symbolic_refs: Dict[bytes, bytes] = {}
@@ -706,6 +718,77 @@ class GitLoader(BaseGitLoader):
         else:
             raise ValueError(f"Unknown object type: {type_num}")
 
+    def _resolve_ext_ref(self, sha1: bytes) -> Optional[Tuple[int, bytes]]:
+        """Resolve an external REF_DELTA base from the archive.
+
+        A pack may delta against an object it does not contain (an "external
+        reference").  This happens even though the loader never negotiates
+        ``thin-pack``: GitHub has been observed sending such packs for
+        already-visited origins (see commit 5d93f40a).  Without this callback
+        the reader cannot follow the delta chain and the visit fails.
+
+        Reconstructs the base's git manifest from the archive and returns
+        ``(type_num, body)`` for ``_gix.PackReader``, where *type_num* is the
+        dulwich-compatible number (1=commit, 2=tree, 3=blob, 4=tag) and *body*
+        is the manifest with its ``<kind> <len>\\0`` header stripped.  Returns
+        ``None`` when the object is not in the archive, which surfaces as a
+        normal unresolved-delta error rather than a Python exception.
+
+        This mirrors the ``resolve_ext_ref`` callback the dulwich engine
+        passes to ``PackInflater``, and looks objects up in the same order.
+        """
+        statsd_metric = "swh_loader_git_external_reference_fetch_total"
+
+        if sha1 in self.ext_refs:
+            return self.ext_refs[sha1]
+
+        def found(type_num: int, manifest: bytes, swh_type: str):
+            # git manifests are "<kind> <len>\0<body>"; the reader wants the body.
+            self.ext_refs[sha1] = (type_num, manifest.split(b"\x00", maxsplit=1)[1])
+            self.statsd.increment(
+                statsd_metric, tags={"type": swh_type, "result": "found"}
+            )
+            self.log.debug(
+                "External reference %s (%s) resolved from the archive",
+                hashutil.hash_to_hex(sha1),
+                swh_type,
+            )
+
+        storage = self.storage
+        cnts = storage.content_find({"sha1_git": sha1})
+        if cnts and cnts[0] is not None:
+            d = cnts[0].to_dict()
+            d["data"] = storage.content_get_data(objid_from_dict(d))
+            cnt = Content.from_dict(d)
+            cnt.check()
+            found(3, content_git_object(cnt), "content")
+        if sha1 not in self.ext_refs:
+            dir_ = directory_get(storage, sha1)
+            if dir_ is not None:
+                dir_.check()
+                found(2, directory_git_object(dir_), "directory")
+        if sha1 not in self.ext_refs:
+            rev = storage.revision_get([sha1], ignore_displayname=True)[0]
+            if rev is not None:
+                rev.check()
+                found(1, revision_git_object(rev), "revision")
+        if sha1 not in self.ext_refs:
+            rel = storage.release_get([sha1], ignore_displayname=True)[0]
+            if rel is not None:
+                rel.check()
+                found(4, release_git_object(rel), "release")
+
+        if sha1 not in self.ext_refs:
+            self.ext_refs[sha1] = None
+            self.statsd.increment(
+                statsd_metric, tags={"type": "unknown", "result": "not_found"}
+            )
+            self.log.debug(
+                "External reference %s could not be resolved from the archive",
+                hashutil.hash_to_hex(sha1),
+            )
+        return self.ext_refs[sha1]
+
     def store_data(self) -> None:
         """Store fetched data with a single pass through the pack file.
 
@@ -842,7 +925,10 @@ class GitLoader(BaseGitLoader):
                     self.pack_path, channel_bound=4096
                 )
             else:
-                reader = PackReader(self.pack_path)
+                # The resolver lets the sequential reader follow REF_DELTA
+                # chains whose base is absent from the pack, by fetching that
+                # base from the archive (see _resolve_ext_ref).
+                reader = PackReader(self.pack_path, self._resolve_ext_ref)
 
             try:
                 total_inflate_time = _drain(reader)

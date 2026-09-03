@@ -345,12 +345,22 @@ struct PackReader {
     inner: swh_loader_git_gix::PackIterator,
     de_cls: PyObject,
     dir_cls: PyObject,
+    /// Optional Python callable resolving REF_DELTA bases absent from the pack.
+    /// Signature: ``(base_id: bytes) -> tuple[int, bytes] | None``, where the
+    /// int is the dulwich type number (1=commit, 2=tree, 3=blob, 4=tag) and the
+    /// bytes are the raw git object body.  Mirrors dulwich's ``resolve_ext_ref``.
+    resolve_ext_ref: Option<PyObject>,
 }
 
 #[pymethods]
 impl PackReader {
     #[new]
-    fn new(py: Python<'_>, pack_path: &str) -> PyResult<Self> {
+    #[pyo3(signature = (pack_path, resolve_ext_ref=None))]
+    fn new(
+        py: Python<'_>,
+        pack_path: &str,
+        resolve_ext_ref: Option<PyObject>,
+    ) -> PyResult<Self> {
         let inner = swh_loader_git_gix::PackIterator::open(std::path::Path::new(pack_path))
             .map_err(map_gix_error)?;
         let model = py.import("swh.model.model")?;
@@ -360,6 +370,7 @@ impl PackReader {
             inner,
             de_cls,
             dir_cls,
+            resolve_ext_ref,
         })
     }
 
@@ -369,7 +380,50 @@ impl PackReader {
 
     fn __next__(&mut self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         use swh_loader_git_gix::TypedObject;
-        match self.inner.next_object() {
+        // Resolve REF_DELTA bases absent from the pack by calling back into
+        // Python (the loader backs this with swh-storage lookups, as dulwich's
+        // resolve_ext_ref does).  The GIL is held for the whole of __next__, so
+        // the callback runs directly; an exception raised inside it is stashed
+        // and re-raised here rather than being silently read as "not found".
+        let PackReader {
+            inner,
+            resolve_ext_ref,
+            ..
+        } = self;
+        let cb_err: std::cell::RefCell<Option<PyErr>> = std::cell::RefCell::new(None);
+        let call = |id: &[u8]| -> Option<(u8, Vec<u8>)> {
+            let cb = resolve_ext_ref.as_ref()?;
+            if cb_err.borrow().is_some() {
+                return None;
+            }
+            match cb.call1(py, (PyBytes::new(py, id),)) {
+                Ok(res) => {
+                    if res.is_none(py) {
+                        return None;
+                    }
+                    match res.extract::<(u8, Vec<u8>)>(py) {
+                        Ok(v) => Some(v),
+                        Err(e) => {
+                            *cb_err.borrow_mut() = Some(e);
+                            None
+                        }
+                    }
+                }
+                Err(e) => {
+                    *cb_err.borrow_mut() = Some(e);
+                    None
+                }
+            }
+        };
+        let outcome = if resolve_ext_ref.is_some() {
+            inner.next_object_with(Some(&call))
+        } else {
+            inner.next_object()
+        };
+        if let Some(e) = cb_err.into_inner() {
+            return Err(e);
+        }
+        match outcome {
             Ok(None) => Ok(None),
             Err(e) => Err(map_gix_error(e)),
             Ok(Some(obj)) => {
