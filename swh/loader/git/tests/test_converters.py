@@ -1084,6 +1084,43 @@ class TestPackPathVerificationRegression:
         assert rev.compute_hash() == sha1_git
         assert dict(rev.extra_headers)[b"mergetag"] == mergetag
 
+    def test_tag_empty_message_no_raw_manifest(self):
+        # An empty-but-present message: the object ends with the header/body
+        # separator blank line and nothing after it. The converter must model
+        # this as message=b"" (which keeps the separator), not None (which
+        # drops it), or it reserializes one byte short and records a spurious
+        # raw_manifest. Observed on 20 real tags in the AdAstra small-repo
+        # corpus, where dulwich round-tripped them and gix did not.
+        raw = (
+            b"object 641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce\n"
+            b"type commit\n"
+            b"tag 2.5.0\n"
+            b"tagger Foo <foo@example.org> 1546862046 +0000\n"
+            b"\n"
+        )
+        sha1_git = self._sha1_git("tag", raw)
+        rel = converters.tag_to_release(sha1_git, raw)
+        assert rel.id == sha1_git
+        assert rel.message == b""
+        assert rel.raw_manifest is None
+        assert rel.compute_hash() == sha1_git
+
+    def test_commit_empty_message_no_raw_manifest(self):
+        # Same empty-but-present message case for a commit (3 such revisions
+        # were seen in the same corpus).
+        raw = (
+            b"tree 641fb6e08ddb2e4fd096dcf18e80b894bf7e25ce\n"
+            b"author Foo <foo@example.org> 1359171299 +0000\n"
+            b"committer Foo <foo@example.org> 1359171299 +0000\n"
+            b"\n"
+        )
+        sha1_git = self._sha1_git("commit", raw)
+        rev = converters.commit_to_revision(sha1_git, raw)
+        assert rev.id == sha1_git
+        assert rev.message == b""
+        assert rev.raw_manifest is None
+        assert rev.compute_hash() == sha1_git
+
     def test_tree_duplicate_entry_names_takes_slow_path(self):
         # git tolerates duplicate entry names; the SWH model does not.
         # hash_match=True is realistic here (byte-exact round-trip), but

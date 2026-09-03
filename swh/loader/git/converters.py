@@ -108,8 +108,22 @@ def parse_git_headers(
     Returns ``(headers_list, message_body)`` where *headers_list* is an
     ordered list of ``(field, value)`` tuples.  Multi-line continuation
     lines (starting with a space) are joined.  *message_body* is
-    everything after the first blank line (``\\n\\n``), or ``None`` when
-    there is no body.
+    everything after the header/body separator blank line (``\\n\\n``).
+
+    The empty-body cases are deliberately distinct, because swh-model
+    serializes them differently and getting it wrong changes the id:
+
+    - a separator blank line **is** present but nothing follows it (the
+      object ends ``...\\n\\n``): the message is empty-but-present,
+      ``b""``.  swh-model keeps the separator, so the manifest ends
+      ``\\n\\n`` and the hash matches.  (Git writes this for a tag or
+      commit with an empty message.)
+    - no separator blank line at all (headers run to EOF): there is no
+      message, ``None``.  swh-model emits no separator.
+
+    Returning ``None`` for the first case would drop the separator byte,
+    reserialize one byte short, and force a spurious ``raw_manifest``
+    fallback (observed on tags/commits with empty messages).
     """
     f = BytesIO(raw)
     headers: List[Tuple[bytes, bytes]] = []
@@ -141,8 +155,11 @@ def parse_git_headers(
         return (headers, None)
 
     if not eof:
+        # A separator blank line was consumed above.  An empty body here is
+        # an empty-but-present message (b""), NOT "no message" (None): git
+        # wrote the separator, so swh-model must keep it to reproduce the id.
         body = f.read()
-        return (headers, body if body else None)
+        return (headers, body)
 
     return (headers, None)  # pragma: no cover
 
