@@ -7,7 +7,6 @@ from contextlib import contextmanager
 import datetime
 from functools import partial
 from http.server import HTTPServer, SimpleHTTPRequestHandler
-import io
 import logging
 import os
 import socket
@@ -23,7 +22,6 @@ from dulwich.object_store import MemoryObjectStore
 from dulwich.pack import REF_DELTA
 from dulwich.porcelain import get_user_timezones, push, tag_create
 import dulwich.repo
-from dulwich.server import DictBackend, TCPGitServer
 from dulwich.tests.utils import build_pack
 import pytest
 import sentry_sdk
@@ -82,7 +80,8 @@ def serve_repo_over_git_protocol(repo):
 
     proc = subprocess.Popen(
         [
-            "git", "daemon",
+            "git",
+            "daemon",
             "--reuseaddr",
             "--listen=127.0.0.1",
             f"--port={port}",
@@ -531,13 +530,15 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         build_pack(pack_file, objects, store)
         pack_file.flush()
 
-        mocker.patch.object(
-            self.loader, "fetch_pack_from_origin"
-        ).return_value = FetchPackReturn(
-            remote_refs={b"refs/heads/master": self.repo.refs[b"refs/heads/master"]},
-            symbolic_refs={},
-            pack_path=pack_file.name,
-            pack_size=os.path.getsize(pack_file.name),
+        mocker.patch.object(self.loader, "fetch_pack_from_origin").return_value = (
+            FetchPackReturn(
+                remote_refs={
+                    b"refs/heads/master": self.repo.refs[b"refs/heads/master"]
+                },
+                symbolic_refs={},
+                pack_path=pack_file.name,
+                pack_size=os.path.getsize(pack_file.name),
+            )
         )
 
         assert self.loader.load()["status"] == "failed"
@@ -582,13 +583,13 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             if name.startswith((b"refs/heads/", b"refs/tags/"))
             and not name.endswith(b"^{}")
         }
-        mocker.patch.object(
-            self.loader, "fetch_pack_from_origin"
-        ).return_value = FetchPackReturn(
-            remote_refs=remote_refs,
-            symbolic_refs={},
-            pack_path=pack_file.name,
-            pack_size=os.path.getsize(pack_file.name),
+        mocker.patch.object(self.loader, "fetch_pack_from_origin").return_value = (
+            FetchPackReturn(
+                remote_refs=remote_refs,
+                symbolic_refs={},
+                pack_path=pack_file.name,
+                pack_size=os.path.getsize(pack_file.name),
+            )
         )
 
         with caplog.at_level(logging.INFO):
@@ -1001,7 +1002,6 @@ class TestGitLoaderOverGitProtocol(TestGitLoader):
         pass
 
 
-
 class TestGitLoader2OverGitProtocol(TestGitLoader2):
     """:class:`TestGitLoader2` (the parent-origin / forge-fork scenario) run
     against the **gix** engine, serving the fixture over ``git://`` instead of
@@ -1054,7 +1054,6 @@ class TestGitLoader2OverGitProtocol(TestGitLoader2):
     )
     def test_load_dangling_symref(self):
         pass
-
 
 
 class DumbGitLoaderTestBase(FullGitLoaderTests):
