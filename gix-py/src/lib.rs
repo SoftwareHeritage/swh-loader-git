@@ -590,12 +590,24 @@ struct ParallelPackReader {
 #[pymethods]
 impl ParallelPackReader {
     #[new]
-    #[pyo3(signature = (pack_path, channel_bound=None))]
-    fn new(_py: Python<'_>, pack_path: &str, channel_bound: Option<usize>) -> PyResult<Self> {
+    #[pyo3(signature = (pack_path, channel_bound=None, byte_budget=None))]
+    fn new(
+        _py: Python<'_>,
+        pack_path: &str,
+        channel_bound: Option<usize>,
+        byte_budget: Option<usize>,
+    ) -> PyResult<Self> {
         let bound = channel_bound.unwrap_or(65536);
-        let inner =
-            swh_loader_git_gix::ParallelInflater::open(std::path::Path::new(pack_path), bound)
-                .map_err(map_gix_error)?;
+        // Bound the channel by decoded bytes as well as by message count: a
+        // count-only bound lets a pack of large blobs queue tens of GB.
+        // 0 disables the gate.  Default 256 MiB.
+        let budget = byte_budget.unwrap_or(256 * 1024 * 1024);
+        let inner = swh_loader_git_gix::ParallelInflater::open(
+            std::path::Path::new(pack_path),
+            bound,
+            budget,
+        )
+        .map_err(map_gix_error)?;
         Ok(ParallelPackReader { inner })
     }
 

@@ -177,7 +177,25 @@ class PackReader:
 class ParallelPackReader:
     """Parallel streaming iterator using multiple worker threads."""
 
-    def __init__(self, pack_path: str, channel_bound: int | None = None) -> None: ...
+    def __init__(
+        self,
+        pack_path: str,
+        channel_bound: int | None = None,
+        byte_budget: int | None = None,
+    ) -> None:
+        """
+        Parameters
+        ----------
+        channel_bound:
+            Bounds the producer/consumer channel by message *count*.
+        byte_budget:
+            Additionally bounds the *decoded bytes* in flight (default 256 MiB;
+            ``0`` disables).  A count-only bound does not bound memory: on a
+            pack of large blobs a few thousand queued multi-MB objects are tens
+            of GB.  A single object larger than the budget still passes when
+            nothing else is in flight, so it cannot deadlock.
+        """
+        ...
     def __iter__(self) -> "ParallelPackReader": ...
     def __next__(self) -> tuple: ...
 

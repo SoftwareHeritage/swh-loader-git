@@ -199,6 +199,7 @@ class GitLoader(BaseGitLoader):
         pack_size_bytes: int = 4 * 1024 * 1024 * 1024,
         temp_file_cutoff: int = 100 * 1024 * 1024,
         parallel_pack_threshold_bytes: int = 100 * 1000 * 1000,
+        pack_byte_budget: int = 256 * 1024 * 1024,
         connect_timeout: float = 120,
         read_timeout: float = 600,
         verify_certs: bool = True,
@@ -226,6 +227,11 @@ class GitLoader(BaseGitLoader):
         # unused: the gix engine streams every pack to disk.
         self.temp_file_cutoff = temp_file_cutoff
         self.parallel_pack_threshold_bytes = parallel_pack_threshold_bytes
+        # Cap on decoded object bytes queued between the parallel inflater and
+        # this (single-threaded) consumer.  The channel's message-count bound
+        # alone does not bound memory: on a pack of large blobs a few thousand
+        # multi-MB objects in flight are tens of GB.  0 disables the cap.
+        self.pack_byte_budget = pack_byte_budget
         # Cache for external REF_DELTA bases resolved from the archive, keyed
         # by sha1_git.  ``None`` records a miss so a second lookup is skipped.
         self.ext_refs: Dict[bytes, Optional[Tuple[int, bytes]]] = {}
@@ -922,7 +928,9 @@ class GitLoader(BaseGitLoader):
             use_parallel = self.pack_size > self.parallel_pack_threshold_bytes
             if use_parallel:
                 reader: Iterable = ParallelPackReader(
-                    self.pack_path, channel_bound=4096
+                    self.pack_path,
+                    channel_bound=4096,
+                    byte_budget=self.pack_byte_budget,
                 )
             else:
                 # The resolver lets the sequential reader follow REF_DELTA
@@ -954,7 +962,11 @@ class GitLoader(BaseGitLoader):
                     batches[t] = []
                     counts[t] = 0
                 total_inflate_time = _drain(
-                    ParallelPackReader(self.pack_path, channel_bound=4096)
+                    ParallelPackReader(
+                        self.pack_path,
+                        channel_bound=4096,
+                        byte_budget=self.pack_byte_budget,
+                    )
                 )
 
             self.statsd_timing("inflate_git_packfile", total_inflate_time * 1000.0)

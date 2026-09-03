@@ -8,7 +8,7 @@
 
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Condvar};
 use std::time::Instant;
 
 use anyhow::{Context, Result};
@@ -51,14 +51,88 @@ impl TraverseStats {
     }
 }
 
+/// Bounds the *bytes* of decoded objects in flight between the parallel
+/// producers and the Python consumer.
+///
+/// `std::sync::mpsc::sync_channel` bounds the channel by message *count*. For a
+/// pack of large blobs that lets thousands of multi-MB objects pile up (tens of
+/// GB of committed memory) whenever the consumer is slower than the decoders: a
+/// 44.6 GB blob-heavy pack (average blob ~17.8 MB) drove RSS to ~128 GB. This
+/// gate additionally caps the total decoded bytes queued: a producer blocks in
+/// [`acquire`](ByteBudget::acquire) before sending once `used + n` would exceed
+/// `cap`, and the consumer refunds via [`release`](ByteBudget::release) on
+/// receipt. A single object larger than `cap` is admitted when nothing else is
+/// in flight, so a giant blob cannot deadlock the pipeline. `cap == 0` disables
+/// the gate (unbounded, legacy behaviour).
+pub(crate) struct ByteBudget {
+    used: std::sync::Mutex<usize>,
+    cv: Condvar,
+    cap: usize,
+}
+
+impl ByteBudget {
+    pub(crate) fn new(cap: usize) -> Self {
+        ByteBudget {
+            used: std::sync::Mutex::new(0),
+            cv: Condvar::new(),
+            cap,
+        }
+    }
+
+    /// Charge `n` bytes, blocking until they fit under `cap` (or nothing else
+    /// is in flight, so an oversized object can pass through on its own).
+    pub(crate) fn acquire(&self, n: usize) {
+        if self.cap == 0 {
+            return;
+        }
+        let mut used = self
+            .used
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        while *used != 0 && used.saturating_add(n) > self.cap {
+            used = self
+                .cv
+                .wait(used)
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+        }
+        *used += n;
+    }
+
+    /// Refund `n` bytes and wake any producer blocked in [`acquire`].
+    pub(crate) fn release(&self, n: usize) {
+        if self.cap == 0 {
+            return;
+        }
+        let mut used = self
+            .used
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        *used = used.saturating_sub(n);
+        self.cv.notify_all();
+    }
+}
+
+/// Decoded-data byte size of an object, used to charge/refund the byte budget.
+pub(crate) fn object_data_len(obj: &TypedObject) -> usize {
+    match obj {
+        TypedObject::Blob { data, .. } => data.len(),
+        TypedObject::Tree { raw_data, .. } => raw_data.len(),
+        TypedObject::Commit { data, .. } => data.len(),
+        TypedObject::Tag { data, .. } => data.len(),
+    }
+}
+
 /// Parallel pack inflater using `git index-pack` for delta resolution
 /// and `gix_pack::index::File::traverse_with_index()` for true parallel
 /// decompression and object processing.
 ///
 /// Finished `TypedObject`s are sent through a bounded channel so the
-/// Python side can consume them one at a time.
+/// Python side can consume them one at a time.  The channel is bounded both
+/// by message count (`channel_bound`) and by decoded bytes in flight
+/// (`byte_budget`, see [`ByteBudget`]).
 pub struct ParallelInflater {
     receiver: std::sync::Mutex<std::sync::mpsc::Receiver<Result<TypedObject>>>,
+    budget: Arc<ByteBudget>,
     _handle: Option<std::thread::JoinHandle<()>>,
 }
 
@@ -71,7 +145,7 @@ impl ParallelInflater {
     /// in parallel, sending results through a bounded channel.
     ///
     /// `channel_bound` controls the bounded channel capacity (back-pressure).
-    pub fn open(pack_path: &Path, channel_bound: usize) -> Result<Self> {
+    pub fn open(pack_path: &Path, channel_bound: usize, byte_budget: usize) -> Result<Self> {
         // Step 1: generate pack index via git index-pack (skip if .idx already exists).
         let idx_path = pack_path.with_extension("idx");
         if idx_path.exists() {
@@ -101,13 +175,20 @@ impl ParallelInflater {
 
         let pack_path_owned = pack_path.to_owned();
         let idx_path_owned = idx_path;
+        let budget = Arc::new(ByteBudget::new(byte_budget));
+        let budget_producer = Arc::clone(&budget);
         let handle = std::thread::spawn(move || {
             // catch_unwind: a panic in the traversal must reach the consumer
             // as an Err.  Without it the sender is silently dropped, recv()
             // reports end-of-channel, and the consumer would mistake a
             // half-processed pack for a complete one.
             let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                run_indexed_traverse(&pack_path_owned, &idx_path_owned, sender.clone())
+                run_indexed_traverse(
+                    &pack_path_owned,
+                    &idx_path_owned,
+                    sender.clone(),
+                    &budget_producer,
+                )
             }));
             match outcome {
                 Ok(Ok(())) => {}
@@ -127,6 +208,7 @@ impl ParallelInflater {
 
         Ok(ParallelInflater {
             receiver: std::sync::Mutex::new(receiver),
+            budget,
             _handle: Some(handle),
         })
     }
@@ -141,7 +223,13 @@ impl ParallelInflater {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         match rx.recv() {
-            Ok(result) => result.map(Some),
+            Ok(Ok(obj)) => {
+                // Refund the byte budget now that this object has left the
+                // channel; wakes any producer blocked in ByteBudget::acquire.
+                self.budget.release(object_data_len(&obj));
+                Ok(Some(obj))
+            }
+            Ok(Err(e)) => Err(e),
             Err(_) => Ok(None), // channel closed = done
         }
     }
@@ -181,6 +269,7 @@ fn run_indexed_traverse(
     pack_path: &Path,
     idx_path: &Path,
     output_sender: std::sync::mpsc::SyncSender<Result<TypedObject>>,
+    budget: &Arc<ByteBudget>,
 ) -> Result<()> {
     let index = gix_pack::index::File::at(idx_path, gix_hash::Kind::Sha1)
         .context("failed to open pack index")?;
@@ -196,6 +285,7 @@ fn run_indexed_traverse(
     let processor = {
         let sender = sender.clone();
         let stats = Arc::clone(&stats);
+        let budget = Arc::clone(budget);
         move |kind: ObjectKind,
               decompressed: &[u8],
               _entry: &gix_pack::index::Entry,
@@ -256,6 +346,12 @@ fn run_indexed_traverse(
                     }
                 }
             };
+
+            // Byte-budget backpressure: block before sending once the
+            // in-flight decoded bytes would exceed the cap, so peak channel
+            // memory is bounded by bytes rather than by message count.
+            // Refunded in ParallelInflater::next_object on receipt.
+            budget.acquire(object_data_len(&typed_obj));
 
             let t_send = Instant::now();
             sender
