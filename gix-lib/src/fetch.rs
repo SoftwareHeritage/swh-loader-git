@@ -216,8 +216,18 @@ pub fn fetch_pack(
                 peeled_name.extend_from_slice(b"^{}");
                 remote_refs.insert(peeled_name, object.to_hex().to_string());
             }
-            Ref::Unborn { .. } => {
-                // Empty repo — no objects to record.
+            Ref::Unborn {
+                full_ref_name,
+                target,
+            } => {
+                // A dangling symbolic ref: HEAD points at a branch that has no
+                // commits yet (a freshly initialised repo, or a HEAD left
+                // pointing at a deleted branch).  There is no object to record,
+                // but the symref itself must still be reported: the loader
+                // turns it into the snapshot's ALIAS branch, and dropping it
+                // here is why the dangling-symref case produced a snapshot with
+                // no HEAD at all while dulwich produced one.
+                symbolic_refs.insert(full_ref_name.clone(), target.clone());
             }
         }
     }
@@ -369,7 +379,15 @@ pub fn fetch_pack_to_file(
                 peeled_name.extend_from_slice(b"^{}");
                 remote_refs.insert(peeled_name, object.to_hex().to_string());
             }
-            Ref::Unborn { .. } => {}
+            Ref::Unborn {
+                full_ref_name,
+                target,
+            } => {
+                // Dangling symref (see the same arm in `fetch_pack`): no object
+                // to record, but the symref must reach the loader so it can
+                // build the ALIAS branch.
+                symbolic_refs.insert(full_ref_name.clone(), target.clone());
+            }
         }
     }
 

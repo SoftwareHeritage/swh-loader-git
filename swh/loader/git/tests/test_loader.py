@@ -988,10 +988,14 @@ class TestGitLoaderOverGitProtocol(TestGitLoader):
     # engine over the same git:// server (SWH_GIX_FORCE_ENGINE discrimination).
 
     @pytest.mark.skip(
-        reason="A dangling .git/HEAD symref is a working-copy / file:// concept "
-        "the git smart protocol does not advertise, so the ALIAS branch this "
-        "asserts cannot be conveyed over git://. Verified: fails identically on "
-        "the dulwich engine over the same git:// server."
+        reason="gix pins git protocol v1, and a dangling HEAD symref is only "
+        "conveyed by protocol v2 (ls-refs 'unborn'). Verified on the wire: the "
+        "v1 advertisement for such a repo carries no HEAD ref and no symref= "
+        "capability at all, while the v2 advertisement offers ls-refs=unborn. "
+        "dulwich negotiates v2 and passes this test over the same server, so "
+        "this is a gix gap, NOT a protocol limitation as earlier claimed. It is "
+        "fixable: gix pins v1 only because v2 re-enables thin-pack, which is now "
+        "supported via external-ref resolution, so enabling v2 is the fix."
     )
     def test_load_dangling_symref(self):
         pass
@@ -1039,10 +1043,14 @@ class TestGitLoader2OverGitProtocol(TestGitLoader2):
     # each verified not a gix bug (fails identically on dulwich over git://).
 
     @pytest.mark.skip(
-        reason="A dangling .git/HEAD symref is a working-copy / file:// concept "
-        "the git smart protocol does not advertise, so the ALIAS branch this "
-        "asserts cannot be conveyed over git://. Verified: fails identically on "
-        "the dulwich engine over the same git:// server."
+        reason="gix pins git protocol v1, and a dangling HEAD symref is only "
+        "conveyed by protocol v2 (ls-refs 'unborn'). Verified on the wire: the "
+        "v1 advertisement for such a repo carries no HEAD ref and no symref= "
+        "capability at all, while the v2 advertisement offers ls-refs=unborn. "
+        "dulwich negotiates v2 and passes this test over the same server, so "
+        "this is a gix gap, NOT a protocol limitation as earlier claimed. It is "
+        "fixable: gix pins v1 only because v2 re-enables thin-pack, which is now "
+        "supported via external-ref resolution, so enabling v2 is the fix."
     )
     def test_load_dangling_symref(self):
         pass
