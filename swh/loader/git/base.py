@@ -1,14 +1,16 @@
-# Copyright (C) 2015-2022  The Software Heritage developers
+# Copyright (C) 2015-2026  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
 import collections
 import logging
+import random
 import time
-from typing import Dict, Iterable
+from typing import Dict, Iterable, List
 
 from swh.loader.core.loader import BaseLoader
+from swh.loader.core.metadata_fetchers import CredentialsType
 from swh.model.model import (
     BaseContent,
     Content,
@@ -31,10 +33,37 @@ class BaseGitLoader(BaseLoader):
     Those loaders are able to load all the data in one go.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
+        self.credentials = self.extract_credentials(**kwargs)
+
         self.next_log_after = time.monotonic() + LOGGING_INTERVAL
+
+    def extract_credentials(
+        self,
+        lister_name: str | None = None,
+        lister_instance_name: str | None = None,
+        metadata_fetcher_credentials: CredentialsType = None,
+        **kwargs,
+    ) -> List[Dict[str, str]]:
+        """Extract credentials from the loader keyword arguments"""
+        if (
+            not lister_name
+            or not lister_instance_name
+            or not metadata_fetcher_credentials
+        ):
+            return []
+
+        if (
+            lister_name in metadata_fetcher_credentials
+            and lister_instance_name in metadata_fetcher_credentials[lister_name]
+        ):
+            creds = metadata_fetcher_credentials[lister_name][lister_instance_name]
+            # Copy and shuffle the list
+            return random.sample(creds, k=len(creds))
+
+        return []
 
     def cleanup(self) -> None:
         """Clean up an eventual state installed for computations."""
