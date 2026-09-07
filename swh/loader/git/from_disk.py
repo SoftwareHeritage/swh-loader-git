@@ -6,7 +6,7 @@
 import logging
 import os
 import tempfile
-from typing import Callable
+from typing import Callable, Dict
 
 from dulwich.object_format import DEFAULT_OBJECT_FORMAT
 import dulwich.objects
@@ -94,6 +94,7 @@ class GitLoaderFromArchive(GitLoader):
         origin_url: str,
         base_repo: RepoRepresentation,
         do_activity: Callable[[bytes], None],
+        credentials: Dict[str, str] | None = None,
     ):
         with tempfile.TemporaryDirectory() as tmp_dir:
             project_name = self.project_name_from_archive(self.archive_path)

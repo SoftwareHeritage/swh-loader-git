@@ -257,6 +257,7 @@ class GitLoader(BaseGitLoader):
         origin_url: str,
         base_repo: RepoRepresentation,
         do_activity: Callable[[bytes], None],
+        credentials: Optional[Dict[str, str]] = None,
     ) -> FetchPackReturn:
         """Fetch a pack from the origin"""
 
@@ -273,6 +274,19 @@ class GitLoader(BaseGitLoader):
                 config=None,
                 **self.urllib3_extra_kwargs,
             )
+
+        if credentials:
+            transport_kwargs["username"] = credentials["username"]
+            if "token" in credentials:
+                logger.debug(
+                    "Using token for username %s", transport_kwargs["username"]
+                )
+                transport_kwargs["password"] = credentials["token"]
+            else:
+                logger.debug(
+                    "Using password for username %s", transport_kwargs["username"]
+                )
+                transport_kwargs["password"] = credentials["password"]
 
         client, path = dulwich.client.get_transport_and_path(
             location=transport_url,
