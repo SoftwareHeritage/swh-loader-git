@@ -24,6 +24,12 @@ from swh.loader.exception import NotFound
 from swh.model.model import SnapshotBranch
 
 
+class AuthorizationRequired(NotFound):
+    """Used when a repository raises an Authorization Required error"""
+
+    pass
+
+
 def init_git_repo_from_archive(project_name, archive_path, root_temp_dir="/tmp"):
     """Given a path to an archive containing a git repository.
 
@@ -165,16 +171,20 @@ def raise_not_found_repository():
     """
     try:
         yield
-    except (HTTPUnauthorized, NotGitRepository) as e:
+    except NotGitRepository as e:
         raise NotFound(e)
+    except HTTPUnauthorized as e:
+        raise AuthorizationRequired(e)
     except GitProtocolError as e:
         # that kind of error is unfortunately not specific to a not found scenario... It
         # depends on the value of message within the exception. So parse the exception
         # message to detect if it's a not found or not.
+        if "unexpected http resp 401" in str(e.args[0]):
+            raise AuthorizationRequired(e)
+
         for msg in [
             " unavailable",  # e.g DMCA takedown
             " not found",
-            "unexpected http resp 401",
             "unexpected http resp 403",
             "unexpected http resp 410",
         ]:

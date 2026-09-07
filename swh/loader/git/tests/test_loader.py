@@ -17,7 +17,7 @@ from unittest.mock import MagicMock, call
 
 import attr
 from dulwich.bundle import create_bundle_from_repo, write_bundle
-from dulwich.client import Urllib3HttpGitClient
+from dulwich.client import HTTPUnauthorized, Urllib3HttpGitClient
 from dulwich.errors import GitProtocolError, NotGitRepository, ObjectFormatException
 from dulwich.objects import Blob, Commit, Tag, Tree
 from dulwich.pack import REF_DELTA
@@ -63,6 +63,7 @@ class CommonGitLoaderNotFound:
             GitProtocolError("unexpected http resp 401"),
             GitProtocolError("unexpected http resp 403"),
             GitProtocolError("unexpected http resp 410"),
+            HTTPUnauthorized("Authorization required", "https://test-url.example.com"),
             NotGitRepository("not a git repo"),
         ],
     )
