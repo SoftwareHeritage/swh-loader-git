@@ -76,7 +76,7 @@ from swh.storage.interface import StorageInterface
 
 from . import converters, utils
 from .base import BaseGitLoader
-from .utils import LOGGING_INTERVAL, PackWriter
+from .utils import LOGGING_INTERVAL, AuthorizationRequired, PackWriter
 
 logger = logging.getLogger(__name__)
 heads_logger = logger.getChild("refs")
@@ -512,6 +512,50 @@ class GitLoader(BaseGitLoader):
                 fetch_info = self.fetch_pack_from_origin(
                     self.origin.url, base_repo, do_remote
                 )
+        except AuthorizationRequired as original_exc:
+            if not self.credentials:
+                logger.warning(
+                    "Authorization required but no credentials found, "
+                    "marking repository as not found"
+                )
+                # Unwrap the AuthorizationRequired exception into the more generic
+                # NotFound exception
+                raise NotFound(original_exc.args[0])
+
+            logger.info(
+                "Anonymous fetch failed, using credentials to load repository at %s",
+                self.origin.url,
+            )
+            for credentials in self.credentials:
+                logger.debug(
+                    "Attempting fetch with username %s", credentials["username"]
+                )
+                try:
+                    with raise_not_found_repository():
+                        fetch_info = self.fetch_pack_from_origin(
+                            self.origin.url,
+                            base_repo,
+                            do_remote,
+                            credentials=credentials,
+                        )
+                except AuthorizationRequired:
+                    # Try next user
+                    continue
+                except Exception as new_exc:
+                    # We've gotten a new exception; We don't need the exception
+                    # chain from the original failed authorization
+                    raise new_exc from None
+                else:
+                    # The fetch was successful, we can stop attempting new credentials
+                    break
+            else:
+                logger.warning(
+                    "None of our %s credentials were successful, "
+                    "marking repository as not found",
+                    len(self.credentials),
+                )
+                raise NotFound(original_exc.args[0])
+
         except NotFound:
             # NotFound inherits from ValueError and should not be caught
             # by the next exception handler
