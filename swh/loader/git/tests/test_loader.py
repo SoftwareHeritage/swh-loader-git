@@ -484,6 +484,22 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
                 True,
                 id="lister-instance",
             ),
+            pytest.param(
+                {
+                    "known_lister_prefixes": {
+                        "file:///": ("lister", "lister-instance")
+                    },
+                    "metadata_fetcher_credentials": {
+                        "lister": {
+                            "lister-instance": [{"username": "user", "token": "token"}]
+                        }
+                    },
+                },
+                "full",
+                "eventful",
+                True,
+                id="lister-prefixes",
+            ),
             pytest.param({}, "not_found", "uneventful", False, id="no-auth"),
         ],
     )

@@ -7,7 +7,7 @@ import collections
 import logging
 import random
 import time
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable, List, Tuple
 
 from swh.loader.core.loader import BaseLoader
 from swh.loader.core.metadata_fetchers import CredentialsType
@@ -34,20 +34,33 @@ class BaseGitLoader(BaseLoader):
     """
 
     def __init__(self, *args, **kwargs) -> None:
+
+        known_lister_prefixes = kwargs.pop(
+            "known_lister_prefixes", {"https://github.com/": ("github", "github")}
+        )
         super().__init__(*args, **kwargs)
 
-        self.credentials = self.extract_credentials(**kwargs)
+        self.credentials = self.extract_credentials(
+            known_lister_prefixes=known_lister_prefixes, **kwargs
+        )
 
         self.next_log_after = time.monotonic() + LOGGING_INTERVAL
 
     def extract_credentials(
         self,
+        known_lister_prefixes: Dict[str, Tuple[str, str]],
         lister_name: str | None = None,
         lister_instance_name: str | None = None,
         metadata_fetcher_credentials: CredentialsType = None,
         **kwargs,
     ) -> List[Dict[str, str]]:
         """Extract credentials from the loader keyword arguments"""
+        # TODO: move this to swh.loader.core.metadata_fetchers.get_fetchers_for_lister
+        if not lister_name or not lister_instance_name:
+            for prefix in known_lister_prefixes:
+                if self.origin.url.startswith(prefix):
+                    lister_name, lister_instance_name = known_lister_prefixes[prefix]
+
         if (
             not lister_name
             or not lister_instance_name
