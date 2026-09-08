@@ -47,6 +47,11 @@ from swh.model.model import (
 )
 
 
+@pytest.fixture
+def extra_loader_arguments():
+    return {}
+
+
 class CommonGitLoaderNotFound:
     @pytest.fixture(autouse=True)
     def __inject_fixtures(self, mocker):
@@ -125,7 +130,7 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
     """
 
     @pytest.fixture(autouse=True)
-    def init(self, swh_storage, datadir, tmp_path):
+    def init(self, swh_storage, datadir, tmp_path, extra_loader_arguments):
         archive_name = "testrepo"
         archive_path = os.path.join(datadir, f"{archive_name}.tgz")
         tmp_path = str(tmp_path)
@@ -133,7 +138,7 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             archive_path, archive_name, tmp_path=tmp_path
         )
         self.destination_path = os.path.join(tmp_path, archive_name)
-        self.loader = GitLoader(swh_storage, self.repo_url)
+        self.loader = GitLoader(swh_storage, self.repo_url, **extra_loader_arguments)
         self.repo = Repo(self.destination_path)
 
     def test_metrics(self, mocker):
@@ -460,6 +465,65 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         assert sentry_events[0]["exception"]["values"][0]["value"].startswith(
             "Pack file too big for repository"
         )
+
+    @pytest.mark.parametrize(
+        "extra_loader_arguments,visit_status,load_status,credentials_used",
+        [
+            pytest.param(
+                {
+                    "lister_name": "lister",
+                    "lister_instance_name": "lister-instance",
+                    "metadata_fetcher_credentials": {
+                        "lister": {
+                            "lister-instance": [{"username": "user", "token": "token"}]
+                        }
+                    },
+                },
+                "full",
+                "eventful",
+                True,
+                id="lister-instance",
+            ),
+            pytest.param({}, "not_found", "uneventful", False, id="no-auth"),
+        ],
+    )
+    def test_load_authentication_fallback(
+        self, mocker, visit_status, load_status, credentials_used
+    ):
+        def force_authentication(*args, **kwargs):
+            if "credentials" not in kwargs:
+                raise HTTPUnauthorized("Authorization required", "file:///")
+
+            return GitLoader.fetch_pack_from_origin(self.loader, *args, **kwargs)
+
+        mock = mocker.patch.object(
+            self.loader, "fetch_pack_from_origin", side_effect=force_authentication
+        )
+
+        res = self.loader.load()
+        assert res["status"] == load_status
+
+        assert_last_visit_matches(
+            self.loader.storage,
+            self.repo_url,
+            status=visit_status,
+            type="git",
+            **({"snapshot": None} if visit_status == "not_found" else {}),
+        )
+
+        if credentials_used:
+            assert mock.call_count == 2
+            assert mock.call_args_list[0][0] == mock.call_args_list[1][0]
+
+            # Check that credentials were passed
+            assert mock.call_args_list[1][1] == {
+                "credentials": {
+                    "username": "user",
+                    "token": "token",
+                }
+            }
+        else:
+            assert mock.call_count == 1
 
 
 class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
