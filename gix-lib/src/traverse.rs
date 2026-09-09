@@ -140,15 +140,21 @@ impl ParallelInflater {
     /// Open a pack file for parallel inflation.
     ///
     /// This first runs `git index-pack` to build an `.idx` file (which
-    /// resolves all delta chains), then spawns a background thread that
+    /// resolves all delta chains) unless one is already present, then spawns
+    /// a background thread that
     /// calls `traverse_with_index` to decompress and process every object
     /// in parallel, sending results through a bounded channel.
     ///
     /// `channel_bound` controls the bounded channel capacity (back-pressure).
     pub fn open(pack_path: &Path, channel_bound: usize, byte_budget: usize) -> Result<Self> {
         // Step 1: generate pack index via git index-pack (skip if .idx already exists).
+        //
+        // Track whether the index is ours.  A pack handed to us by a caller may
+        // already carry an index that the caller still needs; only an index this
+        // function created is ours to remove on teardown.
         let idx_path = pack_path.with_extension("idx");
-        if idx_path.exists() {
+        let idx_preexisting = idx_path.exists();
+        if idx_preexisting {
             eprintln!(
                 "[gix-traverse stats] reusing existing index {}",
                 idx_path.display()
@@ -202,8 +208,13 @@ impl ParallelInflater {
                     )));
                 }
             }
-            // Clean up the .idx file we generated.
-            let _ = std::fs::remove_file(&idx_path_owned);
+            // Clean up the .idx file only if this inflater generated it.  An
+            // index that was already on disk belongs to the caller: removing it
+            // would leave a pack that `git index-pack` has to rebuild, and that
+            // no `upload-pack` can serve until it does.
+            if !idx_preexisting {
+                let _ = std::fs::remove_file(&idx_path_owned);
+            }
         });
 
         Ok(ParallelInflater {
@@ -692,4 +703,61 @@ fn run_direct_tree_traverse(
     );
 
     Ok(())
+}
+
+#[cfg(test)]
+mod idx_lifetime_tests {
+    use super::*;
+    use std::process::Command;
+
+    /// Build a tiny packed repo in `dir` and return the path to its pack.
+    fn make_pack(dir: &Path) -> std::path::PathBuf {
+        let run = |args: &[&str]| {
+            let st = Command::new("git")
+                .args(args)
+                .current_dir(dir)
+                .status()
+                .expect("git must be on PATH for this test");
+            assert!(st.success(), "git {:?} failed", args);
+        };
+        run(&["init", "--quiet", "."]);
+        run(&["config", "user.email", "t@example.invalid"]);
+        run(&["config", "user.name", "t"]);
+        std::fs::write(dir.join("a.txt"), b"hello pack index lifetime\n").unwrap();
+        run(&["add", "a.txt"]);
+        run(&["commit", "--quiet", "-m", "one"]);
+        run(&["repack", "-a", "-d", "--quiet"]);
+        let packdir = dir.join(".git/objects/pack");
+        std::fs::read_dir(&packdir)
+            .unwrap()
+            .filter_map(|e| e.ok().map(|e| e.path()))
+            .find(|p| p.extension().is_some_and(|x| x == "pack"))
+            .expect("repack should have produced a pack")
+    }
+
+    /// A pack index that was already on disk belongs to the caller and must
+    /// survive a parallel read.  Before this was fixed, teardown removed the
+    /// index unconditionally, leaving a pack that `upload-pack` cannot serve
+    /// until someone rebuilds the index.
+    #[test]
+    fn preexisting_pack_index_survives_parallel_read() {
+        let tmp = std::env::temp_dir().join(format!("gixidx-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+
+        let pack = make_pack(&tmp);
+        let idx = pack.with_extension("idx");
+        assert!(idx.exists(), "precondition: git repack writes an .idx");
+
+        {
+            let inflater = ParallelInflater::open(&pack, 64, 0).expect("open");
+            while inflater.next_object().expect("object").is_some() {}
+        }
+
+        assert!(
+            idx.exists(),
+            "a pre-existing .idx must survive a parallel read; it was removed"
+        );
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
 }
