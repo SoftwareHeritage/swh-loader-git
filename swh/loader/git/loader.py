@@ -245,6 +245,7 @@ class GitLoader(BaseGitLoader):
         self.ref_object_types: Dict[bytes, Optional[SnapshotTargetType]] = {}
         self.ext_refs: Dict[bytes, Optional[Tuple[int, List[bytes]]]] = {}
         self.repo_pack_size_bytes = 0
+        self.pack_buffer: Optional[SpooledTemporaryFile] = None
         self.urllib3_extra_kwargs = urllib3_extra_kwargs
         self.urllib3_extra_kwargs["timeout"] = urllib3.util.Timeout(
             connect=connect_timeout, read=read_timeout
@@ -605,6 +606,7 @@ class GitLoader(BaseGitLoader):
         pack_name = "%s.pack" % self.visit_date.isoformat()
         refs_name = "%s.refs" % self.visit_date.isoformat()
 
+        assert self.pack_buffer is not None
         with open(os.path.join(pack_dir, pack_name), "xb") as f:
             self.pack_buffer.seek(0)
             while True:
@@ -686,6 +688,8 @@ class GitLoader(BaseGitLoader):
     def iter_objects(self, object_type: bytes) -> Iterator[ShaFile]:
         """Read all the objects of type `object_type` from the packfile"""
         if self.pack_data:
+            assert self.pack_buffer is not None
+
             object_cls = object_class(object_type)
             assert object_cls is not None, f"Unknown object type {object_type!r}"
 
@@ -923,6 +927,14 @@ class GitLoader(BaseGitLoader):
             eventful = bool(self.snapshot.branches)
 
         return {"status": ("eventful" if eventful else "uneventful")}
+
+    def cleanup(self) -> None:
+        if self.pack_buffer is not None:
+            try:
+                self.pack_buffer.close()
+            except Exception:
+                logger.exception("Failed to close pack buffer:")
+        super().cleanup()
 
 
 if __name__ == "__main__":
