@@ -77,6 +77,16 @@ create_exception!(
      execution failure. Must not trigger dulwich fallback."
 );
 
+create_exception!(
+    _gix,
+    GixAuthorizationRequired,
+    GixFatalError,
+    "Remote answered HTTP 401 to an anonymous or wrongly-credentialed \
+     request. Retryable with different credentials, unlike its parent: the \
+     loader catches this to drive its credential-retry loop. Subclasses \
+     GixFatalError so existing handlers keep their do-not-fall-back contract."
+);
+
 /// Map an `anyhow::Error` surfaced by `gix-lib` to a typed Python exception
 /// class.
 ///
@@ -90,6 +100,13 @@ create_exception!(
 /// behaviour) so that unclassified errors surface instead of being
 /// silently misrouted.
 pub fn map_gix_error(e: anyhow::Error) -> pyo3::PyErr {
+    // Checked before the substring buckets: a 401 is the one fatal-looking
+    // failure that a different credential can fix, and on the fetch leg its
+    // message would otherwise match "parse fetch response" and be misrouted.
+    if swh_loader_git_gix::is_authorization_required(&e) {
+        return pyo3::PyErr::new::<GixAuthorizationRequired, _>(format!("{e:#}"));
+    }
+
     let msg = format!("{e:#}");
     let lower = msg.to_lowercase();
 
@@ -131,13 +148,13 @@ pub fn map_gix_error(e: anyhow::Error) -> pyo3::PyErr {
     const PACK_PATTERNS: &[&str] = &[
         "index-pack failed with status", // pack rejected by `git index-pack`
         "corrupt pack header",
-        "pack too short",       // upstream gitoxide header scan on truncated input
-        "pack signature",       // upstream gitoxide: wrong magic bytes
+        "pack too short", // upstream gitoxide header scan on truncated input
+        "pack signature", // upstream gitoxide: wrong magic bytes
         "open pack index",
         "open pack data",
         "open pack file",
         "pack entry iterator",
-        "decode pack entry",    // defensive: direct-tree path may surface this
+        "decode pack entry", // defensive: direct-tree path may surface this
     ];
 
     for p in FATAL_PATTERNS {

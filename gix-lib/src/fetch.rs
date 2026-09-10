@@ -101,6 +101,93 @@ fn negotiated_features(
         .collect())
 }
 
+/// HTTP Basic credentials for an authenticated fetch.
+///
+/// Deliberately *not* passed inside the URL: `gix_transport` stores the URL via
+/// `to_bstring()`, which serialises the password, and hands it back unredacted
+/// through `to_url()` (which `gix-protocol` then embeds in its
+/// `InvalidCredentials` error).  Going through `set_identity` keeps the stored
+/// URL clean, so no error path can echo the secret.
+pub struct Credentials {
+    pub username: String,
+    pub secret: String,
+}
+
+/// Manual, because a derived `Debug` would print the secret.
+impl std::fmt::Debug for Credentials {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Credentials")
+            .field("username", &self.username)
+            .field("secret", &"<redacted>")
+            .finish()
+    }
+}
+
+/// Reject credentials smuggled through the URL's userinfo.
+///
+/// Must run *before* the `invalid git URL: {url}` context below, which would
+/// otherwise print the secret verbatim on a parse failure.  The error message
+/// deliberately interpolates nothing.
+fn reject_url_userinfo(url: &str) -> Result<()> {
+    let after_scheme = url.split_once("://").map(|(_, rest)| rest).unwrap_or(url);
+    let authority = after_scheme.split(['/', '?', '#']).next().unwrap_or("");
+    if authority.contains('@') {
+        anyhow::bail!(
+            "credentials embedded in the URL are not accepted; \
+             pass them via the credentials parameter"
+        );
+    }
+    Ok(())
+}
+
+/// Install HTTP Basic credentials on a freshly-connected transport.
+///
+/// Must be called before the handshake: the transport re-reads the identity on
+/// every request, so setting it here covers both the `info/refs` GET and the
+/// `git-upload-pack` POST.  A `None` leaves the transport anonymous.
+fn apply_identity(
+    transport: &mut (dyn Transport + Send),
+    credentials: Option<Credentials>,
+) -> Result<()> {
+    if let Some(c) = credentials {
+        transport
+            .set_identity(gix_transport::client::Account {
+                username: c.username,
+                password: c.secret,
+                oauth_refresh_token: None,
+            })
+            .map_err(|e| anyhow::anyhow!("transport refused the identity: {e}"))?;
+    }
+    Ok(())
+}
+
+/// True when any error in the chain is an HTTP 401 from the transport.
+///
+/// Two shapes have to be recognised.  On the handshake (GET) leg the transport
+/// yields `io::ErrorKind::PermissionDenied` directly.  On the fetch (POST) leg
+/// it is re-wrapped by `http::Transport::request` and again by
+/// `gix_protocol`, leaving kind `Other` with the original one level down, so
+/// the string is the only discriminator left there.
+pub fn is_authorization_required(err: &anyhow::Error) -> bool {
+    for cause in err.chain() {
+        if let Some(io) = cause.downcast_ref::<std::io::Error>() {
+            if io.kind() == std::io::ErrorKind::PermissionDenied {
+                return true;
+            }
+            if let Some(inner) = io.get_ref() {
+                if let Some(io2) = inner.downcast_ref::<std::io::Error>() {
+                    if io2.kind() == std::io::ErrorKind::PermissionDenied {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    // Last resort for the POST leg, where the concrete type is boxed away.
+    let rendered = format!("{err:#}");
+    rendered.contains("HTTP status 401") || rendered.contains("status code 401")
+}
+
 /// Apply [`http_timeout_options`] to a freshly-connected transport.
 /// Must be called before the handshake; the curl backend reads the
 /// options on each request it executes.
@@ -124,6 +211,7 @@ fn apply_timeouts(
 /// * `haves`      — list of 20-byte SHA-1 object IDs we already have (for delta compression)
 /// * `size_limit` — maximum pack size in bytes (0 = unlimited); returns error if exceeded
 /// * `connect_timeout_secs` / `read_timeout_secs` — HTTP timeouts; see [`http_timeout_options`]
+#[allow(clippy::too_many_arguments)]
 pub fn fetch_pack(
     url: &str,
     wants: Vec<[u8; 20]>,
@@ -131,10 +219,11 @@ pub fn fetch_pack(
     size_limit: u64,
     connect_timeout_secs: Option<u64>,
     read_timeout_secs: Option<u64>,
+    credentials: Option<Credentials>,
 ) -> Result<FetchPackResult> {
     // 1. Parse URL
-    let url_parsed =
-        gix_url::parse(url).with_context(|| format!("invalid git URL: {url}"))?;
+    reject_url_userinfo(url)?;
+    let url_parsed = gix_url::parse(url).with_context(|| format!("invalid git URL: {url}"))?;
 
     // 2. Connect (blocking HTTP transport via curl).
     let options = ConnectOptions {
@@ -144,6 +233,7 @@ pub fn fetch_pack(
     let mut transport =
         connect(url_parsed, options).with_context(|| format!("failed to connect to {url}"))?;
     apply_timeouts(&mut *transport, connect_timeout_secs, read_timeout_secs)?;
+    apply_identity(&mut *transport, credentials)?;
 
     // 3. Handshake, parse refs, and release the transport borrow — all inside a block
     //    so that `outcome` (which borrows `transport`) is dropped before we reuse it
@@ -242,8 +332,7 @@ pub fn fetch_pack(
     }
 
     // 6. Build fetch arguments (thin-pack stripped — see `negotiated_features`).
-    let features =
-        negotiated_features(actual_protocol, &capabilities, !haves.is_empty())?;
+    let features = negotiated_features(actual_protocol, &capabilities, !haves.is_empty())?;
     let mut args = gix_protocol::fetch::Arguments::new(actual_protocol, features, false);
 
     for sha in &wants {
@@ -266,9 +355,9 @@ pub fn fetch_pack(
     // 9. Read pack data.
     //    Enable side-band demultiplexing so the Read impl strips band indicators
     //    and only returns band-1 (pack data), forwarding band-2/3 (progress/error).
-    reader.set_progress_handler(Some(Box::new(
-        |_is_error: bool, _text: &[u8]| ProgressAction::Continue(()),
-    )));
+    reader.set_progress_handler(Some(Box::new(|_is_error: bool, _text: &[u8]| {
+        ProgressAction::Continue(())
+    })));
 
     let mut pack_bytes: Vec<u8> = Vec::new();
     if response.has_pack() {
@@ -309,6 +398,7 @@ pub struct FetchPackFileResult {
 /// Like [`fetch_pack`] but writes the pack data to `pack_path` on disk
 /// instead of returning it in memory.  For large repositories this avoids
 /// holding the entire pack in a `Vec<u8>`.
+#[allow(clippy::too_many_arguments)]
 pub fn fetch_pack_to_file(
     url: &str,
     wants: Vec<[u8; 20]>,
@@ -317,9 +407,10 @@ pub fn fetch_pack_to_file(
     pack_path: &Path,
     connect_timeout_secs: Option<u64>,
     read_timeout_secs: Option<u64>,
+    credentials: Option<Credentials>,
 ) -> Result<FetchPackFileResult> {
-    let url_parsed =
-        gix_url::parse(url).with_context(|| format!("invalid git URL: {url}"))?;
+    reject_url_userinfo(url)?;
+    let url_parsed = gix_url::parse(url).with_context(|| format!("invalid git URL: {url}"))?;
     let options = ConnectOptions {
         version: Protocol::V1,
         ..Default::default()
@@ -327,6 +418,7 @@ pub fn fetch_pack_to_file(
     let mut transport =
         connect(url_parsed, options).with_context(|| format!("failed to connect to {url}"))?;
     apply_timeouts(&mut *transport, connect_timeout_secs, read_timeout_secs)?;
+    apply_identity(&mut *transport, credentials)?;
 
     let (actual_protocol, capabilities, parsed_refs) = {
         let mut outcome = transport
@@ -401,8 +493,7 @@ pub fn fetch_pack_to_file(
     }
 
     // Thin-pack stripped — see `negotiated_features`.
-    let features =
-        negotiated_features(actual_protocol, &capabilities, !haves.is_empty())?;
+    let features = negotiated_features(actual_protocol, &capabilities, !haves.is_empty())?;
     let mut args = gix_protocol::fetch::Arguments::new(actual_protocol, features, false);
     for sha in &wants {
         args.want(ObjectId::from_bytes_or_panic(sha));
@@ -418,9 +509,9 @@ pub fn fetch_pack_to_file(
         gix_protocol::fetch::Response::from_line_reader(actual_protocol, &mut reader, true, false)
             .context("failed to parse fetch response")?;
 
-    reader.set_progress_handler(Some(Box::new(
-        |_is_error: bool, _text: &[u8]| ProgressAction::Continue(()),
-    )));
+    reader.set_progress_handler(Some(Box::new(|_is_error: bool, _text: &[u8]| {
+        ProgressAction::Continue(())
+    })));
 
     let mut pack_size: u64 = 0;
     if response.has_pack() {
@@ -450,4 +541,86 @@ pub fn fetch_pack_to_file(
         symbolic_refs,
         pack_size,
     })
+}
+
+#[cfg(test)]
+mod credential_tests {
+    use super::*;
+
+    /// A credential smuggled through the URL must be refused before any error
+    /// path can interpolate the URL and print it.
+    #[test]
+    fn url_userinfo_is_refused_and_never_echoed() {
+        let url = "https://bob:HUNTER2@example.invalid/r.git";
+        let err = reject_url_userinfo(url).expect_err("userinfo must be refused");
+        let rendered = format!("{err:#}");
+        assert!(
+            !rendered.contains("HUNTER2"),
+            "the refusal must not echo the secret, got: {rendered}"
+        );
+        assert!(
+            !rendered.contains("example.invalid"),
+            "the refusal must not echo the URL, got: {rendered}"
+        );
+    }
+
+    /// Ordinary URLs, including ones with a port or a path containing '@',
+    /// must still be accepted.
+    #[test]
+    fn plain_urls_are_accepted() {
+        for url in [
+            "https://github.com/git/git.git",
+            "https://github.com:443/git/git.git",
+            "https://example.invalid/a/b@c.git",
+            "https://example.invalid/r.git?x=a@b",
+        ] {
+            assert!(reject_url_userinfo(url).is_ok(), "should accept {url}");
+        }
+    }
+
+    /// `Credentials` must never render its secret, because it travels through
+    /// anyhow contexts and PyO3 error messages.
+    #[test]
+    fn credentials_debug_redacts_the_secret() {
+        let c = Credentials {
+            username: "bob".into(),
+            secret: "HUNTER2".into(),
+        };
+        let rendered = format!("{c:?}");
+        assert!(rendered.contains("bob"), "username should be visible");
+        assert!(
+            !rendered.contains("HUNTER2"),
+            "secret must be redacted, got: {rendered}"
+        );
+    }
+
+    /// Both error shapes a 401 arrives in must be recognised: the typed
+    /// PermissionDenied from the handshake leg, and the flattened string from
+    /// the fetch leg where the concrete type is boxed away.
+    #[test]
+    fn detects_both_401_shapes() {
+        let typed = anyhow::Error::new(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "Received HTTP status 401",
+        ));
+        assert!(
+            is_authorization_required(&typed),
+            "typed 401 must be detected"
+        );
+
+        let flattened = anyhow::anyhow!(
+            "failed to parse fetch response: Failed to read from line reader: \
+             An IO error occurred when talking to the server: Received HTTP status 401"
+        );
+        assert!(
+            is_authorization_required(&flattened),
+            "flattened POST-leg 401 must be detected"
+        );
+
+        let unrelated = anyhow::anyhow!("failed to read pack data");
+        assert!(
+            !is_authorization_required(&unrelated),
+            "unrelated errors must not be classified as auth failures"
+        );
+    }
 }

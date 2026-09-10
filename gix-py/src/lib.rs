@@ -8,7 +8,8 @@
 mod exceptions;
 
 use exceptions::{
-    map_gix_error, GixFatalError, GixObjectParseError, GixPackError, GixTraverseError,
+    map_gix_error, GixAuthorizationRequired, GixFatalError, GixObjectParseError, GixPackError,
+    GixTraverseError,
 };
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -55,7 +56,8 @@ fn version() -> &'static str {
 ///     If the URL is invalid, the connection fails, or the pack exceeds
 ///     ``size_limit``.
 #[pyfunction]
-#[pyo3(signature = (url, wants, haves, size_limit=0, connect_timeout=None, read_timeout=None))]
+#[allow(clippy::too_many_arguments)]
+#[pyo3(signature = (url, wants, haves, size_limit=0, connect_timeout=None, read_timeout=None, credentials=None))]
 fn fetch_pack<'py>(
     py: Python<'py>,
     url: &str,
@@ -64,6 +66,7 @@ fn fetch_pack<'py>(
     size_limit: u64,
     connect_timeout: Option<u64>,
     read_timeout: Option<u64>,
+    credentials: Option<(String, String)>,
 ) -> PyResult<(Bound<'py, PyDict>, Bound<'py, PyDict>, Bound<'py, PyBytes>)> {
     // Convert Python bytes → [u8; 20]
     let wants: Result<Vec<[u8; 20]>, _> = wants
@@ -87,8 +90,10 @@ fn fetch_pack<'py>(
     // Call into pure Rust library.  allow_threads releases the GIL for the
     // duration of the network fetch (potentially minutes on large repos) so
     // other Python threads keep running.
+    let creds = credentials
+        .map(|(username, secret)| swh_loader_git_gix::Credentials { username, secret });
     let result = py
-        .allow_threads(|| {
+        .allow_threads(move || {
             swh_loader_git_gix::fetch_pack(
                 url,
                 wants,
@@ -96,6 +101,7 @@ fn fetch_pack<'py>(
                 size_limit,
                 connect_timeout,
                 read_timeout,
+                creds,
             )
         })
         .map_err(map_gix_error)?;
@@ -274,7 +280,8 @@ fn inflate_types<'py>(
 /// tuple[dict[bytes, str], dict[bytes, bytes], int]
 ///     ``(remote_refs, symbolic_refs, pack_size_bytes)``
 #[pyfunction]
-#[pyo3(signature = (url, wants, haves, size_limit, pack_path, connect_timeout=None, read_timeout=None))]
+#[allow(clippy::too_many_arguments)]
+#[pyo3(signature = (url, wants, haves, size_limit, pack_path, connect_timeout=None, read_timeout=None, credentials=None))]
 fn fetch_pack_to_file<'py>(
     py: Python<'py>,
     url: &str,
@@ -284,6 +291,7 @@ fn fetch_pack_to_file<'py>(
     pack_path: &str,
     connect_timeout: Option<u64>,
     read_timeout: Option<u64>,
+    credentials: Option<(String, String)>,
 ) -> PyResult<(Bound<'py, PyDict>, Bound<'py, PyDict>, u64)> {
     let wants: Result<Vec<[u8; 20]>, _> = wants
         .iter()
@@ -304,8 +312,10 @@ fn fetch_pack_to_file<'py>(
 
     // allow_threads: release the GIL for the duration of the network fetch
     // (potentially minutes on large repos) so other Python threads keep running.
+    let creds = credentials
+        .map(|(username, secret)| swh_loader_git_gix::Credentials { username, secret });
     let result = py
-        .allow_threads(|| {
+        .allow_threads(move || {
             swh_loader_git_gix::fetch_pack_to_file(
                 url,
                 wants,
@@ -314,6 +324,7 @@ fn fetch_pack_to_file<'py>(
                 std::path::Path::new(pack_path),
                 connect_timeout,
                 read_timeout,
+                creds,
             )
         })
         .map_err(map_gix_error)?;
@@ -887,6 +898,10 @@ mod _gix {
         m.add("GixObjectParseError", py.get_type::<GixObjectParseError>())?;
         m.add("GixTraverseError", py.get_type::<GixTraverseError>())?;
         m.add("GixFatalError", py.get_type::<GixFatalError>())?;
+        m.add(
+            "GixAuthorizationRequired",
+            py.get_type::<GixAuthorizationRequired>(),
+        )?;
 
         py.import("sys")?
             .getattr("modules")?

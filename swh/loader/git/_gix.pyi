@@ -20,6 +20,9 @@ class GixTraverseError(ValueError):
 class GixFatalError(ValueError):
     """Fatal for both backends (auth, network, fs, policy); do not fall back."""
 
+class GixAuthorizationRequired(GixFatalError):
+    """Remote answered HTTP 401. Retryable with different credentials."""
+
 def version() -> str:
     """Return the version of the swh-loader-git-gix Rust library."""
     ...
@@ -31,6 +34,7 @@ def fetch_pack(
     size_limit: int = 0,
     connect_timeout: int | None = None,
     read_timeout: int | None = None,
+    credentials: tuple[str, str] | None = None,
 ) -> tuple[dict[bytes, str], dict[bytes, bytes], bytes]:
     """Fetch a git pack from a remote repository over HTTP/HTTPS.
 
@@ -111,6 +115,7 @@ def fetch_pack_to_file(
     pack_path: str,
     connect_timeout: int | None = None,
     read_timeout: int | None = None,
+    credentials: tuple[str, str] | None = None,
 ) -> tuple[dict[bytes, str], dict[bytes, bytes], int]:
     """Fetch a git pack and write it to a file on disk (streaming, O(1) memory).
 

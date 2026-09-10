@@ -164,6 +164,16 @@ class FetchPackReturn:
     pack_size: int
 
 
+
+def _basic_auth_pair(credentials: Dict[str, str]) -> Tuple[str, str]:
+    """Reduce a loader credential entry to an HTTP Basic pair.
+
+    Mirrors the dulwich path exactly: ``username`` is mandatory, and a
+    ``token`` wins over a ``password`` when both are present.  HTTP Basic
+    draws no distinction between the two, so gix only ever sees a secret.
+    """
+    return credentials["username"], credentials.get("token") or credentials["password"]
+
 class GitLoader(BaseGitLoader):
     """A bulk loader for a git repository
 
@@ -257,6 +267,7 @@ class GitLoader(BaseGitLoader):
         origin_url: str,
         base_repo: RepoRepresentation,
         do_activity: Callable[[bytes], None],
+        credentials: Optional[Dict[str, str]] = None,
     ) -> FetchPackReturn:
         """Fetch a pack from the origin using gitoxide (gix).
 
@@ -280,14 +291,22 @@ class GitLoader(BaseGitLoader):
           still speak only dumb HTTP, so we keep that capability by
           catching the handshake error and retrying via dulwich.
         """
+        # HTTP Basic pair for gix; the dulwich routes take the raw mapping and
+        # do their own token/password discrimination.
+        identity = _basic_auth_pair(credentials) if credentials else None
+
         if origin_url.startswith("file://"):
-            return self._fetch_pack_via_dulwich(origin_url, base_repo, do_activity)
+            return self._fetch_pack_via_dulwich(
+                origin_url, base_repo, do_activity, credentials=credentials
+            )
 
         # Bench-only: force the dulwich fetch path for ANY url (used to A/B the
         # engines over the same server in the failure-discrimination matrix).
         # Unset in production.
         if os.environ.get("SWH_GIX_FORCE_ENGINE") == "dulwich":
-            return self._fetch_pack_via_dulwich(origin_url, base_repo, do_activity)
+            return self._fetch_pack_via_dulwich(
+                origin_url, base_repo, do_activity, credentials=credentials
+            )
 
         from swh.loader.git._gix import GixFatalError
         from swh.loader.git._gix import fetch_pack as gix_fetch_pack
@@ -305,6 +324,7 @@ class GitLoader(BaseGitLoader):
                     [],
                     connect_timeout=int(self.connect_timeout),
                     read_timeout=int(self.read_timeout),
+                    credentials=identity,
                 )
         except GixFatalError as e:
             if "dumb" not in str(e).lower():
@@ -348,6 +368,7 @@ class GitLoader(BaseGitLoader):
                 pack_path,
                 connect_timeout=int(self.connect_timeout),
                 read_timeout=int(self.read_timeout),
+                credentials=identity,
             )
 
         logger.debug("fetched_pack_size=%s", pack_size)
@@ -364,6 +385,7 @@ class GitLoader(BaseGitLoader):
         origin_url: str,
         base_repo: RepoRepresentation,
         do_activity: Callable[[bytes], None],
+        credentials: Optional[Dict[str, str]] = None,
     ) -> FetchPackReturn:
         """Fetch a pack via dulwich, for the origins gix cannot serve.
 
@@ -380,6 +402,13 @@ class GitLoader(BaseGitLoader):
         from dulwich.object_store import ObjectStoreGraphWalker
 
         transport_kwargs: Dict[str, Any] = {"thin_packs": False}
+        if credentials:
+            # Same discrimination as master's dulwich engine: a token
+            # wins over a password, and neither ever enters the URL.
+            transport_kwargs["username"] = credentials["username"]
+            transport_kwargs["password"] = (
+                credentials.get("token") or credentials["password"]
+            )
         if origin_url.startswith(("http://", "https://")):
             # Inject urllib3 kwargs (timeouts, cert handling) into the
             # pool manager, as master's dulwich engine did.
