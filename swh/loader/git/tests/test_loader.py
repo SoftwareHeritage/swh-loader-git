@@ -141,7 +141,25 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         self.loader = GitLoader(swh_storage, self.repo_url, **extra_loader_arguments)
         self.repo = Repo(self.destination_path)
 
-    def test_metrics(self, mocker):
+    def test_metrics(self, mocker, expected_statsd_calls=None):
+        if expected_statsd_calls is None:
+            total_sum_name = "filtered_objects_total_sum"
+            total_count_name = "filtered_objects_total_count"
+            percent_name = "filtered_objects_percent"
+            expected_statsd_calls = [
+                call(percent_name, "h", 0.0, {"object_type": "content"}, 1),
+                call(total_sum_name, "c", 0, {"object_type": "content"}, 1),
+                call(total_count_name, "c", 4, {"object_type": "content"}, 1),
+                call(percent_name, "h", 0.0, {"object_type": "directory"}, 1),
+                call(total_sum_name, "c", 0, {"object_type": "directory"}, 1),
+                call(total_count_name, "c", 7, {"object_type": "directory"}, 1),
+                call(percent_name, "h", 0.0, {"object_type": "revision"}, 1),
+                call(total_sum_name, "c", 0, {"object_type": "revision"}, 1),
+                call(total_count_name, "c", 7, {"object_type": "revision"}, 1),
+                call(percent_name, "h", 0.0, {"object_type": "snapshot"}, 1),
+                call(total_sum_name, "c", 0, {"object_type": "snapshot"}, 1),
+                call(total_count_name, "c", 1, {"object_type": "snapshot"}, 1),
+            ]
         statsd_report = mocker.patch.object(self.loader.statsd, "_report")
         res = self.loader.load()
         assert res == {"status": "eventful"}
@@ -154,23 +172,9 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
             call("git_known_refs_percent", "h", 0.0, {}, 1),
         ]
-        total_sum_name = "filtered_objects_total_sum"
-        total_count_name = "filtered_objects_total_count"
-        percent_name = "filtered_objects_percent"
-        assert [c for c in statsd_calls if c[1][0].startswith("filtered_")] == [
-            call(percent_name, "h", 0.0, {"object_type": "content"}, 1),
-            call(total_sum_name, "c", 0, {"object_type": "content"}, 1),
-            call(total_count_name, "c", 4, {"object_type": "content"}, 1),
-            call(percent_name, "h", 0.0, {"object_type": "directory"}, 1),
-            call(total_sum_name, "c", 0, {"object_type": "directory"}, 1),
-            call(total_count_name, "c", 7, {"object_type": "directory"}, 1),
-            call(percent_name, "h", 0.0, {"object_type": "revision"}, 1),
-            call(total_sum_name, "c", 0, {"object_type": "revision"}, 1),
-            call(total_count_name, "c", 7, {"object_type": "revision"}, 1),
-            call(percent_name, "h", 0.0, {"object_type": "snapshot"}, 1),
-            call(total_sum_name, "c", 0, {"object_type": "snapshot"}, 1),
-            call(total_count_name, "c", 1, {"object_type": "snapshot"}, 1),
-        ]
+        assert [
+            c for c in statsd_calls if c[1][0].startswith("filtered_")
+        ] == expected_statsd_calls
         assert self.loader.statsd.constant_tags == {
             "visit_type": "git",
             "incremental_enabled": True,
@@ -179,9 +183,28 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             "has_parent_origins": False,
         }
 
-    def test_metrics_filtered(self, mocker):
+    def test_metrics_filtered(self, mocker, expected_statsd_calls=None):
         """Tests that presence of some objects in the storage (but not referenced
         by a snapshot) is reported"""
+        if expected_statsd_calls is None:
+            # overridden in subclasses
+            total_sum_name = "filtered_objects_total_sum"
+            total_count_name = "filtered_objects_total_count"
+            percent_name = "filtered_objects_percent"
+            expected_statsd_calls = [
+                call(percent_name, "h", 1 / 4, {"object_type": "content"}, 1),
+                call(total_sum_name, "c", 1, {"object_type": "content"}, 1),
+                call(total_count_name, "c", 4, {"object_type": "content"}, 1),
+                call(percent_name, "h", 3 / 7, {"object_type": "directory"}, 1),
+                call(total_sum_name, "c", 3, {"object_type": "directory"}, 1),
+                call(total_count_name, "c", 7, {"object_type": "directory"}, 1),
+                call(percent_name, "h", 2 / 7, {"object_type": "revision"}, 1),
+                call(total_sum_name, "c", 2, {"object_type": "revision"}, 1),
+                call(total_count_name, "c", 7, {"object_type": "revision"}, 1),
+                call(percent_name, "h", 0.0, {"object_type": "snapshot"}, 1),
+                call(total_sum_name, "c", 0, {"object_type": "snapshot"}, 1),
+                call(total_count_name, "c", 1, {"object_type": "snapshot"}, 1),
+            ]
 
         known_revs = [
             converters.dulwich_commit_to_revision(self.repo[sha1])
@@ -221,23 +244,9 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
             call("git_known_refs_percent", "h", 0.0, {}, 1),
         ]
-        total_sum_name = "filtered_objects_total_sum"
-        total_count_name = "filtered_objects_total_count"
-        percent_name = "filtered_objects_percent"
-        assert [c for c in statsd_calls if c[1][0].startswith("filtered_")] == [
-            call(percent_name, "h", 1 / 4, {"object_type": "content"}, 1),
-            call(total_sum_name, "c", 1, {"object_type": "content"}, 1),
-            call(total_count_name, "c", 4, {"object_type": "content"}, 1),
-            call(percent_name, "h", 3 / 7, {"object_type": "directory"}, 1),
-            call(total_sum_name, "c", 3, {"object_type": "directory"}, 1),
-            call(total_count_name, "c", 7, {"object_type": "directory"}, 1),
-            call(percent_name, "h", 2 / 7, {"object_type": "revision"}, 1),
-            call(total_sum_name, "c", 2, {"object_type": "revision"}, 1),
-            call(total_count_name, "c", 7, {"object_type": "revision"}, 1),
-            call(percent_name, "h", 0.0, {"object_type": "snapshot"}, 1),
-            call(total_sum_name, "c", 0, {"object_type": "snapshot"}, 1),
-            call(total_count_name, "c", 1, {"object_type": "snapshot"}, 1),
-        ]
+        assert [
+            c for c in statsd_calls if c[1][0].startswith("filtered_")
+        ] == expected_statsd_calls
         assert self.loader.statsd.constant_tags == {
             "visit_type": "git",
             "incremental_enabled": True,
