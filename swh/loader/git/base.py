@@ -36,7 +36,7 @@ class BaseGitLoader(BaseLoader):
 
     Args:
         store_order: One of ``as_original`` (store them in the same order as the packfile
-            sent by the report), ``by_type_layers`` (same, but loads all contents,
+            sent by the remote), ``by_type_layers`` (same, but loads all contents,
             then all directories, then all revisions, then all releases)
     """
 
@@ -187,15 +187,16 @@ class BaseGitLoader(BaseLoader):
                 Revision: (self.storage.revision_add, "revision"),
                 Release: (self.storage.release_add, "release"),
             }
-            for obj in self.get_objects():
+            for i, obj in enumerate(self.get_objects()):
+                if i % 1_000 == 0:
+                    maybe_log_summary("In objects")
                 try:
                     method, key = method_and_keys[type(obj)]
                 except KeyError:
-                    raise TypeError("Unknown object type: %r", type(obj)) from None
+                    raise TypeError(f"Unknown object type: {type(obj)!r}") from None
                 storage_summary.update(method([obj]))
                 counts[key] += 1
             storage_summary.update(self.flush())
-            print(repr(storage_summary))
         elif self.store_order == "by_type_layers":
             if self.has_contents():
                 for obj in self.get_contents():

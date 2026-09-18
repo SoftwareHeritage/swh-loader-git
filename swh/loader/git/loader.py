@@ -222,7 +222,7 @@ class GitLoader(BaseGitLoader):
         verify_certs: Whether to check TLS certificates are valid
         urllib3_extra_kwargs: Passed to :func:`dulwich.client.default_urllib3_manager`
         store_order: One of ``as_original`` (store them in the same order as the packfile
-            sent by the report), ``by_type_layers`` (same, but loads all contents,
+            sent by the remote), ``by_type_layers`` (same, but loads all contents,
             then all directories, then all revisions, then all releases)
     """
 
@@ -735,7 +735,9 @@ class GitLoader(BaseGitLoader):
                             self.ref_object_types[raw_obj.id] = (
                                 SnapshotTargetType.CONTENT
                             )
-                        obj = converters.dulwich_blob_to_content(raw_obj)
+                        obj = converters.dulwich_blob_to_content(
+                            raw_obj, max_content_size=self.max_content_size
+                        )
                     elif raw_obj.type_name == Tree.type_name:
                         if raw_obj.id in self.ref_object_types:
                             self.ref_object_types[raw_obj.id] = (
