@@ -221,7 +221,7 @@ class GitLoader(BaseGitLoader):
         read_time:
         verify_certs: Whether to check TLS certificates are valid
         urllib3_extra_kwargs: Passed to :func:`dulwich.client.default_urllib3_manager`
-        store_order: One of ``as_original`` (store them in the same order as the packfile
+        store_order: One of ``as_origin`` (store them in the same order as the packfile
             sent by the remote), ``by_type_layers`` (same, but loads all contents,
             then all directories, then all revisions, then all releases)
     """
@@ -240,7 +240,7 @@ class GitLoader(BaseGitLoader):
         read_timeout: float = 600,
         verify_certs: bool = True,
         urllib3_extra_kwargs: Dict[str, Any] = {},
-        store_order: Literal["as_original", "by_type_layers"] = "by_type_layers",
+        store_order: Literal["as_origin", "by_type_layers"] = "by_type_layers",
         **kwargs: Any,
     ):
         """Initialize the bulk updater.

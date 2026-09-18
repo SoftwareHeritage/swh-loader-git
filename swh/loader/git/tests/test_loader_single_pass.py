@@ -12,11 +12,11 @@ from .test_loader import TestGitLoader as _TestGitLoader
 
 @pytest.fixture
 def extra_loader_arguments():
-    return {"store_order": "as_original"}
+    return {"store_order": "as_origin"}
 
 
 class TestGitLoaderSinglePass(_TestGitLoader):
-    """Same as :class:``TestGitLoader``, but configures ``store_order = "as_original"``"""
+    """Same as :class:``TestGitLoader``, but configures ``store_order = "as_origin"``"""
 
     def test_load_visit_without_snapshot_so_status_failed(self):
         self.loader.get_objects = None

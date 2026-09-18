@@ -35,7 +35,7 @@ class BaseGitLoader(BaseLoader):
 
 
     Args:
-        store_order: One of ``as_original`` (store them in the same order as the packfile
+        store_order: One of ``as_origin`` (store them in the same order as the packfile
             sent by the remote), ``by_type_layers`` (same, but loads all contents,
             then all directories, then all revisions, then all releases)
     """
@@ -43,7 +43,7 @@ class BaseGitLoader(BaseLoader):
     def __init__(
         self,
         *args,
-        store_order: Literal["as_original", "by_type_layers"] = "by_type_layers",
+        store_order: Literal["as_origin", "by_type_layers"] = "by_type_layers",
         **kwargs,
     ) -> None:
 
@@ -179,7 +179,7 @@ class BaseGitLoader(BaseLoader):
                 force=force,
             )
 
-        if self.store_order == "as_original":
+        if self.store_order == "as_origin":
             method_and_keys: Dict[Type[BaseModel], Tuple[Callable, str]] = {
                 Content: (self.storage.content_add, "content"),
                 SkippedContent: (self.storage.skipped_content_add, "skipped_content"),
