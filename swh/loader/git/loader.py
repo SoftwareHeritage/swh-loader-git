@@ -217,8 +217,8 @@ class GitLoader(BaseGitLoader):
         repo_representation: Determines which objects to fetch from the origin
         pack_size_bytes: Maximum size of a packfile before it is rejected
         temp_file_cutoff: Maximum size of the in-memory packfile before writing it to disk
-        connect_time:
-        read_time:
+        connect_timeout:
+        read_timeout:
         verify_certs: Whether to check TLS certificates are valid
         urllib3_extra_kwargs: Passed to :func:`dulwich.client.default_urllib3_manager`
         store_order: One of ``as_origin`` (store them in the same order as the packfile
@@ -762,7 +762,7 @@ class GitLoader(BaseGitLoader):
                         )
 
                     objs.append(obj)
-                    if len(objs) > 1000:
+                    if len(objs) >= 1000:
                         break
                 total_time_inflate_packfile += time.monotonic() - start_time
 
