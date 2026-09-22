@@ -503,7 +503,7 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             pytest.param({}, "not_found", "uneventful", False, id="no-auth"),
         ],
     )
-    def test_load_authentication_fallback(
+    def test_load_authentication(
         self, mocker, visit_status, load_status, credentials_used
     ):
         def force_authentication(*args, **kwargs):
