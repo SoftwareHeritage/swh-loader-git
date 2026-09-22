@@ -28,7 +28,7 @@ import pytest
 import sentry_sdk
 
 from swh.loader.git import converters
-from swh.loader.git.loader import FetchPackReturn, GitLoader, split_lines_and_remainder
+from swh.loader.git.loader import FetchedPack, GitLoader, split_lines_and_remainder
 from swh.loader.git.tests.test_from_disk import SNAPSHOT1, FullGitLoaderTests
 from swh.loader.tests import (
     assert_last_visit_matches,
@@ -267,12 +267,10 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             assert False, "did not find log message for inferred branch target type"
 
     def test_loader_empty_pack_file(self, mocker):
-        fetch_pack_from_origin = mocker.patch.object(
-            self.loader, "fetch_pack_from_origin"
-        )
-        fetch_pack_from_origin.return_value = FetchPackReturn(
-            remote_refs={},
-            symbolic_refs={},
+        mocker.patch.object(self.loader, "fetch_pack_from_origin")
+        self.loader.fetched_pack = FetchedPack(
+            refs={},
+            symrefs={},
             pack_buffer=SpooledTemporaryFile(),
             pack_size=0,
         )
@@ -386,15 +384,13 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
 
         # mock fetch_pack_from_origin method of the loader to return the pack
         # file built above
-        fetch_pack_from_origin = mocker.patch.object(
-            self.loader, "fetch_pack_from_origin"
-        )
-        fetch_pack_from_origin.return_value = FetchPackReturn(
-            remote_refs={
+        mocker.patch.object(self.loader, "fetch_pack_from_origin")
+        self.loader.fetched_pack = FetchedPack(
+            refs={
                 b"refs/heads/master": new_revision,
                 b"refs/tags/v1.1.0": second_tag.id,
             },
-            symbolic_refs={},
+            symrefs={},
             pack_buffer=buffer,
             pack_size=buffer.getbuffer().nbytes,
         )

@@ -177,11 +177,25 @@ class RepoRepresentation:
 
 
 @dataclass
-class FetchPackReturn:
-    remote_refs: Dict[Ref, ObjectID]
-    symbolic_refs: Dict[Ref, Ref]
+class FetchedPack:
+    """Packfile and references returned by a remote"""
+
+    def __post_init__(self):
+        if self.pack_size > 0:
+            self.pack_data = PackData.from_file(
+                file=self.pack_buffer,
+                size=self.pack_size,
+                object_format=SHA1,
+            )
+
+    refs: Dict[Ref, ObjectID]
+    """Remote references, from :attr:`FetchPackResult.refs`"""
+    symrefs: Dict[Ref, Ref]
+    """Remote symbolic references, from :attr:`FetchPackResult.symrefs`"""
     pack_buffer: SpooledTemporaryFile
     pack_size: int
+    pack_data: Optional[PackData] = None
+    """None if the fetched pack is empty"""
 
 
 class GitLoader(BaseGitLoader):
@@ -240,12 +254,10 @@ class GitLoader(BaseGitLoader):
         self.pack_size_bytes = pack_size_bytes
         self.temp_file_cutoff = temp_file_cutoff
         # state initialized in fetch_data
-        self.remote_refs: Dict[Ref, ObjectID] = {}
-        self.symbolic_refs: Dict[Ref, Ref] = {}
+        self.fetched_pack: Optional[FetchedPack] = None
         self.ref_object_types: Dict[bytes, Optional[SnapshotTargetType]] = {}
         self.ext_refs: Dict[bytes, Optional[Tuple[int, List[bytes]]]] = {}
         self.repo_pack_size_bytes = 0
-        self.pack_buffer: Optional[SpooledTemporaryFile] = None
         self.urllib3_extra_kwargs = urllib3_extra_kwargs
         self.urllib3_extra_kwargs["timeout"] = urllib3.util.Timeout(
             connect=connect_timeout, read=read_timeout
@@ -259,8 +271,8 @@ class GitLoader(BaseGitLoader):
         base_repo: RepoRepresentation,
         do_activity: Callable[[bytes], None],
         credentials: Optional[Dict[str, str]] = None,
-    ) -> FetchPackReturn:
-        """Fetch a pack from the origin"""
+    ) -> None:
+        """Fetch a pack from the origin and set ``self.fetched_pack``"""
 
         pack_buffer = SpooledTemporaryFile(max_size=self.temp_file_cutoff)
         transport_url = origin_url
@@ -351,9 +363,6 @@ class GitLoader(BaseGitLoader):
                 else:
                     raise
 
-        remote_refs = pack_result.refs or {}
-        symbolic_refs = pack_result.symrefs or {}
-
         pack_buffer.flush()
         pack_size = pack_buffer.tell()
         pack_buffer.seek(0)
@@ -364,9 +373,9 @@ class GitLoader(BaseGitLoader):
             "dumb" if getattr(client, "dumb", False) else "smart",
         )
 
-        return FetchPackReturn(
-            remote_refs=utils.filter_refs(remote_refs),
-            symbolic_refs=utils.filter_symbolic_refs(symbolic_refs),
+        self.fetched_pack = FetchedPack(
+            refs=utils.filter_refs(pack_result.refs or {}),
+            symrefs=utils.filter_symbolic_refs(pack_result.symrefs or {}),
             pack_buffer=pack_buffer,
             pack_size=pack_size,
         )
@@ -517,7 +526,7 @@ class GitLoader(BaseGitLoader):
                     )
                     try:
                         with raise_not_found_repository():
-                            fetch_info = self.fetch_pack_from_origin(
+                            self.fetch_pack_from_origin(
                                 self.origin.url,
                                 base_repo,
                                 do_remote,
@@ -546,9 +555,7 @@ class GitLoader(BaseGitLoader):
                     raise NotFound(original_exc.args[0])
             else:
                 with raise_not_found_repository():
-                    fetch_info = self.fetch_pack_from_origin(
-                        self.origin.url, base_repo, do_remote
-                    )
+                    self.fetch_pack_from_origin(self.origin.url, base_repo, do_remote)
         except AuthorizationRequired as original_exc:
             if not self.credentials:
                 logger.warning(
@@ -568,30 +575,19 @@ class GitLoader(BaseGitLoader):
             maybe_log_elision(force=True)
             log_remote_message(next_line_buf)
 
-        self.pack_buffer = fetch_info.pack_buffer
-        self.pack_size = fetch_info.pack_size
-        self.remote_refs = fetch_info.remote_refs
-        self.symbolic_refs = fetch_info.symbolic_refs
-        self.pack_data = (
-            PackData.from_file(
-                file=self.pack_buffer,
-                size=self.pack_size,
-                object_format=SHA1,
-            )
-            if self.pack_size > 0
-            else None
-        )
-
-        self.ref_object_types = {sha1: None for sha1 in self.remote_refs.values()}
+        assert (
+            self.fetched_pack is not None
+        ), "fetch_pack_from_origin did not set self.fetched_pack"
+        self.ref_object_types = {sha1: None for sha1 in self.fetched_pack.refs.values()}
 
         logger.info(
             "Listed %d refs for repo %s",
-            len(self.remote_refs),
+            len(self.fetched_pack.refs),
             self.origin.url,
             extra={
                 "swh_type": "git_repo_list_refs",
                 "swh_repo": self.origin.url,
-                "swh_num_refs": len(self.remote_refs),
+                "swh_num_refs": len(self.fetched_pack.refs),
             },
         )
 
@@ -608,19 +604,21 @@ class GitLoader(BaseGitLoader):
         pack_name = "%s.pack" % self.visit_date.isoformat()
         refs_name = "%s.refs" % self.visit_date.isoformat()
 
-        assert self.pack_buffer is not None
+        assert self.fetched_pack is not None
+        assert self.fetched_pack.pack_buffer is not None, "packfile is empty"
+        pack_buffer = self.fetched_pack.pack_buffer
         with open(os.path.join(pack_dir, pack_name), "xb") as f:
-            self.pack_buffer.seek(0)
+            pack_buffer.seek(0)
             while True:
-                r = self.pack_buffer.read(write_size)
+                r = pack_buffer.read(write_size)
                 if not r:
                     break
                 f.write(r)
 
-        self.pack_buffer.seek(0)
+        pack_buffer.seek(0)
 
         with open(os.path.join(pack_dir, refs_name), "xb") as f:
-            pickle.dump(self.remote_refs, f)
+            pickle.dump(self.fetched_pack.refs, f)
 
     def _resolve_ext_ref(self, sha1: bytes) -> Tuple[int, List[bytes]]:
         """Resolve external references to git objects a pack file might contain
@@ -689,13 +687,14 @@ class GitLoader(BaseGitLoader):
 
     def iter_objects(self, object_type: bytes) -> Iterator[ShaFile]:
         """Read all the objects of type `object_type` from the packfile"""
-        if self.pack_data:
-            assert self.pack_buffer is not None
-
+        assert (
+            self.fetched_pack is not None
+        ), "iter_objects called before fetch_pack_from_origin"
+        if self.fetched_pack.pack_data is not None:
             object_cls = object_class(object_type)
             assert object_cls is not None, f"Unknown object type {object_type!r}"
 
-            self.pack_buffer.seek(0)
+            self.fetched_pack.pack_buffer.seek(0)
             count = 0
 
             start_time = time.monotonic()
@@ -704,7 +703,7 @@ class GitLoader(BaseGitLoader):
 
             # Note: delta_chain_iterator is actually not an iterator, but an iterable
             delta_chain_iterator = UnpackedObjectIterator.for_pack_data(
-                self.pack_data,
+                self.fetched_pack.pack_data,
                 resolve_ext_ref=self._resolve_ext_ref,
             )
             object_format = delta_chain_iterator._object_format
@@ -801,9 +800,11 @@ class GitLoader(BaseGitLoader):
 
         unfetched_refs: Dict[bytes, bytes] = {}
 
+        assert self.fetched_pack is not None
+
         # Retrieve types from the objects loaded by the current loader
-        for ref_name, ref_object in self.remote_refs.items():
-            if ref_name in self.symbolic_refs:
+        for ref_name, ref_object in self.fetched_pack.refs.items():
+            if ref_name in self.fetched_pack.symrefs:
                 continue
             ref_target = hashutil.hash_to_bytes(ref_object.decode())
             target_type = self.ref_object_types.get(ref_object)
@@ -819,7 +820,7 @@ class GitLoader(BaseGitLoader):
 
         dangling_branches = {}
         # Handle symbolic references as alias branches
-        for sym_ref_name, sym_ref_target in self.symbolic_refs.items():
+        for sym_ref_name, sym_ref_target in self.fetched_pack.symrefs.items():
             branches[sym_ref_name] = SnapshotBranch(
                 target_type=SnapshotTargetType.ALIAS,
                 target=sym_ref_target,
@@ -931,9 +932,9 @@ class GitLoader(BaseGitLoader):
         return {"status": ("eventful" if eventful else "uneventful")}
 
     def cleanup(self) -> None:
-        if self.pack_buffer is not None:
+        if self.fetched_pack is not None:
             try:
-                self.pack_buffer.close()
+                self.fetched_pack.pack_buffer.close()
             except Exception:
                 logger.exception("Failed to close pack buffer:")
         super().cleanup()

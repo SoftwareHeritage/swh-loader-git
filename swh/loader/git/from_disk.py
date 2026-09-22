@@ -14,7 +14,7 @@ from dulwich.pack import generate_unpacked_objects, write_pack_data
 import dulwich.repo
 
 from swh.loader.git import utils
-from swh.loader.git.loader import FetchPackReturn, GitLoader, RepoRepresentation
+from swh.loader.git.loader import FetchedPack, GitLoader, RepoRepresentation
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +95,7 @@ class GitLoaderFromArchive(GitLoader):
         base_repo: RepoRepresentation,
         do_activity: Callable[[bytes], None],
         credentials: Dict[str, str] | None = None,
-    ):
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             project_name = self.project_name_from_archive(self.archive_path)
             _, repo_path = utils.init_git_repo_from_archive(
@@ -119,9 +119,9 @@ class GitLoaderFromArchive(GitLoader):
                 pack_size = pack_buffer.tell()
                 pack_buffer.seek(0)
 
-                return FetchPackReturn(
-                    remote_refs=utils.filter_refs(repo.refs.as_dict()),
-                    symbolic_refs=utils.filter_symbolic_refs(repo.refs.get_symrefs()),
+                self.fetched_pack = FetchedPack(
+                    refs=utils.filter_refs(repo.refs.as_dict()),
+                    symrefs=utils.filter_symbolic_refs(repo.refs.get_symrefs()),
                     pack_buffer=pack_buffer,
                     pack_size=pack_size,
                 )
