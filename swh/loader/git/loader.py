@@ -183,7 +183,7 @@ class FetchedPack:
     def __post_init__(self):
         if self.pack_size > 0:
             self.pack_data = PackData.from_file(
-                file=self.pack_buffer,
+                file=self.pack_file,
                 size=self.pack_size,
                 object_format=SHA1,
             )
@@ -192,7 +192,7 @@ class FetchedPack:
     """Remote references, from :attr:`FetchPackResult.refs`"""
     symrefs: Dict[Ref, Ref]
     """Remote symbolic references, from :attr:`FetchPackResult.symrefs`"""
-    pack_buffer: SpooledTemporaryFile
+    pack_file: SpooledTemporaryFile
     pack_size: int
     pack_data: Optional[PackData] = None
     """None if the fetched pack is empty"""
@@ -376,7 +376,7 @@ class GitLoader(BaseGitLoader):
         self.fetched_pack = FetchedPack(
             refs=utils.filter_refs(pack_result.refs or {}),
             symrefs=utils.filter_symbolic_refs(pack_result.symrefs or {}),
-            pack_buffer=pack_buffer,
+            pack_file=pack_buffer,
             pack_size=pack_size,
         )
 
@@ -605,17 +605,17 @@ class GitLoader(BaseGitLoader):
         refs_name = "%s.refs" % self.visit_date.isoformat()
 
         assert self.fetched_pack is not None
-        assert self.fetched_pack.pack_buffer is not None, "packfile is empty"
-        pack_buffer = self.fetched_pack.pack_buffer
+        assert self.fetched_pack.pack_file is not None, "packfile is empty"
+        pack_file = self.fetched_pack.pack_file
         with open(os.path.join(pack_dir, pack_name), "xb") as f:
-            pack_buffer.seek(0)
+            pack_file.seek(0)
             while True:
-                r = pack_buffer.read(write_size)
+                r = pack_file.read(write_size)
                 if not r:
                     break
                 f.write(r)
 
-        pack_buffer.seek(0)
+        pack_file.seek(0)
 
         with open(os.path.join(pack_dir, refs_name), "xb") as f:
             pickle.dump(self.fetched_pack.refs, f)
@@ -694,7 +694,7 @@ class GitLoader(BaseGitLoader):
             object_cls = object_class(object_type)
             assert object_cls is not None, f"Unknown object type {object_type!r}"
 
-            self.fetched_pack.pack_buffer.seek(0)
+            self.fetched_pack.pack_file.seek(0)
             count = 0
 
             start_time = time.monotonic()
@@ -934,7 +934,7 @@ class GitLoader(BaseGitLoader):
     def cleanup(self) -> None:
         if self.fetched_pack is not None:
             try:
-                self.fetched_pack.pack_buffer.close()
+                self.fetched_pack.pack_file.close()
             except Exception:
                 logger.exception("Failed to close pack buffer:")
         super().cleanup()

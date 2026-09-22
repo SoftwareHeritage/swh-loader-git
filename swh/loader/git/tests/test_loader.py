@@ -271,7 +271,7 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         self.loader.fetched_pack = FetchedPack(
             refs={},
             symrefs={},
-            pack_buffer=SpooledTemporaryFile(),
+            pack_file=SpooledTemporaryFile(),
             pack_size=0,
         )
         assert self.loader.load() == {"status": "uneventful"}
@@ -391,7 +391,7 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
                 b"refs/tags/v1.1.0": second_tag.id,
             },
             symrefs={},
-            pack_buffer=buffer,
+            pack_file=buffer,
             pack_size=buffer.getbuffer().nbytes,
         )
 

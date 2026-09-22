@@ -122,6 +122,6 @@ class GitLoaderFromArchive(GitLoader):
                 self.fetched_pack = FetchedPack(
                     refs=utils.filter_refs(repo.refs.as_dict()),
                     symrefs=utils.filter_symbolic_refs(repo.refs.get_symrefs()),
-                    pack_buffer=pack_buffer,
+                    pack_file=pack_buffer,
                     pack_size=pack_size,
                 )
