@@ -528,11 +528,10 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         )
 
         if credentials_used:
-            assert mock.call_count == 2
-            assert mock.call_args_list[0][0] == mock.call_args_list[1][0]
+            assert mock.call_count == 1
 
             # Check that credentials were passed
-            assert mock.call_args_list[1][1] == {
+            assert mock.call_args_list[0][1] == {
                 "credentials": {
                     "username": "user",
                     "token": "token",
