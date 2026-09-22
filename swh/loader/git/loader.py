@@ -82,6 +82,8 @@ heads_logger = logger.getChild("refs")
 remote_logger = logger.getChild("remote")
 fetch_pack_logger = logger.getChild("fetch_pack")
 
+GIT_BUNDLE_HEADERS = (b"# v2 git bundle\n", b"# v3 git bundle\n")
+
 
 class RepoRepresentation:
     """Repository representation for a Software Heritage origin."""
@@ -328,8 +330,11 @@ class GitLoader(BaseGitLoader):
                         )
                     resp = requests.get(transport_url, stream=True)
                     with NamedTemporaryFile() as bundle_buffer:
-                        for data in resp.iter_content(chunk_size=32768):
-                            bundle_buffer.write(data)
+                        for i, chunk in enumerate(resp.iter_content(chunk_size=32768)):
+                            if i == 0 and not chunk.startswith(GIT_BUNDLE_HEADERS):
+                                # avoid wasting bandwidth if we wouldn't be able to parse it
+                                raise
+                            bundle_buffer.write(chunk)
                         bundle_buffer.flush()
                         path = bundle_buffer.name
                         pack_result = fetch_pack(BundleClient(), path)
