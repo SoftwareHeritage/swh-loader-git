@@ -309,19 +309,15 @@ class GitLoader(BaseGitLoader):
                 progress=self.remote_logger.do_progress,
             )
 
-        def url_content_info(url: str) -> Tuple[str, int]:
-            head_response = requests.head(url, allow_redirects=True)
-            return (
-                head_response.headers.get("content-type", ""),
-                int(head_response.headers.get("content-length", 0)),
-            )
-
         with contextlib.ExitStack() as exit_stack:
             try:
                 pack_result = fetch_pack(path)
             except NotGitRepository:
                 if transport_url.startswith(("https://", "http://")):
-                    content_type, content_length = url_content_info(transport_url)
+                    head_response = requests.head(transport_url, allow_redirects=True)
+                    content_type = head_response.headers.get("content-type", "")
+                    content_length = int(head_response.headers.get("content-length", 0))
+
                     # origin URL could target a git bundle file so we fetch it and switch to
                     # BundleClient before attempting a new fetch_pack operation
                     if content_type == "application/octet-stream":
