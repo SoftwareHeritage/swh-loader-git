@@ -43,6 +43,8 @@ from dulwich.objects import (
 from dulwich.pack import PackData, UnpackedObjectIterator
 from dulwich.refs import Ref
 import requests
+import sentry_sdk
+import urllib3
 import urllib3.util
 
 from swh.core.statsd import Statsd
@@ -83,6 +85,36 @@ remote_logger = logger.getChild("remote")
 fetch_pack_logger = logger.getChild("fetch_pack")
 
 GIT_BUNDLE_HEADERS = (b"# v2 git bundle\n", b"# v3 git bundle\n")
+"""Expected first bytes of a valid Git bundle file"""
+
+BREADCRUMB_HEADERS = {
+    "x-github-request-id",
+    "x-github-edge-region",
+    "content-length",
+    "content-type",
+}
+"""Which HTTP response headers are sent as Sentry breadcrumbs."""
+
+
+class SWHPoolManager(urllib3.PoolManager):
+    def request(self, *args, **kwargs):
+        resp = super().request(*args, **kwargs)
+
+        sentry_sdk.add_breadcrumb(
+            category="swh.loader.git.loader.http",
+            data={
+                "url": resp.url,
+                "status_code": int(resp.status),
+                "headers": {
+                    # we can't send all headers because Sentry would truncate them
+                    k: v
+                    for (k, v) in resp.headers.items()
+                    if k.lower() in BREADCRUMB_HEADERS
+                },
+            },
+        )
+
+        return resp
 
 
 class RepoRepresentation:
@@ -269,6 +301,7 @@ class GitLoader(BaseGitLoader):
             # Inject urllib3 kwargs into the pool manager
             transport_kwargs["pool_manager"] = dulwich.client.default_urllib3_manager(
                 config=None,
+                pool_manager_cls=SWHPoolManager,
                 **self.urllib3_extra_kwargs,
             )
 
