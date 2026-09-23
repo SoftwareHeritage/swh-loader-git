@@ -395,6 +395,12 @@ class GitLoader(BaseGitLoader):
 
         self.statsd.constant_tags["incremental_enabled"] = self.incremental
         self.statsd.constant_tags["has_parent_origins"] = bool(self.parent_origins)
+        self.statsd.constant_tags["has_credentials"] = bool(self.credentials)
+
+        # support both file:/// and naked path
+        self.statsd.constant_tags["transport_url_scheme"] = (
+            self.origin.url.split(":")[0] if ":" in self.origin.url else "file"
+        )
 
         # May be set to True later
         self.statsd.constant_tags["has_parent_snapshot"] = False
