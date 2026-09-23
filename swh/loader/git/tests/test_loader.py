@@ -177,6 +177,8 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             "has_parent_snapshot": False,
             "has_previous_snapshot": False,
             "has_parent_origins": False,
+            "has_credentials": False,
+            "transport_url_scheme": "file",
         }
 
     def test_metrics_filtered(self, mocker):
@@ -244,6 +246,8 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             "has_parent_snapshot": False,
             "has_previous_snapshot": False,
             "has_parent_origins": False,
+            "has_credentials": False,
+            "transport_url_scheme": "file",
         }
 
     def test_load_incremental_partial_history(self, caplog):
@@ -515,6 +519,16 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         res = self.loader.load()
         assert res["status"] == load_status
 
+        assert self.loader.statsd.constant_tags == {
+            "visit_type": "git",
+            "incremental_enabled": True,
+            "has_parent_snapshot": False,
+            "has_previous_snapshot": False,
+            "has_parent_origins": False,
+            "has_credentials": credentials_used,
+            "transport_url_scheme": "file",
+        }
+
         assert_last_visit_matches(
             self.loader.storage,
             self.repo_url,
@@ -619,6 +633,8 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             "has_parent_snapshot": False,
             "has_previous_snapshot": False,
             "has_parent_origins": True,
+            "has_credentials": False,
+            "transport_url_scheme": "file",
         }
 
     def test_load_incremental(self, mocker):
@@ -692,6 +708,8 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             "has_parent_snapshot": True,
             "has_previous_snapshot": False,
             "has_parent_origins": True,
+            "has_credentials": False,
+            "transport_url_scheme": "file",
         }
 
         self.fetcher.reset_mock()
@@ -742,6 +760,8 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             "has_parent_snapshot": False,  # Because we reset the mock since last time
             "has_previous_snapshot": True,
             "has_parent_origins": True,
+            "has_credentials": False,
+            "transport_url_scheme": "file",
         }
 
     @pytest.mark.parametrize(
@@ -858,6 +878,8 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             "has_parent_snapshot": True,
             "has_previous_snapshot": True,
             "has_parent_origins": True,
+            "has_credentials": False,
+            "transport_url_scheme": "file",
         }
         assert [c for c in statsd_report.mock_calls if c[1][0].startswith("git_")] == [
             call("git_total", "c", 1, {}, 1),
