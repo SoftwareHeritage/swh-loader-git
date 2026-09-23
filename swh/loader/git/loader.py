@@ -301,6 +301,12 @@ class GitLoader(BaseGitLoader):
             fetch_pack_logger=fetch_pack_logger,
         )
 
+        def timed_suboperation(suboperation):
+            return self.statsd.timed(
+                "git_fetch_data_suboperation",
+                tags={"suboperation": suboperation},
+            )
+
         def fetch_pack(client, path: str) -> FetchPackResult:
             return client.fetch_pack(
                 path.encode(),
@@ -311,12 +317,14 @@ class GitLoader(BaseGitLoader):
             )
 
         try:
-            pack_result = fetch_pack(client, path)
+            with timed_suboperation("fetch_pack"):
+                pack_result = fetch_pack(client, path)
         except NotGitRepository:
             pack_result = None
 
             if transport_url.startswith(("https://", "http://")):
-                head_response = requests.head(transport_url, allow_redirects=True)
+                with timed_suboperation("head_bundle"):
+                    head_response = requests.head(transport_url, allow_redirects=True)
                 content_type = head_response.headers.get("content-type", "")
                 content_length = int(head_response.headers.get("content-length", 0))
 
@@ -329,20 +337,26 @@ class GitLoader(BaseGitLoader):
                             f"limit is {self.pack_size_bytes} bytes"
                         )
                     with NamedTemporaryFile() as bundle_buffer:
-                        with requests.get(transport_url, stream=True) as resp:
-                            for i, chunk in enumerate(
-                                resp.iter_content(chunk_size=32768)
-                            ):
-                                if i == 0 and not chunk.startswith(GIT_BUNDLE_HEADERS):
-                                    # avoid wasting bandwidth if we wouldn't be able to parse it
-                                    raise
-                                bundle_buffer.write(chunk)
+                        with timed_suboperation("download_bundle"):
+                            with requests.get(transport_url, stream=True) as resp:
+                                for i, chunk in enumerate(
+                                    resp.iter_content(chunk_size=32768)
+                                ):
+                                    if i == 0 and not chunk.startswith(
+                                        GIT_BUNDLE_HEADERS
+                                    ):
+                                        # avoid wasting bandwidth if we wouldn't be able
+                                        # to parse it
+                                        raise
+                                    bundle_buffer.write(chunk)
                         bundle_buffer.flush()
                         path = bundle_buffer.name
-                        pack_result = fetch_pack(BundleClient(), path)
+                        with timed_suboperation("read_bundle"):
+                            pack_result = fetch_pack(BundleClient(), path)
             elif transport_url.startswith("file://"):
                 # local file might target a git bundle
-                pack_result = fetch_pack(BundleClient(), path)
+                with timed_suboperation("read_bundle"):
+                    pack_result = fetch_pack(BundleClient(), path)
 
             if pack_result is None:
                 # could not reinterpret as a bundle
@@ -360,12 +374,13 @@ class GitLoader(BaseGitLoader):
             "dumb" if getattr(client, "dumb", False) else "smart",
         )
 
-        self.fetched_pack = FetchedPack(
-            refs=utils.filter_refs(pack_result.refs or {}),
-            symrefs=utils.filter_symbolic_refs(pack_result.symrefs or {}),
-            pack_file=pack_buffer,
-            pack_size=pack_size,
-        )
+        with timed_suboperation("open_pack_file"):
+            self.fetched_pack = FetchedPack(
+                refs=utils.filter_refs(pack_result.refs or {}),
+                symrefs=utils.filter_symbolic_refs(pack_result.symrefs or {}),
+                pack_file=pack_buffer,
+                pack_size=pack_size,
+            )
 
     def get_full_snapshot(self, origin_url) -> Optional[Snapshot]:
         return snapshot_get_latest(
