@@ -328,13 +328,15 @@ class GitLoader(BaseGitLoader):
                             f"Bundle file {transport_url} too big, "
                             f"limit is {self.pack_size_bytes} bytes"
                         )
-                    resp = requests.get(transport_url, stream=True)
                     with NamedTemporaryFile() as bundle_buffer:
-                        for i, chunk in enumerate(resp.iter_content(chunk_size=32768)):
-                            if i == 0 and not chunk.startswith(GIT_BUNDLE_HEADERS):
-                                # avoid wasting bandwidth if we wouldn't be able to parse it
-                                raise
-                            bundle_buffer.write(chunk)
+                        with requests.get(transport_url, stream=True) as resp:
+                            for i, chunk in enumerate(
+                                resp.iter_content(chunk_size=32768)
+                            ):
+                                if i == 0 and not chunk.startswith(GIT_BUNDLE_HEADERS):
+                                    # avoid wasting bandwidth if we wouldn't be able to parse it
+                                    raise
+                                bundle_buffer.write(chunk)
                         bundle_buffer.flush()
                         path = bundle_buffer.name
                         pack_result = fetch_pack(BundleClient(), path)
