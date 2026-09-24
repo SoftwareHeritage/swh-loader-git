@@ -303,7 +303,7 @@ class GitLoader(BaseGitLoader):
 
         def timed_suboperation(suboperation):
             return self.statsd.timed(
-                "git_fetch_data_suboperation",
+                "git_fetch_data_suboperation_seconds",
                 tags={"suboperation": suboperation},
             )
 

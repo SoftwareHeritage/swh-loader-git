@@ -149,7 +149,11 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         # TODO: assert "incremental" is added to constant tags before these
         # metrics are sent
         statsd_calls = statsd_report.mock_calls
-        assert [c for c in statsd_calls if c[1][0].startswith("git_")] == [
+        assert [
+            c
+            for c in statsd_calls
+            if c[1][0].startswith("git_") and not c[1][0].endswith("_seconds")
+        ] == [
             call("git_total", "c", 1, {}, 1),
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
             call("git_known_refs_percent", "h", 0.0, {}, 1),
@@ -216,7 +220,11 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         # TODO: assert "incremental" is added to constant tags before these
         # metrics are sent
         statsd_calls = statsd_report.mock_calls
-        assert [c for c in statsd_calls if c[1][0].startswith("git_")] == [
+        assert [
+            c
+            for c in statsd_calls
+            if c[1][0].startswith("git_") and not c[1][0].endswith("_seconds")
+        ] == [
             call("git_total", "c", 1, {}, 1),
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
             call("git_known_refs_percent", "h", 0.0, {}, 1),
@@ -608,7 +616,11 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
 
         # TODO: assert "incremental" is added to constant tags before these
         # metrics are sent
-        assert [c for c in statsd_report.mock_calls if c[1][0].startswith("git_")] == [
+        assert [
+            c
+            for c in statsd_report.mock_calls
+            if c[1][0].startswith("git_") and not c[1][0].endswith("_seconds")
+        ] == [
             call("git_total", "c", 1, {}, 1),
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
             call("git_known_refs_percent", "h", 0.0, {}, 1),
@@ -681,7 +693,11 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
 
         # TODO: assert "incremental*" is added to constant tags before these
         # metrics are sent
-        assert [c for c in statsd_report.mock_calls if c[1][0].startswith("git_")] == [
+        assert [
+            c
+            for c in statsd_report.mock_calls
+            if c[1][0].startswith("git_") and not c[1][0].endswith("_seconds")
+        ] == [
             call("git_total", "c", 1, {}, 1),
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
             call("git_known_refs_percent", "h", 0.25, {}, 1),
@@ -731,7 +747,11 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
 
         # TODO: assert "incremental*" is added to constant tags before these
         # metrics are sent
-        assert [c for c in statsd_report.mock_calls if c[1][0].startswith("git_")] == [
+        assert [
+            c
+            for c in statsd_report.mock_calls
+            if c[1][0].startswith("git_") and not c[1][0].endswith("_seconds")
+        ] == [
             call("git_total", "c", 1, {}, 1),
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
             call("git_known_refs_percent", "h", 1.0, {}, 1),
@@ -859,7 +879,11 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             "has_previous_snapshot": True,
             "has_parent_origins": True,
         }
-        assert [c for c in statsd_report.mock_calls if c[1][0].startswith("git_")] == [
+        assert [
+            c
+            for c in statsd_report.mock_calls
+            if c[1][0].startswith("git_") and not c[1][0].endswith("_seconds")
+        ] == [
             call("git_total", "c", 1, {}, 1),
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
             call("git_known_refs_percent", "h", expected_git_known_refs_percent, {}, 1),
