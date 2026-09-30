@@ -16,8 +16,8 @@ from typing import (
     Any,
     Dict,
     Iterable,
-    Iterator,
     List,
+    Literal,
     Mapping,
     Optional,
     Set,
@@ -30,16 +30,7 @@ from dulwich.client import BundleClient, FetchPackResult
 from dulwich.errors import NotGitRepository
 from dulwich.object_format import SHA1
 from dulwich.object_store import ObjectStoreGraphWalker
-from dulwich.objects import (
-    Blob,
-    Commit,
-    ObjectID,
-    ShaFile,
-    Tag,
-    Tree,
-    object_class,
-    sha_to_hex,
-)
+from dulwich.objects import Blob, Commit, ObjectID, ShaFile, Tag, Tree, sha_to_hex
 from dulwich.pack import PackData, UnpackedObjectIterator
 from dulwich.refs import Ref
 import requests
@@ -58,12 +49,8 @@ from swh.model.git_objects import (
     revision_git_object,
 )
 from swh.model.model import (
-    BaseContent,
     Content,
-    Directory,
     RawExtrinsicMetadata,
-    Release,
-    Revision,
     Snapshot,
     SnapshotBranch,
     SnapshotTargetType,
@@ -75,7 +62,7 @@ from swh.storage.algos.snapshot import snapshot_get_latest
 from swh.storage.interface import StorageInterface
 
 from . import converters, utils
-from .base import BaseGitLoader
+from .base import BaseGitLoader, SwhObject
 from .remote_logs import RemoteLogger
 from .utils import AuthorizationRequired, PackWriter
 
@@ -236,6 +223,22 @@ class GitLoader(BaseGitLoader):
     * ``no_parent_origin`` when the origin was no already loaded, and it was not
       detected as a forge-fork of any other origin
     * ``disabled`` when incremental loading is disabled by configuration
+
+    Args:
+        storage: Where to write objects
+        url: Origin URL
+        incremental: Whether to look for a previous snapshot of the origin, and avoid
+            loader objects it already contains
+        repo_representation: Determines which objects to fetch from the origin
+        pack_size_bytes: Maximum size of a packfile before it is rejected
+        temp_file_cutoff: Maximum size of the in-memory packfile before writing it to disk
+        connect_timeout:
+        read_timeout:
+        verify_certs: Whether to check TLS certificates are valid
+        urllib3_extra_kwargs: Passed to :func:`dulwich.client.default_urllib3_manager`
+        store_order: One of ``as_origin`` (store them in the same order as the packfile
+            sent by the remote), ``by_type_layers`` (same, but loads all contents,
+            then all directories, then all revisions, then all releases)
     """
 
     visit_type = "git"
@@ -252,6 +255,7 @@ class GitLoader(BaseGitLoader):
         read_timeout: float = 600,
         verify_certs: bool = True,
         urllib3_extra_kwargs: Dict[str, Any] = {},
+        store_order: Literal["as_origin", "by_type_layers"] = "by_type_layers",
         **kwargs: Any,
     ):
         """Initialize the bulk updater.
@@ -264,7 +268,9 @@ class GitLoader(BaseGitLoader):
                 (if any) references. Otherwise, this loads the full repository.
 
         """
-        super().__init__(storage=storage, origin_url=url, **kwargs)
+        super().__init__(
+            storage=storage, origin_url=url, store_order=store_order, **kwargs
+        )
         self.incremental = incremental
         self.repo_representation = repo_representation
         self.pack_size_bytes = pack_size_bytes
@@ -647,53 +653,87 @@ class GitLoader(BaseGitLoader):
             )
         return ext_ref
 
-    def iter_objects(self, object_type: bytes) -> Iterator[ShaFile]:
-        """Read all the objects of type `object_type` from the packfile"""
+    def get_objects(self, object_type: Optional[bytes] = None) -> Iterable[SwhObject]:
+        """Read all (swh-model) objects from the packfile."""
         assert (
             self.fetched_pack is not None
         ), "iter_objects called before fetch_pack_from_origin"
         if self.fetched_pack.pack_data is not None:
-            object_cls = object_class(object_type)
-            assert object_cls is not None, f"Unknown object type {object_type!r}"
-
             self.fetched_pack.pack_file.seek(0)
-            count = 0
+
+            type_num_to_type_name = {
+                Blob.type_num: Blob.type_name,
+                Tree.type_num: Tree.type_name,
+                Commit.type_num: Commit.type_name,
+                Tag.type_num: Tag.type_name,
+            }
+
+            counts: dict[bytes, int] = defaultdict(int)
 
             start_time = time.monotonic()
             # Using UnpackedObjectIterator instead of PackInflater to avoid unnecessary
             # deserializations, as we discard 75% of objects without reading them.
-
-            # Note: delta_chain_iterator is actually not an iterator, but an iterable
-            delta_chain_iterator = UnpackedObjectIterator.for_pack_data(
+            unpacked_objects = UnpackedObjectIterator.for_pack_data(
                 self.fetched_pack.pack_data,
                 resolve_ext_ref=self._resolve_ext_ref,
             )
-            object_format = delta_chain_iterator._object_format
-            obj_iter = iter(delta_chain_iterator)
+            unpacked_objects_iter = iter(unpacked_objects)
             total_time_inflate_packfile = time.monotonic() - start_time
 
             while True:
                 objs = []
-
                 # batch pack inflation to avoid too many time.monotonic() calls
                 start_time = time.monotonic()
-                for unpacked_obj in obj_iter:
-                    assert unpacked_obj.obj_type_num is not None
-                    assert unpacked_obj.obj_chunks is not None
-                    if unpacked_obj.obj_type_num == object_cls.type_num:
-                        assert unpacked_obj.obj_chunks is not None
-                        obj = object_cls()
-                        obj.set_raw_chunks(
-                            unpacked_obj.obj_chunks,
-                            object_format=object_format,
-                            # 'sha' is optional, but if we compute it here with
-                            # unpacked_obj.sha() then it's cached in unpacked_obj, and
-                            # DeltaChainIterator._follow_chain can reuse the value.
-                            sha=sha_to_hex(unpacked_obj.sha()),
+                for unpacked_obj in unpacked_objects_iter:
+                    assert unpacked_obj.obj_type_num
+                    obj: SwhObject
+                    obj_type_name = type_num_to_type_name[unpacked_obj.obj_type_num]
+                    if object_type is not None and object_type != obj_type_name:
+                        continue
+                    counts[obj_type_name] += 1
+                    assert (
+                        unpacked_obj.obj_chunks is not None
+                    ), f"{unpacked_obj} has no chunks"
+                    raw_obj = ShaFile.from_raw_chunks(
+                        unpacked_obj.obj_type_num,
+                        unpacked_obj.obj_chunks,
+                        # 'sha' is optional, but if we compute it here with
+                        # unpacked_obj.sha() then it's cached in unpacked_obj, and
+                        # DeltaChainIterator._follow_chain can reuse the value.
+                        sha=sha_to_hex(unpacked_obj.sha()),
+                    )
+
+                    if obj_type_name == Blob.type_name:
+                        if raw_obj.id in self.ref_object_types:
+                            self.ref_object_types[raw_obj.id] = (
+                                SnapshotTargetType.CONTENT
+                            )
+                        obj = converters.dulwich_blob_to_content(
+                            raw_obj, max_content_size=self.max_content_size
                         )
-                        objs.append(obj)
-                        if len(objs) > 1000:
-                            break
+                    elif obj_type_name == Tree.type_name:
+                        if raw_obj.id in self.ref_object_types:
+                            self.ref_object_types[raw_obj.id] = (
+                                SnapshotTargetType.DIRECTORY
+                            )
+                        obj = converters.dulwich_tree_to_directory(raw_obj)
+                    elif obj_type_name == Commit.type_name:
+                        if raw_obj.id in self.ref_object_types:
+                            self.ref_object_types[raw_obj.id] = (
+                                SnapshotTargetType.REVISION
+                            )
+                        obj = converters.dulwich_commit_to_revision(raw_obj)
+                    elif obj_type_name == Tag.type_name:
+                        if raw_obj.id in self.ref_object_types:
+                            self.ref_object_types[raw_obj.id] = (
+                                SnapshotTargetType.RELEASE
+                            )
+                        obj = converters.dulwich_tag_to_release(raw_obj)
+
+                    objs.append(obj)
+
+                    if len(objs) >= 1000:
+                        break
                 total_time_inflate_packfile += time.monotonic() - start_time
 
                 if not objs:
@@ -701,46 +741,12 @@ class GitLoader(BaseGitLoader):
 
                 # yield the batch
                 yield from objs
-                count += len(objs)
 
             self.statsd_timing(
                 "inflate_git_packfile", total_time_inflate_packfile * 1000.0
             )
-            logger.debug("packfile_read_count_%s=%s", object_type.decode(), count)
-
-    def get_contents(self) -> Iterable[BaseContent]:
-        """Format the blobs from the git repository as swh contents"""
-        for raw_obj in self.iter_objects(Blob.type_name):
-            if raw_obj.id in self.ref_object_types:
-                self.ref_object_types[raw_obj.id] = SnapshotTargetType.CONTENT
-
-            yield converters.dulwich_blob_to_content(
-                raw_obj, max_content_size=self.max_content_size
-            )
-
-    def get_directories(self) -> Iterable[Directory]:
-        """Format the trees as swh directories"""
-        for raw_obj in self.iter_objects(Tree.type_name):
-            if raw_obj.id in self.ref_object_types:
-                self.ref_object_types[raw_obj.id] = SnapshotTargetType.DIRECTORY
-
-            yield converters.dulwich_tree_to_directory(raw_obj)
-
-    def get_revisions(self) -> Iterable[Revision]:
-        """Format commits as swh revisions"""
-        for raw_obj in self.iter_objects(Commit.type_name):
-            if raw_obj.id in self.ref_object_types:
-                self.ref_object_types[raw_obj.id] = SnapshotTargetType.REVISION
-
-            yield converters.dulwich_commit_to_revision(raw_obj)
-
-    def get_releases(self) -> Iterable[Release]:
-        """Retrieve all the release objects from the git repository"""
-        for raw_obj in self.iter_objects(Tag.type_name):
-            if raw_obj.id in self.ref_object_types:
-                self.ref_object_types[raw_obj.id] = SnapshotTargetType.RELEASE
-
-            yield converters.dulwich_tag_to_release(raw_obj)
+            for object_type, count in counts.items():
+                logger.debug("packfile_read_count_%s=%s", object_type.decode(), count)
 
     def get_snapshot(self) -> Snapshot:
         """Get the snapshot for the current visit.

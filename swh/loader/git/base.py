@@ -7,12 +7,25 @@ import collections
 import logging
 import random
 import time
-from typing import Dict, Iterable, List, Tuple
+from typing import (
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+)
 
 from swh.loader.core.loader import BaseLoader
 from swh.loader.core.metadata_fetchers import CredentialsType
 from swh.model.model import (
     BaseContent,
+    BaseModel,
     Content,
     Directory,
     Release,
@@ -26,14 +39,29 @@ logger = logging.getLogger(__name__)
 # Print a log message every LOGGING_INTERVAL
 LOGGING_INTERVAL = 180
 
+SwhObject = Union[BaseContent, Directory, Revision, Release]
+
+SwhObjectType = TypeVar("SwhObjectType")
+
 
 class BaseGitLoader(BaseLoader):
     """This base class is a pattern for both git loaders
 
     Those loaders are able to load all the data in one go.
+
+
+    Args:
+        store_order: One of ``as_origin`` (store them in the same order as the packfile
+            sent by the remote), ``by_type_layers`` (same, but loads all contents,
+            then all directories, then all revisions, then all releases)
     """
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(
+        self,
+        *args,
+        store_order: Literal["as_origin", "by_type_layers"] = "by_type_layers",
+        **kwargs,
+    ) -> None:
 
         known_lister_prefixes = kwargs.pop(
             "known_lister_prefixes", {"https://github.com/": ("github", "github")}
@@ -45,6 +73,7 @@ class BaseGitLoader(BaseLoader):
         )
 
         self.next_log_after = time.monotonic() + LOGGING_INTERVAL
+        self.store_order = store_order
 
     def extract_credentials(
         self,
@@ -82,13 +111,16 @@ class BaseGitLoader(BaseLoader):
         """Clean up an eventual state installed for computations."""
         pass
 
+    def get_objects(self, object_type: Optional[bytes] = None) -> Iterable[SwhObject]:
+        raise NotImplementedError
+
     def has_contents(self) -> bool:
         """Checks whether we need to load contents"""
         return True
 
     def get_contents(self) -> Iterable[BaseContent]:
         """Get the contents that need to be loaded"""
-        raise NotImplementedError
+        return cast(Iterable[BaseContent], self.get_objects(b"blob"))
 
     def has_directories(self) -> bool:
         """Checks whether we need to load directories"""
@@ -96,7 +128,7 @@ class BaseGitLoader(BaseLoader):
 
     def get_directories(self) -> Iterable[Directory]:
         """Get the directories that need to be loaded"""
-        raise NotImplementedError
+        return cast(Iterable[Directory], self.get_objects(b"tree"))
 
     def has_revisions(self) -> bool:
         """Checks whether we need to load revisions"""
@@ -104,7 +136,7 @@ class BaseGitLoader(BaseLoader):
 
     def get_revisions(self) -> Iterable[Revision]:
         """Get the revisions that need to be loaded"""
-        raise NotImplementedError
+        return cast(Iterable[Revision], self.get_objects(b"commit"))
 
     def has_releases(self) -> bool:
         """Checks whether we need to load releases"""
@@ -112,7 +144,7 @@ class BaseGitLoader(BaseLoader):
 
     def get_releases(self) -> Iterable[Release]:
         """Get the releases that need to be loaded"""
-        raise NotImplementedError
+        return cast(Iterable[Release], self.get_objects(b"tag"))
 
     def get_snapshot(self) -> Snapshot:
         """Get the snapshot that needs to be loaded"""
@@ -163,48 +195,69 @@ class BaseGitLoader(BaseLoader):
                 force=force,
             )
 
-        if self.has_contents():
-            for obj in self.get_contents():
-                if isinstance(obj, Content):
-                    counts["content"] += 1
-                    storage_summary.update(self.storage.content_add([obj]))
-                elif isinstance(obj, SkippedContent):
-                    counts["skipped_content"] += 1
-                    storage_summary.update(self.storage.skipped_content_add([obj]))
-                else:
-                    raise TypeError(f"Unexpected content type: {obj}")
-
-                maybe_log_summary("In contents")
-
+        if self.store_order == "as_origin":
+            method_and_keys: Dict[Type[BaseModel], Tuple[Callable, str]] = {
+                Content: (self.storage.content_add, "content"),
+                SkippedContent: (self.storage.skipped_content_add, "skipped_content"),
+                Directory: (self.storage.directory_add, "directory"),
+                Revision: (self.storage.revision_add, "revision"),
+                Release: (self.storage.release_add, "release"),
+            }
+            for i, obj in enumerate(self.get_objects()):
+                if i % 1_000 == 0:
+                    maybe_log_summary("In objects")
+                try:
+                    method, key = method_and_keys[type(obj)]
+                except KeyError:
+                    raise TypeError(f"Unknown object type: {type(obj)!r}") from None
+                storage_summary.update(method([obj]))
+                counts[key] += 1
             storage_summary.update(self.flush())
-            maybe_log_summary("After contents", force=True)
+        elif self.store_order == "by_type_layers":
+            if self.has_contents():
+                for obj in self.get_contents():
+                    if isinstance(obj, Content):
+                        counts["content"] += 1
+                        storage_summary.update(self.storage.content_add([obj]))
+                    elif isinstance(obj, SkippedContent):
+                        counts["skipped_content"] += 1
+                        storage_summary.update(self.storage.skipped_content_add([obj]))
+                    else:
+                        raise TypeError(f"Unexpected content type: {obj}")
 
-        if self.has_directories():
-            for directory in self.get_directories():
-                counts["directory"] += 1
-                storage_summary.update(self.storage.directory_add([directory]))
-                maybe_log_summary("In directories")
+                    maybe_log_summary("In contents")
 
-            storage_summary.update(self.flush())
-            maybe_log_summary("After directories", force=True)
+                storage_summary.update(self.flush())
+                maybe_log_summary("After contents", force=True)
 
-        if self.has_revisions():
-            for revision in self.get_revisions():
-                counts["revision"] += 1
-                storage_summary.update(self.storage.revision_add([revision]))
-                maybe_log_summary("In revisions")
+            if self.has_directories():
+                for directory in self.get_directories():
+                    counts["directory"] += 1
+                    storage_summary.update(self.storage.directory_add([directory]))
+                    maybe_log_summary("In directories")
 
-            storage_summary.update(self.flush())
-            maybe_log_summary("After revisions", force=True)
+                storage_summary.update(self.flush())
+                maybe_log_summary("After directories", force=True)
 
-        if self.has_releases():
-            for release in self.get_releases():
-                counts["release"] += 1
-                storage_summary.update(self.storage.release_add([release]))
-                maybe_log_summary("In releases")
+            if self.has_revisions():
+                for revision in self.get_revisions():
+                    counts["revision"] += 1
+                    storage_summary.update(self.storage.revision_add([revision]))
+                    maybe_log_summary("In revisions")
 
-            storage_summary.update(self.flush())
-            maybe_log_summary("After releases", force=True)
+                storage_summary.update(self.flush())
+                maybe_log_summary("After revisions", force=True)
+
+            if self.has_releases():
+                for release in self.get_releases():
+                    counts["release"] += 1
+                    storage_summary.update(self.storage.release_add([release]))
+                    maybe_log_summary("In releases")
+
+                storage_summary.update(self.flush())
+                maybe_log_summary("After releases", force=True)
+        else:
+            raise ValueError(f"Unknown store_order: {self.store_order}")
 
         snapshot = self.get_snapshot()
         counts["snapshot"] += 1
