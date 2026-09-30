@@ -28,7 +28,7 @@ import pytest
 import sentry_sdk
 
 from swh.loader.git import converters
-from swh.loader.git.loader import FetchPackReturn, GitLoader, split_lines_and_remainder
+from swh.loader.git.loader import FetchedPack, GitLoader
 from swh.loader.git.tests.test_from_disk import SNAPSHOT1, FullGitLoaderTests
 from swh.loader.tests import (
     assert_last_visit_matches,
@@ -181,6 +181,8 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             "has_parent_snapshot": False,
             "has_previous_snapshot": False,
             "has_parent_origins": False,
+            "has_credentials": False,
+            "transport_url_scheme": "file",
         }
 
     def test_metrics_filtered(self, mocker, expected_statsd_calls=None):
@@ -253,6 +255,8 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             "has_parent_snapshot": False,
             "has_previous_snapshot": False,
             "has_parent_origins": False,
+            "has_credentials": False,
+            "transport_url_scheme": "file",
         }
 
     def test_load_incremental_partial_history(self, caplog):
@@ -276,13 +280,11 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             assert False, "did not find log message for inferred branch target type"
 
     def test_loader_empty_pack_file(self, mocker):
-        fetch_pack_from_origin = mocker.patch.object(
-            self.loader, "fetch_pack_from_origin"
-        )
-        fetch_pack_from_origin.return_value = FetchPackReturn(
-            remote_refs={},
-            symbolic_refs={},
-            pack_buffer=SpooledTemporaryFile(),
+        mocker.patch.object(self.loader, "fetch_pack_from_origin")
+        self.loader.fetched_pack = FetchedPack(
+            refs={},
+            symrefs={},
+            pack_file=SpooledTemporaryFile(),
             pack_size=0,
         )
         assert self.loader.load() == {"status": "uneventful"}
@@ -395,16 +397,14 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
 
         # mock fetch_pack_from_origin method of the loader to return the pack
         # file built above
-        fetch_pack_from_origin = mocker.patch.object(
-            self.loader, "fetch_pack_from_origin"
-        )
-        fetch_pack_from_origin.return_value = FetchPackReturn(
-            remote_refs={
+        mocker.patch.object(self.loader, "fetch_pack_from_origin")
+        self.loader.fetched_pack = FetchedPack(
+            refs={
                 b"refs/heads/master": new_revision,
                 b"refs/tags/v1.1.0": second_tag.id,
             },
-            symbolic_refs={},
-            pack_buffer=buffer,
+            symrefs={},
+            pack_file=buffer,
             pack_size=buffer.getbuffer().nbytes,
         )
 
@@ -512,7 +512,7 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             pytest.param({}, "not_found", "uneventful", False, id="no-auth"),
         ],
     )
-    def test_load_authentication_fallback(
+    def test_load_authentication(
         self, mocker, visit_status, load_status, credentials_used
     ):
         def force_authentication(*args, **kwargs):
@@ -528,6 +528,16 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         res = self.loader.load()
         assert res["status"] == load_status
 
+        assert self.loader.statsd.constant_tags == {
+            "visit_type": "git",
+            "incremental_enabled": True,
+            "has_parent_snapshot": False,
+            "has_previous_snapshot": False,
+            "has_parent_origins": False,
+            "has_credentials": credentials_used,
+            "transport_url_scheme": "file",
+        }
+
         assert_last_visit_matches(
             self.loader.storage,
             self.repo_url,
@@ -537,11 +547,10 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         )
 
         if credentials_used:
-            assert mock.call_count == 2
-            assert mock.call_args_list[0][0] == mock.call_args_list[1][0]
+            assert mock.call_count == 1
 
             # Check that credentials were passed
-            assert mock.call_args_list[1][1] == {
+            assert mock.call_args_list[0][1] == {
                 "credentials": {
                     "username": "user",
                     "token": "token",
@@ -633,6 +642,8 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             "has_parent_snapshot": False,
             "has_previous_snapshot": False,
             "has_parent_origins": True,
+            "has_credentials": False,
+            "transport_url_scheme": "file",
         }
 
     def test_load_incremental(self, mocker):
@@ -706,6 +717,8 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             "has_parent_snapshot": True,
             "has_previous_snapshot": False,
             "has_parent_origins": True,
+            "has_credentials": False,
+            "transport_url_scheme": "file",
         }
 
         self.fetcher.reset_mock()
@@ -756,6 +769,8 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             "has_parent_snapshot": False,  # Because we reset the mock since last time
             "has_previous_snapshot": True,
             "has_parent_origins": True,
+            "has_credentials": False,
+            "transport_url_scheme": "file",
         }
 
     @pytest.mark.parametrize(
@@ -872,6 +887,8 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             "has_parent_snapshot": True,
             "has_previous_snapshot": True,
             "has_parent_origins": True,
+            "has_credentials": False,
+            "transport_url_scheme": "file",
         }
         assert [c for c in statsd_report.mock_calls if c[1][0].startswith("git_")] == [
             call("git_total", "c", 1, {}, 1),
@@ -1065,22 +1082,6 @@ def test_loader_too_large_pack_file_for_github_origin(
         f"Pack file too big for repository {repo_url}, "
         f"limit is {loader.pack_size_bytes} bytes, current size is {big_size_kib * 1024}"
     )
-
-
-@pytest.mark.parametrize(
-    "input,output",
-    (
-        (b"", ([], b"")),
-        (b"trailing", ([], b"trailing")),
-        (b"line1\r", ([b"line1\r"], b"")),
-        (b"line1\rtrailing", ([b"line1\r"], b"trailing")),
-        (b"line1\r\ntrailing", ([b"line1\r\n"], b"trailing")),
-        (b"line1\r\nline2\ntrailing", ([b"line1\r\n", b"line2\n"], b"trailing")),
-        (b"line1\r\nline2\nline3\r", ([b"line1\r\n", b"line2\n", b"line3\r"], b"")),
-    ),
-)
-def test_split_lines_and_remainder(input, output):
-    assert split_lines_and_remainder(input) == output
 
 
 @pytest.fixture

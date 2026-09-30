@@ -4,7 +4,6 @@
 # See top-level LICENSE file for more information
 
 from collections import defaultdict
-import contextlib
 from dataclasses import dataclass
 import datetime
 import json
@@ -15,7 +14,6 @@ from tempfile import NamedTemporaryFile, SpooledTemporaryFile
 import time
 from typing import (
     Any,
-    Callable,
     Dict,
     Iterable,
     List,
@@ -36,6 +34,8 @@ from dulwich.objects import Blob, Commit, ObjectID, ShaFile, Tag, Tree, sha_to_h
 from dulwich.pack import PackData, UnpackedObjectIterator
 from dulwich.refs import Ref
 import requests
+import sentry_sdk
+import urllib3
 import urllib3.util
 
 from swh.core.statsd import Statsd
@@ -63,29 +63,45 @@ from swh.storage.interface import StorageInterface
 
 from . import converters, utils
 from .base import BaseGitLoader, SwhObject
-from .utils import LOGGING_INTERVAL, AuthorizationRequired, PackWriter
+from .remote_logs import RemoteLogger
+from .utils import AuthorizationRequired, PackWriter
 
 logger = logging.getLogger(__name__)
 heads_logger = logger.getChild("refs")
 remote_logger = logger.getChild("remote")
 fetch_pack_logger = logger.getChild("fetch_pack")
 
+GIT_BUNDLE_HEADERS = (b"# v2 git bundle\n", b"# v3 git bundle\n")
+"""Expected first bytes of a valid Git bundle file"""
 
-def split_lines_and_remainder(buf: bytes) -> Tuple[List[bytes], bytes]:
-    """Get newline-terminated (``b"\\r"`` or ``b"\\n"``) lines from `buf`,
-    and the beginning of the last line if it isn't terminated."""
+BREADCRUMB_HEADERS = {
+    "x-github-request-id",
+    "x-github-edge-region",
+    "content-length",
+    "content-type",
+}
+"""Which HTTP response headers are sent as Sentry breadcrumbs."""
 
-    lines = buf.splitlines(keepends=True)
-    if not lines:
-        return [], b""
 
-    if buf.endswith((b"\r", b"\n")):
-        # The buffer ended with a newline, everything can be sent as lines
-        return lines, b""
-    else:
-        # The buffer didn't end with a newline, we need to keep the
-        # last bit as the beginning of the next line
-        return lines[:-1], lines[-1]
+class SWHPoolManager(urllib3.PoolManager):
+    def request(self, *args, **kwargs):
+        resp = super().request(*args, **kwargs)
+
+        sentry_sdk.add_breadcrumb(
+            category="swh.loader.git.loader.http",
+            data={
+                "url": resp.url,
+                "status_code": int(resp.status),
+                "headers": {
+                    # we can't send all headers because Sentry would truncate them
+                    k: v
+                    for (k, v) in resp.headers.items()
+                    if k.lower() in BREADCRUMB_HEADERS
+                },
+            },
+        )
+
+        return resp
 
 
 class RepoRepresentation:
@@ -164,11 +180,25 @@ class RepoRepresentation:
 
 
 @dataclass
-class FetchPackReturn:
-    remote_refs: Dict[Ref, ObjectID]
-    symbolic_refs: Dict[Ref, Ref]
-    pack_buffer: SpooledTemporaryFile
+class FetchedPack:
+    """Packfile and references returned by a remote"""
+
+    def __post_init__(self):
+        if self.pack_size > 0:
+            self.pack_data = PackData.from_file(
+                file=self.pack_file,
+                size=self.pack_size,
+                object_format=SHA1,
+            )
+
+    refs: Dict[Ref, ObjectID]
+    """Remote references, from :attr:`FetchPackResult.refs`"""
+    symrefs: Dict[Ref, Ref]
+    """Remote symbolic references, from :attr:`FetchPackResult.symrefs`"""
+    pack_file: SpooledTemporaryFile
     pack_size: int
+    pack_data: Optional[PackData] = None
+    """None if the fetched pack is empty"""
 
 
 class GitLoader(BaseGitLoader):
@@ -246,27 +276,25 @@ class GitLoader(BaseGitLoader):
         self.pack_size_bytes = pack_size_bytes
         self.temp_file_cutoff = temp_file_cutoff
         # state initialized in fetch_data
-        self.remote_refs: Dict[Ref, ObjectID] = {}
-        self.symbolic_refs: Dict[Ref, Ref] = {}
+        self.fetched_pack: Optional[FetchedPack] = None
         self.ref_object_types: Dict[bytes, Optional[SnapshotTargetType]] = {}
         self.ext_refs: Dict[bytes, Optional[Tuple[int, List[bytes]]]] = {}
         self.repo_pack_size_bytes = 0
-        self.pack_buffer: Optional[SpooledTemporaryFile] = None
         self.urllib3_extra_kwargs = urllib3_extra_kwargs
         self.urllib3_extra_kwargs["timeout"] = urllib3.util.Timeout(
             connect=connect_timeout, read=read_timeout
         )
         if not verify_certs:
             self.urllib3_extra_kwargs["cert_reqs"] = "CERT_NONE"
+        self.remote_logger = RemoteLogger(remote_logger)
 
     def fetch_pack_from_origin(
         self,
         origin_url: str,
         base_repo: RepoRepresentation,
-        do_activity: Callable[[bytes], None],
         credentials: Optional[Dict[str, str]] = None,
-    ) -> FetchPackReturn:
-        """Fetch a pack from the origin"""
+    ) -> None:
+        """Fetch a pack from the origin and set ``self.fetched_pack``"""
 
         pack_buffer = SpooledTemporaryFile(max_size=self.temp_file_cutoff)
         transport_url = origin_url
@@ -279,6 +307,7 @@ class GitLoader(BaseGitLoader):
             # Inject urllib3 kwargs into the pool manager
             transport_kwargs["pool_manager"] = dulwich.client.default_urllib3_manager(
                 config=None,
+                pool_manager_cls=SWHPoolManager,
                 **self.urllib3_extra_kwargs,
             )
 
@@ -311,54 +340,54 @@ class GitLoader(BaseGitLoader):
             fetch_pack_logger=fetch_pack_logger,
         )
 
-        def fetch_pack(path: str) -> FetchPackResult:
+        def fetch_pack(client, path: str) -> FetchPackResult:
             return client.fetch_pack(
                 path.encode(),
                 base_repo.determine_wants,
                 base_repo.graph_walker(),
                 pack_writer.write,
-                progress=do_activity,
+                progress=self.remote_logger.do_progress,
             )
 
-        def url_content_info(url: str) -> Tuple[str, int]:
-            head_response = requests.head(url, allow_redirects=True)
-            return (
-                head_response.headers.get("content-type", ""),
-                int(head_response.headers.get("content-length", 0)),
-            )
+        try:
+            pack_result = fetch_pack(client, path)
+        except NotGitRepository:
+            pack_result = None
 
-        with contextlib.ExitStack() as exit_stack:
-            try:
-                pack_result = fetch_pack(path)
-            except NotGitRepository:
-                if transport_url.startswith(("https://", "http://")):
-                    content_type, content_length = url_content_info(transport_url)
-                    # origin URL could target a git bundle file so we fetch it and switch to
-                    # BundleClient before attempting a new fetch_pack operation
-                    if content_type == "application/octet-stream":
-                        if content_length > self.pack_size_bytes:
-                            raise IOError(
-                                f"Bundle file {transport_url} too big, "
-                                f"limit is {self.pack_size_bytes} bytes"
-                            )
-                        client = BundleClient()
-                        bundle_buffer = exit_stack.enter_context(NamedTemporaryFile())
-                        resp = requests.get(transport_url, stream=True)
-                        for data in resp.iter_content(chunk_size=32768):
-                            bundle_buffer.write(data)
+            if transport_url.startswith(("https://", "http://")):
+                head_response = requests.head(transport_url, allow_redirects=True)
+                content_type = head_response.headers.get("content-type", "")
+                content_length = int(head_response.headers.get("content-length", 0))
+
+                # origin URL could target a git bundle file so we fetch it and switch to
+                # BundleClient before attempting a new fetch_pack operation
+                if content_type == "application/octet-stream":
+                    if content_length > self.pack_size_bytes:
+                        raise IOError(
+                            f"Bundle file {transport_url} too big, "
+                            f"limit is {self.pack_size_bytes} bytes"
+                        )
+                    with NamedTemporaryFile() as bundle_buffer:
+                        with requests.get(transport_url, stream=True) as resp:
+                            for i, chunk in enumerate(
+                                resp.iter_content(chunk_size=32768)
+                            ):
+                                if i == 0 and not chunk.startswith(GIT_BUNDLE_HEADERS):
+                                    # avoid wasting bandwidth if we wouldn't be able to parse it
+                                    raise
+                                bundle_buffer.write(chunk)
                         bundle_buffer.flush()
                         path = bundle_buffer.name
-                elif transport_url.startswith("file://"):
-                    # local file might target a git bundle
-                    client = BundleClient()
+                        pack_result = fetch_pack(BundleClient(), path)
+            elif transport_url.startswith("file://"):
+                # local file might target a git bundle
+                pack_result = fetch_pack(BundleClient(), path)
 
-                if isinstance(client, BundleClient):
-                    pack_result = fetch_pack(path)
-                else:
-                    raise
+            if pack_result is None:
+                # could not reinterpret as a bundle
+                raise
 
-        remote_refs = pack_result.refs or {}
-        symbolic_refs = pack_result.symrefs or {}
+        assert pack_result is not None  # for mypy
 
         pack_buffer.flush()
         pack_size = pack_buffer.tell()
@@ -370,10 +399,10 @@ class GitLoader(BaseGitLoader):
             "dumb" if getattr(client, "dumb", False) else "smart",
         )
 
-        return FetchPackReturn(
-            remote_refs=utils.filter_refs(remote_refs),
-            symbolic_refs=utils.filter_symbolic_refs(symbolic_refs),
-            pack_buffer=pack_buffer,
+        self.fetched_pack = FetchedPack(
+            refs=utils.filter_refs(pack_result.refs or {}),
+            symrefs=utils.filter_symbolic_refs(pack_result.symrefs or {}),
+            pack_file=pack_buffer,
             pack_size=pack_size,
         )
 
@@ -412,6 +441,12 @@ class GitLoader(BaseGitLoader):
 
         self.statsd.constant_tags["incremental_enabled"] = self.incremental
         self.statsd.constant_tags["has_parent_origins"] = bool(self.parent_origins)
+        self.statsd.constant_tags["has_credentials"] = bool(self.credentials)
+
+        # support both file:/// and naked path
+        self.statsd.constant_tags["transport_url_scheme"] = (
+            self.origin.url.split(":")[0] if ":" in self.origin.url else "file"
+        )
 
         # May be set to True later
         self.statsd.constant_tags["has_parent_snapshot"] = False
@@ -453,72 +488,44 @@ class GitLoader(BaseGitLoader):
             statsd=self.statsd,
         )
 
-        # Remote logging utilities
-
-        # Number of lines (ending with a carriage return) elided when debug
-        # logging is not enabled
-        remote_lines_elided = 0
-
-        # Timestamp where the last elision was logged
-        last_elision_logged = time.monotonic()
-
-        def maybe_log_elision(force: bool = False):
-            nonlocal remote_lines_elided
-            nonlocal last_elision_logged
-
-            if remote_lines_elided and (
-                force
-                # Always log at least every LOGGING_INTERVAL
-                or time.monotonic() > last_elision_logged + LOGGING_INTERVAL
-            ):
-                remote_logger.info(
-                    "%s remote line%s elided",
-                    remote_lines_elided,
-                    "s" if remote_lines_elided > 1 else "",
-                )
-                remote_lines_elided = 0
-                last_elision_logged = time.monotonic()
-
-        def log_remote_message(line: bytes):
-            nonlocal remote_lines_elided
-
-            do_debug = remote_logger.isEnabledFor(logging.DEBUG)
-
-            if not line.endswith(b"\n"):
-                # This is a verbose line, ending with a carriage return only
-                if do_debug:
-                    if stripped := line.strip():
-                        remote_logger.debug(
-                            "remote: %s", stripped.decode("utf-8", "backslashreplace")
-                        )
-                else:
-                    remote_lines_elided += 1
-                    maybe_log_elision()
-            else:
-                # This is the last line in the current section, we will always log it
-                maybe_log_elision(force=True)
-                if stripped := line.strip():
-                    remote_logger.info(
-                        "remote: %s", stripped.decode("utf-8", "backslashreplace")
-                    )
-
-        # This buffer keeps the end of what do_remote has received, across
-        # calls, if it happens to be unterminated
-        next_line_buf = b""
-
-        def do_remote(msg: bytes) -> None:
-            nonlocal next_line_buf
-
-            lines, next_line_buf = split_lines_and_remainder(next_line_buf + msg)
-
-            for line in lines:
-                log_remote_message(line)
-
         try:
-            with raise_not_found_repository():
-                fetch_info = self.fetch_pack_from_origin(
-                    self.origin.url, base_repo, do_remote
-                )
+            if self.credentials:
+                original_exc = None
+                for credentials in self.credentials:
+                    logger.debug(
+                        "Attempting fetch with username %s", credentials["username"]
+                    )
+                    try:
+                        with raise_not_found_repository():
+                            self.fetch_pack_from_origin(
+                                self.origin.url,
+                                base_repo,
+                                credentials=credentials,
+                            )
+                    except AuthorizationRequired as e:
+                        # Try next user
+                        original_exc = e
+                        continue
+                    except Exception as new_exc:
+                        # We've gotten a new exception; We don't need the exception
+                        # chain from the original failed authorization
+                        raise new_exc from None
+                    else:
+                        # The fetch was successful, we can stop attempting new credentials
+                        break
+                else:
+                    logger.warning(
+                        "None of our %s credentials were successful, "
+                        "marking repository as not found",
+                        len(self.credentials),
+                    )
+                    # self.credentials is non-empty and we did not break from the loop, so
+                    # original_exc was set at least once.
+                    assert original_exc is not None
+                    raise NotFound(original_exc.args[0])
+            else:
+                with raise_not_found_repository():
+                    self.fetch_pack_from_origin(self.origin.url, base_repo)
         except AuthorizationRequired as original_exc:
             if not self.credentials:
                 logger.warning(
@@ -529,73 +536,26 @@ class GitLoader(BaseGitLoader):
                 # NotFound exception
                 raise NotFound(original_exc.args[0])
 
-            logger.info(
-                "Anonymous fetch failed, using credentials to load repository at %s",
-                self.origin.url,
-            )
-            for credentials in self.credentials:
-                logger.debug(
-                    "Attempting fetch with username %s", credentials["username"]
-                )
-                try:
-                    with raise_not_found_repository():
-                        fetch_info = self.fetch_pack_from_origin(
-                            self.origin.url,
-                            base_repo,
-                            do_remote,
-                            credentials=credentials,
-                        )
-                except AuthorizationRequired:
-                    # Try next user
-                    continue
-                except Exception as new_exc:
-                    # We've gotten a new exception; We don't need the exception
-                    # chain from the original failed authorization
-                    raise new_exc from None
-                else:
-                    # The fetch was successful, we can stop attempting new credentials
-                    break
-            else:
-                logger.warning(
-                    "None of our %s credentials were successful, "
-                    "marking repository as not found",
-                    len(self.credentials),
-                )
-                raise NotFound(original_exc.args[0])
-
         except NotFound:
             # NotFound inherits from ValueError and should not be caught
             # by the next exception handler
             raise
         else:
-            # Always log what remains in the next_line_buf, if it's not empty
-            maybe_log_elision(force=True)
-            log_remote_message(next_line_buf)
+            self.remote_logger.flush()
 
-        self.pack_buffer = fetch_info.pack_buffer
-        self.pack_size = fetch_info.pack_size
-        self.remote_refs = fetch_info.remote_refs
-        self.symbolic_refs = fetch_info.symbolic_refs
-        self.pack_data = (
-            PackData.from_file(
-                file=self.pack_buffer,
-                size=self.pack_size,
-                object_format=SHA1,
-            )
-            if self.pack_size > 0
-            else None
-        )
-
-        self.ref_object_types = {sha1: None for sha1 in self.remote_refs.values()}
+        assert (
+            self.fetched_pack is not None
+        ), "fetch_pack_from_origin did not set self.fetched_pack"
+        self.ref_object_types = {sha1: None for sha1 in self.fetched_pack.refs.values()}
 
         logger.info(
             "Listed %d refs for repo %s",
-            len(self.remote_refs),
+            len(self.fetched_pack.refs),
             self.origin.url,
             extra={
                 "swh_type": "git_repo_list_refs",
                 "swh_repo": self.origin.url,
-                "swh_num_refs": len(self.remote_refs),
+                "swh_num_refs": len(self.fetched_pack.refs),
             },
         )
 
@@ -612,19 +572,21 @@ class GitLoader(BaseGitLoader):
         pack_name = "%s.pack" % self.visit_date.isoformat()
         refs_name = "%s.refs" % self.visit_date.isoformat()
 
-        assert self.pack_buffer is not None
+        assert self.fetched_pack is not None
+        assert self.fetched_pack.pack_file is not None, "packfile is empty"
+        pack_file = self.fetched_pack.pack_file
         with open(os.path.join(pack_dir, pack_name), "xb") as f:
-            self.pack_buffer.seek(0)
+            pack_file.seek(0)
             while True:
-                r = self.pack_buffer.read(write_size)
+                r = pack_file.read(write_size)
                 if not r:
                     break
                 f.write(r)
 
-        self.pack_buffer.seek(0)
+        pack_file.seek(0)
 
         with open(os.path.join(pack_dir, refs_name), "xb") as f:
-            pickle.dump(self.remote_refs, f)
+            pickle.dump(self.fetched_pack.refs, f)
 
     def _resolve_ext_ref(self, sha1: bytes) -> Tuple[int, List[bytes]]:
         """Resolve external references to git objects a pack file might contain
@@ -693,9 +655,11 @@ class GitLoader(BaseGitLoader):
 
     def get_objects(self, object_type: Optional[bytes] = None) -> Iterable[SwhObject]:
         """Read all (swh-model) objects from the packfile."""
-        if self.pack_data:
-            assert self.pack_buffer is not None
-            self.pack_buffer.seek(0)
+        assert (
+            self.fetched_pack is not None
+        ), "iter_objects called before fetch_pack_from_origin"
+        if self.fetched_pack.pack_data is not None:
+            self.fetched_pack.pack_file.seek(0)
 
             type_num_to_type_name = {
                 Blob.type_num: Blob.type_name,
@@ -710,7 +674,7 @@ class GitLoader(BaseGitLoader):
             # Using UnpackedObjectIterator instead of PackInflater to avoid unnecessary
             # deserializations, as we discard 75% of objects without reading them.
             unpacked_objects = UnpackedObjectIterator.for_pack_data(
-                self.pack_data,
+                self.fetched_pack.pack_data,
                 resolve_ext_ref=self._resolve_ext_ref,
             )
             unpacked_objects_iter = iter(unpacked_objects)
@@ -804,9 +768,11 @@ class GitLoader(BaseGitLoader):
 
         unfetched_refs: Dict[bytes, bytes] = {}
 
+        assert self.fetched_pack is not None
+
         # Retrieve types from the objects loaded by the current loader
-        for ref_name, ref_object in self.remote_refs.items():
-            if ref_name in self.symbolic_refs:
+        for ref_name, ref_object in self.fetched_pack.refs.items():
+            if ref_name in self.fetched_pack.symrefs:
                 continue
             ref_target = hashutil.hash_to_bytes(ref_object.decode())
             target_type = self.ref_object_types.get(ref_object)
@@ -822,7 +788,7 @@ class GitLoader(BaseGitLoader):
 
         dangling_branches = {}
         # Handle symbolic references as alias branches
-        for sym_ref_name, sym_ref_target in self.symbolic_refs.items():
+        for sym_ref_name, sym_ref_target in self.fetched_pack.symrefs.items():
             branches[sym_ref_name] = SnapshotBranch(
                 target_type=SnapshotTargetType.ALIAS,
                 target=sym_ref_target,
@@ -934,9 +900,9 @@ class GitLoader(BaseGitLoader):
         return {"status": ("eventful" if eventful else "uneventful")}
 
     def cleanup(self) -> None:
-        if self.pack_buffer is not None:
+        if self.fetched_pack is not None:
             try:
-                self.pack_buffer.close()
+                self.fetched_pack.pack_file.close()
             except Exception:
                 logger.exception("Failed to close pack buffer:")
         super().cleanup()
