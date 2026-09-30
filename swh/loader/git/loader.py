@@ -32,7 +32,7 @@ from dulwich.client import BundleClient, FetchPackResult
 from dulwich.errors import NotGitRepository
 from dulwich.object_format import SHA1
 from dulwich.object_store import ObjectStoreGraphWalker
-from dulwich.objects import Blob, Commit, ObjectID, Tag, Tree, sha_to_hex
+from dulwich.objects import Blob, Commit, ObjectID, ShaFile, Tag, Tree, sha_to_hex
 from dulwich.pack import PackData, UnpackedObjectIterator
 from dulwich.refs import Ref
 import requests
@@ -727,7 +727,17 @@ class GitLoader(BaseGitLoader):
                     if object_type is not None and object_type != obj_type_name:
                         continue
                     counts[obj_type_name] += 1
-                    raw_obj = unpacked_obj.sha_file()
+                    assert (
+                        unpacked_obj.obj_chunks is not None
+                    ), f"{unpacked_obj} has no chunks"
+                    raw_obj = ShaFile.from_raw_chunks(
+                        unpacked_obj.obj_type_num,
+                        unpacked_obj.obj_chunks,
+                        # 'sha' is optional, but if we compute it here with
+                        # unpacked_obj.sha() then it's cached in unpacked_obj, and
+                        # DeltaChainIterator._follow_chain can reuse the value.
+                        sha=sha_to_hex(unpacked_obj.sha()),
+                    )
 
                     if obj_type_name == Blob.type_name:
                         if raw_obj.id in self.ref_object_types:
