@@ -707,6 +707,8 @@ class GitLoader(BaseGitLoader):
             counts: dict[bytes, int] = defaultdict(int)
 
             start_time = time.monotonic()
+            # Using UnpackedObjectIterator instead of PackInflater to avoid unnecessary
+            # deserializations, as we discard 75% of objects without reading them.
             unpacked_objects = UnpackedObjectIterator.for_pack_data(
                 self.pack_data,
                 resolve_ext_ref=self._resolve_ext_ref,
@@ -720,14 +722,14 @@ class GitLoader(BaseGitLoader):
                 start_time = time.monotonic()
                 for unpacked_obj in unpacked_objects_iter:
                     assert unpacked_obj.obj_type_num
-                    obj: Optional[SwhObject] = None
-                    obj_type_name = type_num_to_type_name.get(unpacked_obj.obj_type_num)
-                    if obj_type_name:
-                        counts[obj_type_name] += 1
-                    if obj_type_name == Blob.type_name and (
-                        object_type is None or object_type == Blob.type_name
-                    ):
-                        raw_obj = unpacked_obj.sha_file()
+                    obj: SwhObject
+                    obj_type_name = type_num_to_type_name[unpacked_obj.obj_type_num]
+                    if object_type is not None and object_type != obj_type_name:
+                        continue
+                    counts[obj_type_name] += 1
+                    raw_obj = unpacked_obj.sha_file()
+
+                    if obj_type_name == Blob.type_name:
                         if raw_obj.id in self.ref_object_types:
                             self.ref_object_types[raw_obj.id] = (
                                 SnapshotTargetType.CONTENT
@@ -735,36 +737,26 @@ class GitLoader(BaseGitLoader):
                         obj = converters.dulwich_blob_to_content(
                             raw_obj, max_content_size=self.max_content_size
                         )
-                    elif obj_type_name == Tree.type_name and (
-                        object_type is None or object_type == Tree.type_name
-                    ):
-                        raw_obj = unpacked_obj.sha_file()
+                    elif obj_type_name == Tree.type_name:
                         if raw_obj.id in self.ref_object_types:
                             self.ref_object_types[raw_obj.id] = (
                                 SnapshotTargetType.DIRECTORY
                             )
                         obj = converters.dulwich_tree_to_directory(raw_obj)
-                    elif obj_type_name == Commit.type_name and (
-                        object_type is None or object_type == Commit.type_name
-                    ):
-                        raw_obj = unpacked_obj.sha_file()
+                    elif obj_type_name == Commit.type_name:
                         if raw_obj.id in self.ref_object_types:
                             self.ref_object_types[raw_obj.id] = (
                                 SnapshotTargetType.REVISION
                             )
                         obj = converters.dulwich_commit_to_revision(raw_obj)
-                    elif obj_type_name == Tag.type_name and (
-                        object_type is None or object_type == Tag.type_name
-                    ):
-                        raw_obj = unpacked_obj.sha_file()
+                    elif obj_type_name == Tag.type_name:
                         if raw_obj.id in self.ref_object_types:
                             self.ref_object_types[raw_obj.id] = (
                                 SnapshotTargetType.RELEASE
                             )
                         obj = converters.dulwich_tag_to_release(raw_obj)
 
-                    if obj is not None:
-                        objs.append(obj)
+                    objs.append(obj)
 
                     if len(objs) >= 1000:
                         break
