@@ -7,7 +7,19 @@ import collections
 import logging
 import random
 import time
-from typing import Callable, Dict, Iterable, List, Literal, Tuple, Type, Union
+from typing import (
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+)
 
 from swh.loader.core.loader import BaseLoader
 from swh.loader.core.metadata_fetchers import CredentialsType
@@ -26,6 +38,10 @@ logger = logging.getLogger(__name__)
 
 # Print a log message every LOGGING_INTERVAL
 LOGGING_INTERVAL = 180
+
+SwhObject = Union[BaseContent, Directory, Revision, Release]
+
+SwhObjectType = TypeVar("SwhObjectType")
 
 
 class BaseGitLoader(BaseLoader):
@@ -95,7 +111,7 @@ class BaseGitLoader(BaseLoader):
         """Clean up an eventual state installed for computations."""
         pass
 
-    def get_objects(self) -> Iterable[Union[BaseContent, Directory, Revision, Release]]:
+    def get_objects(self, object_type: Optional[bytes] = None) -> Iterable[SwhObject]:
         raise NotImplementedError
 
     def has_contents(self) -> bool:
@@ -104,7 +120,7 @@ class BaseGitLoader(BaseLoader):
 
     def get_contents(self) -> Iterable[BaseContent]:
         """Get the contents that need to be loaded"""
-        raise NotImplementedError
+        return cast(Iterable[BaseContent], self.get_objects(b"blob"))
 
     def has_directories(self) -> bool:
         """Checks whether we need to load directories"""
@@ -112,7 +128,7 @@ class BaseGitLoader(BaseLoader):
 
     def get_directories(self) -> Iterable[Directory]:
         """Get the directories that need to be loaded"""
-        raise NotImplementedError
+        return cast(Iterable[Directory], self.get_objects(b"tree"))
 
     def has_revisions(self) -> bool:
         """Checks whether we need to load revisions"""
@@ -120,7 +136,7 @@ class BaseGitLoader(BaseLoader):
 
     def get_revisions(self) -> Iterable[Revision]:
         """Get the revisions that need to be loaded"""
-        raise NotImplementedError
+        return cast(Iterable[Revision], self.get_objects(b"commit"))
 
     def has_releases(self) -> bool:
         """Checks whether we need to load releases"""
@@ -128,7 +144,7 @@ class BaseGitLoader(BaseLoader):
 
     def get_releases(self) -> Iterable[Release]:
         """Get the releases that need to be loaded"""
-        raise NotImplementedError
+        return cast(Iterable[Release], self.get_objects(b"tag"))
 
     def get_snapshot(self) -> Snapshot:
         """Get the snapshot that needs to be loaded"""
