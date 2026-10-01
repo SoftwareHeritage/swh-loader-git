@@ -6,6 +6,7 @@
 from collections import defaultdict
 from dataclasses import dataclass
 import datetime
+import hashlib
 import json
 import logging
 import os
@@ -596,7 +597,20 @@ class GitLoader(BaseGitLoader):
         ext_refs = self.ext_refs
         statsd_metric = "swh_loader_git_external_reference_fetch_total"
 
+        def git_manifest(obj, serialise):
+            # We need the exact object the origin has, which is recorded in
+            # raw_manifest if it differs from the canonical representation.
+            return obj.raw_manifest or serialise(obj)
+
         def set_ext_ref(type_num, manifest, swh_type):
+            # May differ for objects ingested before we started recording
+            # a raw_manifest and checking checksums when loading objects
+            if hashlib.sha1(manifest).digest() != sha1:
+                raise ValueError(
+                    f"External reference {hashutil.hash_to_hex(sha1)} "
+                    f"({swh_type}): archive bytes do not hash to the "
+                    f"requested id"
+                )
             ext_refs[sha1] = (type_num, [manifest.split(b"\x00", maxsplit=1)[1]])
             self.statsd.increment(
                 statsd_metric,
@@ -621,17 +635,23 @@ class GitLoader(BaseGitLoader):
             dir = directory_get(storage, sha1)
             if dir is not None:
                 dir.check()
-                set_ext_ref(Tree.type_num, directory_git_object(dir), "directory")
+                set_ext_ref(
+                    Tree.type_num, git_manifest(dir, directory_git_object), "directory"
+                )
         if sha1 not in ext_refs:
             rev = storage.revision_get([sha1], ignore_displayname=True)[0]
             if rev is not None:
                 rev.check()
-                set_ext_ref(Commit.type_num, revision_git_object(rev), "revision")
+                set_ext_ref(
+                    Commit.type_num, git_manifest(rev, revision_git_object), "revision"
+                )
         if sha1 not in ext_refs:
             rel = storage.release_get([sha1], ignore_displayname=True)[0]
             if rel is not None:
                 rel.check()
-                set_ext_ref(Tag.type_num, release_git_object(rel), "release")
+                set_ext_ref(
+                    Tag.type_num, git_manifest(rel, release_git_object), "release"
+                )
 
         if sha1 not in ext_refs:
             self.statsd.increment(
