@@ -413,6 +413,7 @@ class GitLoader(BaseGitLoader):
         return snapshot_get_latest(
             self.storage,
             origin_url,
+            allowed_statuses=["full"],
             visit_type=self.visit_type,
         )
 

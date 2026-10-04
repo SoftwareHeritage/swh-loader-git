@@ -690,14 +690,14 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
         assert self.loader.storage.origin_visit_get_latest.mock_calls == [
             call(
                 self.repo_url,
-                allowed_statuses=None,
+                allowed_statuses=["full"],
                 require_snapshot=True,
                 type="git",
             ),
             # As it does not already have a snapshot, fall back to the parent origin
             call(
                 f"base://{self.repo_url}",
-                allowed_statuses=None,
+                allowed_statuses=["full"],
                 require_snapshot=True,
                 type="git",
             ),
@@ -766,14 +766,14 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
         assert self.loader.storage.origin_visit_get_latest.mock_calls == [
             call(
                 self.repo_url,
-                allowed_statuses=None,
+                allowed_statuses=["full"],
                 require_snapshot=True,
                 type="git",
             ),
             # As it does not already have a snapshot, fall back to the parent origin
             call(
                 f"base://{self.repo_url}",
-                allowed_statuses=None,
+                allowed_statuses=["full"],
                 require_snapshot=True,
                 type="git",
             ),
@@ -819,7 +819,7 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             call(
                 self.repo_url,
                 type="git",
-                allowed_statuses=None,
+                allowed_statuses=["full"],
                 require_snapshot=True,
             ),
             # also fetches the parent, in case the origin was rebased on the parent
@@ -827,7 +827,7 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             call(
                 f"base://{self.repo_url}",
                 type="git",
-                allowed_statuses=None,
+                allowed_statuses=["full"],
                 require_snapshot=True,
             ),
         ]
@@ -948,14 +948,14 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
         assert self.loader.storage.origin_visit_get_latest.mock_calls == [
             call(
                 self.repo_url,
-                allowed_statuses=None,
+                allowed_statuses=["full"],
                 require_snapshot=True,
                 type="git",
             ),
             # As it does not already have a snapshot, fall back to the parent origin
             call(
                 f"base://{self.repo_url}",
-                allowed_statuses=None,
+                allowed_statuses=["full"],
                 require_snapshot=True,
                 type="git",
             ),
@@ -975,6 +975,69 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
             call("git_known_refs_percent", "h", expected_git_known_refs_percent, {}, 1),
             call("git_pack_fetched_bytes", "c", expected_pack_size, {}, 1),
+        ]
+
+    def test_load_incremental_ignores_incomplete_visits(self, mocker):
+        """Snapshots of visits that did not run to completion are not used as
+        base snapshots, neither for the origin itself nor for its parent."""
+        statsd_report = mocker.patch.object(self.loader.statsd, "_report")
+
+        now = datetime.datetime.now(tz=datetime.timezone.utc)
+        snapshot = Snapshot(
+            branches={b"refs/heads/master": SNAPSHOT1.branches[b"refs/heads/master"]}
+        )
+
+        self.loader.storage.snapshot_add([snapshot])
+        self.loader.storage.origin_add(
+            [Origin(url=f"base://{self.repo_url}"), Origin(url=self.repo_url)]
+        )
+        self.loader.storage.origin_visit_add(
+            [
+                OriginVisit(
+                    origin=f"base://{self.repo_url}", visit=42, date=now, type="git"
+                ),
+                OriginVisit(origin=self.repo_url, visit=42, date=now, type="git"),
+            ]
+        )
+        self.loader.storage.origin_visit_status_add(
+            [
+                OriginVisitStatus(
+                    origin=f"base://{self.repo_url}",
+                    visit=42,
+                    type="git",
+                    snapshot=snapshot.id,
+                    date=now,
+                    status="partial",
+                ),
+                OriginVisitStatus(
+                    origin=self.repo_url,
+                    visit=42,
+                    type="git",
+                    snapshot=snapshot.id,
+                    date=now,
+                    status="failed",
+                ),
+            ]
+        )
+        self.loader.storage.flush()
+
+        res = self.loader.load()
+        assert res == {"status": "eventful"}
+
+        assert self.loader.base_snapshots == []
+        assert self.loader.statsd.constant_tags == {
+            "visit_type": "git",
+            "incremental_enabled": True,
+            "has_parent_snapshot": False,
+            "has_previous_snapshot": False,
+            "has_parent_origins": True,
+            "has_credentials": False,
+            "transport_url_scheme": "file",
+        }
+        assert [c for c in statsd_report.mock_calls if c[1][0].startswith("git_")] == [
+            call("git_total", "c", 1, {}, 1),
+            call("git_ignored_refs_percent", "h", 0.0, {}, 1),
+            call("git_known_refs_percent", "h", 0.0, {}, 1),
         ]
 
 
