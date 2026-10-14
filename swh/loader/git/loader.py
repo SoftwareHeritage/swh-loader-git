@@ -612,6 +612,7 @@ class GitLoader(BaseGitLoader):
                     f"requested id"
                 )
             ext_refs[sha1] = (type_num, [manifest.split(b"\x00", maxsplit=1)[1]])
+            self.stats["external_references"]["found"] += 1
             self.statsd.increment(
                 statsd_metric,
                 tags={"type": swh_type, "result": "found"},
@@ -654,6 +655,7 @@ class GitLoader(BaseGitLoader):
                 )
 
         if sha1 not in ext_refs:
+            self.stats["external_references"]["not_found"] += 1
             self.statsd.increment(
                 statsd_metric,
                 tags={"type": "unknown", "result": "not_found"},
