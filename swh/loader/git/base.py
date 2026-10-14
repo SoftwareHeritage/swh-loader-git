@@ -4,11 +4,15 @@
 # See top-level LICENSE file for more information
 
 import collections
+import contextlib
+import json
 import logging
 import random
 import time
 from typing import (
+    Any,
     Callable,
+    ContextManager,
     Dict,
     Iterable,
     List,
@@ -34,6 +38,7 @@ from swh.model.model import (
     Snapshot,
 )
 
+stats_logger = logging.getLogger(f"{__name__}.stats")
 logger = logging.getLogger(__name__)
 
 # Print a log message every LOGGING_INTERVAL
@@ -74,6 +79,12 @@ class BaseGitLoader(BaseLoader):
 
         self.next_log_after = time.monotonic() + LOGGING_INTERVAL
         self.store_order = store_order
+        self.stats: Dict[str, Any] = {
+            "filtered_objects": {},
+            "external_references": {"found": 0, "not_found": 0},
+            "counts": [],
+            "timings": [],
+        }
 
     def extract_credentials(
         self,
@@ -109,7 +120,12 @@ class BaseGitLoader(BaseLoader):
 
     def cleanup(self) -> None:
         """Clean up an eventual state installed for computations."""
-        pass
+        stats_logger.info(
+            "%s",
+            json.dumps(
+                {"stats": self.stats, "tags": self.statsd.constant_tags}, indent="\t"
+            ),
+        )
 
     def get_objects(self, object_type: Optional[bytes] = None) -> Iterable[SwhObject]:
         raise NotImplementedError
@@ -285,5 +301,28 @@ class BaseGitLoader(BaseLoader):
             # average weighted by total
             self.statsd.increment("filtered_objects_total_sum", filtered, tags=tags)
             self.statsd.increment("filtered_objects_total_count", total, tags=tags)
+            self.stats["filtered_objects"][object_type] = {
+                "filtered": filtered,
+                "total": total,
+            }
 
         maybe_log_summary("After snapshot", force=True)
+
+    def statsd_timed(self, name: str, tags: Dict[str, Any] = {}) -> ContextManager:
+        super_ctx_manager = super().statsd_timed(name, tags)
+
+        @contextlib.contextmanager
+        def ctx_manager():
+            with super_ctx_manager:
+                yield super_ctx_manager
+            self.statsd_timing(name, super_ctx_manager.elapsed, tags)
+
+        return ctx_manager()
+
+    def statsd_timing(self, name: str, value: float, tags: Dict[str, Any] = {}) -> None:
+        self.stats["timings"].append({"name": name, "tags": tags, "elapsed": value})
+
+    def statsd_average(
+        self, name: str, value: Union[int, float], tags: Dict[str, Any] = {}
+    ) -> None:
+        self.stats["counts"].append({"name": name, "tags": tags, "value": value})

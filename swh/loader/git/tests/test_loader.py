@@ -141,28 +141,62 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         self.loader = GitLoader(swh_storage, self.repo_url, **extra_loader_arguments)
         self.repo = Repo(self.destination_path)
 
-    def test_metrics(self, mocker, expected_statsd_calls=None):
-        if expected_statsd_calls is None:
-            total_sum_name = "filtered_objects_total_sum"
-            total_count_name = "filtered_objects_total_count"
-            percent_name = "filtered_objects_percent"
-            expected_statsd_calls = [
-                call(percent_name, "h", 0.0, {"object_type": "content"}, 1),
-                call(total_sum_name, "c", 0, {"object_type": "content"}, 1),
-                call(total_count_name, "c", 4, {"object_type": "content"}, 1),
-                call(percent_name, "h", 0.0, {"object_type": "directory"}, 1),
-                call(total_sum_name, "c", 0, {"object_type": "directory"}, 1),
-                call(total_count_name, "c", 7, {"object_type": "directory"}, 1),
-                call(percent_name, "h", 0.0, {"object_type": "revision"}, 1),
-                call(total_sum_name, "c", 0, {"object_type": "revision"}, 1),
-                call(total_count_name, "c", 7, {"object_type": "revision"}, 1),
-                call(percent_name, "h", 0.0, {"object_type": "snapshot"}, 1),
-                call(total_sum_name, "c", 0, {"object_type": "snapshot"}, 1),
-                call(total_count_name, "c", 1, {"object_type": "snapshot"}, 1),
-            ]
+    def _statsd_calls_from_filtered_objects_stats(
+        self, expected_filtered_objects, object_types
+    ) -> list:
+        total_sum_name = "filtered_objects_total_sum"
+        total_count_name = "filtered_objects_total_count"
+        percent_name = "filtered_objects_percent"
+        expected_statsd_calls = []
+        for object_type in object_types:
+            counts = expected_filtered_objects[object_type]
+            expected_statsd_calls.extend(
+                [
+                    call(
+                        percent_name,
+                        "h",
+                        counts["filtered"] / counts["total"],
+                        {"object_type": object_type},
+                        1,
+                    ),
+                    call(
+                        total_sum_name,
+                        "c",
+                        counts["filtered"],
+                        {"object_type": object_type},
+                        1,
+                    ),
+                    call(
+                        total_count_name,
+                        "c",
+                        counts["total"],
+                        {"object_type": object_type},
+                        1,
+                    ),
+                ]
+            )
+        return expected_statsd_calls
+
+    def test_metrics(self, mocker, object_type_order=None):
+        if object_type_order is None:
+            # overridden in subclasses
+            object_type_order = ["content", "directory", "revision", "snapshot"]
+        expected_filtered_objects = {
+            "content": {"filtered": 0, "total": 4},
+            "directory": {"filtered": 0, "total": 7},
+            "revision": {"filtered": 0, "total": 7},
+            "snapshot": {"filtered": 0, "total": 1},
+        }
+        expected_statsd_calls = self._statsd_calls_from_filtered_objects_stats(
+            expected_filtered_objects, object_type_order
+        )
+
         statsd_report = mocker.patch.object(self.loader.statsd, "_report")
         res = self.loader.load()
         assert res == {"status": "eventful"}
+
+        assert self.loader.stats["filtered_objects"] == expected_filtered_objects
+        assert self.loader.stats["external_references"] == {"found": 0, "not_found": 0}
 
         # TODO: assert "incremental" is added to constant tags before these
         # metrics are sent
@@ -185,28 +219,22 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             "transport_url_scheme": "file",
         }
 
-    def test_metrics_filtered(self, mocker, expected_statsd_calls=None):
+    def test_metrics_filtered(self, mocker, object_type_order=None):
         """Tests that presence of some objects in the storage (but not referenced
         by a snapshot) is reported"""
-        if expected_statsd_calls is None:
+        if object_type_order is None:
             # overridden in subclasses
-            total_sum_name = "filtered_objects_total_sum"
-            total_count_name = "filtered_objects_total_count"
-            percent_name = "filtered_objects_percent"
-            expected_statsd_calls = [
-                call(percent_name, "h", 1 / 4, {"object_type": "content"}, 1),
-                call(total_sum_name, "c", 1, {"object_type": "content"}, 1),
-                call(total_count_name, "c", 4, {"object_type": "content"}, 1),
-                call(percent_name, "h", 3 / 7, {"object_type": "directory"}, 1),
-                call(total_sum_name, "c", 3, {"object_type": "directory"}, 1),
-                call(total_count_name, "c", 7, {"object_type": "directory"}, 1),
-                call(percent_name, "h", 2 / 7, {"object_type": "revision"}, 1),
-                call(total_sum_name, "c", 2, {"object_type": "revision"}, 1),
-                call(total_count_name, "c", 7, {"object_type": "revision"}, 1),
-                call(percent_name, "h", 0.0, {"object_type": "snapshot"}, 1),
-                call(total_sum_name, "c", 0, {"object_type": "snapshot"}, 1),
-                call(total_count_name, "c", 1, {"object_type": "snapshot"}, 1),
-            ]
+            object_type_order = ["content", "directory", "revision", "snapshot"]
+
+        expected_filtered_objects = {
+            "content": {"filtered": 1, "total": 4},
+            "directory": {"filtered": 3, "total": 7},
+            "revision": {"filtered": 2, "total": 7},
+            "snapshot": {"filtered": 0, "total": 1},
+        }
+        expected_statsd_calls = self._statsd_calls_from_filtered_objects_stats(
+            expected_filtered_objects, object_type_order
+        )
 
         known_revs = [
             converters.dulwich_commit_to_revision(self.repo[sha1])
@@ -586,6 +614,7 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
         ]
         self.fetcher_cls = MagicMock(return_value=self.fetcher)
         self.fetcher_cls.SUPPORTED_LISTERS = ["fake-lister"]
+        self.fetcher_cls.FETCHER_NAME = "fake-fetcher"
         mocker.patch(
             "swh.loader.core.metadata_fetchers._fetchers",
             return_value=[self.fetcher_cls],
