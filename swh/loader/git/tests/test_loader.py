@@ -205,6 +205,8 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             call("git_total", "c", 1, {}, 1),
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
             call("git_known_refs_percent", "h", 0.0, {}, 1),
+            call("git_pack_size_sum", "c", 1857, {}, 1),
+            call("git_pack_size_count", "c", 1, {}, 1),
         ]
         assert [
             c for c in statsd_calls if c[1][0].startswith("filtered_")
@@ -273,6 +275,8 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             call("git_total", "c", 1, {}, 1),
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
             call("git_known_refs_percent", "h", 0.0, {}, 1),
+            call("git_pack_size_sum", "c", 1857, {}, 1),
+            call("git_pack_size_count", "c", 1, {}, 1),
         ]
         assert [
             c for c in statsd_calls if c[1][0].startswith("filtered_")
@@ -664,6 +668,8 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             call("git_total", "c", 1, {}, 1),
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
             call("git_known_refs_percent", "h", 0.0, {}, 1),
+            call("git_pack_size_sum", "c", 1857, {}, 1),
+            call("git_pack_size_count", "c", 1, {}, 1),
         ]
         assert self.loader.statsd.constant_tags == {
             "visit_type": "git",
@@ -739,6 +745,8 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             call("git_total", "c", 1, {}, 1),
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
             call("git_known_refs_percent", "h", 0.25, {}, 1),
+            call("git_pack_size_sum", "c", 1437, {}, 1),
+            call("git_pack_size_count", "c", 1, {}, 1),
         ]
         assert self.loader.statsd.constant_tags == {
             "visit_type": "git",
@@ -791,6 +799,8 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             call("git_total", "c", 1, {}, 1),
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
             call("git_known_refs_percent", "h", 1.0, {}, 1),
+            call("git_pack_size_sum", "c", 32, {}, 1),
+            call("git_pack_size_count", "c", 1, {}, 1),
         ]
         assert self.loader.statsd.constant_tags == {
             "visit_type": "git",
@@ -803,7 +813,7 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
         }
 
     @pytest.mark.parametrize(
-        "parent_snapshot,previous_snapshot,expected_git_known_refs_percent",
+        "parent_snapshot,previous_snapshot,expected_git_known_refs_percent,expected_pack_size",
         [
             pytest.param(
                 Snapshot(
@@ -812,7 +822,8 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
                     }
                 ),
                 Snapshot(branches={}),
-                0.25,
+                0.25,  # expected_git_known_refs_percent
+                1437,  # expected_pack_size
                 id="partial-parent-and-empty-previous",
             ),
             pytest.param(
@@ -822,7 +833,8 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
                         b"refs/heads/master": SNAPSHOT1.branches[b"refs/heads/master"]
                     }
                 ),
-                1.0,
+                1.0,  # expected_git_known_refs_percent
+                32,  # expected_pack_size
                 id="full-parent-and-partial-previous",
             ),
         ],
@@ -832,6 +844,7 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
         parent_snapshot,
         previous_snapshot,
         expected_git_known_refs_percent,
+        expected_pack_size,
         mocker,
     ):
         """Snapshot of parent origin has all branches, but previous snapshot was
@@ -923,6 +936,8 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             call("git_total", "c", 1, {}, 1),
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
             call("git_known_refs_percent", "h", expected_git_known_refs_percent, {}, 1),
+            call("git_pack_size_sum", "c", expected_pack_size, {}, 1),
+            call("git_pack_size_count", "c", 1, {}, 1),
         ]
 
 
