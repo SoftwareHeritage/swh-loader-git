@@ -321,8 +321,10 @@ class BaseGitLoader(BaseLoader):
 
     def statsd_timing(self, name: str, value: float, tags: Dict[str, Any] = {}) -> None:
         self.stats["timings"].append({"name": name, "tags": tags, "elapsed": value})
+        super().statsd_timing(name, value, tags)
 
     def statsd_average(
         self, name: str, value: Union[int, float], tags: Dict[str, Any] = {}
     ) -> None:
         self.stats["counts"].append({"name": name, "tags": tags, "value": value})
+        super().statsd_average(name, value, tags)
