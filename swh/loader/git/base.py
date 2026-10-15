@@ -22,7 +22,6 @@ from typing import (
 )
 
 from swh.loader.core.loader import BaseLoader
-from swh.loader.core.metadata_fetchers import CredentialsType
 from swh.model.model import (
     BaseContent,
     BaseModel,
@@ -69,39 +68,39 @@ class BaseGitLoader(BaseLoader):
         super().__init__(*args, **kwargs)
 
         self.credentials = self.extract_credentials(
-            known_lister_prefixes=known_lister_prefixes, **kwargs
+            known_lister_prefixes=known_lister_prefixes
         )
 
         self.next_log_after = time.monotonic() + LOGGING_INTERVAL
         self.store_order = store_order
 
     def extract_credentials(
-        self,
-        known_lister_prefixes: Dict[str, Tuple[str, str]],
-        lister_name: str | None = None,
-        lister_instance_name: str | None = None,
-        metadata_fetcher_credentials: CredentialsType = None,
-        **kwargs,
+        self, known_lister_prefixes: Dict[str, Tuple[str, str]]
     ) -> List[Dict[str, str]]:
         """Extract credentials from the loader keyword arguments"""
         # TODO: move this to swh.loader.core.metadata_fetchers.get_fetchers_for_lister
-        if not lister_name or not lister_instance_name:
+        if not self.lister_name or not self.lister_instance_name:
             for prefix in known_lister_prefixes:
                 if self.origin.url.startswith(prefix):
-                    lister_name, lister_instance_name = known_lister_prefixes[prefix]
+                    self.lister_name, self.lister_instance_name = known_lister_prefixes[
+                        prefix
+                    ]
 
         if (
-            not lister_name
-            or not lister_instance_name
-            or not metadata_fetcher_credentials
+            not self.lister_name
+            or not self.lister_instance_name
+            or not self.metadata_fetcher_credentials
         ):
             return []
 
         if (
-            lister_name in metadata_fetcher_credentials
-            and lister_instance_name in metadata_fetcher_credentials[lister_name]
+            self.lister_name in self.metadata_fetcher_credentials
+            and self.lister_instance_name
+            in self.metadata_fetcher_credentials[self.lister_name]
         ):
-            creds = metadata_fetcher_credentials[lister_name][lister_instance_name]
+            creds = self.metadata_fetcher_credentials[self.lister_name][
+                self.lister_instance_name
+            ]
             # Copy and shuffle the list
             return random.sample(creds, k=len(creds))
 
