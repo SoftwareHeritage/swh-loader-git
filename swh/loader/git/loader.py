@@ -399,6 +399,7 @@ class GitLoader(BaseGitLoader):
             "Protocol used for communication: %s",
             "dumb" if getattr(client, "dumb", False) else "smart",
         )
+        self.statsd_increment("git_pack_fetched_bytes", pack_size)
 
         self.fetched_pack = FetchedPack(
             refs=utils.filter_refs(pack_result.refs or {}),

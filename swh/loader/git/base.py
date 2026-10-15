@@ -329,3 +329,9 @@ class BaseGitLoader(BaseLoader):
     ) -> None:
         self.stats["counts"].append({"name": name, "tags": tags, "value": value})
         super().statsd_average(name, value, tags)
+
+    def statsd_increment(
+        self, name: str, value: Union[int, float], tags: Dict[str, Any] = {}
+    ) -> None:
+        self.stats["counts"].append({"name": name, "tags": tags, "value": value})
+        self.statsd.increment(name, value, tags=tags)
