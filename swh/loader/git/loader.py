@@ -433,8 +433,6 @@ class GitLoader(BaseGitLoader):
         super().load_metadata_objects(metadata_objects)
 
     def prepare(self) -> None:
-        assert self.origin is not None
-
         self.prev_snapshot = Snapshot(branches={})
         """Last snapshot of this origin if any; empty snapshot otherwise"""
         self.base_snapshots = []
@@ -473,8 +471,6 @@ class GitLoader(BaseGitLoader):
         self.statsd.increment("git_total", tags={})
 
     def fetch_data(self) -> bool:
-        assert self.origin is not None
-
         if not self.base_snapshots and self.repo_pack_size_bytes > self.pack_size_bytes:
             raise IOError(
                 f"Pack file too big for repository {self.origin.url}, "
