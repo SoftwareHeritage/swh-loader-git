@@ -305,6 +305,8 @@ class BaseGitLoader(BaseLoader):
                 "total": total,
             }
 
+        self.stats["storage_summary"] = storage_summary
+
         maybe_log_summary("After snapshot", force=True)
 
     def statsd_timed(self, name: str, tags: Dict[str, Any] = {}) -> ContextManager:
