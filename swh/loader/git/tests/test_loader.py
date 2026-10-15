@@ -209,6 +209,29 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
         assert [
             c for c in statsd_calls if c[1][0].startswith("filtered_")
         ] == expected_statsd_calls
+        expected_counts = {
+            "content_bytes": 90,
+            "skipped_content_bytes": 0,
+            "directory_entries": 13,
+            "revision_parents": 7,
+            "revision_message_bytes": 142,
+            "release_message_bytes": 0,
+            "snapshot_branches": 6,
+        }
+        assert sorted(self.loader.stats["counts"], key=lambda d: d["name"]) == [
+            {"name": name, "tags": {}, "value": value}
+            for (name, value) in sorted(
+                [("git_pack_size", 1857)] + list(expected_counts.items())
+            )
+            if value != 0
+        ]
+        assert sorted(
+            c for c in statsd_calls if c[1][0].removesuffix("_sum") in expected_counts
+        ) == sorted(
+            call(counter + "_sum", "c", value, {}, 1)
+            for counter, value in expected_counts.items()
+            if value != 0
+        )
         assert self.loader.statsd.constant_tags == {
             "visit_type": "git",
             "incremental_enabled": True,

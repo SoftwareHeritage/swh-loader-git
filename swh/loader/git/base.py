@@ -195,49 +195,79 @@ class BaseGitLoader(BaseLoader):
             self.save_data()
 
         counts: Dict[str, int] = collections.defaultdict(int)
+        object_counts: Dict[str, int] = collections.defaultdict(int)
         storage_summary: Dict[str, int] = collections.Counter()
 
-        def sum_counts():
-            return sum(counts.values())
+        def sum_object_counts():
+            return sum(object_counts.values())
 
         def sum_storage():
-            return sum(storage_summary[f"{object_type}:add"] for object_type in counts)
+            return sum(
+                storage_summary[f"{object_type}:add"] for object_type in object_counts
+            )
 
         def maybe_log_summary(msg, force=False):
             self.maybe_log(
                 msg + ": processed %s objects, %s are new",
-                sum_counts,
+                sum_object_counts,
                 sum_storage,
                 force=force,
             )
 
+        def add_content(obj: Content):
+            object_counts["content"] += 1
+            counts["content_bytes"] += obj.length
+            storage_summary.update(self.storage.content_add([obj]))
+
+        def add_skipped_content(obj: SkippedContent):
+            object_counts["skipped_content"] += 1
+            if obj.length is not None:
+                counts["skipped_content_bytes"] += obj.length
+            storage_summary.update(self.storage.skipped_content_add([obj]))
+
+        def add_directory(directory: Directory):
+            object_counts["directory"] += 1
+            counts["directory_entries"] += len(directory.entries)
+            storage_summary.update(self.storage.directory_add([directory]))
+
+        def add_revision(revision: Revision):
+            object_counts["revision"] += 1
+            counts["revision_parents"] += len(revision.parents)
+            if revision.message is not None:
+                counts["revision_message_bytes"] += len(revision.message)
+            storage_summary.update(self.storage.revision_add([revision]))
+
+        def add_release(release: Release):
+            object_counts["release"] += 1
+            if release.message is not None:
+                counts["release_message_bytes"] += len(release.message)
+            storage_summary.update(self.storage.release_add([release]))
+
         if self.store_order == "as_origin":
-            method_and_keys: Dict[Type[BaseModel], Tuple[Callable, str]] = {
-                Content: (self.storage.content_add, "content"),
-                SkippedContent: (self.storage.skipped_content_add, "skipped_content"),
-                Directory: (self.storage.directory_add, "directory"),
-                Revision: (self.storage.revision_add, "revision"),
-                Release: (self.storage.release_add, "release"),
+            adders: Dict[Type[BaseModel], Callable] = {
+                Content: add_content,
+                SkippedContent: add_skipped_content,
+                Directory: add_directory,
+                Revision: add_revision,
+                Release: add_release,
             }
             for i, obj in enumerate(self.get_objects()):
                 if i % 1_000 == 0:
                     maybe_log_summary("In objects")
                 try:
-                    method, key = method_and_keys[type(obj)]
+                    adder = adders[type(obj)]
                 except KeyError:
                     raise TypeError(f"Unknown object type: {type(obj)!r}") from None
-                storage_summary.update(method([obj]))
-                counts[key] += 1
+                adder(obj)
+
             storage_summary.update(self.flush())
         elif self.store_order == "by_type_layers":
             if self.has_contents():
                 for obj in self.get_contents():
                     if isinstance(obj, Content):
-                        counts["content"] += 1
-                        storage_summary.update(self.storage.content_add([obj]))
+                        add_content(obj)
                     elif isinstance(obj, SkippedContent):
-                        counts["skipped_content"] += 1
-                        storage_summary.update(self.storage.skipped_content_add([obj]))
+                        add_skipped_content(obj)
                     else:
                         raise TypeError(f"Unexpected content type: {obj}")
 
@@ -248,8 +278,7 @@ class BaseGitLoader(BaseLoader):
 
             if self.has_directories():
                 for directory in self.get_directories():
-                    counts["directory"] += 1
-                    storage_summary.update(self.storage.directory_add([directory]))
+                    add_directory(directory)
                     maybe_log_summary("In directories")
 
                 storage_summary.update(self.flush())
@@ -257,8 +286,7 @@ class BaseGitLoader(BaseLoader):
 
             if self.has_revisions():
                 for revision in self.get_revisions():
-                    counts["revision"] += 1
-                    storage_summary.update(self.storage.revision_add([revision]))
+                    add_revision(revision)
                     maybe_log_summary("In revisions")
 
                 storage_summary.update(self.flush())
@@ -266,8 +294,7 @@ class BaseGitLoader(BaseLoader):
 
             if self.has_releases():
                 for release in self.get_releases():
-                    counts["release"] += 1
-                    storage_summary.update(self.storage.release_add([release]))
+                    add_release(release)
                     maybe_log_summary("In releases")
 
                 storage_summary.update(self.flush())
@@ -276,13 +303,14 @@ class BaseGitLoader(BaseLoader):
             raise ValueError(f"Unknown store_order: {self.store_order}")
 
         snapshot = self.get_snapshot()
-        counts["snapshot"] += 1
+        object_counts["snapshot"] += 1
+        counts["snapshot_branches"] += len(snapshot.branches)
         storage_summary.update(self.storage.snapshot_add([snapshot]))
 
         storage_summary.update(self.flush())
         self.loaded_snapshot_id = snapshot.id
 
-        for object_type, total in counts.items():
+        for object_type, total in object_counts.items():
             filtered = total - storage_summary[f"{object_type}:add"]
             assert 0 <= filtered <= total, (filtered, total)
 
@@ -305,6 +333,9 @@ class BaseGitLoader(BaseLoader):
                 "filtered": filtered,
                 "total": total,
             }
+
+        for counter, total in counts.items():
+            self.statsd_average(counter, total)
 
         self.stats["storage_summary"] = storage_summary
 
