@@ -197,6 +197,12 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
 
         assert self.loader.stats["filtered_objects"] == expected_filtered_objects
         assert self.loader.stats["external_references"] == {"found": 0, "not_found": 0}
+        assert self.loader.stats["task"] == {
+            "origin_url": self.repo_url,
+            "lister_name": None,
+            "lister_instance_name": None,
+            "username": None,
+        }
 
         # TODO: assert "incremental" is added to constant tags before these
         # metrics are sent
@@ -590,6 +596,20 @@ class TestGitLoader(FullGitLoaderTests, CommonGitLoaderNotFound):
             "has_credentials": credentials_used,
             "transport_url_scheme": "file",
         }
+        if credentials_used:
+            assert self.loader.stats["task"] == {
+                "origin_url": self.repo_url,
+                "lister_name": "lister",
+                "lister_instance_name": "lister-instance",
+                "username": "user",
+            }
+        else:
+            assert self.loader.stats["task"] == {
+                "origin_url": self.repo_url,
+                "lister_name": None,
+                "lister_instance_name": None,
+                "username": None,
+            }
 
         assert_last_visit_matches(
             self.loader.storage,

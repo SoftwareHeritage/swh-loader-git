@@ -83,6 +83,13 @@ class BaseGitLoader(BaseLoader):
             "external_references": {"found": 0, "not_found": 0},
             "counts": [],
             "timings": [],
+            "config": {"store_order": store_order},
+            "task": {
+                "origin_url": self.origin.url,
+                "lister_name": self.lister_name,
+                "lister_instance_name": self.lister_instance_name,
+                "username": None,
+            },
         }
 
     def extract_credentials(

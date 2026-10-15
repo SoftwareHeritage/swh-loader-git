@@ -313,6 +313,7 @@ class GitLoader(BaseGitLoader):
             )
 
         if credentials:
+            self.stats["task"]["username"] = credentials["username"]
             transport_kwargs["username"] = credentials["username"]
             if "token" in credentials:
                 logger.debug(
