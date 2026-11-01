@@ -1038,6 +1038,7 @@ class TestGitLoader2(FullGitLoaderTests, CommonGitLoaderNotFound):
             call("git_total", "c", 1, {}, 1),
             call("git_ignored_refs_percent", "h", 0.0, {}, 1),
             call("git_known_refs_percent", "h", 0.0, {}, 1),
+            call("git_pack_fetched_bytes", "c", 1857, {}, 1),
         ]
 
 
